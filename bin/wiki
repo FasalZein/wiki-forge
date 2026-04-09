@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TARGET="$0"
+while [ -L "$TARGET" ]; do
+  DIR="$(cd "$(dirname "$TARGET")" && pwd)"
+  LINK="$(readlink "$TARGET")"
+  case "$LINK" in
+    /*) TARGET="$LINK" ;;
+    *) TARGET="$DIR/$LINK" ;;
+  esac
+done
+SCRIPT_DIR="$(cd "$(dirname "$TARGET")" && pwd)"
+exec bun "$SCRIPT_DIR/../src/index.ts" "$@"

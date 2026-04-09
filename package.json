@@ -1,0 +1,32 @@
+{
+  "name": "wiki-forge",
+  "private": false,
+  "version": "0.1.0",
+  "type": "module",
+  "files": [
+    "bin",
+    "src",
+    "skills",
+    "install.sh",
+    "README.md",
+    "SETUP.md"
+  ],
+  "bin": {
+    "wiki": "./bin/wiki"
+  },
+  "scripts": {
+    "wiki": "bun src/index.ts",
+    "check": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "bun-types": "1.3.11",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "github-slugger": "2.0.0",
+    "gray-matter": "4.0.3",
+    "remark-parse": "11.0.0",
+    "unified": "11.0.5"
+  }
+}

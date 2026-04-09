@@ -1,0 +1,274 @@
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+
+const repoRoot = process.cwd();
+const tempPaths: string[] = [];
+
+function tempDir(prefix: string) {
+  const path = mkdtempSync(join(tmpdir(), `${prefix}-`));
+  tempPaths.push(path);
+  return path;
+}
+
+function runWiki(args: string[], env: Record<string, string> = {}) {
+  return Bun.spawnSync([process.execPath, "src/index.ts", ...args], {
+    cwd: repoRoot,
+    env: { ...process.env, ...env },
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+}
+
+function runGit(repo: string, args: string[]) {
+  const result = Bun.spawnSync(["git", ...args], {
+    cwd: repo,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  if (result.exitCode !== 0) {
+    throw new Error(result.stderr.toString() || `git ${args.join(" ")} failed`);
+  }
+  return result;
+}
+
+function setupVaultAndRepo() {
+  const vault = tempDir("wiki-vault");
+  const repo = tempDir("wiki-repo");
+  mkdirSync(join(vault, "projects"), { recursive: true });
+  writeFileSync(join(vault, "AGENTS.md"), "# Agents\n", "utf8");
+  writeFileSync(join(vault, "index.md"), "# Index\n", "utf8");
+  mkdirSync(join(repo, "src"), { recursive: true });
+  writeFileSync(join(repo, "src", "auth.ts"), "export const a = 1\n", "utf8");
+  mkdirSync(join(repo, "tests"), { recursive: true });
+  writeFileSync(join(repo, "tests", "other.test.ts"), "import { test, expect } from 'bun:test'\ntest('other', () => expect(1).toBe(1))\n", "utf8");
+  runGit(repo, ["init", "-q"]);
+  runGit(repo, ["add", "."]);
+  runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
+  writeFileSync(join(repo, "src", "auth.ts"), "export const a = 2\n", "utf8");
+  writeFileSync(join(repo, "tests", "other.test.ts"), "import { test, expect } from 'bun:test'\ntest('other changed', () => expect(2 - 1).toBe(1))\n", "utf8");
+  runGit(repo, ["add", "."]);
+  runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "second"]);
+  return { vault, repo };
+}
+
+function setRepoFrontmatter(vault: string, repo: string) {
+  const summaryPath = join(vault, "projects", "demo", "_summary.md");
+  const current = readFileSync(summaryPath, "utf8");
+  writeFileSync(summaryPath, current.replace("status: scaffold", `status: current\nrepo: ${repo}`), "utf8");
+}
+
+afterEach(() => {
+  while (tempPaths.length) {
+    const path = tempPaths.pop();
+    if (path) rmSync(path, { recursive: true, force: true });
+  }
+});
+
+describe("wiki CLI smoke", () => {
+  test("project maintenance flow works", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    expect(runWiki(["create-prd", "demo", "auth workflow"], env).exitCode).toBe(0);
+    expect(existsSync(join(vault, "projects", "demo", "specs", "prd-auth-workflow.md"))).toBe(true);
+    expect(runWiki(["add-task", "demo", "stabilize auth", "--priority", "p1", "--tag", "auth"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice", "--priority", "p1", "--tag", "auth"], env).exitCode).toBe(0);
+    expect(existsSync(join(vault, "projects", "demo", "specs", "plan-demo-002-auth-slice.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "demo", "specs", "test-plan-demo-002-auth-slice.md"))).toBe(true);
+    expect(runWiki(["move-task", "demo", "DEMO-001", "--to", "In Progress"], env).exitCode).toBe(0);
+    expect(runWiki(["complete-task", "demo", "DEMO-002"], env).exitCode).toBe(0);
+    const backlog = runWiki(["backlog", "demo", "--json"], env);
+    expect(backlog.exitCode).toBe(0);
+    const backlogJson = JSON.parse(backlog.stdout.toString());
+    expect(backlogJson.sections["In Progress"][0].id).toBe("DEMO-001");
+    expect(backlogJson.sections["Done"][0].id).toBe("DEMO-002");
+    expect(runWiki(["create-module", "demo", "auth", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+
+    const status = runWiki(["status", "demo", "--json"], env);
+    expect(status.exitCode).toBe(0);
+    expect(JSON.parse(status.stdout.toString())[0].project).toBe("demo");
+
+    const verify = runWiki(["verify", "demo", "--json"], env);
+    expect(verify.exitCode).toBe(0);
+    expect(JSON.parse(verify.stdout.toString()).project).toBe("demo");
+
+    const dashboard = runWiki(["dashboard", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(dashboard.exitCode).toBe(0);
+    const dashboardJson = JSON.parse(dashboard.stdout.toString());
+    expect(dashboardJson.project).toBe("demo");
+    expect(Array.isArray(dashboardJson.recentLog)).toBe(true);
+
+    const doctor = runWiki(["doctor", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(doctor.exitCode).toBe(0);
+    const doctorJson = JSON.parse(doctor.stdout.toString());
+    expect(typeof doctorJson.score).toBe("number");
+    expect(Array.isArray(doctorJson.topActions)).toBe(true);
+    expect(doctorJson.counts.missingTests).toBe(1);
+
+    const maintain = runWiki(["maintain", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(maintain.exitCode).toBe(0);
+    const maintainJson = JSON.parse(maintain.stdout.toString());
+    expect(Array.isArray(maintainJson.actions)).toBe(true);
+    expect(maintainJson.actions.length).toBeGreaterThan(0);
+    expect(maintainJson.refreshFromGit.testHealth.codeFilesWithoutChangedTests).toContain("src/auth.ts");
+    expect(maintainJson.actions.some((action: { kind: string; message: string }) => action.kind === "add-tests")).toBe(true);
+
+    const refreshFromGit = runWiki(["refresh-from-git", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(refreshFromGit.exitCode).toBe(0);
+    const rfgJson = JSON.parse(refreshFromGit.stdout.toString());
+    expect(rfgJson.changedFiles).toContain("src/auth.ts");
+    expect(rfgJson.impactedPages[0].page).toBe("modules/auth/spec.md");
+    expect(Array.isArray(rfgJson.impactedPages[0].diffSummary)).toBe(true);
+    expect(rfgJson.testHealth.changedTestFiles).toContain("tests/other.test.ts");
+    expect(rfgJson.testHealth.codeFilesWithoutChangedTests).toContain("src/auth.ts");
+
+    const gate = runWiki(["gate", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(gate.exitCode).toBe(1);
+    const gateJson = JSON.parse(gate.stdout.toString());
+    expect(gateJson.ok).toBe(false);
+    expect(gateJson.counts.missingTests).toBe(1);
+    expect(Array.isArray(gateJson.warnings)).toBe(true);
+    expect(typeof gateJson.counts.semantic).toBe("number");
+
+    const semantic = runWiki(["lint-semantic", "demo", "--json"], env);
+    expect(semantic.exitCode).toBe(1);
+    const semanticJson = JSON.parse(semantic.stdout.toString());
+    expect(Array.isArray(semanticJson.issues)).toBe(true);
+
+    const discover = runWiki(["discover", "demo", "--repo", repo, "--json"], env);
+    expect(discover.exitCode).toBe(0);
+    const discoverJson = JSON.parse(discover.stdout.toString());
+    expect(discoverJson.repoFiles).toBeGreaterThan(0);
+    expect(Array.isArray(discoverJson.unboundPages)).toBe(true);
+
+    const repo2 = tempDir("wiki-repo-uncovered");
+    mkdirSync(join(repo2, "src"), { recursive: true });
+    writeFileSync(join(repo2, "src", "payments.ts"), "export const x = 1\n", "utf8");
+    runGit(repo2, ["init", "-q"]);
+    runGit(repo2, ["add", "."]);
+    runGit(repo2, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
+    writeFileSync(join(repo2, "src", "payments.ts"), "export const x = 2\n", "utf8");
+    runGit(repo2, ["add", "."]);
+    runGit(repo2, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "second"]);
+    const result2 = runWiki(["scaffold-project", "demo2"], { KNOWLEDGE_VAULT_ROOT: vault });
+    expect(result2.exitCode).toBe(0);
+    const summary2 = join(vault, "projects", "demo2", "_summary.md");
+    writeFileSync(summary2, readFileSync(summary2, "utf8").replace("status: scaffold", `status: current\nrepo: ${repo2}`), "utf8");
+    const ingest = runWiki(["ingest-diff", "demo2", "--repo", repo2, "--base", "HEAD~1", "--json"], { KNOWLEDGE_VAULT_ROOT: vault });
+    expect(ingest.exitCode).toBe(0);
+    const ingestJson = JSON.parse(ingest.stdout.toString());
+    expect(ingestJson.created.length).toBeGreaterThan(0);
+    expect(existsSync(join(vault, "projects", "demo2", "modules", "payments", "spec.md"))).toBe(true);
+
+    const updateIndex = runWiki(["update-index", "demo", "--write"], env);
+    expect(updateIndex.exitCode).toBe(0);
+    expect(existsSync(join(vault, "projects", "demo", "specs", "index.md"))).toBe(true);
+
+    const logTail = runWiki(["log", "tail", "5"], env);
+    expect(logTail.exitCode).toBe(0);
+    expect(logTail.stdout.toString()).toContain("refresh-from-git");
+
+    // file-research
+    const research = runWiki(["file-research", "demo", "auth options comparison"], env);
+    expect(research.exitCode).toBe(0);
+    expect(research.stdout.toString()).toContain("research/demo-auth-options-comparison.md");
+    expect(existsSync(join(vault, "research", "demo-auth-options-comparison.md"))).toBe(true);
+    const researchContent = readFileSync(join(vault, "research", "demo-auth-options-comparison.md"), "utf8");
+    expect(researchContent).toContain("type: research");
+    expect(researchContent).toContain("project: demo");
+    expect(researchContent).toContain("## TL;DR");
+    expect(researchContent).toContain("[[projects/demo/_summary]]");
+
+    // file-research duplicate fails
+    const researchDup = runWiki(["file-research", "demo", "auth options comparison"], env);
+    expect(researchDup.exitCode).toBe(1);
+    expect(researchDup.stderr.toString()).toContain("already exists");
+
+    // PRD template includes Prior Research section
+    const prdContent = readFileSync(join(vault, "projects", "demo", "specs", "prd-auth-workflow.md"), "utf8");
+    expect(prdContent).toContain("## Prior Research");
+    expect(prdContent).toContain("[[research/]]");
+  });
+
+  test("gate passes when tests cover changed code", () => {
+    const vault = tempDir("wiki-vault");
+    const repo = tempDir("wiki-repo-gate-pass");
+    mkdirSync(join(vault, "projects"), { recursive: true });
+    writeFileSync(join(vault, "AGENTS.md"), "# Agents\n", "utf8");
+    writeFileSync(join(vault, "index.md"), "# Index\n", "utf8");
+    mkdirSync(join(repo, "src"), { recursive: true });
+    mkdirSync(join(repo, "tests"), { recursive: true });
+    writeFileSync(join(repo, "src", "payments.ts"), "export const pay = 1\n", "utf8");
+    writeFileSync(join(repo, "tests", "payments.test.ts"), "test('pay', () => {})\n", "utf8");
+    runGit(repo, ["init", "-q"]);
+    runGit(repo, ["add", "."]);
+    runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
+    // Change both code and its matching test
+    writeFileSync(join(repo, "src", "payments.ts"), "export const pay = 2\n", "utf8");
+    writeFileSync(join(repo, "tests", "payments.test.ts"), "test('pay v2', () => {})\n", "utf8");
+    runGit(repo, ["add", "."]);
+    runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "second"]);
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+    expect(runWiki(["scaffold-project", "gated"], env).exitCode).toBe(0);
+    // Create module and bind source path so the file is covered
+    expect(runWiki(["create-module", "gated", "payments", "--source", "src/payments.ts"], env).exitCode).toBe(0);
+    const summaryPath = join(vault, "projects", "gated", "_summary.md");
+    writeFileSync(summaryPath, readFileSync(summaryPath, "utf8").replace("status: scaffold", `status: current\nrepo: ${repo}`), "utf8");
+
+    const gate = runWiki(["gate", "gated", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(gate.exitCode).toBe(0);
+    const gateJson = JSON.parse(gate.stdout.toString());
+    expect(gateJson.ok).toBe(true);
+    expect(gateJson.counts.missingTests).toBe(0);
+    expect(gateJson.blockers).toEqual([]);
+    // Uncovered files may appear as warnings, not blockers
+    expect(Array.isArray(gateJson.warnings)).toBe(true);
+  });
+
+  test("gate reports uncovered files as warnings not blockers", () => {
+    const vault = tempDir("wiki-vault");
+    const repo = tempDir("wiki-repo-gate-warn");
+    mkdirSync(join(vault, "projects"), { recursive: true });
+    writeFileSync(join(vault, "AGENTS.md"), "# Agents\n", "utf8");
+    writeFileSync(join(vault, "index.md"), "# Index\n", "utf8");
+    mkdirSync(join(repo, "src"), { recursive: true });
+    mkdirSync(join(repo, "tests"), { recursive: true });
+    writeFileSync(join(repo, "src", "auth.ts"), "export const a = 1\n", "utf8");
+    writeFileSync(join(repo, "src", "unbound.ts"), "export const u = 1\n", "utf8");
+    writeFileSync(join(repo, "tests", "auth.test.ts"), "test('a', () => {})\n", "utf8");
+    runGit(repo, ["init", "-q"]);
+    runGit(repo, ["add", "."]);
+    runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
+    writeFileSync(join(repo, "src", "auth.ts"), "export const a = 2\n", "utf8");
+    writeFileSync(join(repo, "src", "unbound.ts"), "export const u = 2\n", "utf8");
+    writeFileSync(join(repo, "tests", "auth.test.ts"), "test('a v2', () => {})\n", "utf8");
+    runGit(repo, ["add", "."]);
+    runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "second"]);
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+    expect(runWiki(["scaffold-project", "warn"], env).exitCode).toBe(0);
+    expect(runWiki(["create-module", "warn", "auth", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+    const summaryPath = join(vault, "projects", "warn", "_summary.md");
+    writeFileSync(summaryPath, readFileSync(summaryPath, "utf8").replace("status: scaffold", `status: current\nrepo: ${repo}`), "utf8");
+
+    const gate = runWiki(["gate", "warn", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    // unbound.ts has no test companion — but auth does have one, so missingTests = 1 for unbound.ts
+    // However the key point: uncovered files are in warnings, not blockers
+    const gateJson = JSON.parse(gate.stdout.toString());
+    expect(Array.isArray(gateJson.warnings)).toBe(true);
+    expect(gateJson.warnings.some((w: string) => w.includes("not covered by wiki bindings"))).toBe(true);
+  });
+
+  test("obsidian wrapper fails clearly when obsidian CLI is unavailable", () => {
+    const vault = tempDir("wiki-vault");
+    mkdirSync(join(vault, "projects"), { recursive: true });
+    writeFileSync(join(vault, "AGENTS.md"), "# Agents\n", "utf8");
+    writeFileSync(join(vault, "index.md"), "# Index\n", "utf8");
+    const result = runWiki(["obsidian", "unresolved", "--json"], { KNOWLEDGE_VAULT_ROOT: vault, PATH: "" });
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr.toString()).toContain("obsidian CLI not found");
+  });
+});

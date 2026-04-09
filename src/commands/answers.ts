@@ -1,0 +1,250 @@
+import { dirname, join, relative } from "node:path";
+import { existsSync, writeFileSync } from "node:fs";
+import matter from "gray-matter";
+import { VAULT_ROOT } from "../constants";
+import { orderFrontmatter, projectRoot, mkdirIfMissing, readProjectTitle } from "../cli-shared";
+import { buildEvidenceExcerpt, buildScopedNoteIndex, findNoteByVaultPath, fromQmdFile, normalizePath, stripMarkdownExtension } from "../lib/notes";
+import { assertQmdAvailable, buildStructuredHybridQuery, captureQmdJsonCached } from "../lib/qmd";
+import { appendLogEntry } from "../lib/log";
+import type { AnswerBrief, AnswerSource, AskOptions, NoteIndex, QmdResult } from "../types";
+
+export async function askProject(args: string[]) {
+  assertQmdAvailable();
+  const options = parseAskOptions(args);
+  const brief = await buildAnswerBrief(options);
+  console.log(renderAnswerBrief(brief));
+}
+
+export async function fileAnswer(args: string[]) {
+  assertQmdAvailable();
+  const options = parseAskOptions(args);
+  const brief = await buildAnswerBrief(options);
+  const outputPath = resolveAnswerOutputPath(options.project, options.question, options.slug);
+  mkdirIfMissing(dirname(outputPath));
+  const contents = renderAnswerNote(brief);
+  const existed = existsSync(outputPath);
+  writeFileSync(outputPath, contents, "utf8");
+  appendLogEntry("file-answer", options.question, { project: options.project, details: [`path=${relative(VAULT_ROOT, outputPath)}`] });
+  console.log(`${existed ? "updated" : "created"} ${relative(VAULT_ROOT, outputPath)}`);
+  console.log(renderAnswerBrief(brief));
+}
+
+function parseAskOptions(args: string[]): AskOptions {
+  let expand = false;
+  let maxResults = 6;
+  let slug: string | undefined;
+  let project: string | undefined;
+  const questionParts: string[] = [];
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--expand") {
+      expand = true;
+      continue;
+    }
+    if (arg === "-n" || arg === "--max-results") {
+      const value = args[index + 1];
+      if (!value) throw new Error(`missing ${arg} value`);
+      maxResults = parsePositiveInteger(value, arg);
+      index += 1;
+      continue;
+    }
+    if (arg === "--slug") {
+      const value = args[index + 1];
+      if (!value) throw new Error("missing slug");
+      slug = slugify(value);
+      index += 1;
+      continue;
+    }
+    if (!project) {
+      project = arg;
+      continue;
+    }
+    questionParts.push(arg);
+  }
+
+  if (!project) throw new Error("missing project");
+  const question = questionParts.join(" ").trim().replace(/\s+/g, " ");
+  if (!question) throw new Error("missing question");
+  return { project, question, expand, maxResults, slug };
+}
+
+async function buildAnswerBrief(options: AskOptions): Promise<AnswerBrief> {
+  const root = projectRoot(options.project);
+  if (!existsSync(root)) throw new Error(`project not found: ${options.project}`);
+
+  const retrievalQuery = options.expand ? options.question : buildProjectAwareQuery(options.project, options.question);
+  const maxCandidates = Math.max(10, options.maxResults * 3);
+  const qmdResults = await captureQmdJsonCached(
+    ["query", retrievalQuery, "-c", "knowledge", "--json", "-n", String(maxCandidates)],
+    `answer:${options.project}:${options.expand ? "expand" : "structured"}:${options.question}:${maxCandidates}`,
+  );
+  const noteIndex = buildScopedNoteIndex(qmdResults.map((result) => fromQmdFile(result.file)));
+  const sources = qmdResults
+    .map((result) => toAnswerSource(options.project, options.question, result, noteIndex))
+    .filter((result, index, results) => results.findIndex((entry) => entry.vaultPath === result.vaultPath) === index)
+    .sort((left, right) => (right.adjustedScore !== left.adjustedScore ? right.adjustedScore - left.adjustedScore : right.result.score - left.result.score));
+
+  const allPrimarySources = sources.filter((source) => source.scope === "project");
+  const strongPrimarySources = allPrimarySources.filter((source) => source.evidence.score >= 2);
+  const primarySources = (strongPrimarySources.length >= 2 ? strongPrimarySources : allPrimarySources).slice(0, options.maxResults);
+  const supportingSources = sources.filter((source) => source.scope !== "project").slice(0, Math.min(3, options.maxResults));
+  const answerSources = strongPrimarySources.length ? strongPrimarySources.slice(0, options.maxResults) : [...primarySources];
+
+  return {
+    project: options.project,
+    question: options.question,
+    projectTitle: readProjectTitle(options.project),
+    retrievalMode: options.expand ? "expand" : "structured-hybrid",
+    retrievalQuery,
+    answerSources,
+    primarySources,
+    supportingSources,
+  };
+}
+
+function buildProjectAwareQuery(project: string, question: string) {
+  const cleanQuestion = question.replace(/\s+/g, " ").trim();
+  return [`intent: Answer a question about project ${project}. Prefer maintained docs under projects/${project}/ and related wiki pages.`, `lex: ${cleanQuestion}`, `vec: ${cleanQuestion}`].join("\n");
+}
+
+function toAnswerSource(project: string, question: string, result: QmdResult, noteIndex: NoteIndex): AnswerSource {
+  const markdownPath = fromQmdFile(result.file);
+  const vaultPath = stripMarkdownExtension(markdownPath);
+  const note = findNoteByVaultPath(noteIndex, vaultPath);
+  const scope = classifyAnswerScope(project, markdownPath);
+  const evidence = buildEvidenceExcerpt(note, result, question);
+  const adjustedScore = scoreAnswerSource(project, markdownPath, scope, result.score, evidence.score);
+  return { result, adjustedScore, markdownPath, vaultPath, scope, note, evidence };
+}
+
+function classifyAnswerScope(project: string, markdownPath: string): AnswerSource["scope"] {
+  const normalized = normalizePath(markdownPath).toLowerCase();
+  const projectPrefix = `projects/${project.toLowerCase()}/`;
+  if (normalized.startsWith(projectPrefix)) return "project";
+  if (normalized.startsWith("wiki/")) return "wiki";
+  if (normalized.startsWith("research/") && normalized.includes(`${project.toLowerCase()}-`)) return "project";
+  if (normalized === "index.md" || normalized === "log.md" || normalized.startsWith("specs/") || normalized.startsWith("tools/") || normalized.startsWith("skills/") || normalized.startsWith("research/")) return "meta";
+  return "other";
+}
+
+function scoreAnswerSource(project: string, markdownPath: string, scope: AnswerSource["scope"], score: number, evidenceScore: number) {
+  let adjusted = score;
+  if (scope === "project") adjusted += 1.2;
+  else if (scope === "wiki") adjusted += 0.2;
+  else if (scope === "meta") adjusted -= 0.9;
+
+  const normalized = normalizePath(markdownPath).toLowerCase();
+  if (normalized === `projects/${project.toLowerCase()}/_summary.md`) adjusted += 0.4;
+  if (normalized.endsWith("/spec.md")) adjusted += 0.25;
+  if (normalized.endsWith("/readme.md")) adjusted -= 0.2;
+  if (normalized.endsWith("/backlog.md") || normalized.includes("/verification/")) adjusted += 0.1;
+  return adjusted + evidenceScore * 0.35;
+}
+
+function renderAnswerBrief(brief: AnswerBrief) {
+  const lines = [`Question: ${brief.question}`, `Project: ${brief.projectTitle} (${brief.project})`, `Mode: ${brief.retrievalMode}`, "", "Routing:", "- [[index]]", `- [[projects/${brief.project}/_summary|${brief.project} summary]]`, "", "Answer Brief:"];
+  for (const source of brief.answerSources) lines.push(`- ${renderAnswerBullet(source, brief.question)}`);
+  lines.push("", "Primary Sources:");
+  for (const [index, source] of brief.primarySources.entries()) lines.push(`${index + 1}. ${renderSourceReference(source)}`);
+  if (brief.supportingSources.length) {
+    lines.push("", "Supporting Sources:");
+    for (const [index, source] of brief.supportingSources.entries()) lines.push(`${index + 1}. ${renderSourceReference(source)}`);
+  }
+  return lines.join("\n");
+}
+
+function renderAnswerNote(brief: AnswerBrief) {
+  const sources = brief.answerSources.length ? brief.answerSources : [...brief.primarySources, ...brief.supportingSources];
+  const data = orderFrontmatter({ title: `${brief.projectTitle} - ${brief.question}`, type: "synthesis", project: brief.project, updated: new Date().toISOString().slice(0, 10), status: "current", question: brief.question, retrieval_mode: brief.retrievalMode, source_paths: sources.map((source) => source.note ? normalizePath(relative(VAULT_ROOT, source.note.absolutePath)) : source.markdownPath).filter((value, index, values) => values.indexOf(value) === index) }, ["title", "type", "project", "updated", "status", "question", "retrieval_mode", "source_paths"]);
+  const body = [`# ${brief.projectTitle} - ${brief.question}`, "", "## Question", "", brief.question, "", "## Answer", "", ...brief.answerSources.map((source) => `- ${renderAnswerBullet(source, brief.question)}`), "", "## Sources", "", ...sources.map((source, index) => `${index + 1}. ${renderSourceReference(source)}`), "", "## Retrieval", "", "| Field | Value |", "|-------|-------|", `| Mode | ${brief.retrievalMode} |`, `| Query | \`${brief.retrievalMode === "expand" ? brief.question : "project-aware lex+vec"}\` |`, "", "```text", brief.retrievalQuery, "```", "", "## Cross Links", "", "- [[index]]", `- [[projects/${brief.project}/_summary|${brief.project} summary]]`, "- [[wiki/concepts/project-wiki-system]]", ...sources.map((source) => `- ${renderSourceLink(source)}`), ""].join("\n");
+  return matter.stringify(body, data);
+}
+
+function renderAnswerBullet(source: AnswerSource, question: string) {
+  const evidence = source.evidence.score > 0 ? source.evidence : buildEvidenceExcerpt(source.note, source.result, question);
+  const citation = evidence.lineNumber ? `${renderSourceLink(source)}:${evidence.lineNumber}` : renderSourceLink(source);
+  return `${citation} - ${evidence.text}`;
+}
+
+function renderSourceReference(source: AnswerSource) {
+  return `${renderSourceLink(source)} | ${source.scope} | ${Math.round(source.result.score * 100)}%`;
+}
+
+function renderSourceLink(source: AnswerSource) {
+  return source.note ? `[[${source.note.vaultPath}|${source.result.title}]]` : `\`${source.markdownPath}\``;
+}
+
+function truncate(value: string, maxLength: number) {
+  return value.length <= maxLength ? value : `${value.slice(0, maxLength - 3).trimEnd()}...`;
+}
+
+function resolveAnswerOutputPath(project: string, question: string, slug?: string) {
+  return join(VAULT_ROOT, "wiki", "syntheses", `${project}-${slug ?? slugify(question)}.md`);
+}
+
+function slugify(value: string) {
+  const normalized = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").replace(/-{2,}/g, "-");
+  return truncate(normalized || "answer", 72).replace(/[^a-z0-9-]+/g, "");
+}
+
+export function fileResearch(args: string[]) {
+  const project = args[0];
+  const title = args.slice(1).join(" ").trim();
+  if (!project) throw new Error("missing project");
+  if (!title) throw new Error("missing title");
+  const root = projectRoot(project);
+  if (!existsSync(root)) throw new Error(`project not found: ${project}`);
+  const slug = slugify(title);
+  const researchDir = join(VAULT_ROOT, "research");
+  mkdirIfMissing(researchDir);
+  const outputPath = join(researchDir, `${project}-${slug}.md`);
+  if (existsSync(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
+  const data = orderFrontmatter({
+    title,
+    type: "research",
+    project,
+    updated: new Date().toISOString().slice(0, 10),
+    status: "draft",
+  }, ["title", "type", "project", "updated", "status"]);
+  const body = [
+    `# ${title}`,
+    "",
+    "## TL;DR",
+    "",
+    "",
+    "",
+    "## Key Findings",
+    "",
+    "### Finding 1",
+    "",
+    "",
+    "",
+    "## Landscape / Comparison",
+    "",
+    "",
+    "",
+    "## Open Questions",
+    "",
+    "- ",
+    "",
+    "## Sources",
+    "",
+    "[1] ",
+    "",
+    "## Cross Links",
+    "",
+    `- [[projects/${project}/_summary]]`,
+    `- [[projects/${project}/backlog]]`,
+    "",
+  ].join("\n");
+  writeFileSync(outputPath, matter.stringify(body, data), "utf8");
+  appendLogEntry("file-research", title, { project, details: [`path=${relative(VAULT_ROOT, outputPath)}`] });
+  console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
+}
+
+function parsePositiveInteger(value: string, label: string) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`invalid ${label}: ${value}`);
+  return parsed;
+}
