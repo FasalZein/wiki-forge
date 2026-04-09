@@ -98,10 +98,13 @@ Use `forge` only if you want that extra process. For many repos, the core value 
 - repo understanding / maintenance: `wiki maintain`
 
 Typical wiki trigger phrases should route to contextual maintenance, not blind note rewrites:
-- "update wiki"
-- "refresh memory"
-- "sync docs"
+- "wiki refresh" / "wiki closeout"
+- "update project wiki"
+- "refresh project docs from code"
 - "close out this slice"
+- "run wiki maintenance"
+
+Avoid generic phrases like "refresh memory" (clashes with Claude Code auto-memory), "sync docs" (ambiguous with Notion/Confluence), or bare "update wiki" (ambiguous with GitHub wiki). Always include "wiki", "project", or "slice" for unambiguous routing.
 
 That means this exact sequence:
 

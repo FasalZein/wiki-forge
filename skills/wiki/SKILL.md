@@ -13,12 +13,17 @@ Code is the source of truth. The wiki is compiled memory maintained by agents �
 When code changes, the wiki updates. When the wiki drifts, the CLI catches it.
 
 Trigger this skill for requests like:
-- "update the wiki"
-- "refresh memory"
-- "sync docs"
-- "close this out"
-- "refresh project notes"
-- "update knowledge from code/tests"
+- "wiki refresh" / "wiki closeout"
+- "update project wiki"
+- "refresh project docs from code"
+- "close out this slice"
+- "run wiki maintenance"
+- "sync wiki from code/tests"
+
+Do NOT trigger on generic phrases that could mean something else:
+- "refresh memory" → could mean Claude Code auto-memory; ignore unless "wiki" is mentioned
+- "sync docs" → could mean Notion, Confluence, etc.; ignore unless "wiki" or "project" is mentioned
+- "update wiki" alone → could mean GitHub wiki; require "project" context or explicit `/wiki`
 
 Treat those as contextual maintenance requests, not blind keyword matches. The concrete closeout sequence is:
 
@@ -149,7 +154,7 @@ How to identify modules: look for directories that own a distinct concern — a 
 
 ### 2. Refresh Docs After Code Changes
 
-Use this when the user asks to update the wiki, refresh memory, sync docs, or close out a slice.
+Use this when the user asks to update the project wiki, run wiki maintenance, refresh project docs from code, or close out a slice.
 
 ```text
 1. wiki maintain <project> --base <rev>
