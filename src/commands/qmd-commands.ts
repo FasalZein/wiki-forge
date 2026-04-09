@@ -1,4 +1,4 @@
-import { assertQmdAvailable, ensureKnowledgeCollection, queryKnowledge, runQmd, searchKnowledge } from "../lib/qmd";
+import { assertQmdAvailable, buildLexicalSearchQuery, classifyRetrievalIntent, ensureKnowledgeCollection, queryKnowledge, runQmd, searchKnowledge } from "../lib/qmd";
 
 export async function searchVault(args: string[]) {
   assertQmdAvailable();
@@ -20,7 +20,15 @@ export async function queryVault(args: string[]) {
     throw new Error("missing query");
   }
 
-  await queryKnowledge(query, { expand });
+  if (expand) {
+    await queryKnowledge(query, { expand: true });
+    return;
+  }
+  if (classifyRetrievalIntent(query) === "location") {
+    await searchKnowledge(buildLexicalSearchQuery(query), { hybrid: false });
+    return;
+  }
+  await queryKnowledge(query, { expand: false });
 }
 
 export async function qmdStatus() {

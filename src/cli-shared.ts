@@ -72,7 +72,7 @@ Notes:
   - Use the /research skill for actual investigation; wiki research/source commands only file, scaffold, ingest, and lint research artifacts in the vault
   - search uses qmd full-text search by default
   - search --hybrid is supported, but query is the preferred hybrid retrieval command
-  - query uses qmd hybrid retrieval via structured lex+vec query by default
+  - query routes simple location/structure lookups to the faster lexical path; otherwise it uses qmd structured lex+vec retrieval
   - backlog reads project tasks by section
   - add-task appends a tracked task to backlog.md with a generated project task ID
   - move-task / complete-task update task state in backlog.md
@@ -91,6 +91,7 @@ Notes:
   - log appends/tails chronological wiki operations in log.md
   - wiki obsidian ... wraps a small app-dependent Obsidian CLI surface for vault-aware UI actions
   - ask reranks qmd results toward projects/<project>/ and prints a citation-ready brief
+  - ask routes simple location/structure questions to a faster project-aware BM25 path and keeps structured hybrid retrieval for broader/rationale questions
   - file-answer saves an ask brief into wiki/syntheses/
   - use grouped commands: wiki research ..., wiki source ...
   - research file scaffolds a project research note into research/projects/<project>/ by default; it does not perform the research step

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { DEFAULT_CANDIDATE_LIMITS, parseCandidateLimitsArg } from "../scripts/qmd-bench";
 import { resolveQmdIndexPath } from "../src/constants";
 import { classifyAnswerScope, scoreAnswerSource } from "../src/commands/answers";
-import { buildStructuredHybridQuery, normalizeSemanticQueryText } from "../src/lib/qmd";
+import { buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText } from "../src/lib/qmd";
 
 describe("qmd query shaping", () => {
   test("normalizes hyphenated project names for semantic queries", () => {
@@ -26,6 +26,27 @@ describe("qmd query shaping", () => {
       "lex: how does qmd fit",
       "vec: how does qmd fit",
     ].join("\n"));
+  });
+});
+
+describe("retrieval intent routing", () => {
+  test("classifies location questions", () => {
+    expect(classifyRetrievalIntent("where do PRDs live")).toBe("location");
+    expect(classifyRetrievalIntent("which file owns auth routing")).toBe("location");
+  });
+
+  test("classifies rationale questions", () => {
+    expect(classifyRetrievalIntent("why did we move specs into task folders")).toBe("rationale");
+    expect(classifyRetrievalIntent("compare the tradeoffs of qmd search vs query")).toBe("rationale");
+  });
+
+  test("leaves other questions as general", () => {
+    expect(classifyRetrievalIntent("how does verification work")).toBe("general");
+  });
+
+  test("builds a tighter lexical query for location questions", () => {
+    expect(buildLexicalSearchQuery("where do PRDs live")).toBe("PRDs prd spec specs");
+    expect(buildLexicalSearchQuery("which file owns auth routing")).toContain("file");
   });
 });
 

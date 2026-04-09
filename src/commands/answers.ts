@@ -5,7 +5,7 @@ import { VAULT_ROOT } from "../constants";
 import { orderFrontmatter, projectRoot, mkdirIfMissing, readProjectTitle } from "../cli-shared";
 import { writeText } from "../lib/fs";
 import { buildEvidenceExcerpt, buildScopedNoteIndex, findNoteByVaultPath, fromQmdFile, normalizePath, stripMarkdownExtension } from "../lib/notes";
-import { assertQmdAvailable, buildStructuredHybridQuery, normalizeSemanticQueryText, queryKnowledge } from "../lib/qmd";
+import { assertQmdAvailable, buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText, queryKnowledge, searchKnowledgeJson } from "../lib/qmd";
 import { appendLogEntry } from "../lib/log";
 import { questionTokens } from "../lib/research";
 import { createResearchPage } from "./research";
@@ -76,14 +76,32 @@ async function buildAnswerBrief(options: AskOptions): Promise<AnswerBrief> {
   const root = projectRoot(options.project);
   if (!existsSync(root)) throw new Error(`project not found: ${options.project}`);
 
-  const retrievalQuery = options.expand ? options.question : buildProjectAwareQuery(options.project, options.question);
   const maxCandidates = Math.max(10, options.maxResults * 3);
-  const qmdResults = await queryKnowledge(retrievalQuery, {
-    expand: true,
-    json: true,
-    maxResults: maxCandidates,
-    cacheKeyPrefix: `answer:${options.project}`,
-  });
+  const intent = classifyRetrievalIntent(options.question);
+  const retrievalMode = options.expand ? "expand" : intent === "location" ? "bm25" : "structured-hybrid";
+  const retrievalQuery = options.expand
+    ? options.question
+    : retrievalMode === "bm25"
+      ? buildProjectAwareLexicalQuery(options.project, options.question)
+      : buildProjectAwareQuery(options.project, options.question);
+  const qmdResults = options.expand
+    ? await queryKnowledge(retrievalQuery, {
+        expand: true,
+        json: true,
+        maxResults: maxCandidates,
+        cacheKeyPrefix: `answer:${options.project}:expand`,
+      })
+    : retrievalMode === "bm25"
+      ? await searchKnowledgeJson(retrievalQuery, {
+          maxResults: maxCandidates,
+          cacheKeyPrefix: `answer:${options.project}:bm25`,
+        })
+      : await queryKnowledge(retrievalQuery, {
+          expand: false,
+          json: true,
+          maxResults: maxCandidates,
+          cacheKeyPrefix: `answer:${options.project}:structured`,
+        });
   const noteIndex = await buildScopedNoteIndex(qmdResults.map((result) => fromQmdFile(result.file)));
   const sources = qmdResults
     .map((result) => toAnswerSource(options.project, options.question, result, noteIndex))
@@ -100,7 +118,7 @@ async function buildAnswerBrief(options: AskOptions): Promise<AnswerBrief> {
     project: options.project,
     question: options.question,
     projectTitle: readProjectTitle(options.project),
-    retrievalMode: options.expand ? "expand" : "structured-hybrid",
+    retrievalMode,
     retrievalQuery,
     answerSources,
     primarySources,
@@ -117,6 +135,13 @@ function buildProjectAwareQuery(project: string, question: string) {
     `lex: ${projectTerms} ${cleanQuestion}`,
     `vec: ${normalizeSemanticQueryText(`${cleanQuestion} ${projectTerms}`)}`,
   ].join("\n");
+}
+
+function buildProjectAwareLexicalQuery(project: string, question: string) {
+  const projectTerms = normalizeSemanticQueryText(project).split(/\s+/u).filter(Boolean);
+  const terms = [...buildLexicalSearchQuery(question).split(/\s+/u).filter(Boolean), ...projectTerms];
+  const deduped = terms.filter((term, index) => terms.indexOf(term) === index);
+  return deduped.join(" ").trim() || question;
 }
 
 function questionPrefersResearch(question: string) {
@@ -196,7 +221,7 @@ function renderAnswerBrief(brief: AnswerBrief) {
 function renderAnswerNote(brief: AnswerBrief) {
   const sources = brief.answerSources.length ? brief.answerSources : [...brief.primarySources, ...brief.supportingSources];
   const data = orderFrontmatter({ title: `${brief.projectTitle} - ${brief.question}`, type: "synthesis", project: brief.project, updated: new Date().toISOString().slice(0, 10), status: "current", question: brief.question, retrieval_mode: brief.retrievalMode, source_paths: sources.map((source) => source.note ? normalizePath(relative(VAULT_ROOT, source.note.absolutePath)) : source.markdownPath).filter((value, index, values) => values.indexOf(value) === index) }, ["title", "type", "project", "updated", "status", "question", "retrieval_mode", "source_paths"]);
-  const body = [`# ${brief.projectTitle} - ${brief.question}`, "", "## Question", "", brief.question, "", "## Answer", "", ...brief.answerSources.map((source) => `- ${renderAnswerBullet(source, brief.question)}`), "", "## Sources", "", ...sources.map((source, index) => `${index + 1}. ${renderSourceReference(source)}`), "", "## Retrieval", "", "| Field | Value |", "|-------|-------|", `| Mode | ${brief.retrievalMode} |`, `| Query | \`${brief.retrievalMode === "expand" ? brief.question : "project-aware lex+vec"}\` |`, "", "```text", brief.retrievalQuery, "```", "", "## Cross Links", "", "- [[index]]", `- [[projects/${brief.project}/_summary|${brief.project} summary]]`, "- [[wiki/concepts/project-wiki-system]]", ...sources.map((source) => `- ${renderSourceLink(source)}`), ""].join("\n");
+  const body = [`# ${brief.projectTitle} - ${brief.question}`, "", "## Question", "", brief.question, "", "## Answer", "", ...brief.answerSources.map((source) => `- ${renderAnswerBullet(source, brief.question)}`), "", "## Sources", "", ...sources.map((source, index) => `${index + 1}. ${renderSourceReference(source)}`), "", "## Retrieval", "", "| Field | Value |", "|-------|-------|", `| Mode | ${brief.retrievalMode} |`, `| Query | \`${brief.retrievalMode === "expand" ? brief.question : brief.retrievalMode === "bm25" ? "project-aware lexical" : "project-aware lex+vec"}\` |`, "", "```text", brief.retrievalQuery, "```", "", "## Cross Links", "", "- [[index]]", `- [[projects/${brief.project}/_summary|${brief.project} summary]]`, "- [[wiki/concepts/project-wiki-system]]", ...sources.map((source) => `- ${renderSourceLink(source)}`), ""].join("\n");
   return matter.stringify(body, data);
 }
 

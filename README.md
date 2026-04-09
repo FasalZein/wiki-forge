@@ -1,6 +1,6 @@
 # wiki-forge
 
-A local-first [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) — persistent, compounding knowledge maintained by agents.
+A local-first second brain for humans and LLMs — persistent, compounding knowledge maintained in markdown.
 
 The wiki sits between you and your source materials (code, research, docs). Agents handle the bookkeeping — cross-references, consistency, indexing, drift detection. You curate sources, ask questions, and think about meaning.
 
@@ -42,7 +42,7 @@ The installer sets up bun, links the CLI, configures your shell, and creates the
 
 ## Skills
 
-`forge` depends on companion skills. Install both the repo skills and the external workflow skills it chains into.
+The repo ships a small set of skills for maintaining the knowledge repository and, if you want, running a more opinionated planning workflow around it.
 
 Repo skills from GitHub:
 
@@ -52,7 +52,7 @@ npx skills@latest add FasalZein/wiki-forge/skills/wiki -g
 npx skills@latest add FasalZein/wiki-forge/skills/prd-to-slices -g
 ```
 
-Companion workflow skills from `mattpocock/skills`:
+Optional companion skills from `mattpocock/skills`:
 
 ```bash
 npx skills@latest add mattpocock/skills/grill-me -g
@@ -70,19 +70,21 @@ npx skills@latest add ./skills/prd-to-slices -g
 
 | Skill | Invoke | Purpose |
 |-------|--------|---------|
-| **forge** | `/forge` | Workflow orchestrator for non-trivial delivery work: compose research → grill → PRD → slices → TDD → wiki verify |
+| **forge** | `/forge` | Optional orchestration layer for teams that want a stricter planning and implementation loop around the wiki |
 | **wiki** | `/wiki` | CLI reference for wiki, research, raw-source, drift, and verification operations |
-| **prd-to-slices** | `/prd-to-slices` | Breaks PRDs into vertical slices in the wiki backlog |
-| **grill-me** | `/grill-me` | Stress-tests a plan before the PRD is written |
-| **write-a-prd** | `/write-a-prd` | Captures the PRD that forge expects before slicing |
-| **tdd** | `/tdd` | Drives the red-green-refactor loop forge expects for implementation |
+| **prd-to-slices** | `/prd-to-slices` | Breaks a larger plan into smaller tracked slices in the wiki backlog |
+| **grill-me** | `/grill-me` | Stress-tests a plan before you commit it to the knowledge base |
+| **write-a-prd** | `/write-a-prd` | Captures a durable planning note when you want formal project intent |
+| **tdd** | `/tdd` | Optional implementation discipline for code changes that are tracked from the wiki |
 
-`forge` is not the research system and not the wiki itself. It is the delivery workflow that coordinates the separate skills/layers:
+`forge` is not the research system and not the wiki itself. It is an optional coordination layer:
 - `research` = actual evidence gathering, comparison, and investigation
 - `wiki` = maintained knowledge + verification/drift/gate operations
-- `forge` = the policy/workflow that says when to use research, grill, PRD, slices, TDD, and wiki verify together
+- `forge` = an opinionated wrapper for teams that want those steps tied together
 
-Use `forge` only for work that actually needs that pipeline. For smaller tasks, prefer the smallest fitting path:
+Use `forge` only if you want that extra process. For many repos, the core value is just the maintained memory itself:
+- knowledge maintenance: `wiki`
+- research capture: `research` + `wiki research ...`
 - small code fix: `tdd` + `wiki`
 - wiki/note cleanup: `wiki` + `obsidian-markdown`
 - repo understanding / maintenance: `wiki maintain`
@@ -101,13 +103,13 @@ These are separate layers in the same system:
 
 - **Wiki layer** — maintained project memory in `~/Knowledge`
 - **Research layer** — filed evidence and source-backed notes under `research/` and `raw/`
-- **Forge layer** — the delivery workflow for turning evidence into implemented, tested, verified slices
+- **Forge layer** — an optional workflow layer some teams use on top of the knowledge repository
 
-Run the `/research` skill for the actual research work, then file the result into the research layer. Forge should consume that research layer and update the wiki layer. It should not own either one.
+Run the `/research` skill for the actual research work, then file the result into the research layer. If you use forge, it should consume that research layer and update the wiki layer. It should not own either one.
 
-## Dogfooding Forge on wiki-forge
+## Optional Forge Workflow
 
-Use forge as the workflow. Use `/research` for the investigation itself, and use wiki research/source commands to store the artifacts underneath it.
+If you want a stricter process around implementation, use forge as the wrapper. Use `/research` for the investigation itself, and use wiki research/source commands to store the artifacts underneath it.
 
 ```bash
 # run actual research first
@@ -126,7 +128,7 @@ wiki verify-page wiki-forge <page> code-verified
 wiki gate wiki-forge --repo "$PWD" --base <rev>
 ```
 
-That is the intended relationship: forge orchestrates; `/research` investigates; wiki research/source commands store and curate the outputs.
+That is the intended relationship: the wiki is the memory, `/research` investigates, and forge is optional orchestration.
 
 ## Guardrails
 
@@ -149,7 +151,7 @@ wiki ingest-diff <project>            # auto-append change digests to impacted p
 
 # Query
 wiki search "query"                   # full-text search
-wiki query "question"                 # hybrid lex+vec retrieval
+wiki query "question"                 # auto-routes structural lookups to lexical search, otherwise uses hybrid lex+vec retrieval
 wiki ask <project> "question"         # project-scoped Q&A with citations
 wiki research file <project> <title>   # file a research note after running /research
 wiki research scaffold <topic>         # create a research topic container

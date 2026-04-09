@@ -11,6 +11,8 @@ type QmdCapture = {
   stderr: string;
 };
 
+export type RetrievalIntent = "location" | "rationale" | "general";
+
 let qmdAvailable: boolean | null = null;
 
 const DEFAULT_KNOWLEDGE_CONTEXTS = [
@@ -92,6 +94,36 @@ export function buildStructuredHybridQuery(query: string, options?: { intent?: s
   return lines.join("\n");
 }
 
+export function classifyRetrievalIntent(query: string): RetrievalIntent {
+  const normalized = query.toLowerCase().replace(/\s+/g, " ").trim();
+  if (/(^|\b)(where|which|what)\b/u.test(normalized) && /(\b(file|files|doc|docs|page|pages|module|modules|spec|specs|prd|prds|slice|slices|task|tasks|folder|folders|route|routes)\b|\blive\b|\blocated\b|\bimplemented\b|\bdefined\b|\bstored\b|\bkept\b|\bowned\b)/u.test(normalized)) {
+    return "location";
+  }
+  if (/(^|\b)(why|compare|comparison|tradeoff|tradeoffs|decision|decisions|rationale|history|landscape)\b/u.test(normalized)) {
+    return "rationale";
+  }
+  return "general";
+}
+
+export function buildLexicalSearchQuery(query: string) {
+  const normalizedQuestion = query.toLowerCase();
+  const baseTerms = query
+    .split(/[^a-z0-9-]+/iu)
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .filter((token) => token.length >= 3)
+    .filter((token) => !/^(where|which|what|does|do|how|live|lives|about|into|with|from|this|that|there)$/u.test(token.toLowerCase()));
+  const hints: string[] = [];
+  if (/\bprds?\b/u.test(normalizedQuestion)) hints.push("prd", "spec", "specs");
+  if (/\b(slice|task)\b/u.test(normalizedQuestion)) hints.push("slice", "task", "specs", "plan", "test-plan");
+  if (/\b(module|modules)\b/u.test(normalizedQuestion)) hints.push("module", "spec");
+  if (/\b(file|files|doc|docs|page|pages)\b/u.test(normalizedQuestion)) hints.push("docs", "page", "spec");
+  if (/\b(decision|decisions|forge)\b/u.test(normalizedQuestion)) hints.push("decisions", "forge");
+  const terms = [...baseTerms, ...hints];
+  const deduped = terms.filter((term, index) => terms.indexOf(term) === index);
+  return deduped.join(" ").trim() || query;
+}
+
 function isRecoverableStructuredQueryError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   return message.includes("Negation (-term) is not supported in vec/hyde queries");
@@ -113,6 +145,25 @@ export async function searchKnowledge(query: string, options?: { hybrid?: boolea
     const fallbackCacheKey = `${cacheKey}:expand-fallback`;
     if (options?.writeOutput === false) return captureQmd(fallbackArgs);
     await runQmdCached(fallbackArgs, fallbackCacheKey);
+  }
+}
+
+export async function searchKnowledgeJson(query: string, options?: { hybrid?: boolean; maxResults?: number; cacheKeyPrefix?: string; }): Promise<QmdResult[]> {
+  assertQmdAvailable();
+  const hybrid = options?.hybrid ?? false;
+  const args = hybrid
+    ? ["query", buildStructuredHybridQuery(query), "-c", "knowledge", "--json"]
+    : ["search", query, "-c", "knowledge", "--json"];
+  if (typeof options?.maxResults === "number") args.push("-n", String(options.maxResults));
+  const cachePrefix = options?.cacheKeyPrefix ?? (hybrid ? "search-json:hybrid" : "search-json");
+  const cacheKey = `${cachePrefix}:${query}:${options?.maxResults ?? "default"}`;
+  try {
+    return await captureQmdJsonCached(args, cacheKey);
+  } catch (error) {
+    if (!hybrid || !isRecoverableStructuredQueryError(error)) throw error;
+    const fallbackArgs = ["query", query, "-c", "knowledge", "--json"];
+    if (typeof options?.maxResults === "number") fallbackArgs.push("-n", String(options.maxResults));
+    return captureQmdJsonCached(fallbackArgs, `${cacheKey}:expand-fallback`);
   }
 }
 
