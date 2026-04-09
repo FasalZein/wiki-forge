@@ -10,10 +10,10 @@ export function printHelp() {
 Usage:
   wiki research scaffold <topic>
   wiki research status [topic] [--json]
-  wiki research ingest <topic> <source-url-or-path> [--title <title>]
+  wiki research ingest <topic> <source-url-or-path...> [--title <title>]
   wiki research lint [topic] [--json]
   wiki research file <project> [--topic <topic>] <title...>
-  wiki source ingest <path-or-url> [--topic <topic>] [--title <title>] [--bucket <name>]
+  wiki source ingest <path-or-url...> [--topic <topic>] [--title <title>] [--bucket <name>]
 
   wiki scaffold-project <project>
   wiki backlog <project> [--json]
@@ -60,7 +60,7 @@ Usage:
   wiki search [--hybrid] <query...>
   wiki bind <project> <module-or-page> <source-path...> [--dry-run]
   wiki drift-check <project> [--repo <path>] [--show-unbound] [--fix] [--json]
-  wiki verify-page <project> <module-or-page> <level> [--dry-run]
+  wiki verify-page <project> <module-or-page...> <level> [--dry-run]
   wiki verify-page <project> --all <level> [--dry-run]
   wiki migrate-verification <project>
   wiki cache-clear

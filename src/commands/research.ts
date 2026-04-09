@@ -37,141 +37,145 @@ export async function researchStatus(args: string[]) {
 }
 
 export async function ingestResearch(args: string[]) {
-  const { topic, source, title } = parseIngestResearchArgs(args);
+  const { topic, sources, title } = parseIngestResearchArgs(args);
   const normalizedTopic = normalizeTopicPath(topic);
   await ensureResearchTopic(normalizedTopic);
-  const slug = deriveSourceSlug(source);
-  const outputPath = researchPagePath(normalizedTopic, slug);
-  if (existsSync(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
-  const sourceType = detectResearchSourceType(source);
-  const sourceField = /^https?:\/\//iu.test(source) ? { url: source } : { path: source };
-  const data = orderFrontmatter({
-    title: title ?? deriveSourceTitle(source),
-    type: "research",
-    topic: normalizedTopic,
-    status: "draft",
-    source_type: sourceType,
-    sources: [{ ...sourceField, accessed: today(), claim: "TODO: capture the specific claim supported by this source." }],
-    updated: today(),
-    verification_level: "unverified",
-  }, ["title", "type", "topic", "project", "status", "source_type", "sources", "updated", "verification_level"]);
-  const body = [
-    `# ${data.title}`,
-    "",
-    "## Source Summary",
-    "",
-    `- Source: ${source}`,
-    "- Why it matters: ",
-    "",
-    "## TL;DR",
-    "",
-    "",
-    "",
-    "## Key Findings",
-    "",
-    "- ",
-    "",
-    "## Claims To Verify",
-    "",
-    "- ",
-    "",
-    "## Sources",
-    "",
-    `[1] ${source}`,
-    "",
-    "## Cross Links",
-    "",
-    ...topicCrossLinks(normalizedTopic),
-    "",
-  ].join("\n");
-  writeNormalizedPage(outputPath, body, data);
-  appendLogEntry("ingest-research", data.title as string, { details: [`topic=${normalizedTopic}`, `path=${relative(VAULT_ROOT, outputPath)}`] });
-  console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
+  for (const source of sources) {
+    const slug = deriveSourceSlug(source);
+    const outputPath = researchPagePath(normalizedTopic, slug);
+    if (existsSync(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
+    const sourceType = detectResearchSourceType(source);
+    const sourceField = /^https?:\/\//iu.test(source) ? { url: source } : { path: source };
+    const data = orderFrontmatter({
+      title: title ?? deriveSourceTitle(source),
+      type: "research",
+      topic: normalizedTopic,
+      status: "draft",
+      source_type: sourceType,
+      sources: [{ ...sourceField, accessed: today(), claim: "TODO: capture the specific claim supported by this source." }],
+      updated: today(),
+      verification_level: "unverified",
+    }, ["title", "type", "topic", "project", "status", "source_type", "sources", "updated", "verification_level"]);
+    const body = [
+      `# ${data.title}`,
+      "",
+      "## Source Summary",
+      "",
+      `- Source: ${source}`,
+      "- Why it matters: ",
+      "",
+      "## TL;DR",
+      "",
+      "",
+      "",
+      "## Key Findings",
+      "",
+      "- ",
+      "",
+      "## Claims To Verify",
+      "",
+      "- ",
+      "",
+      "## Sources",
+      "",
+      `[1] ${source}`,
+      "",
+      "## Cross Links",
+      "",
+      ...topicCrossLinks(normalizedTopic),
+      "",
+    ].join("\n");
+    writeNormalizedPage(outputPath, body, data);
+    appendLogEntry("ingest-research", data.title as string, { details: [`topic=${normalizedTopic}`, `path=${relative(VAULT_ROOT, outputPath)}`] });
+    console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
+  }
 }
 
 export async function ingestSource(args: string[]) {
-  const { source, topic, title, bucket } = parseIngestSourceArgs(args);
+  const { sources, topic, title, bucket } = parseIngestSourceArgs(args);
   const normalizedTopic = normalizeTopicPath(topic ?? "sources/inbox");
   await ensureResearchTopic(normalizedTopic);
-  const resolvedBucket = bucket ?? inferRawBucket(source);
-  const rawDir = rawBucketDir(resolvedBucket);
-  const rawPath = rawPathForSource(source, resolvedBucket);
-  const outputPath = researchPagePath(normalizedTopic, deriveSourceSlug(source));
-  if (existsSync(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
-  mkdirIfMissing(rawDir);
-  if (existsSync(rawPath)) throw new Error(`raw source already exists: ${relative(VAULT_ROOT, rawPath)}`);
+  for (const source of sources) {
+    const resolvedBucket = bucket ?? inferRawBucket(source);
+    const rawDir = rawBucketDir(resolvedBucket);
+    const rawPath = rawPathForSource(source, resolvedBucket);
+    const outputPath = researchPagePath(normalizedTopic, deriveSourceSlug(source));
+    if (existsSync(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
+    mkdirIfMissing(rawDir);
+    if (existsSync(rawPath)) throw new Error(`raw source already exists: ${relative(VAULT_ROOT, rawPath)}`);
 
-  if (/^https?:\/\//iu.test(source)) {
-    const rawTitle = title ?? deriveSourceTitle(source);
-    const rawData = orderFrontmatter({
-      title: rawTitle,
-      type: "raw-source",
-      source_url: source,
-      bucket: resolvedBucket,
-      captured: today(),
-      immutable: true,
-    }, ["title", "type", "source_url", "bucket", "captured", "immutable"]);
-    const rawBody = [
-      `# ${rawTitle}`,
+    if (/^https?:\/\//iu.test(source)) {
+      const rawTitle = title ?? deriveSourceTitle(source);
+      const rawData = orderFrontmatter({
+        title: rawTitle,
+        type: "raw-source",
+        source_url: source,
+        bucket: resolvedBucket,
+        captured: today(),
+        immutable: true,
+      }, ["title", "type", "source_url", "bucket", "captured", "immutable"]);
+      const rawBody = [
+        `# ${rawTitle}`,
+        "",
+        "## Source",
+        "",
+        `- URL: ${source}`,
+        "- Capture note: URL pointer only. Original content remains external.",
+        "",
+      ].join("\n");
+      writeNormalizedPage(rawPath, rawBody, rawData);
+    } else {
+      if (!existsSync(source)) throw new Error(`source path not found: ${source}`);
+      copyFileSync(source, rawPath);
+    }
+
+    const sourceLabel = /^https?:\/\//iu.test(source) ? source : relative(process.cwd(), source);
+    const rawLink = `[[${rawVaultPath(rawPath)}]]`;
+    const sourceType = detectResearchSourceType(source);
+    const data = orderFrontmatter({
+      title: title ?? deriveSourceTitle(source),
+      type: "research",
+      topic: normalizedTopic,
+      status: "draft",
+      source_type: sourceType,
+      sources: [{ raw: rawVaultPath(rawPath), accessed: today(), claim: "TODO: capture the specific claim supported by this source." }],
+      updated: today(),
+      verification_level: "unverified",
+    }, ["title", "type", "topic", "project", "status", "source_type", "sources", "updated", "verification_level"]);
+    const body = [
+      `# ${data.title}`,
       "",
-      "## Source",
+      "## Source Summary",
       "",
-      `- URL: ${source}`,
-      "- Capture note: URL pointer only. Original content remains external.",
+      `- Source input: ${sourceLabel}`,
+      `- Raw note: ${rawLink}`,
+      "",
+      "## TL;DR",
+      "",
+      "",
+      "",
+      "## Key Findings",
+      "",
+      `-  [1] ${rawLink}`,
+      "",
+      "## Claims To Verify",
+      "",
+      `-  ${rawLink}`,
+      "",
+      "## Sources",
+      "",
+      `1. ${rawLink}`,
+      "",
+      "## Cross Links",
+      "",
+      ...topicCrossLinks(normalizedTopic),
       "",
     ].join("\n");
-    writeNormalizedPage(rawPath, rawBody, rawData);
-  } else {
-    if (!existsSync(source)) throw new Error(`source path not found: ${source}`);
-    copyFileSync(source, rawPath);
+    writeNormalizedPage(outputPath, body, data);
+    appendLogEntry("ingest-source", data.title as string, { details: [`topic=${normalizedTopic}`, `raw=${relative(VAULT_ROOT, rawPath)}`, `path=${relative(VAULT_ROOT, outputPath)}`] });
+    console.log(`created ${relative(VAULT_ROOT, rawPath)}`);
+    console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
   }
-
-  const sourceLabel = /^https?:\/\//iu.test(source) ? source : relative(process.cwd(), source);
-  const rawLink = `[[${rawVaultPath(rawPath)}]]`;
-  const sourceType = detectResearchSourceType(source);
-  const data = orderFrontmatter({
-    title: title ?? deriveSourceTitle(source),
-    type: "research",
-    topic: normalizedTopic,
-    status: "draft",
-    source_type: sourceType,
-    sources: [{ raw: rawVaultPath(rawPath), accessed: today(), claim: "TODO: capture the specific claim supported by this source." }],
-    updated: today(),
-    verification_level: "unverified",
-  }, ["title", "type", "topic", "project", "status", "source_type", "sources", "updated", "verification_level"]);
-  const body = [
-    `# ${data.title}`,
-    "",
-    "## Source Summary",
-    "",
-    `- Source input: ${sourceLabel}`,
-    `- Raw note: ${rawLink}`,
-    "",
-    "## TL;DR",
-    "",
-    "",
-    "",
-    "## Key Findings",
-    "",
-    `-  [1] ${rawLink}`,
-    "",
-    "## Claims To Verify",
-    "",
-    `-  ${rawLink}`,
-    "",
-    "## Sources",
-    "",
-    `1. ${rawLink}`,
-    "",
-    "## Cross Links",
-    "",
-    ...topicCrossLinks(normalizedTopic),
-    "",
-  ].join("\n");
-  writeNormalizedPage(outputPath, body, data);
-  appendLogEntry("ingest-source", data.title as string, { details: [`topic=${normalizedTopic}`, `raw=${relative(VAULT_ROOT, rawPath)}`, `path=${relative(VAULT_ROOT, outputPath)}`] });
-  console.log(`created ${relative(VAULT_ROOT, rawPath)}`);
-  console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
 }
 
 export async function lintResearch(args: string[]) {
@@ -282,27 +286,54 @@ export async function collectResearchLintResult(topic?: string) {
 
 function parseIngestResearchArgs(args: string[]) {
   const topic = args[0];
-  const source = args[1];
   requireValue(topic, "topic");
-  requireValue(source, "source");
-  const titleIndex = args.indexOf("--title");
-  const title = titleIndex >= 0 ? args[titleIndex + 1] : undefined;
-  return { topic, source, title };
+  const sources: string[] = [];
+  let title: string | undefined;
+  for (let index = 1; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--title") {
+      title = args[index + 1];
+      index += 1;
+      continue;
+    }
+    sources.push(arg);
+  }
+  if (title) requireValue(title, "title");
+  if (!sources.length) throw new Error("missing source");
+  if (title && sources.length > 1) throw new Error("--title only supports a single source");
+  return { topic, sources, title };
 }
 
 function parseIngestSourceArgs(args: string[]) {
-  const source = args[0];
-  requireValue(source, "source");
-  const topicIndex = args.indexOf("--topic");
-  const titleIndex = args.indexOf("--title");
-  const bucketIndex = args.indexOf("--bucket");
-  const topic = topicIndex >= 0 ? args[topicIndex + 1] : undefined;
-  const title = titleIndex >= 0 ? args[titleIndex + 1] : undefined;
-  const bucket = bucketIndex >= 0 ? args[bucketIndex + 1] : undefined;
-  if (topicIndex >= 0) requireValue(topic, "topic");
-  if (titleIndex >= 0) requireValue(title, "title");
-  if (bucketIndex >= 0) requireValue(bucket, "bucket");
-  return { source, topic, title, bucket };
+  const sources: string[] = [];
+  let topic: string | undefined;
+  let title: string | undefined;
+  let bucket: string | undefined;
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--topic") {
+      topic = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--title") {
+      title = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--bucket") {
+      bucket = args[index + 1];
+      index += 1;
+      continue;
+    }
+    sources.push(arg);
+  }
+  if (!sources.length) throw new Error("missing source");
+  if (topic !== undefined) requireValue(topic, "topic");
+  if (title !== undefined) requireValue(title, "title");
+  if (bucket !== undefined) requireValue(bucket, "bucket");
+  if (title && sources.length > 1) throw new Error("--title only supports a single source");
+  return { sources, topic, title, bucket };
 }
 
 async function buildResearchInboundCounts() {

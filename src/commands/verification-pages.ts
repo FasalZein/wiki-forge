@@ -36,9 +36,9 @@ export async function verifyPage(args: string[]) {
   const dryRun = args.includes("--dry-run");
   const filteredArgs = args.filter((arg) => arg !== "--dry-run");
   const project = filteredArgs[0];
-  const levelArg = filteredArgs[2];
   requireValue(project, "project");
   if (filteredArgs[1] === "--all") {
+    const levelArg = filteredArgs[2];
     requireValue(levelArg, "level");
     if (!isValidVerificationLevel(levelArg)) throw new Error(`invalid level: ${levelArg}`);
     const pages = walkMarkdown(projectRoot(project));
@@ -46,14 +46,18 @@ export async function verifyPage(args: string[]) {
     for (const page of pages) if (await applyVerificationLevel(page, levelArg, dryRun)) updatedCount += 1;
     return console.log(`${dryRun ? "would update" : "updated"} ${updatedCount} page(s) for ${project}`);
   }
-  const pageArg = filteredArgs[1];
-  const level = filteredArgs[2];
-  requireValue(pageArg, "module-or-page");
+  const level = filteredArgs[filteredArgs.length - 1];
+  const pageArgs = filteredArgs.slice(1, -1);
   requireValue(level, "level");
+  if (!pageArgs.length) throw new Error("missing module-or-page");
   if (!isValidVerificationLevel(level)) throw new Error(`invalid level: ${level}`);
-  const wikiFilePath = resolveWikiPagePath(projectRoot(project), pageArg);
-  assertExists(wikiFilePath, `wiki page not found: ${relative(VAULT_ROOT, wikiFilePath)}`);
-  await applyVerificationLevel(wikiFilePath, level, dryRun, relative(VAULT_ROOT, wikiFilePath));
+  let updatedCount = 0;
+  for (const pageArg of pageArgs) {
+    const wikiFilePath = resolveWikiPagePath(projectRoot(project), pageArg);
+    assertExists(wikiFilePath, `wiki page not found: ${relative(VAULT_ROOT, wikiFilePath)}`);
+    if (await applyVerificationLevel(wikiFilePath, level, dryRun, relative(VAULT_ROOT, wikiFilePath))) updatedCount += 1;
+  }
+  if (pageArgs.length > 1) console.log(`${dryRun ? "would update" : "updated"} ${updatedCount} page(s) for ${project}`);
 }
 
 export async function migrateVerification(project: string | undefined) {

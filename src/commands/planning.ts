@@ -2,9 +2,10 @@ import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { mkdirIfMissing, orderFrontmatter, projectRoot, requireValue, today, writeNormalizedPage } from "../cli-shared";
+import { writeProjectIndex } from "./index-log";
 
-export function createPrd(args: string[]) {
-  const outputPath = createSpecDocument(args, "prd", [
+export async function createPrd(args: string[]) {
+  const outputPath = await createSpecDocument(args, "prd", [
     "# {{title}}",
     "",
     "## Problem",
@@ -47,8 +48,8 @@ export function createPrd(args: string[]) {
   console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
 }
 
-export function createPlan(args: string[]) {
-  const outputPath = createSpecDocument(args, "plan", [
+export async function createPlan(args: string[]) {
+  const outputPath = await createSpecDocument(args, "plan", [
     "# {{title}}",
     "",
     "## Scope",
@@ -87,8 +88,8 @@ export function createPlan(args: string[]) {
   console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
 }
 
-export function createTestPlan(args: string[]) {
-  const outputPath = createSpecDocument(args, "test-plan", [
+export async function createTestPlan(args: string[]) {
+  const outputPath = await createSpecDocument(args, "test-plan", [
     "# {{title}}",
     "",
     "## Scope Under Test",
@@ -144,12 +145,14 @@ export function createSpecDocumentInternal(project: string, kind: "prd" | "plan"
   return outputPath;
 }
 
-function createSpecDocument(args: string[], kind: "prd" | "plan" | "test-plan", templateLines: string[]) {
+async function createSpecDocument(args: string[], kind: "prd" | "plan" | "test-plan", templateLines: string[]) {
   const project = args[0];
   const name = args.slice(1).join(" ").trim();
   requireValue(project, "project");
   requireValue(name || undefined, "name");
-  return createSpecDocumentInternal(project, kind, name, templateLines);
+  const outputPath = createSpecDocumentInternal(project, kind, name, templateLines);
+  await writeProjectIndex(project);
+  return outputPath;
 }
 
 export function slugify(value: string) {

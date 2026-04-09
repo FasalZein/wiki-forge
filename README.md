@@ -125,9 +125,9 @@ wiki ask <project> "question"         # project-scoped Q&A with citations
 wiki research file <project> <title>   # scaffold project research page
 wiki research scaffold <topic>         # create a research topic container
 wiki research status [topic]           # research coverage/health summary
-wiki research ingest <topic> <source>  # scaffold a source-backed research page
-wiki research lint [topic]             # lint research evidence and freshness
-wiki source ingest <path-or-url>       # ingest immutable raw source + linked summary
+wiki research ingest <topic> <source...> # scaffold one or many source-backed research pages
+wiki research lint [topic]              # lint research evidence and freshness
+wiki source ingest <path-or-url...>     # ingest one or many raw sources + linked summaries
 
 # Lint
 wiki lint <project>                   # structural: frontmatter, wikilinks, headings
@@ -137,7 +137,7 @@ wiki gate <project>                   # pass/fail quality check
 
 # Maintain
 wiki drift-check <project>            # stale + deleted + renamed source paths
-wiki verify-page <project> <page> <level>
+wiki verify-page <project> <page...> <level>
 wiki update-index <project> --write
 wiki bind <project> <page> <paths>    # link wiki page to source code
 

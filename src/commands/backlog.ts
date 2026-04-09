@@ -4,10 +4,11 @@ import { VAULT_ROOT } from "../constants";
 import { assertExists, projectRoot, requireValue } from "../cli-shared";
 import { readText, writeText } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
+import { writeProjectIndex } from "./index-log";
 import { createSpecDocumentInternal } from "./planning";
 
 type BacklogItem = { raw: string; id: string; title: string };
-type ParsedBacklog = { intro: string[]; sections: Record<string, BacklogItem[]>; order: string[] };
+type ParsedBacklog = { intro: string[]; sections: Record<string, BacklogItem[]>; extras: Record<string, string[]>; order: string[] };
 
 export async function backlogCommand(args: string[]) {
   const project = args[0];
@@ -94,6 +95,7 @@ export async function createIssueSlice(args: string[]) {
     "- [[projects/{{project}}/backlog]]",
   ], taskId);
 
+  await writeProjectIndex(options.project);
   appendLogEntry("create-issue-slice", options.title, { project: options.project, details: [`task=${taskId}`, `plan=${relative(VAULT_ROOT, planPath)}`, `test=${relative(VAULT_ROOT, testPlanPath)}`] });
   const result = { project: options.project, taskId, section: options.section, title: options.title, backlogPath: relative(VAULT_ROOT, backlogPath), planPath: relative(VAULT_ROOT, planPath), testPlanPath: relative(VAULT_ROOT, testPlanPath) };
   if (options.json) console.log(JSON.stringify(result, null, 2));
@@ -198,20 +200,26 @@ function parseBacklog(backlog: string): ParsedBacklog {
   const lines = backlog.split("\n");
   const intro: string[] = [];
   const sections: Record<string, BacklogItem[]> = {};
+  const extras: Record<string, string[]> = {};
   const order: string[] = [];
   let currentSection: string | null = null;
   for (const line of lines) {
     const heading = line.match(/^##\s+(.+)$/);
     if (heading) {
       currentSection = heading[1].trim();
-      if (!sections[currentSection]) { sections[currentSection] = []; order.push(currentSection); }
+      if (!sections[currentSection]) {
+        sections[currentSection] = [];
+        extras[currentSection] = [];
+        order.push(currentSection);
+      }
       continue;
     }
     if (!currentSection) { intro.push(line); continue; }
     const task = line.match(/^- \[ \] \*\*([A-Z0-9-]+)\*\*\s+(.*)$/);
     if (task) sections[currentSection].push({ raw: line, id: task[1], title: task[2] });
+    else if (line.trim()) extras[currentSection].push(line);
   }
-  return { intro, sections, order };
+  return { intro, sections, extras, order };
 }
 
 function serializeBacklog(parsed: ParsedBacklog) {
@@ -219,6 +227,7 @@ function serializeBacklog(parsed: ParsedBacklog) {
   for (const section of parsed.order) {
     out.push(`## ${section}`, "");
     for (const item of parsed.sections[section] ?? []) out.push(item.raw);
+    for (const line of parsed.extras[section] ?? []) out.push(line);
     out.push("");
   }
   return `${out.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd()}\n`;
