@@ -433,6 +433,24 @@ describe("wiki CLI smoke", () => {
     expect(gateJson.warnings.some((warning: string) => warning.includes("repo markdown doc"))).toBe(true);
   });
 
+  test("lint fails for misplaced project docs outside the canonical structure", () => {
+    const vault = tempDir("wiki-vault");
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+    mkdirSync(join(vault, "projects"), { recursive: true });
+    writeFileSync(join(vault, "AGENTS.md"), "# Agents\n", "utf8");
+    writeFileSync(join(vault, "index.md"), "# Index\n", "utf8");
+
+    expect(runWiki(["scaffold-project", "strict"], env).exitCode).toBe(0);
+    mkdirSync(join(vault, "projects", "strict", "notes"), { recursive: true });
+    writeFileSync(join(vault, "projects", "strict", "notes", "random.md"), "# Random\n", "utf8");
+
+    const lint = runWiki(["lint", "strict", "--json"], env);
+    expect(lint.exitCode).toBe(1);
+    const lintJson = JSON.parse(lint.stdout.toString());
+    expect(Array.isArray(lintJson.issues)).toBe(true);
+    expect(lintJson.issues.some((issue: string) => issue.includes("invalid project doc path"))).toBe(true);
+  });
+
   test("grouped research and source commands require subcommands", () => {
     const resultResearch = runWiki(["research"]);
     expect(resultResearch.exitCode).toBe(1);

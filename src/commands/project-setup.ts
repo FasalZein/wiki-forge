@@ -4,6 +4,7 @@ import matter from "gray-matter";
 import { MODULE_REQUIRED_HEADINGS, PROJECT_DIRS, PROJECT_FILES, VAULT_ROOT } from "../constants";
 import { assertExists, mkdirIfMissing, moduleTitle, normalizeFrontmatterFormatting, nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, scaffoldFile, today, writeNormalizedPage } from "../cli-shared";
 import { readText, writeText } from "../lib/fs";
+import { projectModuleSpecPath, projectOnboardingPlanPath, projectSpecsDir } from "../lib/structure";
 import {
   defaultCrossLinksSection,
   defaultDataModelSection,
@@ -41,8 +42,8 @@ export async function onboardProject(args: string[]) {
   const options = parseOnboardPlanOptions(args);
   scaffoldProject(options.project);
   if (options.repo) {
-    const outputPath = join(projectRoot(options.project), "specs", "onboarding-plan.md");
-    mkdirIfMissing(join(projectRoot(options.project), "specs"));
+    const outputPath = projectOnboardingPlanPath(options.project);
+    mkdirIfMissing(projectSpecsDir(options.project));
     await writeText(outputPath, renderOnboardingPlan(options.project, options.repo));
     console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
   }
@@ -53,8 +54,8 @@ export async function onboardPlan(args: string[]) {
   const options = parseOnboardPlanOptions(args);
   const rendered = renderOnboardingPlan(options.project, options.repo);
   if (!options.write) return console.log(rendered);
-  const outputPath = join(projectRoot(options.project), "specs", "onboarding-plan.md");
-  mkdirIfMissing(join(projectRoot(options.project), "specs"));
+  const outputPath = projectOnboardingPlanPath(options.project);
+  mkdirIfMissing(projectSpecsDir(options.project));
   await writeText(outputPath, rendered);
   console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
 }
@@ -71,7 +72,7 @@ export function createModule(args: string[]) {
 }
 
 export function createModuleInternal(project: string, moduleName: string, sourcePaths: string[]) {
-  const specPath = join(projectRoot(project), "modules", moduleName, "spec.md");
+  const specPath = projectModuleSpecPath(project, moduleName);
   mkdirIfMissing(join(projectRoot(project), "modules", moduleName));
   if (existsSync(specPath)) throw new Error(`module spec already exists: ${relative(VAULT_ROOT, specPath)}`);
   const data = orderFrontmatter({ title: moduleTitle(moduleName), type: "module", project, module: moduleName, created_at: nowIso(), updated: nowIso(), status: "current", verification_level: "scaffold", ...(sourcePaths.length ? { source_paths: sourcePaths.map((value) => value.replaceAll("\\", "/")) } : {}) }, ["title", "type", "project", "module", "created_at", "updated", "status", "verification_level", "source_paths"]);
@@ -96,7 +97,7 @@ export async function normalizeModule(args: string[]) {
   const write = args.includes("--write");
   requireValue(project, "project");
   requireValue(moduleName, "module");
-  const specPath = join(projectRoot(project), "modules", moduleName, "spec.md");
+  const specPath = projectModuleSpecPath(project, moduleName);
   assertExists(specPath, `module spec not found: ${relative(VAULT_ROOT, specPath)}`);
   const parsed = safeMatter(specPath, await readText(specPath));
   if (!parsed) throw new Error(`unable to parse frontmatter for ${relative(VAULT_ROOT, specPath)}`);

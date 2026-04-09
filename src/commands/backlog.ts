@@ -4,6 +4,7 @@ import { VAULT_ROOT } from "../constants";
 import { assertExists, mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, writeNormalizedPage } from "../cli-shared";
 import { readText, writeText } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
+import { projectTaskDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath, toVaultWikilinkPath } from "../lib/structure";
 import { writeProjectIndex } from "./index-log";
 
 type BacklogItem = { raw: string; id: string; title: string };
@@ -45,11 +46,11 @@ export async function createIssueSlice(args: string[]) {
   await writeText(backlogPath, insertTaskIntoSection(current, options.section, taskLine));
 
   const title = `${taskId.toLowerCase()} ${options.title}`;
-  const taskSpecsDir = join(projectRoot(options.project), "specs", taskId);
+  const taskSpecsDir = projectTaskDir(options.project, taskId);
   mkdirIfMissing(taskSpecsDir);
-  const indexPath = join(taskSpecsDir, "index.md");
-  const planPath = join(taskSpecsDir, "plan.md");
-  const testPlanPath = join(taskSpecsDir, "test-plan.md");
+  const indexPath = projectTaskHubPath(options.project, taskId);
+  const planPath = projectTaskPlanPath(options.project, taskId);
+  const testPlanPath = projectTaskTestPlanPath(options.project, taskId);
   if (existsSync(indexPath) || existsSync(planPath) || existsSync(testPlanPath)) throw new Error(`slice docs already exist for ${taskId}: ${relative(VAULT_ROOT, taskSpecsDir)}`);
 
   writeNormalizedPage(indexPath, [
@@ -60,8 +61,8 @@ export async function createIssueSlice(args: string[]) {
     "",
     "## Documents",
     "",
-    `- [[projects/${options.project}/specs/${taskId}/plan]]`,
-    `- [[projects/${options.project}/specs/${taskId}/test-plan]]`,
+    `- [[${toVaultWikilinkPath(planPath)}]]`,
+    `- [[${toVaultWikilinkPath(testPlanPath)}]]`,
     "",
     "## Cross Links",
     "",
@@ -105,8 +106,8 @@ export async function createIssueSlice(args: string[]) {
     "",
     "## Cross Links",
     "",
-    `- [[projects/${options.project}/specs/${taskId}/index]]`,
-    `- [[projects/${options.project}/specs/${taskId}/test-plan]]`,
+    `- [[${toVaultWikilinkPath(indexPath)}]]`,
+    `- [[${toVaultWikilinkPath(testPlanPath)}]]`,
     `- [[projects/${options.project}/backlog]]`,
     `- [[projects/${options.project}/specs/index]]`,
     "",
@@ -145,8 +146,8 @@ export async function createIssueSlice(args: string[]) {
     "",
     "## Cross Links",
     "",
-    `- [[projects/${options.project}/specs/${taskId}/index]]`,
-    `- [[projects/${options.project}/specs/${taskId}/plan]]`,
+    `- [[${toVaultWikilinkPath(indexPath)}]]`,
+    `- [[${toVaultWikilinkPath(planPath)}]]`,
     `- [[projects/${options.project}/backlog]]`,
     `- [[projects/${options.project}/specs/index]]`,
     "",

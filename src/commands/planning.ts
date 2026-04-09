@@ -1,7 +1,8 @@
 import { existsSync } from "node:fs";
-import { join, relative } from "node:path";
+import { relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
-import { createdAt, mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, writeNormalizedPage } from "../cli-shared";
+import { createdAt, mkdirIfMissing, nowIso, orderFrontmatter, requireValue, writeNormalizedPage } from "../cli-shared";
+import { projectPlanPath, projectPrdPath, projectSpecsDir, projectTestPlanPath } from "../lib/structure";
 import { writeProjectIndex } from "./index-log";
 
 export async function createPrd(args: string[]) {
@@ -139,9 +140,13 @@ export async function createTestPlan(args: string[]) {
 export function createSpecDocumentInternal(project: string, kind: "prd" | "plan" | "test-plan", name: string, templateLines: string[], taskId?: string) {
   const slug = slugify(name);
   const title = name.trim();
-  const specsDir = join(projectRoot(project), "specs");
+  const specsDir = projectSpecsDir(project);
   mkdirIfMissing(specsDir);
-  const outputPath = join(specsDir, `${kind}-${slug}.md`);
+  const outputPath = kind === "prd"
+    ? projectPrdPath(project, slug)
+    : kind === "plan"
+      ? projectPlanPath(project, slug)
+      : projectTestPlanPath(project, slug);
   if (existsSync(outputPath)) throw new Error(`spec already exists: ${relative(VAULT_ROOT, outputPath)}`);
   const data = orderFrontmatter({
     title,

@@ -4,6 +4,7 @@ import { VAULT_ROOT } from "../constants";
 import { createdAt, mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { readText, writeText } from "../lib/fs";
 import { tailLog, appendLogEntry } from "../lib/log";
+import { classifyProjectDocPath, projectSpecsIndexPath } from "../lib/structure";
 import { walkMarkdown } from "../lib/vault";
 
 export async function updateIndex(args: string[]) {
@@ -107,7 +108,7 @@ async function buildProjectIndexTarget(project: string) {
     }
     out.push(...lines.sort((a, b) => a.sortKey.localeCompare(b.sortKey)).map((entry) => entry.line), "");
   }
-  return { path: `projects/${project}/specs/index.md`, content: `${out.join("\n")}\n` };
+  return { path: relative(VAULT_ROOT, projectSpecsIndexPath(project)).replaceAll("\\", "/"), content: `${out.join("\n")}\n` };
 }
 
 async function readPageTitle(file: string) {
@@ -134,16 +135,15 @@ function buildSectionSortKey(section: string, rel: string, data: Record<string, 
 }
 
 function shouldSkipProjectIndexSpecEntry(rel: string) {
-  if (rel === "specs/index.md") return true;
-  if (!rel.startsWith("specs/")) return false;
-  const nested = rel.slice("specs/".length);
-  if (!nested.includes("/")) return false;
-  return !nested.endsWith("/index.md");
+  const kind = classifyProjectDocPath(rel);
+  if (kind === "spec-index") return true;
+  if (kind === "task-hub-plan" || kind === "task-hub-test-plan") return true;
+  return false;
 }
 
 function specIndexGroup(rel: string, data: Record<string, unknown> | undefined) {
-  const kind = typeof data?.spec_kind === "string" ? data.spec_kind : rel.endsWith("/index.md") ? "task-hub" : "";
-  if (kind === "prd") return "prds";
+  const kind = typeof data?.spec_kind === "string" ? data.spec_kind : classifyProjectDocPath(rel);
+  if (kind === "prd" || kind === "spec-prd") return "prds";
   return "task-hubs";
 }
 
