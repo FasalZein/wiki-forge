@@ -1,8 +1,9 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import matter from "gray-matter";
 import { MODULE_REQUIRED_HEADINGS, PROJECT_DIRS, PROJECT_FILES, VAULT_ROOT } from "../constants";
 import { assertExists, mkdirIfMissing, moduleTitle, normalizeFrontmatterFormatting, orderFrontmatter, projectRoot, requireValue, safeMatter, scaffoldFile, today, writeNormalizedPage } from "../cli-shared";
+import { readText, writeText } from "../lib/fs";
 import {
   defaultCrossLinksSection,
   defaultDataModelSection,
@@ -36,25 +37,25 @@ export function scaffoldProject(project: string | undefined) {
   if (created > 0) console.log(`scaffolded ${project}`);
 }
 
-export function onboardProject(args: string[]) {
+export async function onboardProject(args: string[]) {
   const options = parseOnboardPlanOptions(args);
   scaffoldProject(options.project);
   if (options.repo) {
     const outputPath = join(projectRoot(options.project), "specs", "onboarding-plan.md");
     mkdirIfMissing(join(projectRoot(options.project), "specs"));
-    writeFileSync(outputPath, renderOnboardingPlan(options.project, options.repo), "utf8");
+    await writeText(outputPath, renderOnboardingPlan(options.project, options.repo));
     console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
   }
   console.log(`onboarded ${options.project} scaffold in ${relative(VAULT_ROOT, projectRoot(options.project))}`);
 }
 
-export function onboardPlan(args: string[]) {
+export async function onboardPlan(args: string[]) {
   const options = parseOnboardPlanOptions(args);
   const rendered = renderOnboardingPlan(options.project, options.repo);
   if (!options.write) return console.log(rendered);
   const outputPath = join(projectRoot(options.project), "specs", "onboarding-plan.md");
   mkdirIfMissing(join(projectRoot(options.project), "specs"));
-  writeFileSync(outputPath, rendered, "utf8");
+  await writeText(outputPath, rendered);
   console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
 }
 
@@ -89,7 +90,7 @@ export function createModuleInternal(project: string, moduleName: string, source
   return specPath;
 }
 
-export function normalizeModule(args: string[]) {
+export async function normalizeModule(args: string[]) {
   const project = args[0];
   const moduleName = args[1];
   const write = args.includes("--write");
@@ -97,7 +98,7 @@ export function normalizeModule(args: string[]) {
   requireValue(moduleName, "module");
   const specPath = join(projectRoot(project), "modules", moduleName, "spec.md");
   assertExists(specPath, `module spec not found: ${relative(VAULT_ROOT, specPath)}`);
-  const parsed = safeMatter(specPath, readFileSync(specPath, "utf8"));
+  const parsed = safeMatter(specPath, await readText(specPath));
   if (!parsed) throw new Error(`unable to parse frontmatter for ${relative(VAULT_ROOT, specPath)}`);
   const changes: string[] = [];
   const data = normalizeModuleFrontmatter(project, moduleName, parsed.data, changes);

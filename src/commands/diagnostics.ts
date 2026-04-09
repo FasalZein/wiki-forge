@@ -66,7 +66,7 @@ export async function collectDoctor(project: string, base: string, explicitRepo?
   const drift = collectDriftSummary(project, explicitRepo);
   const lint = await collectLintResult(project);
   const semantic = await collectSemanticLintResult(project);
-  const backlog = collectBacklog(project);
+  const backlog = await collectBacklog(project);
   const maintain = await collectMaintenancePlan(project, base, explicitRepo);
 
   // Coverage ratio: what fraction of repo files are bound to wiki pages?

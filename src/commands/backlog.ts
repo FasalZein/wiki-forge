@@ -1,18 +1,19 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { assertExists, projectRoot, requireValue } from "../cli-shared";
+import { readText, writeText } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
 import { createSpecDocumentInternal } from "./planning";
 
 type BacklogItem = { raw: string; id: string; title: string };
 type ParsedBacklog = { intro: string[]; sections: Record<string, BacklogItem[]>; order: string[] };
 
-export function backlogCommand(args: string[]) {
+export async function backlogCommand(args: string[]) {
   const project = args[0];
   requireValue(project, "project");
   const json = args.includes("--json");
-  const result = collectBacklog(project);
+  const result = await collectBacklog(project);
   if (json) console.log(JSON.stringify(result, null, 2));
   else {
     for (const [section, items] of Object.entries(result.sections)) {
@@ -22,26 +23,26 @@ export function backlogCommand(args: string[]) {
   }
 }
 
-export function addTask(args: string[]) {
+export async function addTask(args: string[]) {
   const options = parseTaskArgs(args);
   const backlogPath = backlogPathFor(options.project);
-  const current = readFileSync(backlogPath, "utf8").replace(/\r\n/g, "\n");
+  const current = (await readText(backlogPath)).replace(/\r\n/g, "\n");
   const taskId = nextTaskId(options.project, current);
   const taskLine = renderTaskLine(taskId, options.title, options.priority, options.tags);
-  writeFileSync(backlogPath, insertTaskIntoSection(current, options.section, taskLine), "utf8");
+  await writeText(backlogPath, insertTaskIntoSection(current, options.section, taskLine));
   appendLogEntry("add-task", options.title, { project: options.project, details: [`task=${taskId}`, `section=${options.section}`] });
   const result = { project: options.project, taskId, section: options.section, title: options.title, backlogPath: relative(VAULT_ROOT, backlogPath) };
   if (options.json) console.log(JSON.stringify(result, null, 2));
   else console.log(`added ${taskId} to ${relative(VAULT_ROOT, backlogPath)} (${options.section})`);
 }
 
-export function createIssueSlice(args: string[]) {
+export async function createIssueSlice(args: string[]) {
   const options = parseTaskArgs(args);
   const backlogPath = backlogPathFor(options.project);
-  const current = readFileSync(backlogPath, "utf8").replace(/\r\n/g, "\n");
+  const current = (await readText(backlogPath)).replace(/\r\n/g, "\n");
   const taskId = nextTaskId(options.project, current);
   const taskLine = renderTaskLine(taskId, options.title, options.priority, options.tags);
-  writeFileSync(backlogPath, insertTaskIntoSection(current, options.section, taskLine), "utf8");
+  await writeText(backlogPath, insertTaskIntoSection(current, options.section, taskLine));
 
   const slugTitle = `${taskId.toLowerCase()} ${options.title}`;
   const planPath = createSpecDocumentInternal(options.project, "plan", slugTitle, [
@@ -104,7 +105,7 @@ export function createIssueSlice(args: string[]) {
   }
 }
 
-export function moveTask(args: string[]) {
+export async function moveTask(args: string[]) {
   const project = args[0];
   const taskId = args[1];
   const toIndex = args.indexOf("--to");
@@ -113,27 +114,27 @@ export function moveTask(args: string[]) {
   requireValue(taskId, "task-id");
   requireValue(to, "to");
   const backlogPath = backlogPathFor(project);
-  const parsed = parseBacklog(readFileSync(backlogPath, "utf8").replace(/\r\n/g, "\n"));
+  const parsed = parseBacklog((await readText(backlogPath)).replace(/\r\n/g, "\n"));
   const found = removeTask(parsed, taskId);
   if (!found) throw new Error(`task not found: ${taskId}`);
   parsed.sections[to] = parsed.sections[to] ?? [];
   if (!parsed.order.includes(to)) parsed.order.push(to);
   parsed.sections[to].unshift(found);
-  writeFileSync(backlogPath, serializeBacklog(parsed), "utf8");
+  await writeText(backlogPath, serializeBacklog(parsed));
   appendLogEntry("move-task", taskId, { project, details: [`to=${to}`] });
   console.log(`moved ${taskId} -> ${to}`);
 }
 
-export function completeTask(args: string[]) {
+export async function completeTask(args: string[]) {
   const project = args[0];
   const taskId = args[1];
   requireValue(project, "project");
   requireValue(taskId, "task-id");
-  moveTask([project, taskId, "--to", "Done"]);
+  await moveTask([project, taskId, "--to", "Done"]);
 }
 
-export function collectBacklog(project: string) {
-  const parsed = parseBacklog(readFileSync(backlogPathFor(project), "utf8").replace(/\r\n/g, "\n"));
+export async function collectBacklog(project: string) {
+  const parsed = parseBacklog((await readText(backlogPathFor(project))).replace(/\r\n/g, "\n"));
   return { project, backlogPath: relative(VAULT_ROOT, backlogPathFor(project)), sections: parsed.sections };
 }
 

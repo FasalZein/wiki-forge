@@ -196,7 +196,7 @@ function slugify(value: string) {
   return truncate(normalized || "answer", 72).replace(/[^a-z0-9-]+/g, "");
 }
 
-export function fileResearch(args: string[]) {
+export async function fileResearch(args: string[]) {
   const project = args[0];
   if (!project) throw new Error("missing project");
   const root = projectRoot(project);
@@ -215,7 +215,7 @@ export function fileResearch(args: string[]) {
   }
   const title = titleParts.join(" ").trim();
   if (!title) throw new Error("missing title");
-  const { outputPath } = createResearchPage(project, title, topic);
+  const { outputPath } = await createResearchPage(project, title, topic);
   appendLogEntry("file-research", title, { project, details: [`path=${relative(VAULT_ROOT, outputPath)}`] });
   console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
 }

@@ -56,7 +56,7 @@ async function collectSummary(project: string, explicitRepo?: string) {
   const verify = await collectVerifySummary(project);
   let drift = { fresh: 0, stale: 0, unknown: 0, deleted: 0, renamed: 0 };
   try { const d = collectDriftSummary(project, explicitRepo); drift = { fresh: d.fresh, stale: d.stale, unknown: d.unknown, deleted: d.deleted, renamed: d.renamed }; } catch {}
-  const backlog = collectBacklog(project);
+  const backlog = await collectBacklog(project);
   const activeWork = backlog.sections["In Progress"] ?? [];
   const topTodo = (backlog.sections["Todo"] ?? []).slice(0, 5);
   const base = resolveDefaultBase(project, explicitRepo);

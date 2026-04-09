@@ -1,9 +1,10 @@
-import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import matter from "gray-matter";
 import { VAULT_ROOT } from "../constants";
 import { mkdirIfMissing, orderFrontmatter, requireValue, safeMatter, today, writeNormalizedPage } from "../cli-shared";
 import { appendLogEntry } from "../lib/log";
+import { readText, writeText } from "../lib/fs";
 import { deriveSourceSlug, deriveSourceTitle, detectResearchSourceType, inferRawBucket, normalizeTopicPath, rawBucketDir, rawPathForSource, rawVaultPath, researchOverviewPath, researchPagePath, researchRoot, researchTopicDir, slugifyResearchPage, topicCrossLinks, topicLabel } from "../lib/research";
 import { normalizePath, stripMarkdownExtension, walkMarkdown } from "../lib/vault";
 
@@ -11,18 +12,18 @@ const RESEARCH_STATUSES = ["draft", "reviewed", "verified", "applied"] as const;
 const RESEARCH_VERIFICATION_LEVELS = ["unverified", "cross-referenced", "source-checked"] as const;
 const STALE_UNVERIFIED_DAYS = 30;
 
-export function scaffoldResearch(args: string[]) {
+export async function scaffoldResearch(args: string[]) {
   const topic = args.find((arg) => !arg.startsWith("--"));
   requireValue(topic, "topic");
-  const { overviewPath, created } = ensureResearchTopic(topic);
+  const { overviewPath, created } = await ensureResearchTopic(topic);
   appendLogEntry("scaffold-research", normalizeTopicPath(topic), { details: [`path=${relative(VAULT_ROOT, overviewPath)}`] });
   console.log(`${created ? "created" : "exists"} ${relative(VAULT_ROOT, overviewPath)}`);
 }
 
-export function researchStatus(args: string[]) {
+export async function researchStatus(args: string[]) {
   const topic = args.find((arg) => !arg.startsWith("--"));
   const json = args.includes("--json");
-  const result = collectResearchStatus(topic);
+  const result = await collectResearchStatus(topic);
   if (json) console.log(JSON.stringify(result, null, 2));
   else {
     console.log(`research status${result.topic ? ` for ${result.topic}` : ""}:`);
@@ -35,10 +36,10 @@ export function researchStatus(args: string[]) {
   }
 }
 
-export function ingestResearch(args: string[]) {
+export async function ingestResearch(args: string[]) {
   const { topic, source, title } = parseIngestResearchArgs(args);
   const normalizedTopic = normalizeTopicPath(topic);
-  ensureResearchTopic(normalizedTopic);
+  await ensureResearchTopic(normalizedTopic);
   const slug = deriveSourceSlug(source);
   const outputPath = researchPagePath(normalizedTopic, slug);
   if (existsSync(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
@@ -88,10 +89,10 @@ export function ingestResearch(args: string[]) {
   console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
 }
 
-export function ingestSource(args: string[]) {
+export async function ingestSource(args: string[]) {
   const { source, topic, title, bucket } = parseIngestSourceArgs(args);
   const normalizedTopic = normalizeTopicPath(topic ?? "sources/inbox");
-  ensureResearchTopic(normalizedTopic);
+  await ensureResearchTopic(normalizedTopic);
   const resolvedBucket = bucket ?? inferRawBucket(source);
   const rawDir = rawBucketDir(resolvedBucket);
   mkdirIfMissing(rawDir);
@@ -173,10 +174,10 @@ export function ingestSource(args: string[]) {
   console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
 }
 
-export function lintResearch(args: string[]) {
+export async function lintResearch(args: string[]) {
   const topic = args.find((arg) => !arg.startsWith("--"));
   const json = args.includes("--json");
-  const result = collectResearchLintResult(topic);
+  const result = await collectResearchLintResult(topic);
   if (json) console.log(JSON.stringify(result, null, 2));
   else if (result.issues.length) {
     console.log(`research lint found ${result.issues.length} issue(s)${result.topic ? ` for ${result.topic}` : ""}:`);
@@ -185,7 +186,7 @@ export function lintResearch(args: string[]) {
   if (result.issues.length) throw new Error(`research lint failed${result.topic ? ` for ${result.topic}` : ""}`);
 }
 
-export function ensureResearchTopic(topic: string) {
+export async function ensureResearchTopic(topic: string) {
   const normalizedTopic = normalizeTopicPath(topic);
   const dir = researchTopicDir(normalizedTopic);
   mkdirIfMissing(researchRoot());
@@ -227,7 +228,7 @@ export function ensureResearchTopic(topic: string) {
   return { topic: normalizedTopic, dir, overviewPath, created };
 }
 
-export function collectResearchStatus(topic?: string) {
+export async function collectResearchStatus(topic?: string) {
   const normalizedTopic = topic ? normalizeTopicPath(topic) : undefined;
   const root = normalizedTopic ? researchTopicDir(normalizedTopic) : researchRoot();
   const pages = walkMarkdown(root).filter((file) => !file.endsWith("/_overview.md"));
@@ -236,7 +237,7 @@ export function collectResearchStatus(topic?: string) {
   let missingSources = 0;
   let staleUnverified = 0;
   for (const file of pages) {
-    const parsed = safeMatter(relative(VAULT_ROOT, file), readFileSync(file, "utf8"), { silent: true });
+    const parsed = safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true });
     if (!parsed) continue;
     const status = typeof parsed.data.status === "string" ? parsed.data.status : "draft";
     const verification = typeof parsed.data.verification_level === "string" ? parsed.data.verification_level : "unverified";
@@ -254,16 +255,16 @@ export function collectResearchStatus(topic?: string) {
   };
 }
 
-export function collectResearchLintResult(topic?: string) {
+export async function collectResearchLintResult(topic?: string) {
   const normalizedTopic = topic ? normalizeTopicPath(topic) : undefined;
   const root = normalizedTopic ? researchTopicDir(normalizedTopic) : researchRoot();
   const pages = walkMarkdown(root).sort();
   const issues: string[] = [];
-  const inbound = buildResearchInboundCounts();
+  const inbound = await buildResearchInboundCounts();
   for (const file of pages) {
     const rel = normalizePath(relative(VAULT_ROOT, file));
     const relNoExt = stripMarkdownExtension(rel);
-    const raw = readFileSync(file, "utf8");
+    const raw = await readText(file);
     const parsed = safeMatter(rel, raw, { silent: true });
     if (!parsed) {
       issues.push(`${rel} invalid frontmatter`);
@@ -304,12 +305,12 @@ function parseIngestSourceArgs(args: string[]) {
   return { source, topic, title, bucket };
 }
 
-function buildResearchInboundCounts() {
+async function buildResearchInboundCounts() {
   const counts = new Map<string, number>();
   for (const file of walkMarkdown(VAULT_ROOT)) {
     const rel = normalizePath(relative(VAULT_ROOT, file));
     if (!rel.startsWith("projects/") && !rel.startsWith("ideas/")) continue;
-    const body = readFileSync(file, "utf8");
+    const body = await readText(file);
     for (const link of extractWikilinks(body)) {
       const target = stripMarkdownExtension(link);
       if (!target.startsWith("research/")) continue;
@@ -347,9 +348,9 @@ function hasUnattributedClaims(body: string) {
   return false;
 }
 
-export function createResearchPage(project: string, title: string, topic?: string) {
+export async function createResearchPage(project: string, title: string, topic?: string) {
   const normalizedTopic = normalizeTopicPath(topic ?? `projects/${project}`);
-  ensureResearchTopic(normalizedTopic);
+  await ensureResearchTopic(normalizedTopic);
   const slug = slugifyResearchPage(title);
   const outputPath = researchPagePath(normalizedTopic, slug);
   if (existsSync(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
@@ -392,6 +393,6 @@ export function createResearchPage(project: string, title: string, topic?: strin
     ...topicCrossLinks(normalizedTopic),
     "",
   ].join("\n");
-  writeFileSync(outputPath, matter.stringify(body, data), "utf8");
+  await writeText(outputPath, matter.stringify(body, data));
   return { topic: normalizedTopic, outputPath };
 }
