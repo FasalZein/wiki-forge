@@ -1,36 +1,22 @@
-# wiki-forge
+<p align="center">
+  <strong>wiki-forge</strong><br>
+  <em>A local-first second brain for humans and LLMs</em>
+</p>
 
-A local-first second brain for humans and LLMs — persistent, compounding knowledge maintained in markdown.
+<p align="center">
+  Persistent, compounding knowledge maintained in markdown.<br>
+  Agents handle the bookkeeping. You handle the thinking.
+</p>
 
-The wiki sits between you and your source materials (code, research, docs). Agents handle the bookkeeping — cross-references, consistency, indexing, drift detection. You curate sources, ask questions, and think about meaning.
+---
 
-**Not RAG.** The wiki is a compiled artifact that grows over time, not a retrieval layer that re-derives answers from scratch each query.
-
-## The Pattern
+**Not RAG.** The wiki is a compiled artifact that grows over time, not a retrieval layer that re-derives answers from scratch each query. Code is always the source of truth — the wiki is compiled memory that makes code navigable across sessions.
 
 ```
-Sources (code, research, docs)  →  Wiki (markdown, agent-maintained)  →  You
+Sources (code, research, docs)  -->  Wiki (markdown, agent-maintained)  -->  You
 ```
 
-| Layer | Who writes | Who reads | What |
-|-------|-----------|-----------|------|
-| **Sources** | You / external | Agents | Code repos, research docs, articles, data |
-| **Wiki** | Agents | You + agents | Summaries, module specs, entity pages, cross-references |
-| **Schema** | You + agents | Agents | Skills, CLI config, conventions (`AGENTS.md`, `_summary.md`) |
-
-Knowledge lives in the wiki vault (`~/Knowledge`), **not** scattered across project repos. Code is the source of truth for behavior — the wiki is compiled memory that makes that code navigable across sessions.
-
-## Core Operations
-
-**Ingest** — Code changes or new sources arrive → agents update impacted wiki pages, refresh cross-references, log what changed. A single source change can touch 10-15 pages.
-
-**Query** — Ask questions against the wiki. Answers come with citations. Valuable discoveries get filed back as wiki pages so explorations compound.
-
-**Lint** — Health checks find stale pages, orphaned docs, missing cross-references, dead-end pages, and placeholder content. The CLI tells you what to investigate.
-
-**Gate** — Pass/fail quality checks. Blocks on missing tests, warns on drift. Agents can't declare done until the gate passes.
-
-## Install
+## Quick Start
 
 ```bash
 git clone https://github.com/FasalZein/wiki-forge.git
@@ -38,21 +24,206 @@ cd wiki-forge
 ./install.sh
 ```
 
-Manual qmd/runtime prerequisites when not using the installer:
+The installer handles bun, dependencies, global CLI linking, global qmd, shell config, and the vault directory (`~/Knowledge`). See [SETUP.md](SETUP.md) for manual setup, Obsidian config, and troubleshooting.
+
+<details>
+<summary><strong>Manual prerequisites</strong> (if not using the installer)</summary>
 
 ```bash
 npm install -g @tobilu/qmd@latest
-# macOS recommended for Bun SDK hybrid retrieval
-brew install sqlite
+brew install sqlite   # macOS — required for Bun SDK hybrid retrieval
 ```
 
-The installer sets up bun, links the CLI, installs qmd globally, configures your shell, and creates the vault directory. By default that means `~/Knowledge` is created for you on first setup. See [SETUP.md](SETUP.md) for manual setup, Obsidian config, and troubleshooting.
+</details>
+
+---
+
+## Features
+
+### Project Onboarding
+
+Scaffold a project, discover its structure, and create module specs — all wired to the vault.
+
+```bash
+wiki scaffold-project my-app                              # create vault structure
+wiki onboard-plan my-app --repo ~/Dev/my-app --write      # generate onboarding plan
+wiki discover my-app --tree                                # find module candidates
+wiki create-module my-app auth --source src/auth/          # create bound module spec
+```
+
+### Knowledge Maintenance
+
+The core loop: code changes, the wiki updates, drift gets caught.
+
+```bash
+wiki maintain my-app --base main                           # default agent entry point
+wiki refresh-from-git my-app --base main                   # map git changes -> impacted pages
+wiki drift-check my-app --show-unbound                     # find stale + unbound pages
+wiki ingest-diff my-app --base main                        # auto-append change digests
+wiki verify-page my-app modules/auth/spec code-verified    # promote verification level
+wiki bind my-app modules/auth/spec src/auth/               # link page to source files
+```
+
+### Quality Gates
+
+Every closeout runs through lint, semantic lint, and a pass/fail gate.
+
+```bash
+wiki lint my-app                                           # structural: frontmatter, wikilinks, headings
+wiki lint-semantic my-app                                  # semantic: orphans, dead-ends, placeholders
+wiki doctor my-app                                         # health score (0-100) + prioritized actions
+wiki gate my-app --repo ~/Dev/my-app --base main           # pass/fail — blocks on missing tests
+```
+
+### Retrieval and Search
+
+Intent-aware retrieval — BM25 for location queries, hybrid BM25+vector for rationale queries.
+
+```bash
+wiki search "auth middleware"                              # full-text search
+wiki query "how does token refresh work"                   # intent-routed retrieval
+wiki ask my-app "where is the rate limiter"                # project-scoped Q&A with citations
+wiki file-answer my-app "how does caching work"            # save answer brief for compounding
+```
+
+### Research Layer
+
+File evidence, scaffold topics, ingest sources — all traceable in the vault.
+
+```bash
+wiki research file my-app "auth provider comparison"       # file a research note
+wiki research scaffold "state management"                  # create topic container
+wiki research ingest "state management" ./notes.md         # seed from existing findings
+wiki research status                                       # coverage + health summary
+wiki research lint                                         # check evidence freshness
+wiki source ingest https://example.com/article             # raw source -> raw/ + linked summary
+```
+
+### Planning and Backlog
+
+PRDs and vertical slices with task-scoped spec hubs — zero API calls.
+
+```bash
+wiki create-prd my-app "user onboarding"                   # -> specs/prd-user-onboarding.md
+wiki create-issue-slice my-app "email verification"        # -> specs/MY-APP-001/{index,plan,test-plan}.md
+wiki backlog my-app                                        # list tracked tasks
+```
+
+### Navigation and Index
+
+```bash
+wiki summary my-app                                        # one-shot project overview
+wiki update-index my-app --write                           # regenerate spec index
+wiki log                                                   # chronological operation log
+```
+
+### Obsidian Integration
+
+The vault is a native [Obsidian](https://obsidian.md) vault — wikilinks, graph view, backlinks, embeds, callouts, and properties work out of the box.
+
+```bash
+wiki obsidian open modules/auth/spec                       # open in Obsidian (requires CLI enabled)
+wiki obsidian backlinks modules/auth/spec                  # show backlinks
+wiki obsidian orphans                                      # find orphan notes
+```
+
+Enable the CLI: Obsidian 1.8+ -> Settings -> General -> CLI. See [SETUP.md](SETUP.md#obsidian-setup).
+
+---
+
+## How It Works
+
+### The Three Layers
+
+| Layer | What it is | Who owns it |
+|-------|-----------|-------------|
+| **Wiki** | Maintained project memory in `~/Knowledge` | `wiki` CLI |
+| **Research** | Filed evidence and source-backed notes under `research/` and `raw/` | `/research` skill + `wiki research` commands |
+| **Forge** | Optional workflow layer: research -> grill -> PRD -> slices -> TDD -> verify | `/forge` skill |
+
+These are separate concerns. The wiki is the knowledge store. Research is evidence. Forge is optional process.
+
+### Verification Levels
+
+Every wiki page has a verification level that tracks how current it is:
+
+```
+scaffold  ->  inferred  ->  code-verified  ->  runtime-verified  ->  test-verified
+```
+
+When source code changes after verification, `drift-check` demotes the page to `stale`. Stale pages get flagged, not trusted.
+
+### Mandatory Closeout Sequence
+
+Every workflow — feature, bug fix, slicing, maintenance — ends with the same sequence:
+
+```bash
+# 1. Map changes to impacted pages
+wiki refresh-from-git <project> --base <rev>
+
+# 2. Detect drift
+wiki drift-check <project> --show-unbound
+
+# 3. Update impacted wiki pages from code (manual step)
+
+# 4. Re-verify updated pages
+wiki verify-page <project> <page> code-verified
+
+# 5. Structural lint
+wiki lint <project>
+
+# 6. Semantic lint
+wiki lint-semantic <project>
+
+# 7. Pass/fail gate
+wiki gate <project> --repo <path> --base <rev>
+```
+
+No step is optional. Agents cannot declare done until `gate` exits 0.
+
+### Trigger Phrases
+
+These phrases route to the closeout sequence above:
+
+- "wiki refresh" / "wiki closeout"
+- "update project wiki"
+- "refresh project docs from code"
+- "close out this slice"
+- "run wiki maintenance"
+
+> **Disambiguation:** Avoid "refresh memory" (clashes with Claude Code auto-memory), "sync docs" (ambiguous with Notion/Confluence), or bare "update wiki" (ambiguous with GitHub wiki). Always include "wiki", "project", or "slice" for clear routing.
+
+---
+
+## Vault Layout
+
+```
+~/Knowledge/
+  index.md                            # vault entry point
+  log.md                              # chronological operation log
+  projects/<name>/
+    _summary.md                       # project config (repo, code_paths)
+    backlog.md                        # task tracking
+    decisions.md                      # decision log
+    learnings.md                      # lessons learned
+    modules/<mod>/spec.md             # module documentation
+    specs/
+      prd-<slug>.md                   # project-level PRDs
+      index.md                        # generated spec index
+      <TASK-ID>/
+        index.md                      # task hub
+        plan.md                       # implementation plan
+        test-plan.md                  # test plan
+  research/                           # research artifacts
+  raw/                                # ingested raw sources
+  wiki/syntheses/                     # filed answer briefs
+```
+
+---
 
 ## Skills
 
-The repo ships a small set of skills for maintaining the knowledge repository and, if you want, running a more opinionated planning workflow around it.
-
-Repo skills from GitHub:
+### Repo-Owned Skills
 
 ```bash
 npx skills@latest add FasalZein/wiki-forge/skills/forge -g
@@ -60,7 +231,7 @@ npx skills@latest add FasalZein/wiki-forge/skills/wiki -g
 npx skills@latest add FasalZein/wiki-forge/skills/prd-to-slices -g
 ```
 
-Optional companion skills from `mattpocock/skills`:
+### Companion Skills (optional)
 
 ```bash
 npx skills@latest add mattpocock/skills/grill-me -g
@@ -68,242 +239,128 @@ npx skills@latest add mattpocock/skills/write-a-prd -g
 npx skills@latest add mattpocock/skills/tdd -g
 ```
 
-Or from a local clone for the repo-owned skills:
+### Skill Reference
 
-```bash
-npx skills@latest add ./skills/forge -g
-npx skills@latest add ./skills/wiki -g
-npx skills@latest add ./skills/prd-to-slices -g
+| Skill | Invoke | What it does | When to use |
+|-------|--------|-------------|-------------|
+| **wiki** | `/wiki` | CLI operations: maintenance, drift, verification, gates | Always — the operational surface |
+| **forge** | `/forge` | Orchestrates research -> grill -> PRD -> slices -> TDD -> verify | Non-trivial features crossing module boundaries |
+| **prd-to-slices** | `/prd-to-slices` | Breaks a PRD into tracked vertical slices in the wiki backlog | After writing a PRD, before implementation |
+| **grill-me** | `/grill-me` | Stress-tests a plan before committing to it | Before writing a PRD |
+| **write-a-prd** | `/write-a-prd` | Captures problem, scope, modules, acceptance criteria | When you need formal project intent |
+| **tdd** | `/tdd` | Red-green-refactor for each slice | During implementation |
+
+### When to Use What
+
+| Task | Workflow |
+|------|----------|
+| Knowledge maintenance | `/wiki` |
+| Research capture | `/research` + `wiki research file` |
+| Small code fix (< 50 lines) | `/tdd` + `/wiki` |
+| Wiki / note cleanup | `/wiki` + `/obsidian-markdown` |
+| Repo exploration | `wiki maintain` |
+| New feature or cross-module change | `/forge` (full pipeline) |
+
+---
+
+## Forge Workflow
+
+For non-trivial work, forge orchestrates the full pipeline:
+
+```
+/research  ->  /grill-me  ->  /write-a-prd  ->  /prd-to-slices  ->  /tdd  ->  /wiki
 ```
 
-| Skill | Invoke | Purpose |
-|-------|--------|---------|
-| **forge** | `/forge` | Optional orchestration layer for teams that want a stricter planning and implementation loop around the wiki |
-| **wiki** | `/wiki` | CLI reference for wiki, research, raw-source, drift, and verification operations |
-| **prd-to-slices** | `/prd-to-slices` | Breaks a larger plan into smaller tracked slices in the wiki backlog |
-| **grill-me** | `/grill-me` | Stress-tests a plan before you commit it to the knowledge base |
-| **write-a-prd** | `/write-a-prd` | Captures a durable planning note when you want formal project intent |
-| **tdd** | `/tdd` | Optional implementation discipline for code changes that are tracked from the wiki |
-
-`forge` is not the research system and not the wiki itself. It is an optional coordination layer:
-- `research` = actual evidence gathering, comparison, and investigation
-- `wiki` = maintained knowledge + verification/drift/gate operations
-- `forge` = an opinionated wrapper for teams that want those steps tied together
-
-Use `forge` only if you want that extra process. For many repos, the core value is just the maintained memory itself:
-- knowledge maintenance: `wiki`
-- research capture: `research` + `wiki research ...`
-- small code fix: `tdd` + `wiki`
-- wiki/note cleanup: `wiki` + `obsidian-markdown`
-- repo understanding / maintenance: `wiki maintain`
-
-Typical wiki trigger phrases should route to contextual maintenance, not blind note rewrites:
-- "wiki refresh" / "wiki closeout"
-- "update project wiki"
-- "refresh project docs from code"
-- "close out this slice"
-- "run wiki maintenance"
-
-Avoid generic phrases like "refresh memory" (clashes with Claude Code auto-memory), "sync docs" (ambiguous with Notion/Confluence), or bare "update wiki" (ambiguous with GitHub wiki). Always include "wiki", "project", or "slice" for unambiguous routing.
-
-That means this exact sequence:
-
-1. Inspect changed code/tests
-2. `wiki refresh-from-git <project> --base <rev>`
-3. `wiki drift-check <project> --show-unbound`
-4. Update only impacted wiki pages from code
-5. `wiki verify-page <project> <page> code-verified`
-6. `wiki lint <project>`
-7. `wiki lint-semantic <project>`
-8. `wiki gate <project> --repo <path> --base <rev>`
-
-## Layer Model
-
-These are separate layers in the same system:
-
-- **Wiki layer** — maintained project memory in `~/Knowledge`
-- **Research layer** — filed evidence and source-backed notes under `research/` and `raw/`
-- **Forge layer** — an optional workflow layer some teams use on top of the knowledge repository
-
-Run the `/research` skill for the actual research work, then file the result into the research layer. If you use forge, it should consume that research layer and update the wiki layer. It should not own either one.
-
-## Optional Forge Workflow
-
-If you want a stricter process around implementation, use forge as the wrapper. Use `/research` for the investigation itself, and use wiki research/source commands to store the artifacts underneath it.
-
 ```bash
-# run actual research first
+# 1. Investigate
 /research "topic title"
+wiki research file my-app "topic title"
 
-# then file the resulting brief into the research repository
-wiki research file wiki-forge "topic title"
+# 2. Stress-test the plan
+/grill-me
 
-# PRD + slices
-wiki create-prd wiki-forge "feature name"          # creates specs/prd-<slug>.md
-wiki create-issue-slice wiki-forge "slice name"   # creates specs/<TASK-ID>/{index,plan,test-plan}.md
+# 3. Write the PRD
+wiki create-prd my-app "feature name"
 
-# implementation + verification
-# write tests first, then implement
-wiki verify-page wiki-forge <page> code-verified
-wiki gate wiki-forge --repo "$PWD" --base <rev>
+# 4. Break into slices
+wiki create-issue-slice my-app "slice name"
+
+# 5. Implement (TDD)
+# write tests first, then implement, then refactor
+
+# 6. Close out (mandatory sequence)
+wiki refresh-from-git my-app --base main
+wiki drift-check my-app --show-unbound
+# update impacted pages
+wiki verify-page my-app <page> code-verified
+wiki lint my-app
+wiki lint-semantic my-app
+wiki gate my-app --repo ~/Dev/my-app --base main
 ```
 
-That is the intended relationship: the wiki is the memory, `/research` investigates, and forge is optional orchestration.
+---
 
 ## Guardrails
 
-- **Wiki vault is the knowledge store.** Agents write documentation to `~/Knowledge`, not to project repos. Project repos are source inputs only.
-- **Code is the source of truth.** Wiki pages are compiled from code, never the other way around. When they conflict, trust the code and update the wiki.
-- **No docs in project repos.** If an agent tries to create markdown docs inside a project repo, redirect it to the wiki. Some project-local files are fine (README, CHANGELOG) but architecture docs, module specs, research — all go to the vault.
-- **Verification prevents drift.** Every wiki page has a verification level. `drift-check` demotes pages when their source code changes. Stale pages get flagged, not trusted.
+- **Wiki vault is the knowledge store.** Agents write documentation to `~/Knowledge`, not to project repos.
+- **Code is the source of truth.** Wiki pages compile from code, never the other way around.
+- **No docs in project repos.** Architecture docs, module specs, research — all go to the vault. Only `README.md` and `CHANGELOG.md` stay in repos.
+- **Verification prevents drift.** Every page has a verification level. `drift-check` demotes stale pages when source code changes.
 
-## CLI
-
-```bash
-# Start a session
-wiki summary <project>               # one-shot project overview
-wiki maintain <project>               # full maintenance queue (default agent entry point)
-
-# Ingest
-wiki refresh-from-git <project>       # map code changes → impacted wiki pages
-wiki discover <project> --tree        # find uncovered files + detect research layers
-wiki ingest-diff <project>            # auto-append change digests to impacted pages
-
-# Query
-wiki search "query"                   # full-text search
-wiki query "question"                 # SDK-first retrieval: BM25 for location/general queries, pre-expanded lex+vec hybrid for rationale queries
-wiki ask <project> "question"         # project-scoped Q&A with citations
-wiki research file <project> <title>   # file a research note after running /research
-wiki research scaffold <topic>         # create a research topic container
-wiki research status [topic]           # research repository coverage/health summary
-wiki research ingest <topic> <source...> # scaffold one or many source-backed research pages from existing findings
-wiki research lint [topic]              # lint filed research evidence and freshness
-wiki source ingest <path-or-url...>     # ingest one or many raw sources + linked summaries
-
-# Lint
-wiki lint <project>                   # structural: frontmatter, wikilinks, headings
-wiki lint-semantic <project>          # orphans, dead-ends, placeholders
-wiki doctor <project>                 # health score (0-100) + top actions
-wiki gate <project>                   # pass/fail quality check
-
-# Maintain
-wiki drift-check <project>            # stale + deleted + renamed source paths
-wiki verify-page <project> <page...> <level>
-wiki update-index <project> --write
-wiki bind <project> <page> <paths>    # link wiki page to source code
-
-# Scaffold
-wiki scaffold-project <project>
-wiki create-module <project> <name> --source <paths...>
-wiki create-prd <project> <name>
-wiki create-issue-slice <project> <title>  # creates specs/<TASK-ID>/{index,plan,test-plan}.md
-wiki backlog <project>
-
-# Obsidian
-wiki obsidian open <note>             # requires Obsidian CLI enabled
-wiki obsidian backlinks <note>
-wiki obsidian orphans
-```
-
-Full list: `wiki help`
-
-## Vault Layout
-
-The wiki is a directory of markdown files — works as a git repo, an Obsidian vault, or both.
-
-```
-~/Knowledge/
-  index.md                         # vault entry point
-  log.md                           # chronological operation log
-  projects/<name>/
-    _summary.md                    # project config (repo, code_paths)
-    backlog.md                     # task tracking
-    modules/<mod>/spec.md          # module documentation
-    specs/
-      prd-<slug>.md                # project-level PRDs
-      index.md                     # generated spec index
-      <TASK-ID>/
-        index.md                   # task hub
-        plan.md                    # implementation plan
-        test-plan.md               # test plan
-  research/                        # research artifacts
-  wiki/syntheses/                  # filed answer briefs
-```
-
-## Current spec workflow
-
-Use this shape:
-- `wiki create-prd <project> <name>` → `projects/<project>/specs/prd-<slug>.md`
-- `wiki create-issue-slice <project> <title>` → `projects/<project>/specs/<TASK-ID>/{index,plan,test-plan}.md`
-
-So:
-- PRD = project-level intent doc under `specs/`
-- slice docs = task-scoped workspace under `specs/<TASK-ID>/`
-- chronology = metadata, not filename numbering
+---
 
 ## Obsidian
 
-The vault is an [Obsidian](https://obsidian.md) vault. Wikilinks, graph view, backlinks, embeds, callouts, and properties should be treated as the default reading/writing experience for wiki pages.
+The vault is a first-class Obsidian vault. Recommended companion skills for agents editing vault docs:
 
-Recommended skill install for agents editing vault docs:
+| Skill | When to use |
+|-------|-------------|
+| `obsidian-markdown` | Default for vault markdown — properties, wikilinks, embeds, callouts |
+| `obsidian-cli` | Only when operating a running Obsidian app from the terminal |
+| `json-canvas` | Derived relationship maps — never as canonical state |
+| `obsidian-bases` | Derived dashboards/views — never as canonical state |
+
+Start with `obsidian-markdown`. The others complement the UI layer but markdown/frontmatter is the canonical contract.
+
+---
+
+## Retrieval Architecture
+
+The CLI uses [qmd](https://github.com/nicholasgriffintn/qmd) for indexing and retrieval:
+
+- **BM25 SDK path** for location and general queries (fast, ~40ms warm)
+- **Hybrid SDK path** (BM25 + vector, pre-expanded, no rerank) for rationale queries (~45ms warm)
+- **qmd CLI** retained only for admin commands (`qmd-update`, `qmd-embed`, `qmd-status`)
 
 ```bash
-npx skills add ./skills/wiki -g
-npx skills add ~/.pi/agent/skills/obsidian-markdown -g
-npx skills add ~/.agents/skills/obsidian-cli -g
-npx skills add ~/.agents/skills/json-canvas -g
-npx skills add ~/.agents/skills/obsidian-bases -g
+wiki qmd-update          # re-index vault
+wiki qmd-embed           # generate embeddings
+wiki qmd-status          # index health
 ```
 
-Recommended usage split:
-- `obsidian-markdown` — install and use by default for vault docs
-- `obsidian-cli` — useful if Obsidian CLI is enabled and agents need to operate the running app
-- `json-canvas` — useful for derived relationship maps and canvases; do not treat canvas files as source of truth
-- `obsidian-bases` — useful for derived dashboards/views over frontmatter; do not treat bases as source of truth
+<details>
+<summary><strong>Benchmarking</strong></summary>
 
-Start with `obsidian-markdown`. Add the others because they complement the UI layer, but keep markdown/frontmatter as the canonical contract.
-
-**Enable the CLI** (Obsidian 1.8+): Settings → General → CLI. This lets `wiki obsidian open` work from the terminal. See [SETUP.md](SETUP.md#obsidian-setup).
-
-## Verification Levels
-
-`scaffold` → `inferred` → `code-verified` → `runtime-verified` → `test-verified`
-
-Pages start at `scaffold` and get promoted as agents verify content against source code. `drift-check --fix` demotes stale pages when their source changes.
-
-## Why This Works
-
-The burden with knowledge bases isn't reading — it's bookkeeping. Cross-references, consistency, contradictions. Humans abandon wikis because maintenance cost grows faster than value.
-
-Agents don't forget cross-references and can touch 15 files in one pass. The wiki sustains itself because maintenance cost approaches zero. You curate sources and ask good questions. Agents handle everything else.
-
-## QMD benchmarking
-
-Use an isolated qmd index when benchmarking retrieval so you do not pollute your main `~/.cache/qmd/index.sqlite` state.
+Use an isolated index to avoid polluting your main state:
 
 ```bash
 QMD_INDEX_NAME=wiki-forge-bench bun src/index.ts qmd-setup
 bun run bench:qmd
 ```
 
-The benchmark harness copies markdown-only vault content into a temp vault, then measures:
-- `qmd update`
-- `qmd embed`
-- direct qmd BM25/vector/expand/structured variants
-- `wiki query` / `wiki ask` cold vs warm for structural, general, and rationale queries
-- full `wiki source ingest -> qmd update -> qmd embed` pipeline latency
+The harness measures BM25, vector, expand-query, and structured variants plus cold/warm latency for `wiki query` and `wiki ask`.
 
-Current retrieval architecture:
-- qmd SDK in-process for `wiki query` / `wiki ask`
-- BM25 SDK path for location/general queries
-- pre-expanded SDK hybrid (`lex` + `vec`, `rerank: false`) for rationale queries
-- qmd CLI retained for maintenance/admin commands like `qmd-update`, `qmd-embed`, and `qmd-status`
+</details>
+
+---
 
 ## Testing
 
 ```bash
 bun test
 ```
+
+---
 
 ## License
 
