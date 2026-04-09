@@ -95,8 +95,10 @@ export async function ingestSource(args: string[]) {
   await ensureResearchTopic(normalizedTopic);
   const resolvedBucket = bucket ?? inferRawBucket(source);
   const rawDir = rawBucketDir(resolvedBucket);
-  mkdirIfMissing(rawDir);
   const rawPath = rawPathForSource(source, resolvedBucket);
+  const outputPath = researchPagePath(normalizedTopic, deriveSourceSlug(source));
+  if (existsSync(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
+  mkdirIfMissing(rawDir);
   if (existsSync(rawPath)) throw new Error(`raw source already exists: ${relative(VAULT_ROOT, rawPath)}`);
 
   if (/^https?:\/\//iu.test(source)) {
@@ -125,8 +127,6 @@ export async function ingestSource(args: string[]) {
   }
 
   const sourceLabel = /^https?:\/\//iu.test(source) ? source : relative(process.cwd(), source);
-  const outputPath = researchPagePath(normalizedTopic, deriveSourceSlug(source));
-  if (existsSync(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
   const rawLink = `[[${rawVaultPath(rawPath)}]]`;
   const sourceType = detectResearchSourceType(source);
   const data = orderFrontmatter({

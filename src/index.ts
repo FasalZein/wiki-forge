@@ -86,22 +86,26 @@ function resolveCommand(rawArgs: string[]) {
   const [rawCommand = "help", ...rest] = rawArgs;
   const command = rawCommand === "--help" || rawCommand === "-h" ? "help" : rawCommand;
   if (command === "research") {
-    const [subcommand = "help", ...subArgs] = rest;
+    const [subcommand, ...subArgs] = rest;
+    if (!subcommand || subcommand === "help") throw new Error("missing research subcommand. Run 'wiki help' for usage.");
     const mapped = {
       scaffold: "research:scaffold",
       status: "research:status",
       ingest: "research:ingest",
       lint: "research:lint",
       file: "research:file",
-    }[subcommand];
-    if (mapped) return { command: mapped, args: subArgs };
+    }[subcommand as "scaffold" | "status" | "ingest" | "lint" | "file"];
+    if (!mapped) throw new Error(`unknown research subcommand: ${subcommand}. Run 'wiki help' for usage.`);
+    return { command: mapped, args: subArgs };
   }
   if (command === "source") {
-    const [subcommand = "help", ...subArgs] = rest;
+    const [subcommand, ...subArgs] = rest;
+    if (!subcommand || subcommand === "help") throw new Error("missing source subcommand. Run 'wiki help' for usage.");
     const mapped = {
       ingest: "source:ingest",
-    }[subcommand];
-    if (mapped) return { command: mapped, args: subArgs };
+    }[subcommand as "ingest"];
+    if (!mapped) throw new Error(`unknown source subcommand: ${subcommand}. Run 'wiki help' for usage.`);
+    return { command: mapped, args: subArgs };
   }
   return { command, args: rest };
 }

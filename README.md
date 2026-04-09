@@ -87,7 +87,12 @@ wiki ingest-diff <project>            # auto-append change digests to impacted p
 wiki search "query"                   # full-text search
 wiki query "question"                 # hybrid lex+vec retrieval
 wiki ask <project> "question"         # project-scoped Q&A with citations
-wiki research file <project> <title>  # scaffold research page
+wiki research file <project> <title>   # scaffold project research page
+wiki research scaffold <topic>         # create a research topic container
+wiki research status [topic]           # research coverage/health summary
+wiki research ingest <topic> <source>  # scaffold a source-backed research page
+wiki research lint [topic]             # lint research evidence and freshness
+wiki source ingest <path-or-url>       # ingest immutable raw source + linked summary
 
 # Lint
 wiki lint <project>                   # structural: frontmatter, wikilinks, headings

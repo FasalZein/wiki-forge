@@ -33,7 +33,7 @@ export function createPrd(args: string[]) {
     "",
     "## Prior Research",
     "",
-    "- [[research/]]",
+    "- [[research/projects/{{project}}/_overview]]",
     "",
     "## Open Questions",
     "",

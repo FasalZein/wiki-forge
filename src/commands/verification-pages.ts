@@ -1,12 +1,12 @@
-import { readFileSync } from "node:fs";
 import { relative } from "node:path";
 import { VAULT_ROOT, type VerificationLevel } from "../constants";
-import { assertExists, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
+import { assertExists, nowIso, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
+import { readText } from "../lib/fs";
 import { readVerificationLevel } from "../lib/verification";
 import { walkMarkdown } from "../lib/vault";
 import { applyVerificationLevel, computeLevelFromBooleans, isValidVerificationLevel, resolveWikiPagePath } from "./verification-shared";
 
-export function bindSourcePaths(args: string[]) {
+export async function bindSourcePaths(args: string[]) {
   const dryRun = args.includes("--dry-run");
   const filteredArgs = args.filter((arg) => arg !== "--dry-run");
   const project = filteredArgs[0];
@@ -18,7 +18,7 @@ export function bindSourcePaths(args: string[]) {
   const root = projectRoot(project);
   const wikiFilePath = resolveWikiPagePath(root, pageArg);
   assertExists(wikiFilePath, `wiki page not found: ${relative(VAULT_ROOT, wikiFilePath)}`);
-  const parsed = safeMatter(relative(VAULT_ROOT, wikiFilePath), readFileSync(wikiFilePath, "utf8"));
+  const parsed = safeMatter(relative(VAULT_ROOT, wikiFilePath), await readText(wikiFilePath));
   if (!parsed) throw new Error(`unable to parse frontmatter for ${relative(VAULT_ROOT, wikiFilePath)}`);
   const normalizedSourcePaths = sourcePaths.map((value) => value.replaceAll("\\", "/"));
   const currentSourcePaths = Array.isArray(parsed.data.source_paths) ? parsed.data.source_paths.map((value) => String(value)) : [];
@@ -28,11 +28,11 @@ export function bindSourcePaths(args: string[]) {
     console.log(`would update ${relative(VAULT_ROOT, wikiFilePath)}`);
     return console.log(`source_paths: ${normalizedSourcePaths.join(", ")}`);
   }
-  writeNormalizedPage(wikiFilePath, parsed.content, { ...parsed.data, source_paths: normalizedSourcePaths });
+  writeNormalizedPage(wikiFilePath, parsed.content, { ...parsed.data, source_paths: normalizedSourcePaths, updated: nowIso() });
   console.log(`updated ${relative(VAULT_ROOT, wikiFilePath)}`);
 }
 
-export function verifyPage(args: string[]) {
+export async function verifyPage(args: string[]) {
   const dryRun = args.includes("--dry-run");
   const filteredArgs = args.filter((arg) => arg !== "--dry-run");
   const project = filteredArgs[0];
@@ -43,7 +43,7 @@ export function verifyPage(args: string[]) {
     if (!isValidVerificationLevel(levelArg)) throw new Error(`invalid level: ${levelArg}`);
     const pages = walkMarkdown(projectRoot(project));
     let updatedCount = 0;
-    for (const page of pages) if (applyVerificationLevel(page, levelArg, dryRun)) updatedCount += 1;
+    for (const page of pages) if (await applyVerificationLevel(page, levelArg, dryRun)) updatedCount += 1;
     return console.log(`${dryRun ? "would update" : "updated"} ${updatedCount} page(s) for ${project}`);
   }
   const pageArg = filteredArgs[1];
@@ -53,16 +53,16 @@ export function verifyPage(args: string[]) {
   if (!isValidVerificationLevel(level)) throw new Error(`invalid level: ${level}`);
   const wikiFilePath = resolveWikiPagePath(projectRoot(project), pageArg);
   assertExists(wikiFilePath, `wiki page not found: ${relative(VAULT_ROOT, wikiFilePath)}`);
-  applyVerificationLevel(wikiFilePath, level, dryRun, relative(VAULT_ROOT, wikiFilePath));
+  await applyVerificationLevel(wikiFilePath, level, dryRun, relative(VAULT_ROOT, wikiFilePath));
 }
 
-export function migrateVerification(project: string | undefined) {
+export async function migrateVerification(project: string | undefined) {
   requireValue(project, "project");
   const root = projectRoot(project);
   assertExists(root, `project not found: ${project}`);
   let updatedCount = 0;
   for (const file of walkMarkdown(root)) {
-    const parsed = safeMatter(relative(VAULT_ROOT, file), readFileSync(file, "utf8"), { silent: true });
+    const parsed = safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true });
     if (!parsed) continue;
     const hasOldFields = "verified_code" in parsed.data || "verified_runtime" in parsed.data || "verified_tests" in parsed.data;
     if (!hasOldFields && parsed.data.verification_level) continue;

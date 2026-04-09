@@ -1,7 +1,7 @@
-import { readFileSync } from "node:fs";
 import { relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { projectRoot, requireValue, safeMatter } from "../cli-shared";
+import { readText } from "../lib/fs";
 import { collectStatusRow, collectVerifySummary } from "./linting";
 import { collectDriftSummary } from "./verification";
 import { collectBacklog } from "./backlog";
@@ -46,7 +46,7 @@ async function collectSummary(project: string, explicitRepo?: string) {
   let description: string | undefined;
   let repoPath: string | undefined;
   try {
-    const parsed = safeMatter(relative(VAULT_ROOT, summaryPath), readFileSync(summaryPath, "utf8"), { silent: true });
+    const parsed = safeMatter(relative(VAULT_ROOT, summaryPath), await readText(summaryPath), { silent: true });
     if (parsed) {
       description = parsed.data.description ? String(parsed.data.description) : undefined;
       repoPath = parsed.data.repo ? String(parsed.data.repo) : undefined;
@@ -55,7 +55,7 @@ async function collectSummary(project: string, explicitRepo?: string) {
   const status = await collectStatusRow(project);
   const verify = await collectVerifySummary(project);
   let drift = { fresh: 0, stale: 0, unknown: 0, deleted: 0, renamed: 0 };
-  try { const d = collectDriftSummary(project, explicitRepo); drift = { fresh: d.fresh, stale: d.stale, unknown: d.unknown, deleted: d.deleted, renamed: d.renamed }; } catch {}
+  try { const d = await collectDriftSummary(project, explicitRepo); drift = { fresh: d.fresh, stale: d.stale, unknown: d.unknown, deleted: d.deleted, renamed: d.renamed }; } catch {}
   const backlog = await collectBacklog(project);
   const activeWork = backlog.sections["In Progress"] ?? [];
   const topTodo = (backlog.sections["Todo"] ?? []).slice(0, 5);

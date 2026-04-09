@@ -253,6 +253,10 @@ export function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
+export function nowIso() {
+  return new Date().toISOString();
+}
+
 export function readProjectTitle(project: string) {
   const summaryPath = join(projectRoot(project), "_summary.md");
   if (!existsSync(summaryPath)) {

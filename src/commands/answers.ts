@@ -1,8 +1,9 @@
 import { dirname, join, relative } from "node:path";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import matter from "gray-matter";
 import { VAULT_ROOT } from "../constants";
 import { orderFrontmatter, projectRoot, mkdirIfMissing, readProjectTitle } from "../cli-shared";
+import { writeText } from "../lib/fs";
 import { buildEvidenceExcerpt, buildScopedNoteIndex, findNoteByVaultPath, fromQmdFile, normalizePath, stripMarkdownExtension } from "../lib/notes";
 import { assertQmdAvailable, queryKnowledge } from "../lib/qmd";
 import { appendLogEntry } from "../lib/log";
@@ -25,7 +26,7 @@ export async function fileAnswer(args: string[]) {
   mkdirIfMissing(dirname(outputPath));
   const contents = renderAnswerNote(brief);
   const existed = existsSync(outputPath);
-  writeFileSync(outputPath, contents, "utf8");
+  await writeText(outputPath, contents);
   appendLogEntry("file-answer", options.question, { project: options.project, details: [`path=${relative(VAULT_ROOT, outputPath)}`] });
   console.log(`${existed ? "updated" : "created"} ${relative(VAULT_ROOT, outputPath)}`);
   console.log(renderAnswerBrief(brief));

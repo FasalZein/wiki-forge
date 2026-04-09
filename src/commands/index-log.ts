@@ -1,18 +1,19 @@
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { mkdirIfMissing, projectRoot, requireValue, safeMatter } from "../cli-shared";
+import { readText, writeText } from "../lib/fs";
 import { tailLog, appendLogEntry } from "../lib/log";
 import { walkMarkdown } from "../lib/vault";
 
-export function updateIndex(args: string[]) {
+export async function updateIndex(args: string[]) {
   const json = args.includes("--json");
   const write = args.includes("--write");
   const all = args.includes("--all");
   const project = all ? undefined : args.find((arg) => !arg.startsWith("--"));
   if (!all) requireValue(project, "project or --all");
-  const result = buildIndexPlan(project, all);
-  if (write) applyIndexPlan(result);
+  const result = await buildIndexPlan(project, all);
+  if (write) await applyIndexPlan(result);
   if (json) console.log(JSON.stringify(result, null, 2));
   else {
     console.log(`${write ? "updated" : "would update"} ${result.targets.length} index file(s)`);
@@ -39,44 +40,48 @@ export function logCommand(args: string[]) {
   for (const entry of tailLog(Number.isFinite(count) && count > 0 ? count : 10)) console.log(`${entry}\n`);
 }
 
-function buildIndexPlan(project: string | undefined, all: boolean) {
+async function buildIndexPlan(project: string | undefined, all: boolean) {
   const targets: Array<{ path: string; content: string }> = [];
   if (all) {
     const projectsRoot = join(VAULT_ROOT, "projects");
     const projects = existsSync(projectsRoot) ? readdirSync(projectsRoot).filter((entry) => statSync(join(projectsRoot, entry)).isDirectory()).sort() : [];
     const lines = ["# Index", "", "## Projects", ""];
-    for (const name of projects) {
+    const projectTitles = await Promise.all(projects.map(async (name) => {
       const summaryPath = join(projectRoot(name), "_summary.md");
-      const title = existsSync(summaryPath) ? readPageTitle(summaryPath) : name;
-      lines.push(`- [[projects/${name}/_summary|${title}]]`);
-    }
+      return { name, title: existsSync(summaryPath) ? await readPageTitle(summaryPath) : name };
+    }));
+    for (const { name, title } of projectTitles) lines.push(`- [[projects/${name}/_summary|${title}]]`);
     lines.push("");
     targets.push({ path: "index.md", content: `${lines.join("\n")}\n` });
-    for (const name of projects) targets.push(buildProjectIndexTarget(name));
+    targets.push(...await Promise.all(projects.map((name) => buildProjectIndexTarget(name))));
     return { all, project: null, targets };
   }
-  targets.push(buildProjectIndexTarget(project!));
+  targets.push(await buildProjectIndexTarget(project!));
   return { all, project: project!, targets };
 }
 
-function applyIndexPlan(plan: { targets: Array<{ path: string; content: string }> }) {
+async function applyIndexPlan(plan: { targets: Array<{ path: string; content: string }> }) {
   for (const target of plan.targets) {
     const absolutePath = join(VAULT_ROOT, target.path);
     mkdirIfMissing(dirname(absolutePath));
-    writeFileSync(absolutePath, target.content, "utf8");
+    await writeText(absolutePath, target.content);
   }
 }
 
-function buildProjectIndexTarget(project: string) {
+async function buildProjectIndexTarget(project: string) {
   const root = projectRoot(project);
   const pages = walkMarkdown(root).sort();
   const sections = new Map<string, string[]>();
-  for (const file of pages) {
+  const pageRows = await Promise.all(pages.map(async (file) => ({
+    file,
+    title: await readPageTitle(file),
+  })));
+  for (const { file, title } of pageRows) {
     const rel = relative(root, file).replaceAll("\\", "/");
     const section = rel.includes("/") ? rel.split("/")[0] : "root";
     const vaultPath = relative(VAULT_ROOT, file).replace(/\.md$/u, "").replaceAll("\\", "/");
     const lines = sections.get(section) ?? [];
-    lines.push(`- [[${vaultPath}|${readPageTitle(file)}]]`);
+    lines.push(`- [[${vaultPath}|${title}]]`);
     sections.set(section, lines);
   }
   const out = [`# ${project} Index`, "", `- [[projects/${project}/_summary|${project} summary]]`, ""];
@@ -86,8 +91,8 @@ function buildProjectIndexTarget(project: string) {
   return { path: `projects/${project}/specs/index.md`, content: `${out.join("\n")}\n` };
 }
 
-function readPageTitle(file: string) {
-  const parsed = safeMatter(relative(VAULT_ROOT, file), readFileSync(file, "utf8"), { silent: true });
+async function readPageTitle(file: string) {
+  const parsed = safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true });
   const title = parsed?.data.title;
   if (typeof title === "string" && title.trim()) return title.trim();
   const heading = parsed?.content.split("\n").find((line) => line.startsWith("# "));

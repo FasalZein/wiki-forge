@@ -1,7 +1,8 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VERIFICATION_LEVELS, VAULT_ROOT, type VerificationLevel } from "../constants";
-import { safeMatter, today, writeNormalizedPage } from "../cli-shared";
+import { nowIso, safeMatter, writeNormalizedPage } from "../cli-shared";
+import { readText } from "../lib/fs";
 import { readVerificationLevel } from "../lib/verification";
 
 export function resolveWikiPagePath(projectRootPath: string, pageArg: string): string {
@@ -18,8 +19,8 @@ export function isValidVerificationLevel(value: string): value is VerificationLe
   return value === "stale" || VERIFICATION_LEVELS.includes(value as (typeof VERIFICATION_LEVELS)[number]);
 }
 
-export function applyVerificationLevel(wikiFilePath: string, level: VerificationLevel, dryRun: boolean, label = relative(VAULT_ROOT, wikiFilePath)) {
-  const raw = readFileSync(wikiFilePath, "utf8");
+export async function applyVerificationLevel(wikiFilePath: string, level: VerificationLevel, dryRun: boolean, label = relative(VAULT_ROOT, wikiFilePath)) {
+  const raw = await readText(wikiFilePath);
   const parsed = safeMatter(relative(VAULT_ROOT, wikiFilePath), raw);
   if (!parsed) throw new Error(`unable to parse frontmatter for ${relative(VAULT_ROOT, wikiFilePath)}`);
   const currentLevel = readVerificationLevel(parsed.data);
@@ -28,7 +29,7 @@ export function applyVerificationLevel(wikiFilePath: string, level: Verification
     console.log(`would update ${label} -> verification_level: ${level}`);
     return true;
   }
-  const data = { ...parsed.data, verification_level: level, updated: today() } as Record<string, unknown>;
+  const data = { ...parsed.data, verification_level: level, updated: nowIso() } as Record<string, unknown>;
   if (level !== "stale") {
     delete data.previous_level;
     delete data.stale_since;

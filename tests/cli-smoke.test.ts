@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -87,6 +87,7 @@ describe("wiki CLI smoke", () => {
     expect(backlogJson.sections["Done"][0].id).toBe("DEMO-002");
     expect(runWiki(["create-module", "demo", "auth", "--source", "src/auth.ts"], env).exitCode).toBe(0);
     setRepoFrontmatter(vault, repo);
+    expect(runWiki(["verify-page", "demo", "auth", "code-verified"], env).exitCode).toBe(0);
 
     const status = runWiki(["status", "demo", "--json"], env);
     expect(status.exitCode).toBe(0);
@@ -101,6 +102,14 @@ describe("wiki CLI smoke", () => {
     const dashboardJson = JSON.parse(dashboard.stdout.toString());
     expect(dashboardJson.project).toBe("demo");
     expect(Array.isArray(dashboardJson.recentLog)).toBe(true);
+
+    const drift = runWiki(["drift-check", "demo", "--repo", repo, "--json"], env);
+    expect(drift.exitCode).toBe(0);
+    expect(JSON.parse(drift.stdout.toString()).project).toBe("demo");
+
+    const summary = runWiki(["summary", "demo", "--repo", repo, "--json"], env);
+    expect(summary.exitCode).toBe(0);
+    expect(JSON.parse(summary.stdout.toString()).project).toBe("demo");
 
     const doctor = runWiki(["doctor", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
     expect(doctor.exitCode).toBe(0);
@@ -214,6 +223,12 @@ describe("wiki CLI smoke", () => {
     const ingestedSourceContent = readFileSync(join(vault, "research", "projects", "demo", "notes.md"), "utf8");
     expect(ingestedSourceContent).toContain("[[raw/conversations/notes.txt]]");
 
+    unlinkSync(join(vault, "raw", "conversations", "notes.txt"));
+    const ingestSourceConflict = runWiki(["source", "ingest", sourceFile, "--topic", "projects/demo"], env);
+    expect(ingestSourceConflict.exitCode).toBe(1);
+    expect(ingestSourceConflict.stderr.toString()).toContain("research page already exists");
+    expect(existsSync(join(vault, "raw", "conversations", "notes.txt"))).toBe(false);
+
     const ingestSourceUrl = runWiki(["source", "ingest", "https://example.com/paper", "--topic", "projects/demo"], env);
     expect(ingestSourceUrl.exitCode).toBe(0);
     expect(existsSync(join(vault, "raw", "articles", "example-com-paper.md"))).toBe(true);
@@ -233,7 +248,7 @@ describe("wiki CLI smoke", () => {
     // PRD template includes Prior Research section
     const prdContent = readFileSync(join(vault, "projects", "demo", "specs", "prd-auth-workflow.md"), "utf8");
     expect(prdContent).toContain("## Prior Research");
-    expect(prdContent).toContain("[[research/]]");
+    expect(prdContent).toContain("[[research/projects/demo/_overview]]");
   });
 
   test("gate passes when tests cover changed code", () => {
@@ -324,6 +339,16 @@ describe("wiki CLI smoke", () => {
     const gateJson = JSON.parse(gate.stdout.toString());
     expect(Array.isArray(gateJson.warnings)).toBe(true);
     expect(gateJson.warnings.some((warning: string) => warning.includes("repo markdown doc"))).toBe(true);
+  });
+
+  test("grouped research and source commands require subcommands", () => {
+    const resultResearch = runWiki(["research"]);
+    expect(resultResearch.exitCode).toBe(1);
+    expect(resultResearch.stderr.toString()).toContain("missing research subcommand");
+
+    const resultSource = runWiki(["source"]);
+    expect(resultSource.exitCode).toBe(1);
+    expect(resultSource.stderr.toString()).toContain("missing source subcommand");
   });
 
   test("legacy flat research commands are rejected", () => {

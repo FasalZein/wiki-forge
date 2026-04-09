@@ -1,7 +1,7 @@
-import { readFileSync } from "node:fs";
 import { relative } from "node:path";
 import { VAULT_ROOT, type VerificationLevel } from "../constants";
-import { assertExists, projectRoot, requireValue, safeMatter, today, writeNormalizedPage } from "../cli-shared";
+import { assertExists, nowIso, projectRoot, requireValue, safeMatter, today, writeNormalizedPage } from "../cli-shared";
+import { readText } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
 import { batchGitLastModified, parseUpdatedDate, readVerificationLevel, resolveRepoPath, assertGitRepo, sourcePathStatus } from "../lib/verification";
 import { walkMarkdown } from "../lib/vault";
@@ -14,25 +14,25 @@ type DriftRow = {
 
 type DriftSummary = { project: string; repo: string; totalWikiPages: number; pagesWithSourcePaths: number; unboundPages: string[]; fresh: number; stale: number; unknown: number; deleted: number; renamed: number; results: DriftRow[] };
 
-export function driftCheck(args: string[]) {
+export async function driftCheck(args: string[]) {
   const options = parseDriftCheckArgs(args);
-  const summary = collectDriftSummary(options.project, options.repo);
+  const summary = await collectDriftSummary(options.project, options.repo);
   if (options.json) console.log(JSON.stringify(summary, null, 2));
   else renderDriftSummary(summary, options.showUnbound);
   if (!options.autoFix) return;
   let fixed = 0;
   for (const result of summary.results) {
     if (result.status !== "stale" && result.status !== "deleted") continue;
-    const parsed = safeMatter(relative(VAULT_ROOT, result.absolutePath), readFileSync(result.absolutePath, "utf8"));
+    const parsed = safeMatter(relative(VAULT_ROOT, result.absolutePath), await readText(result.absolutePath));
     if (!parsed) continue;
-    writeNormalizedPage(result.absolutePath, parsed.content, { ...parsed.data, verification_level: "stale", previous_level: readVerificationLevel(parsed.data) ?? undefined, stale_since: today(), updated: today() });
+    writeNormalizedPage(result.absolutePath, parsed.content, { ...parsed.data, verification_level: "stale", previous_level: readVerificationLevel(parsed.data) ?? undefined, stale_since: today(), updated: nowIso() });
     fixed += 1;
     if (!options.json) console.log(`  -> auto-demoted ${result.wikiPage} to stale`);
   }
   appendLogEntry("drift-fix", summary.project, { project: summary.project, details: [`fixed=${fixed}`, `stale=${summary.stale}`, `deleted=${summary.deleted}`] });
 }
 
-export function collectDriftSummary(project: string, explicitRepo?: string): DriftSummary {
+export async function collectDriftSummary(project: string, explicitRepo?: string): Promise<DriftSummary> {
   requireValue(project, "project");
   const root = projectRoot(project);
   assertExists(root, `project not found: ${project}`);
@@ -44,16 +44,21 @@ export function collectDriftSummary(project: string, explicitRepo?: string): Dri
   const unboundPages: string[] = [];
   const entries: Array<{ file: string; relPath: string; sourcePaths: string[]; wikiUpdated: Date | null; currentLevel: VerificationLevel | null; rawUpdated: unknown }> = [];
   const allSourcePaths = new Set<string>();
-  for (const file of allFiles) {
-    const parsed = safeMatter(relative(VAULT_ROOT, file), readFileSync(file, "utf8"), { silent: true });
+  const pageMetadata = await Promise.all(allFiles.map(async (file) => ({
+    file,
+    relPath: relative(root, file),
+    parsed: safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true }),
+  })));
+  for (const { file, relPath, parsed } of pageMetadata) {
     if (!parsed) continue;
     const sourcePaths = Array.isArray(parsed.data.source_paths) ? parsed.data.source_paths.map((value) => String(value).replaceAll("\\", "/")) : [];
-    if (!sourcePaths.length) { unboundPages.push(relative(root, file)); continue; }
+    if (!sourcePaths.length) { unboundPages.push(relPath); continue; }
     boundCount += 1;
     for (const sourcePath of sourcePaths) allSourcePaths.add(sourcePath);
-    entries.push({ file, relPath: relative(root, file), sourcePaths, wikiUpdated: parseUpdatedDate(parsed.data.updated), currentLevel: readVerificationLevel(parsed.data), rawUpdated: parsed.data.updated });
+    entries.push({ file, relPath, sourcePaths, wikiUpdated: parseUpdatedDate(parsed.data.updated), currentLevel: readVerificationLevel(parsed.data), rawUpdated: parsed.data.updated });
   }
   const gitDates = batchGitLastModified(repoPath, [...allSourcePaths]);
+  const sourceStatusCache = new Map<string, ReturnType<typeof sourcePathStatus>>();
   for (const entry of entries) {
     if (!entry.wikiUpdated) {
       results.push({ wikiPage: entry.relPath, absolutePath: entry.file, updated: String(entry.rawUpdated ?? "missing"), sourcePaths: entry.sourcePaths, currentLevel: entry.currentLevel, status: "unknown", driftedSources: [], renamedSources: [], deletedSources: [], errors: ["unable to parse updated date from frontmatter"] });
@@ -64,7 +69,8 @@ export function collectDriftSummary(project: string, explicitRepo?: string): Dri
     const deletedSources: string[] = [];
     const errors: string[] = [];
     for (const sourcePath of entry.sourcePaths) {
-      const fileStatus = sourcePathStatus(repoPath, sourcePath);
+      const fileStatus = sourceStatusCache.get(sourcePath) ?? sourcePathStatus(repoPath, sourcePath);
+      sourceStatusCache.set(sourcePath, fileStatus);
       if (fileStatus.kind === "renamed") { renamedSources.push({ from: sourcePath, to: fileStatus.renamedTo }); continue; }
       if (fileStatus.kind === "deleted") { deletedSources.push(sourcePath); continue; }
       if (fileStatus.kind === "missing") { errors.push(`missing source file: ${sourcePath}`); continue; }

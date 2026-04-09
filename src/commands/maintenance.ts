@@ -50,7 +50,7 @@ export async function refreshProject(args: string[]) {
   const repoIndex = args.indexOf("--repo");
   const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
   const json = args.includes("--json");
-  const drift = collectDriftSummary(project, repo);
+  const drift = await collectDriftSummary(project, repo);
   const lint = await collectLintResult(project);
   appendLogEntry("refresh", project, { project, details: [`stale=${drift.stale}`, `deleted=${drift.deleted}`, `unknown=${drift.unknown}`, `unbound=${drift.unboundPages.length}`, `lint_issues=${lint.issues.length}`] });
   const result = { project, repo: drift.repo, drift: { fresh: drift.fresh, stale: drift.stale, deleted: drift.deleted, unknown: drift.unknown, unbound: drift.unboundPages.length }, lint: { ok: lint.issues.length === 0, issues: lint.issues } };
@@ -212,7 +212,7 @@ export async function collectMaintenancePlan(project: string, base: string, expl
 
 async function collectDashboard(project: string, base: string, explicitRepo?: string) {
   const maintain = await collectMaintenancePlan(project, base, explicitRepo);
-  return { project, repo: maintain.repo, base, status: await collectStatusRow(project), verify: await collectVerifySummary(project), drift: collectDriftSummary(project, explicitRepo), discover: maintain.discover, maintain, recentLog: tailLog(20) };
+  return { project, repo: maintain.repo, base, status: await collectStatusRow(project), verify: await collectVerifySummary(project), drift: await collectDriftSummary(project, explicitRepo), discover: maintain.discover, maintain, recentLog: tailLog(20) };
 }
 
 async function collectDiscoverSummary(project: string, explicitRepo?: string) {
@@ -220,7 +220,7 @@ async function collectDiscoverSummary(project: string, explicitRepo?: string) {
   assertExists(root, `project not found: ${project}`);
   const repo = resolveRepoPath(project, explicitRepo);
   assertGitRepo(repo);
-  const repoFiles = listCodeFiles(repo, readCodePaths(project));
+  const repoFiles = listCodeFiles(repo, await readCodePaths(project));
   const pages = walkMarkdown(root);
   const boundFiles = new Set<string>();
   const unboundPages: string[] = [];
@@ -347,10 +347,10 @@ async function listRepoMarkdownDocs(repo: string) {
   return result;
 }
 
-function readCodePaths(project: string): string[] | undefined {
+async function readCodePaths(project: string): Promise<string[] | undefined> {
   const summaryPath = join(projectRoot(project), "_summary.md");
   if (!existsSync(summaryPath)) return undefined;
-  const parsed = safeMatter(`projects/${project}/_summary.md`, readFileSync(summaryPath, "utf8"), { silent: true });
+  const parsed = safeMatter(`projects/${project}/_summary.md`, await readText(summaryPath), { silent: true });
   if (!parsed) return undefined;
   const paths = parsed.data.code_paths;
   return Array.isArray(paths) ? paths.map(String) : undefined;
@@ -422,6 +422,7 @@ function codeMatchKeys(file: string) {
     keys.add(`${parent.toLowerCase()}/${norm}`);
     if (basename.toLowerCase() !== norm) keys.add(`${parent.toLowerCase()}/${basename.toLowerCase()}`);
   }
+  if (normalized.startsWith("src/")) keys.add("global-cli");
   return [...keys];
 }
 
@@ -441,5 +442,6 @@ function testMatchKeys(file: string) {
     keys.add(`${parent.toLowerCase()}/${norm}`);
     if (basename.toLowerCase() !== norm) keys.add(`${parent.toLowerCase()}/${basename.toLowerCase()}`);
   }
+  if (/(^|\/)(cli-)?smoke\.test\.[^.]+$/u.test(normalized) || /(^|\/)[^/]+\.smoke\.test\.[^.]+$/u.test(normalized)) keys.add("global-cli");
   return [...keys];
 }
