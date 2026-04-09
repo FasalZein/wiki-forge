@@ -24,7 +24,7 @@ export function doctorProject(args: string[]) {
   console.log(`- score: ${result.score}/100`);
   console.log(`- GATE: ${gateOk ? "PASS" : `FAIL — ${result.counts.missingTests} code file(s) without tests`}`);
   console.log(`- stale=${result.counts.stale} renamed=${result.counts.renamed} deleted=${result.counts.deleted} unbound=${result.counts.unbound}`);
-  console.log(`- lint=${result.counts.lint} semantic=${result.counts.semantic} uncovered=${result.counts.uncovered} missing_tests=${result.counts.missingTests}`);
+  console.log(`- lint=${result.counts.lint} semantic=${result.counts.semantic} uncovered=${result.counts.uncovered} repo_docs=${result.counts.repoDocs} missing_tests=${result.counts.missingTests}`);
   console.log(`- task sections: ${Object.entries(result.backlog.sections).map(([k, v]) => `${k}=${v.length}`).join(" ")}`);
   console.log(`- top actions:`);
   for (const action of result.topActions) console.log(`  - [${action.kind}] ${action.message}`);
@@ -106,6 +106,7 @@ export function collectDoctor(project: string, base: string, explicitRepo?: stri
       lint: lint.issues.length,
       semantic: semantic.issues.length,
       uncovered: maintain.discover.uncoveredFiles.length,
+      repoDocs: maintain.discover.repoDocFiles.length,
       missingTests: maintain.refreshFromGit.testHealth.codeFilesWithoutChangedTests.length,
     },
     topActions: maintain.actions.slice(0, 25),
@@ -124,6 +125,7 @@ export function collectGate(project: string, base: string, explicitRepo?: string
   if (doctor.counts.lint > 0) warnings.push(`${doctor.counts.lint} structural lint issue(s)`);
   if (doctor.counts.semantic > 0) warnings.push(`${doctor.counts.semantic} semantic lint issue(s)`);
   if (doctor.maintain.refreshFromGit.uncoveredFiles.length > 0) warnings.push(`${doctor.maintain.refreshFromGit.uncoveredFiles.length} changed file(s) are not covered by wiki bindings`);
+  if (doctor.counts.repoDocs > 0) warnings.push(`${doctor.counts.repoDocs} repo markdown doc(s) should live in the wiki vault`);
   return {
     project,
     base,
@@ -135,6 +137,7 @@ export function collectGate(project: string, base: string, explicitRepo?: string
       lint: doctor.counts.lint,
       semantic: doctor.counts.semantic,
       uncoveredChangedFiles: doctor.maintain.refreshFromGit.uncoveredFiles.length,
+      repoDocs: doctor.counts.repoDocs,
     },
     doctor,
   };

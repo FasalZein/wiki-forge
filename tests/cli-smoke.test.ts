@@ -172,19 +172,61 @@ describe("wiki CLI smoke", () => {
     expect(logTail.exitCode).toBe(0);
     expect(logTail.stdout.toString()).toContain("refresh-from-git");
 
+    // scaffold-research + ingest-research + status
+    const scaffoldResearch = runWiki(["research", "scaffold", "projects/demo"], env);
+    expect(scaffoldResearch.exitCode).toBe(0);
+    expect(existsSync(join(vault, "research", "projects", "demo", "_overview.md"))).toBe(true);
+
+    const ingestResearch = runWiki(["research", "ingest", "projects/demo", "https://example.com/auth"], env);
+    expect(ingestResearch.exitCode).toBe(0);
+    expect(ingestResearch.stdout.toString()).toContain("research/projects/demo/example-com-auth.md");
+    expect(existsSync(join(vault, "research", "projects", "demo", "example-com-auth.md"))).toBe(true);
+
+    const researchStatus = runWiki(["research", "status", "projects/demo", "--json"], env);
+    expect(researchStatus.exitCode).toBe(0);
+    const researchStatusJson = JSON.parse(researchStatus.stdout.toString());
+    expect(researchStatusJson.topic).toBe("projects/demo");
+    expect(researchStatusJson.counts.total).toBeGreaterThanOrEqual(1);
+
     // file-research
-    const research = runWiki(["file-research", "demo", "auth options comparison"], env);
+    const research = runWiki(["research", "file", "demo", "auth options comparison"], env);
     expect(research.exitCode).toBe(0);
-    expect(research.stdout.toString()).toContain("research/demo-auth-options-comparison.md");
-    expect(existsSync(join(vault, "research", "demo-auth-options-comparison.md"))).toBe(true);
-    const researchContent = readFileSync(join(vault, "research", "demo-auth-options-comparison.md"), "utf8");
+    expect(research.stdout.toString()).toContain("research/projects/demo/auth-options-comparison.md");
+    expect(existsSync(join(vault, "research", "projects", "demo", "auth-options-comparison.md"))).toBe(true);
+    const researchContent = readFileSync(join(vault, "research", "projects", "demo", "auth-options-comparison.md"), "utf8");
     expect(researchContent).toContain("type: research");
     expect(researchContent).toContain("project: demo");
+    expect(researchContent).toContain("topic: projects/demo");
+    expect(researchContent).toContain("verification_level: unverified");
     expect(researchContent).toContain("## TL;DR");
-    expect(researchContent).toContain("[[projects/demo/_summary]]");
+    expect(researchContent).toContain("[[research/projects/demo/_overview]]");
+
+    const sourceFile = join(repo, "notes.txt");
+    writeFileSync(sourceFile, "Important source material\n", "utf8");
+    const nestedFileResearch = runWiki(["research", "file", "demo", "nested alias check"], env);
+    expect(nestedFileResearch.exitCode).toBe(0);
+    expect(existsSync(join(vault, "research", "projects", "demo", "nested-alias-check.md"))).toBe(true);
+
+    const ingestSourceFile = runWiki(["source", "ingest", sourceFile, "--topic", "projects/demo"], env);
+    expect(ingestSourceFile.exitCode).toBe(0);
+    expect(existsSync(join(vault, "raw", "conversations", "notes.txt"))).toBe(true);
+    expect(existsSync(join(vault, "research", "projects", "demo", "notes.md"))).toBe(true);
+    const ingestedSourceContent = readFileSync(join(vault, "research", "projects", "demo", "notes.md"), "utf8");
+    expect(ingestedSourceContent).toContain("[[raw/conversations/notes.txt]]");
+
+    const ingestSourceUrl = runWiki(["source", "ingest", "https://example.com/paper", "--topic", "projects/demo"], env);
+    expect(ingestSourceUrl.exitCode).toBe(0);
+    expect(existsSync(join(vault, "raw", "articles", "example-com-paper.md"))).toBe(true);
+    expect(existsSync(join(vault, "research", "projects", "demo", "example-com-paper.md"))).toBe(true);
+
+    const lintResearch = runWiki(["research", "lint", "projects/demo", "--json"], env);
+    expect(lintResearch.exitCode).toBe(1);
+    const lintResearchJson = JSON.parse(lintResearch.stdout.toString());
+    expect(Array.isArray(lintResearchJson.issues)).toBe(true);
+    expect(lintResearchJson.issues.some((issue: string) => issue.includes("missing sources"))).toBe(true);
 
     // file-research duplicate fails
-    const researchDup = runWiki(["file-research", "demo", "auth options comparison"], env);
+    const researchDup = runWiki(["research", "file", "demo", "auth options comparison"], env);
     expect(researchDup.exitCode).toBe(1);
     expect(researchDup.stderr.toString()).toContain("already exists");
 
@@ -260,6 +302,38 @@ describe("wiki CLI smoke", () => {
     const gateJson = JSON.parse(gate.stdout.toString());
     expect(Array.isArray(gateJson.warnings)).toBe(true);
     expect(gateJson.warnings.some((w: string) => w.includes("not covered by wiki bindings"))).toBe(true);
+  });
+
+  test("doctor and gate warn about repo docs that belong in the wiki", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+    mkdirSync(join(repo, "docs"), { recursive: true });
+    writeFileSync(join(repo, "docs", "architecture.md"), "# Architecture\n", "utf8");
+    expect(runWiki(["scaffold-project", "docswarn"], env).exitCode).toBe(0);
+    expect(runWiki(["create-module", "docswarn", "auth", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+    const summaryPath = join(vault, "projects", "docswarn", "_summary.md");
+    writeFileSync(summaryPath, readFileSync(summaryPath, "utf8").replace("status: scaffold", `status: current\nrepo: ${repo}`), "utf8");
+
+    const doctor = runWiki(["doctor", "docswarn", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(doctor.exitCode).toBe(0);
+    const doctorJson = JSON.parse(doctor.stdout.toString());
+    expect(doctorJson.counts.repoDocs).toBeGreaterThan(0);
+    expect(doctorJson.topActions.some((action: { kind: string; message: string }) => action.kind === "move-doc-to-wiki")).toBe(true);
+
+    const gate = runWiki(["gate", "docswarn", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    const gateJson = JSON.parse(gate.stdout.toString());
+    expect(Array.isArray(gateJson.warnings)).toBe(true);
+    expect(gateJson.warnings.some((warning: string) => warning.includes("repo markdown doc"))).toBe(true);
+  });
+
+  test("legacy flat research commands are rejected", () => {
+    const vault = tempDir("wiki-vault");
+    mkdirSync(join(vault, "projects"), { recursive: true });
+    writeFileSync(join(vault, "AGENTS.md"), "# Agents\n", "utf8");
+    writeFileSync(join(vault, "index.md"), "# Index\n", "utf8");
+    const result = runWiki(["file-research", "demo", "old style"], { KNOWLEDGE_VAULT_ROOT: vault });
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr.toString()).toContain("Unknown command");
   });
 
   test("obsidian wrapper fails clearly when obsidian CLI is unavailable", () => {

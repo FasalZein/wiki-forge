@@ -159,7 +159,7 @@ function renderOnboardingPlan(project: string, repo?: string) {
       "", "#### Slice F: Research Layer", "",
       `Detected research docs in repo: ${researchDirs.join(", ")}`, "",
       `- [ ] Review existing research docs for key findings and architectural decisions`,
-      `- [ ] Create wiki research pages for high-signal findings: \`wiki file-research ${project} <topic>\``,
+      `- [ ] Create wiki research pages for high-signal findings: \`wiki research file ${project} <topic>\``,
       `- [ ] Link research pages to relevant module specs and PRDs`,
       `- [ ] Record research-driven decisions in \`projects/${project}/decisions.md\``,
     );

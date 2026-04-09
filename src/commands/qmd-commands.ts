@@ -1,5 +1,4 @@
-import { VAULT_ROOT } from "../constants";
-import { assertQmdAvailable, buildStructuredHybridQuery, captureQmd, runQmd, runQmdCached } from "../lib/qmd";
+import { assertQmdAvailable, ensureKnowledgeCollection, queryKnowledge, runQmd, searchKnowledge } from "../lib/qmd";
 
 export async function searchVault(args: string[]) {
   assertQmdAvailable();
@@ -10,12 +9,7 @@ export async function searchVault(args: string[]) {
     throw new Error("missing query");
   }
 
-  if (hybrid) {
-    await runQmdCached(["query", buildStructuredHybridQuery(query), "-c", "knowledge"], `search:hybrid:${query}`);
-    return;
-  }
-
-  await runQmdCached(["search", query, "-c", "knowledge"], `search:${query}`);
+  await searchKnowledge(query, { hybrid });
 }
 
 export async function queryVault(args: string[]) {
@@ -26,12 +20,7 @@ export async function queryVault(args: string[]) {
     throw new Error("missing query");
   }
 
-  if (expand) {
-    await runQmdCached(["query", query, "-c", "knowledge"], `query:expand:${query}`);
-    return;
-  }
-
-  await runQmdCached(["query", buildStructuredHybridQuery(query), "-c", "knowledge"], `query:structured:${query}`);
+  await queryKnowledge(query, { expand });
 }
 
 export async function qmdStatus() {
@@ -51,18 +40,6 @@ export async function qmdEmbed() {
 
 export async function qmdSetup() {
   assertQmdAvailable();
-  const list = await captureQmd(["collection", "list"]);
-  if (!list.stdout.includes("knowledge")) {
-    await runQmd(["collection", "add", VAULT_ROOT, "--name", "knowledge", "--mask", "**/*.md"]);
-  }
-
-  const contexts = await captureQmd(["context", "list"]);
-  if (!contexts.stdout.includes("Knowledge vault: projects, wiki, research")) {
-    await runQmd(["context", "add", "qmd://knowledge", "Knowledge vault: projects, wiki, research"]);
-  }
-  if (!contexts.stdout.includes("Use index.md first, then _summary.md, then drill deeper.")) {
-    await runQmd(["context", "add", "/", "Use index.md first, then _summary.md, then drill deeper."]);
-  }
-
+  await ensureKnowledgeCollection();
   await runQmd(["update"]);
 }

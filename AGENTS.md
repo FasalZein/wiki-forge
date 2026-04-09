@@ -18,7 +18,7 @@ Do not silently skip missing skills. If a required skill is unavailable, say so 
 
 - No production code change is complete without changed tests or a documented exception in the wiki.
 - Run `wiki gate <project> --repo <path> --base <rev>` before declaring a slice complete.
-- File research with `wiki file-research` before writing PRDs.
+- File research with `wiki research file` before writing PRDs.
 - Update impacted wiki pages from code and tests, not from memory.
 - Do not accept unmaintainable code as the cost of speed.
 

@@ -4,8 +4,10 @@ import matter from "gray-matter";
 import { VAULT_ROOT } from "../constants";
 import { orderFrontmatter, projectRoot, mkdirIfMissing, readProjectTitle } from "../cli-shared";
 import { buildEvidenceExcerpt, buildScopedNoteIndex, findNoteByVaultPath, fromQmdFile, normalizePath, stripMarkdownExtension } from "../lib/notes";
-import { assertQmdAvailable, buildStructuredHybridQuery, captureQmdJsonCached } from "../lib/qmd";
+import { assertQmdAvailable, queryKnowledge } from "../lib/qmd";
 import { appendLogEntry } from "../lib/log";
+import { questionTokens } from "../lib/research";
+import { createResearchPage } from "./research";
 import type { AnswerBrief, AnswerSource, AskOptions, NoteIndex, QmdResult } from "../types";
 
 export async function askProject(args: string[]) {
@@ -75,10 +77,12 @@ async function buildAnswerBrief(options: AskOptions): Promise<AnswerBrief> {
 
   const retrievalQuery = options.expand ? options.question : buildProjectAwareQuery(options.project, options.question);
   const maxCandidates = Math.max(10, options.maxResults * 3);
-  const qmdResults = await captureQmdJsonCached(
-    ["query", retrievalQuery, "-c", "knowledge", "--json", "-n", String(maxCandidates)],
-    `answer:${options.project}:${options.expand ? "expand" : "structured"}:${options.question}:${maxCandidates}`,
-  );
+  const qmdResults = await queryKnowledge(retrievalQuery, {
+    expand: true,
+    json: true,
+    maxResults: maxCandidates,
+    cacheKeyPrefix: `answer:${options.project}`,
+  });
   const noteIndex = buildScopedNoteIndex(qmdResults.map((result) => fromQmdFile(result.file)));
   const sources = qmdResults
     .map((result) => toAnswerSource(options.project, options.question, result, noteIndex))
@@ -114,21 +118,22 @@ function toAnswerSource(project: string, question: string, result: QmdResult, no
   const note = findNoteByVaultPath(noteIndex, vaultPath);
   const scope = classifyAnswerScope(project, markdownPath);
   const evidence = buildEvidenceExcerpt(note, result, question);
-  const adjustedScore = scoreAnswerSource(project, markdownPath, scope, result.score, evidence.score);
+  const adjustedScore = scoreAnswerSource(project, question, markdownPath, scope, result.score, evidence.score);
   return { result, adjustedScore, markdownPath, vaultPath, scope, note, evidence };
 }
 
 function classifyAnswerScope(project: string, markdownPath: string): AnswerSource["scope"] {
   const normalized = normalizePath(markdownPath).toLowerCase();
   const projectPrefix = `projects/${project.toLowerCase()}/`;
+  const researchProjectPrefix = `research/projects/${project.toLowerCase()}/`;
   if (normalized.startsWith(projectPrefix)) return "project";
+  if (normalized.startsWith(researchProjectPrefix)) return "project";
   if (normalized.startsWith("wiki/")) return "wiki";
-  if (normalized.startsWith("research/") && normalized.includes(`${project.toLowerCase()}-`)) return "project";
   if (normalized === "index.md" || normalized === "log.md" || normalized.startsWith("specs/") || normalized.startsWith("tools/") || normalized.startsWith("skills/") || normalized.startsWith("research/")) return "meta";
   return "other";
 }
 
-function scoreAnswerSource(project: string, markdownPath: string, scope: AnswerSource["scope"], score: number, evidenceScore: number) {
+function scoreAnswerSource(project: string, question: string, markdownPath: string, scope: AnswerSource["scope"], score: number, evidenceScore: number) {
   let adjusted = score;
   if (scope === "project") adjusted += 1.2;
   else if (scope === "wiki") adjusted += 0.2;
@@ -136,10 +141,13 @@ function scoreAnswerSource(project: string, markdownPath: string, scope: AnswerS
 
   const normalized = normalizePath(markdownPath).toLowerCase();
   if (normalized === `projects/${project.toLowerCase()}/_summary.md`) adjusted += 0.4;
+  if (normalized.startsWith(`research/projects/${project.toLowerCase()}/`)) adjusted += 0.9;
+  if (normalized.endsWith("/_overview.md")) adjusted += 0.25;
   if (normalized.endsWith("/spec.md")) adjusted += 0.25;
   if (normalized.endsWith("/readme.md")) adjusted -= 0.2;
   if (normalized.endsWith("/backlog.md") || normalized.includes("/verification/")) adjusted += 0.1;
-  return adjusted + evidenceScore * 0.35;
+  const topicBoost = questionTokens(question).reduce((total, token) => total + (normalized.includes(token) ? 0.08 : 0), 0);
+  return adjusted + evidenceScore * 0.35 + Math.min(topicBoost, 0.4);
 }
 
 function renderAnswerBrief(brief: AnswerBrief) {
@@ -190,55 +198,24 @@ function slugify(value: string) {
 
 export function fileResearch(args: string[]) {
   const project = args[0];
-  const title = args.slice(1).join(" ").trim();
   if (!project) throw new Error("missing project");
-  if (!title) throw new Error("missing title");
   const root = projectRoot(project);
   if (!existsSync(root)) throw new Error(`project not found: ${project}`);
-  const slug = slugify(title);
-  const researchDir = join(VAULT_ROOT, "research");
-  mkdirIfMissing(researchDir);
-  const outputPath = join(researchDir, `${project}-${slug}.md`);
-  if (existsSync(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
-  const data = orderFrontmatter({
-    title,
-    type: "research",
-    project,
-    updated: new Date().toISOString().slice(0, 10),
-    status: "draft",
-  }, ["title", "type", "project", "updated", "status"]);
-  const body = [
-    `# ${title}`,
-    "",
-    "## TL;DR",
-    "",
-    "",
-    "",
-    "## Key Findings",
-    "",
-    "### Finding 1",
-    "",
-    "",
-    "",
-    "## Landscape / Comparison",
-    "",
-    "",
-    "",
-    "## Open Questions",
-    "",
-    "- ",
-    "",
-    "## Sources",
-    "",
-    "[1] ",
-    "",
-    "## Cross Links",
-    "",
-    `- [[projects/${project}/_summary]]`,
-    `- [[projects/${project}/backlog]]`,
-    "",
-  ].join("\n");
-  writeFileSync(outputPath, matter.stringify(body, data), "utf8");
+  let topic: string | undefined;
+  const titleParts: string[] = [];
+  for (let index = 1; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--topic") {
+      topic = args[index + 1];
+      if (!topic) throw new Error("missing topic");
+      index += 1;
+      continue;
+    }
+    titleParts.push(arg);
+  }
+  const title = titleParts.join(" ").trim();
+  if (!title) throw new Error("missing title");
+  const { outputPath } = createResearchPage(project, title, topic);
   appendLogEntry("file-research", title, { project, details: [`path=${relative(VAULT_ROOT, outputPath)}`] });
   console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
 }

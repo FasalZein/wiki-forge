@@ -1,0 +1,397 @@
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join, relative } from "node:path";
+import matter from "gray-matter";
+import { VAULT_ROOT } from "../constants";
+import { mkdirIfMissing, orderFrontmatter, requireValue, safeMatter, today, writeNormalizedPage } from "../cli-shared";
+import { appendLogEntry } from "../lib/log";
+import { deriveSourceSlug, deriveSourceTitle, detectResearchSourceType, inferRawBucket, normalizeTopicPath, rawBucketDir, rawPathForSource, rawVaultPath, researchOverviewPath, researchPagePath, researchRoot, researchTopicDir, slugifyResearchPage, topicCrossLinks, topicLabel } from "../lib/research";
+import { normalizePath, stripMarkdownExtension, walkMarkdown } from "../lib/vault";
+
+const RESEARCH_STATUSES = ["draft", "reviewed", "verified", "applied"] as const;
+const RESEARCH_VERIFICATION_LEVELS = ["unverified", "cross-referenced", "source-checked"] as const;
+const STALE_UNVERIFIED_DAYS = 30;
+
+export function scaffoldResearch(args: string[]) {
+  const topic = args.find((arg) => !arg.startsWith("--"));
+  requireValue(topic, "topic");
+  const { overviewPath, created } = ensureResearchTopic(topic);
+  appendLogEntry("scaffold-research", normalizeTopicPath(topic), { details: [`path=${relative(VAULT_ROOT, overviewPath)}`] });
+  console.log(`${created ? "created" : "exists"} ${relative(VAULT_ROOT, overviewPath)}`);
+}
+
+export function researchStatus(args: string[]) {
+  const topic = args.find((arg) => !arg.startsWith("--"));
+  const json = args.includes("--json");
+  const result = collectResearchStatus(topic);
+  if (json) console.log(JSON.stringify(result, null, 2));
+  else {
+    console.log(`research status${result.topic ? ` for ${result.topic}` : ""}:`);
+    console.log(`- root: ${result.root}`);
+    console.log(`- pages: ${result.counts.total}`);
+    console.log(`- missing sources: ${result.counts.missingSources}`);
+    console.log(`- stale unverified: ${result.counts.staleUnverified}`);
+    console.log(`- status: ${RESEARCH_STATUSES.map((status) => `${status}=${result.byStatus[status] ?? 0}`).join(" ")}`);
+    console.log(`- verification: ${RESEARCH_VERIFICATION_LEVELS.map((level) => `${level}=${result.byVerification[level] ?? 0}`).join(" ")}`);
+  }
+}
+
+export function ingestResearch(args: string[]) {
+  const { topic, source, title } = parseIngestResearchArgs(args);
+  const normalizedTopic = normalizeTopicPath(topic);
+  ensureResearchTopic(normalizedTopic);
+  const slug = deriveSourceSlug(source);
+  const outputPath = researchPagePath(normalizedTopic, slug);
+  if (existsSync(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
+  const sourceType = detectResearchSourceType(source);
+  const sourceField = /^https?:\/\//iu.test(source) ? { url: source } : { path: source };
+  const data = orderFrontmatter({
+    title: title ?? deriveSourceTitle(source),
+    type: "research",
+    topic: normalizedTopic,
+    status: "draft",
+    source_type: sourceType,
+    sources: [{ ...sourceField, accessed: today(), claim: "TODO: capture the specific claim supported by this source." }],
+    updated: today(),
+    verification_level: "unverified",
+  }, ["title", "type", "topic", "project", "status", "source_type", "sources", "updated", "verification_level"]);
+  const body = [
+    `# ${data.title}`,
+    "",
+    "## Source Summary",
+    "",
+    `- Source: ${source}`,
+    "- Why it matters: ",
+    "",
+    "## TL;DR",
+    "",
+    "",
+    "",
+    "## Key Findings",
+    "",
+    "- ",
+    "",
+    "## Claims To Verify",
+    "",
+    "- ",
+    "",
+    "## Sources",
+    "",
+    `[1] ${source}`,
+    "",
+    "## Cross Links",
+    "",
+    ...topicCrossLinks(normalizedTopic),
+    "",
+  ].join("\n");
+  writeNormalizedPage(outputPath, body, data);
+  appendLogEntry("ingest-research", data.title as string, { details: [`topic=${normalizedTopic}`, `path=${relative(VAULT_ROOT, outputPath)}`] });
+  console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
+}
+
+export function ingestSource(args: string[]) {
+  const { source, topic, title, bucket } = parseIngestSourceArgs(args);
+  const normalizedTopic = normalizeTopicPath(topic ?? "sources/inbox");
+  ensureResearchTopic(normalizedTopic);
+  const resolvedBucket = bucket ?? inferRawBucket(source);
+  const rawDir = rawBucketDir(resolvedBucket);
+  mkdirIfMissing(rawDir);
+  const rawPath = rawPathForSource(source, resolvedBucket);
+  if (existsSync(rawPath)) throw new Error(`raw source already exists: ${relative(VAULT_ROOT, rawPath)}`);
+
+  if (/^https?:\/\//iu.test(source)) {
+    const rawTitle = title ?? deriveSourceTitle(source);
+    const rawData = orderFrontmatter({
+      title: rawTitle,
+      type: "raw-source",
+      source_url: source,
+      bucket: resolvedBucket,
+      captured: today(),
+      immutable: true,
+    }, ["title", "type", "source_url", "bucket", "captured", "immutable"]);
+    const rawBody = [
+      `# ${rawTitle}`,
+      "",
+      "## Source",
+      "",
+      `- URL: ${source}`,
+      "- Capture note: URL pointer only. Original content remains external.",
+      "",
+    ].join("\n");
+    writeNormalizedPage(rawPath, rawBody, rawData);
+  } else {
+    if (!existsSync(source)) throw new Error(`source path not found: ${source}`);
+    copyFileSync(source, rawPath);
+  }
+
+  const sourceLabel = /^https?:\/\//iu.test(source) ? source : relative(process.cwd(), source);
+  const outputPath = researchPagePath(normalizedTopic, deriveSourceSlug(source));
+  if (existsSync(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
+  const rawLink = `[[${rawVaultPath(rawPath)}]]`;
+  const sourceType = detectResearchSourceType(source);
+  const data = orderFrontmatter({
+    title: title ?? deriveSourceTitle(source),
+    type: "research",
+    topic: normalizedTopic,
+    status: "draft",
+    source_type: sourceType,
+    sources: [{ raw: rawVaultPath(rawPath), accessed: today(), claim: "TODO: capture the specific claim supported by this source." }],
+    updated: today(),
+    verification_level: "unverified",
+  }, ["title", "type", "topic", "project", "status", "source_type", "sources", "updated", "verification_level"]);
+  const body = [
+    `# ${data.title}`,
+    "",
+    "## Source Summary",
+    "",
+    `- Source input: ${sourceLabel}`,
+    `- Raw note: ${rawLink}`,
+    "",
+    "## TL;DR",
+    "",
+    "",
+    "",
+    "## Key Findings",
+    "",
+    `-  [1] ${rawLink}`,
+    "",
+    "## Claims To Verify",
+    "",
+    `-  ${rawLink}`,
+    "",
+    "## Sources",
+    "",
+    `1. ${rawLink}`,
+    "",
+    "## Cross Links",
+    "",
+    ...topicCrossLinks(normalizedTopic),
+    "",
+  ].join("\n");
+  writeNormalizedPage(outputPath, body, data);
+  appendLogEntry("ingest-source", data.title as string, { details: [`topic=${normalizedTopic}`, `raw=${relative(VAULT_ROOT, rawPath)}`, `path=${relative(VAULT_ROOT, outputPath)}`] });
+  console.log(`created ${relative(VAULT_ROOT, rawPath)}`);
+  console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
+}
+
+export function lintResearch(args: string[]) {
+  const topic = args.find((arg) => !arg.startsWith("--"));
+  const json = args.includes("--json");
+  const result = collectResearchLintResult(topic);
+  if (json) console.log(JSON.stringify(result, null, 2));
+  else if (result.issues.length) {
+    console.log(`research lint found ${result.issues.length} issue(s)${result.topic ? ` for ${result.topic}` : ""}:`);
+    for (const issue of result.issues) console.log(`- ${issue}`);
+  } else console.log(`research lint passed${result.topic ? ` for ${result.topic}` : ""}`);
+  if (result.issues.length) throw new Error(`research lint failed${result.topic ? ` for ${result.topic}` : ""}`);
+}
+
+export function ensureResearchTopic(topic: string) {
+  const normalizedTopic = normalizeTopicPath(topic);
+  const dir = researchTopicDir(normalizedTopic);
+  mkdirIfMissing(researchRoot());
+  mkdirIfMissing(dir);
+  const overviewPath = researchOverviewPath(normalizedTopic);
+  let created = false;
+  if (!existsSync(overviewPath)) {
+    const data = orderFrontmatter({
+      title: topicLabel(normalizedTopic),
+      type: "research-topic",
+      topic: normalizedTopic,
+      updated: today(),
+      status: "current",
+      verification_level: "unverified",
+    }, ["title", "type", "topic", "updated", "status", "verification_level"]);
+    const body = [
+      `# ${topicLabel(normalizedTopic)}`,
+      "",
+      "## Overview",
+      "",
+      "",
+      "",
+      "## Active Questions",
+      "",
+      "- ",
+      "",
+      "## Pages",
+      "",
+      "- ",
+      "",
+      "## Cross Links",
+      "",
+      ...topicCrossLinks(normalizedTopic).filter((line) => !line.includes("_overview")),
+      "",
+    ].join("\n");
+    writeNormalizedPage(overviewPath, body, data);
+    created = true;
+  }
+  return { topic: normalizedTopic, dir, overviewPath, created };
+}
+
+export function collectResearchStatus(topic?: string) {
+  const normalizedTopic = topic ? normalizeTopicPath(topic) : undefined;
+  const root = normalizedTopic ? researchTopicDir(normalizedTopic) : researchRoot();
+  const pages = walkMarkdown(root).filter((file) => !file.endsWith("/_overview.md"));
+  const byStatus = Object.fromEntries(RESEARCH_STATUSES.map((status) => [status, 0])) as Record<string, number>;
+  const byVerification = Object.fromEntries(RESEARCH_VERIFICATION_LEVELS.map((level) => [level, 0])) as Record<string, number>;
+  let missingSources = 0;
+  let staleUnverified = 0;
+  for (const file of pages) {
+    const parsed = safeMatter(relative(VAULT_ROOT, file), readFileSync(file, "utf8"), { silent: true });
+    if (!parsed) continue;
+    const status = typeof parsed.data.status === "string" ? parsed.data.status : "draft";
+    const verification = typeof parsed.data.verification_level === "string" ? parsed.data.verification_level : "unverified";
+    byStatus[status] = (byStatus[status] ?? 0) + 1;
+    byVerification[verification] = (byVerification[verification] ?? 0) + 1;
+    if (!Array.isArray(parsed.data.sources) || parsed.data.sources.length === 0) missingSources += 1;
+    if (verification === "unverified" && isOlderThan(parsed.data.updated, STALE_UNVERIFIED_DAYS)) staleUnverified += 1;
+  }
+  return {
+    topic: normalizedTopic,
+    root: relative(VAULT_ROOT, root) || "research",
+    counts: { total: pages.length, missingSources, staleUnverified },
+    byStatus,
+    byVerification,
+  };
+}
+
+export function collectResearchLintResult(topic?: string) {
+  const normalizedTopic = topic ? normalizeTopicPath(topic) : undefined;
+  const root = normalizedTopic ? researchTopicDir(normalizedTopic) : researchRoot();
+  const pages = walkMarkdown(root).sort();
+  const issues: string[] = [];
+  const inbound = buildResearchInboundCounts();
+  for (const file of pages) {
+    const rel = normalizePath(relative(VAULT_ROOT, file));
+    const relNoExt = stripMarkdownExtension(rel);
+    const raw = readFileSync(file, "utf8");
+    const parsed = safeMatter(rel, raw, { silent: true });
+    if (!parsed) {
+      issues.push(`${rel} invalid frontmatter`);
+      continue;
+    }
+    if (file.endsWith("/_overview.md")) continue;
+    if (!Array.isArray(parsed.data.sources) || parsed.data.sources.length === 0) issues.push(`${rel} missing sources in frontmatter`);
+    else if ((parsed.data.sources as unknown[]).some((entry) => !entry || typeof entry !== "object" || !("claim" in (entry as Record<string, unknown>)))) issues.push(`${rel} source entries should include claim attribution`);
+    if ((parsed.data.verification_level ?? "unverified") === "unverified" && isOlderThan(parsed.data.updated, STALE_UNVERIFIED_DAYS)) issues.push(`${rel} stale unverified research page`);
+    if (hasUnattributedClaims(parsed.content)) issues.push(`${rel} key findings lack inline attribution`);
+    if ((inbound.get(relNoExt) ?? 0) === 0) issues.push(`${rel} not linked from any project or idea page`);
+  }
+  return { topic: normalizedTopic, root: relative(VAULT_ROOT, root) || "research", issues };
+}
+
+function parseIngestResearchArgs(args: string[]) {
+  const topic = args[0];
+  const source = args[1];
+  requireValue(topic, "topic");
+  requireValue(source, "source");
+  const titleIndex = args.indexOf("--title");
+  const title = titleIndex >= 0 ? args[titleIndex + 1] : undefined;
+  return { topic, source, title };
+}
+
+function parseIngestSourceArgs(args: string[]) {
+  const source = args[0];
+  requireValue(source, "source");
+  const topicIndex = args.indexOf("--topic");
+  const titleIndex = args.indexOf("--title");
+  const bucketIndex = args.indexOf("--bucket");
+  const topic = topicIndex >= 0 ? args[topicIndex + 1] : undefined;
+  const title = titleIndex >= 0 ? args[titleIndex + 1] : undefined;
+  const bucket = bucketIndex >= 0 ? args[bucketIndex + 1] : undefined;
+  if (topicIndex >= 0) requireValue(topic, "topic");
+  if (titleIndex >= 0) requireValue(title, "title");
+  if (bucketIndex >= 0) requireValue(bucket, "bucket");
+  return { source, topic, title, bucket };
+}
+
+function buildResearchInboundCounts() {
+  const counts = new Map<string, number>();
+  for (const file of walkMarkdown(VAULT_ROOT)) {
+    const rel = normalizePath(relative(VAULT_ROOT, file));
+    if (!rel.startsWith("projects/") && !rel.startsWith("ideas/")) continue;
+    const body = readFileSync(file, "utf8");
+    for (const link of extractWikilinks(body)) {
+      const target = stripMarkdownExtension(link);
+      if (!target.startsWith("research/")) continue;
+      counts.set(target, (counts.get(target) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+function extractWikilinks(body: string) {
+  return [...body.matchAll(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g)].map((match) => String(match[1]).trim()).filter(Boolean);
+}
+
+function isOlderThan(value: unknown, days: number) {
+  if (typeof value !== "string") return false;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return false;
+  const ageMs = Date.now() - parsed.getTime();
+  return ageMs > days * 24 * 60 * 60 * 1000;
+}
+
+function hasUnattributedClaims(body: string) {
+  const lines = body.replace(/\r\n/g, "\n").split("\n");
+  let inKeyFindings = false;
+  for (const line of lines) {
+    if (line.startsWith("## ")) inKeyFindings = line.trim() === "## Key Findings";
+    if (!inKeyFindings) continue;
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("- ")) continue;
+    const text = trimmed.slice(2).trim();
+    if (!text || text === "") continue;
+    if (text.includes("[1]") || text.includes("source:") || text.includes("[[raw/")) continue;
+    return true;
+  }
+  return false;
+}
+
+export function createResearchPage(project: string, title: string, topic?: string) {
+  const normalizedTopic = normalizeTopicPath(topic ?? `projects/${project}`);
+  ensureResearchTopic(normalizedTopic);
+  const slug = slugifyResearchPage(title);
+  const outputPath = researchPagePath(normalizedTopic, slug);
+  if (existsSync(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
+  const data = orderFrontmatter({
+    title,
+    type: "research",
+    topic: normalizedTopic,
+    project,
+    status: "draft",
+    source_type: "synthesis",
+    sources: [],
+    updated: today(),
+    verification_level: "unverified",
+  }, ["title", "type", "topic", "project", "status", "source_type", "sources", "updated", "verification_level"]);
+  const body = [
+    `# ${title}`,
+    "",
+    "## TL;DR",
+    "",
+    "",
+    "",
+    "## Key Findings",
+    "",
+    "- ",
+    "",
+    "## Landscape / Comparison",
+    "",
+    "",
+    "",
+    "## Open Questions",
+    "",
+    "- ",
+    "",
+    "## Sources",
+    "",
+    "[1] ",
+    "",
+    "## Cross Links",
+    "",
+    ...topicCrossLinks(normalizedTopic),
+    "",
+  ].join("\n");
+  writeFileSync(outputPath, matter.stringify(body, data), "utf8");
+  return { topic: normalizedTopic, outputPath };
+}

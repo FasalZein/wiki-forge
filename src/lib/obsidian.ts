@@ -1,8 +1,7 @@
+import { resolveCommandOnPath } from "./runtime";
+
 export function assertObsidianCliAvailable() {
-  try {
-    const result = Bun.spawnSync(["which", "obsidian"], { stdout: "pipe", stderr: "pipe" });
-    if (result.exitCode === 0) return;
-  } catch {}
+  if (resolveCommandOnPath("obsidian")) return;
   throw new Error(
     "obsidian CLI not found. Install/enable Obsidian CLI in the Obsidian app, restart your terminal, and ensure 'obsidian' is on PATH.",
   );

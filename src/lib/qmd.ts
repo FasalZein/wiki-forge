@@ -1,9 +1,10 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
-import { QMD_NODE_CLI } from "../constants";
+import { QMD_NODE_CLI, VAULT_ROOT } from "../constants";
 import type { QmdResult } from "../types";
 import { fileFingerprint, readCache, writeCache } from "./cache";
+import { resolveCommandOnPath } from "./runtime";
 
 const QMD_CACHE_VERSION = "1";
 const QMD_INDEX_PATH = join(homedir(), ".cache", "qmd", "index.sqlite");
@@ -12,6 +13,8 @@ type QmdCapture = {
   stdout: string;
   stderr: string;
 };
+
+let qmdAvailable: boolean | null = null;
 
 export async function runQmd(args: string[]) {
   const proc = Bun.spawn(qmdInvocation(args), {
@@ -71,6 +74,47 @@ export function buildStructuredHybridQuery(query: string) {
   return `lex: ${query}\nvec: ${query}`;
 }
 
+export async function searchKnowledge(query: string, options?: { hybrid?: boolean; writeOutput?: boolean }) {
+  assertQmdAvailable();
+  const hybrid = options?.hybrid ?? false;
+  const args = hybrid
+    ? ["query", buildStructuredHybridQuery(query), "-c", "knowledge"]
+    : ["search", query, "-c", "knowledge"];
+  const cacheKey = hybrid ? `search:hybrid:${query}` : `search:${query}`;
+  if (options?.writeOutput === false) return captureQmd(args);
+  await runQmdCached(args, cacheKey);
+}
+
+export async function queryKnowledge(query: string, options: { expand?: boolean; json: true; maxResults?: number; cacheKeyPrefix?: string; }): Promise<QmdResult[]>;
+export async function queryKnowledge(query: string, options?: { expand?: boolean; json?: false; maxResults?: number; cacheKeyPrefix?: string; }): Promise<void>;
+export async function queryKnowledge(query: string, options?: { expand?: boolean; json?: boolean; maxResults?: number; cacheKeyPrefix?: string; }): Promise<QmdResult[] | void> {
+  assertQmdAvailable();
+  const expand = options?.expand ?? false;
+  const commandArgs = ["query", expand ? query : buildStructuredHybridQuery(query), "-c", "knowledge"];
+  if (options?.json) commandArgs.push("--json");
+  if (typeof options?.maxResults === "number") commandArgs.push("-n", String(options.maxResults));
+  const cachePrefix = options?.cacheKeyPrefix ?? "query";
+  const cacheKey = `${cachePrefix}:${expand ? "expand" : "structured"}:${query}:${options?.maxResults ?? "default"}:${options?.json ? "json" : "text"}`;
+  if (options?.json) return captureQmdJsonCached(commandArgs, cacheKey);
+  await runQmdCached(commandArgs, cacheKey);
+}
+
+export async function ensureKnowledgeCollection() {
+  assertQmdAvailable();
+  const list = await captureQmd(["collection", "list"]);
+  if (!list.stdout.includes("knowledge")) {
+    await runQmd(["collection", "add", VAULT_ROOT, "--name", "knowledge", "--mask", "**/*.md"]);
+  }
+
+  const contexts = await captureQmd(["context", "list"]);
+  if (!contexts.stdout.includes("Knowledge vault: projects, wiki, research")) {
+    await runQmd(["context", "add", "qmd://knowledge", "Knowledge vault: projects, wiki, research"]);
+  }
+  if (!contexts.stdout.includes("Use index.md first, then _summary.md, then drill deeper.")) {
+    await runQmd(["context", "add", "/", "Use index.md first, then _summary.md, then drill deeper."]);
+  }
+}
+
 function qmdInvocation(args: string[]) {
   if (existsSync(QMD_NODE_CLI)) {
     return ["node", QMD_NODE_CLI, ...args];
@@ -79,11 +123,16 @@ function qmdInvocation(args: string[]) {
 }
 
 export function assertQmdAvailable() {
-  if (existsSync(QMD_NODE_CLI)) return;
-  try {
-    const result = Bun.spawnSync(["which", "qmd"], { stdout: "pipe", stderr: "pipe" });
-    if (result.exitCode === 0) return;
-  } catch {}
+  if (qmdAvailable === true) return;
+  if (existsSync(QMD_NODE_CLI)) {
+    qmdAvailable = true;
+    return;
+  }
+  if (resolveCommandOnPath("qmd")) {
+    qmdAvailable = true;
+    return;
+  }
+  qmdAvailable = false;
   throw new Error(
     "qmd not found. Retrieval commands (search, query, ask) require qmd.\n" +
       "Install qmd, then run 'wiki qmd-setup'.\n" +

@@ -46,10 +46,11 @@ When in doubt, start the workflow. Scaffolding a PRD takes 2 minutes.
 1. **No code without tests.** Every code change needs changed tests, or a documented exception in the wiki.
 2. **Run `wiki gate` before declaring done.** It blocks on missing tests.
 3. **PRD + slicing before non-trivial implementation.**
-4. **Research before PRD.** File with `wiki file-research` so decisions are traceable.
+4. **Research before PRD.** File with `wiki research file` so decisions are traceable.
 5. **Grill before PRD.** Stress-test assumptions — don't commit to a spec you haven't defended.
 6. **Read code before updating wiki.** Never write docs from memory alone.
 7. **No unmaintainable code.** If a slice passes tests but worsens maintainability, refactor before closing.
+8. **Never create `.md` documentation inside project repos** except `README.md` and `CHANGELOG.md`. Specs, research, architecture notes, and maintained docs belong in the wiki vault.
 
 ## Definition of Done
 
@@ -64,7 +65,7 @@ A slice is complete only when all of these are true:
 ## Workflow: Build or Change a Feature
 
 ```text
-1. /research — gather evidence, file with: wiki file-research <project> <title>
+1. /research — gather evidence, file with: wiki research file <project> <title>
 2. /grill-me — defend the approach, resolve unknowns
 3. /write-a-prd — capture scope, link to research in Prior Research section
 4. /prd-to-slices — break into vertical slices (wiki create-issue-slice per slice)

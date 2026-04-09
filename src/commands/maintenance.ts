@@ -3,6 +3,7 @@ import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { assertExists, mkdirIfMissing, projectRoot, requireValue } from "../cli-shared";
 import { appendLogEntry, tailLog } from "../lib/log";
+import { fileFingerprint, readCache, writeCache } from "../lib/cache";
 import { gitDiffSummary, readVerificationLevel, resolveRepoPath, assertGitRepo } from "../lib/verification";
 import { walkMarkdown } from "../lib/vault";
 import { safeMatter } from "../cli-shared";
@@ -31,6 +32,7 @@ export function maintainProject(args: string[]) {
     console.log(`- changed files: ${result.refreshFromGit.changedFiles.length}`);
     console.log(`- impacted pages: ${result.refreshFromGit.impactedPages.length}`);
     console.log(`- uncovered files: ${result.discover.uncoveredFiles.length}`);
+    console.log(`- repo docs to move: ${result.discover.repoDocFiles.length}`);
     console.log(`- changed tests: ${result.refreshFromGit.testHealth.changedTestFiles.length}`);
     console.log(`- code changes without changed tests: ${missingTests}`);
     console.log(`- lint issues: ${result.lint.issues.length}`);
@@ -127,7 +129,9 @@ export function discoverProject(args: string[]) {
     console.log(`- uncovered files: ${result.uncoveredFiles.length}`);
     console.log(`- unbound pages: ${result.unboundPages.length}`);
     console.log(`- placeholder-heavy pages: ${result.placeholderHeavyPages.length}`);
+    console.log(`- repo docs to move: ${result.repoDocFiles.length}`);
     for (const file of result.uncoveredFiles.slice(0, 20)) console.log(`  - uncovered: ${file}`);
+    for (const file of result.repoDocFiles.slice(0, 20)) console.log(`  - repo-doc: ${file}`);
   }
 }
 
@@ -198,6 +202,7 @@ export function collectMaintenancePlan(project: string, base: string, explicitRe
   for (const impacted of refreshFromGit.impactedPages) actions.push({ kind: "review-page", message: `${impacted.page} impacted by ${impacted.matchedSourcePaths.join(", ")}` });
   for (const file of refreshFromGit.uncoveredFiles.slice(0, 20)) actions.push({ kind: "create-or-bind", message: `cover changed file ${file}` });
   for (const file of refreshFromGit.testHealth.codeFilesWithoutChangedTests.slice(0, 20)) actions.push({ kind: "add-tests", message: `changed code without changed tests: ${file}` });
+  for (const file of discover.repoDocFiles.slice(0, 20)) actions.push({ kind: "move-doc-to-wiki", message: `repo markdown doc should live in wiki: ${file}` });
   for (const page of discover.unboundPages.slice(0, 20)) actions.push({ kind: "bind-page", message: `${page} has no source_paths` });
   for (const issue of lint.issues.slice(0, 20)) actions.push({ kind: "fix-structure", message: issue });
   for (const issue of semanticLint.issues.slice(0, 20)) actions.push({ kind: "fix-semantic", message: issue });
@@ -240,7 +245,8 @@ function collectDiscoverSummary(project: string, explicitRepo?: string) {
       } catch {}
     }
   }
-  return { project, repo, repoFiles: repoFiles.length, boundFiles: boundFiles.size, uncoveredFiles: repoFiles.filter((file) => !boundFiles.has(file)), unboundPages: unboundPages.sort(), placeholderHeavyPages: placeholderHeavyPages.sort(), researchDirs };
+  const repoDocFiles = listRepoMarkdownDocs(repo);
+  return { project, repo, repoFiles: repoFiles.length, boundFiles: boundFiles.size, uncoveredFiles: repoFiles.filter((file) => !boundFiles.has(file)), unboundPages: unboundPages.sort(), placeholderHeavyPages: placeholderHeavyPages.sort(), researchDirs, repoDocFiles };
 }
 
 function collectIngestDiff(project: string, base: string, explicitRepo?: string) {
@@ -319,6 +325,25 @@ function listCodeFiles(repo: string, customPaths?: string[]) {
     }
   }
   return [...files].sort();
+}
+
+function listRepoMarkdownDocs(repo: string) {
+  const fingerprint = `${fileFingerprint(join(repo, ".git", "index"))}:${fileFingerprint(join(repo, ".git", "HEAD"))}`;
+  const cacheKey = `repo-docs:${repo}`;
+  const cached = readCache<string[]>("repo-scan", cacheKey, "1", fingerprint);
+  if (cached) return cached;
+
+  const files = new Set<string>();
+  for (const absolute of new Bun.Glob("**/*.md").scanSync({ cwd: repo, absolute: true, onlyFiles: true })) {
+    const rel = relative(repo, absolute).replaceAll("\\", "/");
+    if (/\/(node_modules|dist|build|coverage|\.next|\.git)\//u.test(`/${rel}`)) continue;
+    const base = rel.split("/").pop() ?? rel;
+    if (/^(README|CHANGELOG)\.md$/iu.test(base)) continue;
+    files.add(rel);
+  }
+  const result = [...files].sort();
+  writeCache("repo-scan", cacheKey, "1", fingerprint, result);
+  return result;
 }
 
 function readCodePaths(project: string): string[] | undefined {

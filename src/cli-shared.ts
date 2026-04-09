@@ -8,6 +8,13 @@ export function printHelp() {
   console.log(`wiki CLI
 
 Usage:
+  wiki research scaffold <topic>
+  wiki research status [topic] [--json]
+  wiki research ingest <topic> <source-url-or-path> [--title <title>]
+  wiki research lint [topic] [--json]
+  wiki research file <project> [--topic <topic>] <title...>
+  wiki source ingest <path-or-url> [--topic <topic>] [--title <title>] [--bucket <name>]
+
   wiki scaffold-project <project>
   wiki backlog <project> [--json]
   wiki add-task <project> <title...> [--section <name>] [--priority <p>] [--tag <t>] [--json]
@@ -23,7 +30,6 @@ Usage:
   wiki onboard-plan <project> [--repo <path>] [--write]
   wiki ask <project> [--expand] [-n <num>] <question...>
   wiki file-answer <project> [--expand] [--slug <slug>] [-n <num>] <question...>
-  wiki file-research <project> <title...>
   wiki query [--expand] <query...>
   wiki qmd-setup
   wiki qmd-status
@@ -85,7 +91,13 @@ Notes:
   - wiki obsidian ... wraps a small app-dependent Obsidian CLI surface for vault-aware UI actions
   - ask reranks qmd results toward projects/<project>/ and prints a citation-ready brief
   - file-answer saves an ask brief into wiki/syntheses/
-  - file-research scaffolds a research page into research/
+  - use grouped commands: wiki research ..., wiki source ...
+  - research file scaffolds project research into research/projects/<project>/ by default
+  - research scaffold creates a topic container with research/<topic>/_overview.md
+  - research status reports research counts by status and verification level
+  - research ingest scaffolds a source-backed research page inside a topic
+  - source ingest copies a local file into raw/ or creates a raw URL pointer note, then scaffolds a linked research summary
+  - research lint flags missing sources, stale unverified notes, unattributed claims, and unlinked research pages
   - query --expand uses qmd's raw natural-language expansion path
   - qmd is invoked through a Node-based path when available to avoid the Bun sqlite-vec issue
   - set ${VAULT_ROOT_ENV} when the CLI is installed outside the vault repo

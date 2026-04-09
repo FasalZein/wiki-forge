@@ -57,7 +57,12 @@ Auto-detection: if `KNOWLEDGE_VAULT_ROOT` is unset, the CLI walks up from `cwd` 
 | Project-scoped Q&A | `wiki ask <project> "<question>"` |
 | Structural health | `wiki lint <project>` / `wiki lint-semantic <project>` |
 | Discover repo structure for onboarding | `wiki discover <project> --tree` |
-| File research artifacts | `wiki file-research <project> <title>` |
+| File project research | `wiki research file <project> <title>` |
+| Create a research topic | `wiki research scaffold <topic>` |
+| Check research health | `wiki research status [topic]` |
+| Scaffold source-backed research | `wiki research ingest <topic> <source>` |
+| Ingest raw source + summary | `wiki source ingest <path-or-url> [--topic <topic>]` |
+| Lint research evidence | `wiki research lint [topic]` |
 | Save answer brief | `wiki file-answer <project> "<question>"` |
 
 Planning scaffolds:
@@ -134,13 +139,14 @@ Save answer brief   → wiki file-answer <project> "question"
 After `/research` produces a report, file it into the vault:
 
 ```bash
-wiki file-research <project> <title>
+wiki research file <project> <title>
 ```
 
-This creates `research/<project>-<slug>.md` with frontmatter linking to the project. Paste findings into the scaffolded page. PRDs should link to research via the `## Prior Research` section.
+This creates `research/projects/<project>/<slug>.md` by default and ensures `research/projects/<project>/_overview.md` exists. Use `wiki research scaffold <topic>` for non-project topics, `wiki research ingest <topic> <source>` to seed a source-backed note, `wiki source ingest <path-or-url> [--topic <topic>]` to copy a source into `raw/` and scaffold a linked summary, and `wiki research lint` to catch missing evidence. PRDs should link to research via the `## Prior Research` section.
 
 ## Operating Guidelines
 
+- **Never create `.md` documentation inside project repos** except `README.md` and `CHANGELOG.md`. Specs, research, architecture notes, and maintained docs belong in the wiki vault.
 - **Use `wiki maintain` as default entry point.** It composes refresh, discovery, and lint.
 - **Minimize reads.** Start with `_summary.md`, then drill into modules.
 - **Bind source paths early.** Unbound pages are invisible to drift detection.

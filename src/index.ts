@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import type { CommandHandler } from "./types";
-import { printHelp, scaffoldProject, addTask, backlogCommand, moveTask, completeTask, createIssueSlice, createPrd, createPlan, createTestPlan, createModule, onboardProject, onboardPlan, normalizeModule, dashboardProject, maintainProject, refreshProject, refreshFromGit, discoverProject, ingestDiff, updateIndex, logCommand, statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear } from "./commands/system";
+import { printHelp, scaffoldProject, addTask, backlogCommand, moveTask, completeTask, createIssueSlice, createPrd, createPlan, createTestPlan, createModule, onboardProject, onboardPlan, normalizeModule, dashboardProject, maintainProject, refreshProject, refreshFromGit, discoverProject, ingestDiff, updateIndex, logCommand, statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch } from "./commands/system";
 import { doctorProject, gateProject } from "./commands/diagnostics";
 import { askProject, fileAnswer, fileResearch } from "./commands/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "./commands/qmd-commands";
@@ -44,7 +44,12 @@ const commands: Record<string, CommandHandler> = {
   query: (args) => queryVault(args),
   ask: (args) => askProject(args),
   "file-answer": (args) => fileAnswer(args),
-  "file-research": (args) => fileResearch(args),
+  "research:scaffold": (args) => scaffoldResearch(args),
+  "research:status": (args) => researchStatus(args),
+  "research:ingest": (args) => ingestResearch(args),
+  "research:file": (args) => fileResearch(args),
+  "research:lint": (args) => lintResearch(args),
+  "source:ingest": (args) => ingestSource(args),
   "qmd-status": () => qmdStatus(),
   "qmd-update": () => qmdUpdate(),
   "qmd-embed": () => qmdEmbed(),
@@ -58,11 +63,11 @@ const commands: Record<string, CommandHandler> = {
   "setup-shell": (args) => setupShell(args),
 };
 
-const [rawCommand = "help", ...rest] = process.argv.slice(2);
-const command = rawCommand === "--help" || rawCommand === "-h" ? "help" : rawCommand;
+const rawArgs = process.argv.slice(2);
+const { command, args } = resolveCommand(rawArgs);
 
 try {
-  if (rest.includes("--help") || rest.includes("-h")) {
+  if (args.includes("--help") || args.includes("-h")) {
     printHelp();
     process.exit(0);
   }
@@ -70,9 +75,33 @@ try {
   if (!handler) {
     throw new Error(`Unknown command: ${command}. Run 'wiki help' for usage.`);
   }
-  await handler(rest);
+  await handler(args);
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   console.error(`error: ${message}`);
   process.exit(1);
+}
+
+function resolveCommand(rawArgs: string[]) {
+  const [rawCommand = "help", ...rest] = rawArgs;
+  const command = rawCommand === "--help" || rawCommand === "-h" ? "help" : rawCommand;
+  if (command === "research") {
+    const [subcommand = "help", ...subArgs] = rest;
+    const mapped = {
+      scaffold: "research:scaffold",
+      status: "research:status",
+      ingest: "research:ingest",
+      lint: "research:lint",
+      file: "research:file",
+    }[subcommand];
+    if (mapped) return { command: mapped, args: subArgs };
+  }
+  if (command === "source") {
+    const [subcommand = "help", ...subArgs] = rest;
+    const mapped = {
+      ingest: "source:ingest",
+    }[subcommand];
+    if (mapped) return { command: mapped, args: subArgs };
+  }
+  return { command, args: rest };
 }
