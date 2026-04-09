@@ -50,8 +50,12 @@ export function projectSpecViewIndexPath(project: string, family: SpecViewFamily
   return join(projectSpecsDir(project), family, "index.md");
 }
 
+export function projectPrdsDir(project: string) {
+  return join(projectSpecsDir(project), "prds");
+}
+
 export function projectPrdPath(project: string, slug: string) {
-  return join(projectSpecsDir(project), `prd-${slug}.md`);
+  return join(projectPrdsDir(project), `prd-${slug}.md`);
 }
 
 export function projectPlanPath(project: string, slug: string) {
@@ -62,8 +66,12 @@ export function projectTestPlanPath(project: string, slug: string) {
   return join(projectSpecsDir(project), `test-plan-${slug}.md`);
 }
 
+export function projectSlicesDir(project: string) {
+  return join(projectSpecsDir(project), "slices");
+}
+
 export function projectTaskDir(project: string, taskId: string) {
-  return join(projectSpecsDir(project), taskId);
+  return join(projectSlicesDir(project), taskId);
 }
 
 export function projectTaskHubPath(project: string, taskId: string) {
@@ -108,10 +116,10 @@ export function classifyProjectDocPath(relPath: string): ProjectDocKind | null {
   if (rel === "specs/slices/index.md") return "spec-slices-index";
   if (rel === "specs/archive/index.md") return "spec-archive-index";
   if (rel === "specs/onboarding-plan.md") return "spec-onboarding-plan";
-  if (/^specs\/prd-[^/]+\.md$/u.test(rel)) return "spec-prd";
+  if (/^specs\/prds\/prd-[^/]+\.md$/u.test(rel)) return "spec-prd";
   if (/^specs\/plan-[^/]+\.md$/u.test(rel)) return "spec-plan";
   if (/^specs\/test-plan-[^/]+\.md$/u.test(rel)) return "spec-test-plan";
-  const taskMatch = rel.match(/^specs\/([^/]+)\/(index|plan|test-plan)\.md$/u);
+  const taskMatch = rel.match(/^specs\/slices\/([^/]+)\/(index|plan|test-plan)\.md$/u);
   if (!taskMatch) return null;
   const [, taskId, fileName] = taskMatch;
   if (!taskId || !isCanonicalTaskId(taskId)) return null;
@@ -134,9 +142,9 @@ export function describeAllowedProjectDocPaths() {
     "specs/slices/index.md",
     "specs/archive/index.md",
     "specs/onboarding-plan.md",
-    "specs/prd-<slug>.md",
+    "specs/prds/prd-<slug>.md",
     "specs/plan-<slug>.md",
     "specs/test-plan-<slug>.md",
-    "specs/<TASK-ID>/{index,plan,test-plan}.md",
+    "specs/slices/<TASK-ID>/{index,plan,test-plan}.md",
   ].join("; ");
 }

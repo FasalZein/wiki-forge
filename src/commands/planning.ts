@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { createdAt, mkdirIfMissing, nowIso, orderFrontmatter, requireValue, writeNormalizedPage } from "../cli-shared";
-import { projectPlanPath, projectPrdPath, projectSpecsDir, projectTestPlanPath } from "../lib/structure";
+import { projectPlanPath, projectPrdPath, projectPrdsDir, projectSpecsDir, projectTestPlanPath } from "../lib/structure";
 import { writeProjectIndex } from "./index-log";
 
 export async function createPrd(args: string[]) {
@@ -147,6 +147,7 @@ export function createSpecDocumentInternal(project: string, kind: "prd" | "plan"
     : kind === "plan"
       ? projectPlanPath(project, slug)
       : projectTestPlanPath(project, slug);
+  if (kind === "prd") mkdirIfMissing(projectPrdsDir(project));
   if (existsSync(outputPath)) throw new Error(`spec already exists: ${relative(VAULT_ROOT, outputPath)}`);
   const data = orderFrontmatter({
     title,

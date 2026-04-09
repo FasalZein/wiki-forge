@@ -104,8 +104,8 @@ wiki source ingest https://example.com/article             # raw source -> raw/ 
 PRDs and vertical slices with task-scoped spec hubs — zero API calls.
 
 ```bash
-wiki create-prd my-app "user onboarding"                   # -> specs/prd-user-onboarding.md
-wiki create-issue-slice my-app "email verification"        # -> specs/MY-APP-001/{index,plan,test-plan}.md
+wiki create-prd my-app "user onboarding"                   # -> specs/prds/prd-user-onboarding.md
+wiki create-issue-slice my-app "email verification"        # -> specs/slices/MY-APP-001/{index,plan,test-plan}.md
 wiki backlog my-app                                        # list tracked tasks
 ```
 

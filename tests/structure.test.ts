@@ -14,12 +14,12 @@ import { classifyRawPath, classifyResearchPath, isAllowedRawBucket } from "../sr
 
 describe("project path primitives", () => {
   test("build canonical project spec paths", () => {
-    expect(projectPrdPath("demo", "auth-flow")).toEndWith("/projects/demo/specs/prd-auth-flow.md");
+    expect(projectPrdPath("demo", "auth-flow")).toEndWith("/projects/demo/specs/prds/prd-auth-flow.md");
     expect(projectOnboardingPlanPath("demo")).toEndWith("/projects/demo/specs/onboarding-plan.md");
     expect(projectModuleSpecPath("demo", "auth")).toEndWith("/projects/demo/modules/auth/spec.md");
-    expect(projectTaskHubPath("demo", "DEMO-015")).toEndWith("/projects/demo/specs/DEMO-015/index.md");
-    expect(projectTaskPlanPath("demo", "DEMO-015")).toEndWith("/projects/demo/specs/DEMO-015/plan.md");
-    expect(projectTaskTestPlanPath("demo", "DEMO-015")).toEndWith("/projects/demo/specs/DEMO-015/test-plan.md");
+    expect(projectTaskHubPath("demo", "DEMO-015")).toEndWith("/projects/demo/specs/slices/DEMO-015/index.md");
+    expect(projectTaskPlanPath("demo", "DEMO-015")).toEndWith("/projects/demo/specs/slices/DEMO-015/plan.md");
+    expect(projectTaskTestPlanPath("demo", "DEMO-015")).toEndWith("/projects/demo/specs/slices/DEMO-015/test-plan.md");
   });
 
   test("validate canonical task ids", () => {
@@ -40,12 +40,12 @@ describe("project structure contract", () => {
     expect(classifyProjectDocPath("specs/slices/index.md")).toBe("spec-slices-index");
     expect(classifyProjectDocPath("specs/archive/index.md")).toBe("spec-archive-index");
     expect(classifyProjectDocPath("specs/onboarding-plan.md")).toBe("spec-onboarding-plan");
-    expect(classifyProjectDocPath("specs/prd-auth-flow.md")).toBe("spec-prd");
+    expect(classifyProjectDocPath("specs/prds/prd-auth-flow.md")).toBe("spec-prd");
     expect(classifyProjectDocPath("specs/plan-auth-rollout.md")).toBe("spec-plan");
     expect(classifyProjectDocPath("specs/test-plan-auth-rollout.md")).toBe("spec-test-plan");
-    expect(classifyProjectDocPath("specs/DEMO-015/index.md")).toBe("task-hub-index");
-    expect(classifyProjectDocPath("specs/DEMO-015/plan.md")).toBe("task-hub-plan");
-    expect(classifyProjectDocPath("specs/DEMO-015/test-plan.md")).toBe("task-hub-test-plan");
+    expect(classifyProjectDocPath("specs/slices/DEMO-015/index.md")).toBe("task-hub-index");
+    expect(classifyProjectDocPath("specs/slices/DEMO-015/plan.md")).toBe("task-hub-plan");
+    expect(classifyProjectDocPath("specs/slices/DEMO-015/test-plan.md")).toBe("task-hub-test-plan");
   });
 
   test("rejects non-canonical project doc paths", () => {

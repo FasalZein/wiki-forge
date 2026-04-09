@@ -180,15 +180,15 @@ export function scoreAnswerSource(project: string, question: string, markdownPat
   if (normalized === `${projectPrefix}decisions.md`) adjusted += 1.1;
   if (normalized === `${projectPrefix}specs/index.md`) adjusted += 1;
   if (normalized === `${projectPrefix}backlog.md`) adjusted += 0.2;
-  if (normalized.startsWith(`${projectPrefix}specs/prd-`)) adjusted += 0.75;
-  if (normalized.startsWith(`${projectPrefix}specs/`) && /\/(index|plan|test-plan)\.md$/u.test(normalized)) adjusted += 0.45;
+  if (normalized.startsWith(`${projectPrefix}specs/prds/prd-`)) adjusted += 0.75;
+  if (normalized.startsWith(`${projectPrefix}specs/slices/`) && /\/(index|plan|test-plan)\.md$/u.test(normalized)) adjusted += 0.45;
 
   const lowerQuestion = question.toLowerCase();
   if (/\bprds?\b/u.test(lowerQuestion)) {
     if (normalized === `${projectPrefix}specs/index.md`) adjusted += 0.8;
-    if (normalized.startsWith(`${projectPrefix}specs/prd-`)) adjusted += 0.7;
+    if (normalized.startsWith(`${projectPrefix}specs/prds/prd-`)) adjusted += 0.7;
   }
-  if (/\b(slice|task)\b/u.test(lowerQuestion) && normalized.startsWith(`${projectPrefix}specs/`)) adjusted += 0.45;
+  if (/\b(slice|task)\b/u.test(lowerQuestion) && normalized.startsWith(`${projectPrefix}specs/slices/`)) adjusted += 0.45;
   if (/\bforge\b/u.test(lowerQuestion) && normalized === `${projectPrefix}decisions.md`) adjusted += 0.5;
 
   if (normalized.startsWith(`research/projects/${project.toLowerCase()}/`)) adjusted += prefersResearch ? 0.5 : -0.35;

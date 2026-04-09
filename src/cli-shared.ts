@@ -79,8 +79,8 @@ Notes:
   - backlog reads project tasks by section
   - add-task appends a tracked task to backlog.md with a generated project task ID
   - move-task / complete-task update task state in backlog.md
-  - create-issue-slice adds a backlog item and creates a task folder under projects/<project>/specs/<TASK-ID>/ with index.md, plan.md, and test-plan.md
-  - create-prd/create-plan/create-test-plan scaffold durable planning docs under projects/<project>/specs/
+  - create-issue-slice adds a backlog item and creates a task folder under projects/<project>/specs/slices/<TASK-ID>/ with index.md, plan.md, and test-plan.md
+  - create-prd scaffolds PRDs under projects/<project>/specs/prds/ while create-plan/create-test-plan scaffold project planning docs under projects/<project>/specs/
   - onboard writes the scaffold and can also write a project-specific onboarding plan when --repo is provided
   - onboard-plan renders the canonical onboarding slices and can write a project-specific plan file
   - dashboard emits a single JSON overview for apps and agents

@@ -98,16 +98,16 @@ Auto-detection: if `KNOWLEDGE_VAULT_ROOT` is unset, the CLI walks up from `cwd` 
 Planning scaffolds:
 
 ```bash
-wiki create-prd <project> <name>              # creates specs/prd-<slug>.md
-wiki create-issue-slice <project> <title>     # creates specs/<TASK-ID>/{index,plan,test-plan}.md + backlog task
+wiki create-prd <project> <name>              # creates specs/prds/prd-<slug>.md
+wiki create-issue-slice <project> <title>     # creates specs/slices/<TASK-ID>/{index,plan,test-plan}.md + backlog task
 wiki create-plan <project> <name>
 wiki create-test-plan <project> <name>
 wiki backlog <project> [--json]
 ```
 
 Current rule:
-- PRD = project-level spec under `specs/`
-- slice docs = task-scoped docs under `specs/<TASK-ID>/`
+- PRD = project-level spec under `specs/prds/`
+- slice docs = task-scoped docs under `specs/slices/<TASK-ID>/`
 
 Full command list: `wiki help`
 

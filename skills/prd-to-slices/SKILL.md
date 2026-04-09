@@ -14,7 +14,7 @@ Break a PRD into independently-grabbable vertical slices. Each slice gets a back
 
 ### 1. Locate the PRD
 
-The PRD should be in the wiki at `projects/<project>/specs/prd-*.md`.
+The PRD should be in the wiki at `projects/<project>/specs/prds/prd-*.md`.
 
 If the user points to a GitHub issue or external doc, read it first, then file it with `wiki create-prd <project> <name>` so it lives in the vault.
 
@@ -64,9 +64,9 @@ wiki create-issue-slice <project> <title> [--priority p0|p1|p2] [--tag <tag>]
 
 This creates four things per slice:
 1. A backlog task in `backlog.md` with a unique ID (e.g., `PROJECT-003`)
-2. A task hub at `specs/<ID>/index.md`
-3. An implementation plan at `specs/<ID>/plan.md`
-4. A test plan at `specs/<ID>/test-plan.md`
+2. A task hub at `specs/slices/<ID>/index.md`
+3. An implementation plan at `specs/slices/<ID>/plan.md`
+4. A test plan at `specs/slices/<ID>/test-plan.md`
 
 Create slices in dependency order (blockers first) so you can reference task IDs in later plans.
 
@@ -74,13 +74,13 @@ Create slices in dependency order (blockers first) so you can reference task IDs
 
 After scaffolding, fill in each plan:
 
-**Implementation plan** (`specs/<ID>/plan.md`):
+**Implementation plan** (`specs/slices/<ID>/plan.md`):
 - Scope: what this slice covers end-to-end
 - Vertical Slice: numbered steps through each layer
 - Acceptance Criteria: checkboxes matching PRD stories
 - Add `Blocked by: PROJECT-001` if dependencies exist
 
-**Test plan** (`specs/<ID>/test-plan.md`):
+**Test plan** (`specs/slices/<ID>/test-plan.md`):
 - Red Tests: the failing tests to write first
 - Green Criteria: what "passing" means
 - Refactor Checks: what to clean up after green
@@ -89,7 +89,7 @@ After scaffolding, fill in each plan:
 
 Add wikilinks from the task hub and plans back to the PRD:
 ```markdown
-- [[projects/<project>/specs/prd-<name>]]
+- [[projects/<project>/specs/prds/prd-<name>]]
 ```
 
 And update the PRD's Cross Links to reference the slice hub.
