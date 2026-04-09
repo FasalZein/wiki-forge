@@ -60,9 +60,24 @@ npx skills add ./skills/prd-to-slices -g
 
 | Skill | Invoke | Purpose |
 |-------|--------|---------|
-| **forge** | `/forge` | Build workflow: research → grill → PRD → slices → TDD → verify |
-| **wiki** | `/wiki` | CLI reference for all wiki operations |
+| **forge** | `/forge` | Workflow orchestrator: compose research → grill → PRD → slices → TDD → wiki verify |
+| **wiki** | `/wiki` | CLI reference for wiki, research, raw-source, drift, and verification operations |
 | **prd-to-slices** | `/prd-to-slices` | Breaks PRDs into vertical slices in the wiki backlog |
+
+`forge` is not the research system and not the wiki itself. It is the delivery workflow that coordinates the separate skills/layers:
+- `research` = evidence gathering and research filing
+- `wiki` = maintained knowledge + verification/drift/gate operations
+- `forge` = the policy/workflow that says when to use research, grill, PRD, slices, TDD, and wiki verify together
+
+## Layer Model
+
+These are separate layers in the same system:
+
+- **Wiki layer** — maintained project memory in `~/Knowledge`
+- **Research layer** — evidence and source-backed notes under `research/` and `raw/`
+- **Forge layer** — the delivery workflow for turning evidence into implemented, tested, verified slices
+
+Forge should consume the research layer and update the wiki layer. It should not own either one.
 
 ## Guardrails
 

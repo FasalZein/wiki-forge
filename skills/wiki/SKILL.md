@@ -12,7 +12,7 @@ Code is the source of truth. The wiki is compiled memory maintained by agents �
 
 When code changes, the wiki updates. When the wiki drifts, the CLI catches it.
 
-For the full build workflow (research → grill → PRD → slices → TDD → verify), use `/forge`.
+For the full build workflow (research → grill → PRD → slices → TDD → verify), use `/forge`. The wiki skill is the knowledge/verification layer; forge is the workflow layer that composes it with research and TDD.
 For Obsidian markdown syntax (wikilinks, callouts, embeds), use `/obsidian-markdown`.
 
 ## Setup

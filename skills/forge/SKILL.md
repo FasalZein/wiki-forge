@@ -1,11 +1,16 @@
 ---
 name: forge
 description: >
-  Build with rigor. Enforces research → grill → PRD → slices → TDD before anything ships.
-  Loads companion skills and checks gates. Zero API calls — everything stays in the wiki vault.
+  Build with rigor. Orchestrates research → grill → PRD → slices → TDD before anything ships.
+  Forge is the workflow layer, not the research layer or wiki layer. It loads companion skills and checks gates. Zero API calls — everything stays in the wiki vault.
 ---
 
 # Forge
+
+Forge is the workflow layer. It coordinates separate companion layers:
+- research = evidence gathering
+- wiki = maintained knowledge and verification
+- forge = delivery policy tying them together
 
 Every non-trivial change follows this order. No exceptions.
 
