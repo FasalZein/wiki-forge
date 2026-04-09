@@ -94,6 +94,20 @@ Add wikilinks from the task hub and plans back to the PRD:
 
 And update the PRD's Cross Links to reference the slice hub.
 
+### 8. Verify and close out
+
+After creating and filling all slices, run the closeout sequence:
+
+```bash
+wiki update-index <project> --write
+wiki lint <project>
+wiki lint-semantic <project>
+wiki verify-page <project> <page...> code-verified   # for each new slice page
+wiki gate <project> --repo <path> --base <rev>
+```
+
+Do not declare slicing complete until `lint`, `lint-semantic`, and `gate` all pass. If `gate` fails, fix the reported issues before moving on.
+
 ## When to use GitHub Issues instead
 
 Use `prd-to-issues` (the GitHub variant) only when:

@@ -20,7 +20,16 @@ Trigger this skill for requests like:
 - "refresh project notes"
 - "update knowledge from code/tests"
 
-Treat those as contextual maintenance requests, not blind keyword matches. Read the changed code/tests first, then update only the impacted wiki pages, verify them, and run the closeout flow.
+Treat those as contextual maintenance requests, not blind keyword matches. The concrete closeout sequence is:
+
+1. Inspect changed code/tests
+2. `wiki refresh-from-git <project> --base <rev>`
+3. `wiki drift-check <project> --show-unbound`
+4. Update only the impacted wiki pages from code
+5. `wiki verify-page <project> <page> code-verified`
+6. `wiki lint <project>`
+7. `wiki lint-semantic <project>`
+8. `wiki gate <project> --repo <path> --base <rev>`
 
 For the full build workflow (research → grill → PRD → slices → TDD → verify), use `/forge`. The wiki skill is the knowledge/verification layer; forge is the workflow layer that composes it with research and TDD.
 Use `/forge` only for non-trivial pipeline work; do not trigger it for small fixes, note cleanup, or simple maintenance.
@@ -130,7 +139,12 @@ How to identify modules: look for directories that own a distinct concern — a 
 3. Use /forge workflow: research → grill → PRD → slices → TDD
 4. As code emerges, create modules:
    wiki create-module <project> <module-name> --source <paths...>
-5. wiki lint and wiki verify-page after each slice
+5. After each slice, run the closeout sequence:
+   wiki refresh-from-git <project> --base <rev>
+   wiki drift-check <project> --show-unbound
+   wiki verify-page <project> <page> code-verified
+   wiki lint <project> && wiki lint-semantic <project>
+   wiki gate <project> --repo <path> --base <rev>
 ```
 
 ### 2. Refresh Docs After Code Changes

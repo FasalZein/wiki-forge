@@ -103,7 +103,16 @@ Typical wiki trigger phrases should route to contextual maintenance, not blind n
 - "sync docs"
 - "close out this slice"
 
-That means: inspect changed code/tests, update only impacted wiki pages, verify them, then run the gate.
+That means this exact sequence:
+
+1. Inspect changed code/tests
+2. `wiki refresh-from-git <project> --base <rev>`
+3. `wiki drift-check <project> --show-unbound`
+4. Update only impacted wiki pages from code
+5. `wiki verify-page <project> <page> code-verified`
+6. `wiki lint <project>`
+7. `wiki lint-semantic <project>`
+8. `wiki gate <project> --repo <path> --base <rev>`
 
 ## Layer Model
 

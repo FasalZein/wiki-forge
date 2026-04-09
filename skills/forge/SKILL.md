@@ -109,7 +109,9 @@ A slice is complete only when all of these are true:
    b. wiki drift-check <project> --show-unbound
    c. Update impacted wiki pages from code
    d. wiki verify-page <project> <page> code-verified
-   e. wiki gate <project> --repo <path> --base <rev>
+   e. wiki lint <project>
+   f. wiki lint-semantic <project>
+   g. wiki gate <project> --repo <path> --base <rev>
 ```
 
 ## Workflow: Small Task / Bug Fix (< 50 lines)
@@ -117,8 +119,14 @@ A slice is complete only when all of these are true:
 ```text
 1. /tdd — write a failing test that reproduces the bug
 2. Fix the code, make the test pass
-3. /wiki — refresh impacted pages if needed
-4. wiki gate <project> --repo <path> --base <rev>
+3. /wiki — closeout:
+   a. wiki refresh-from-git <project> --base <rev>
+   b. wiki drift-check <project> --show-unbound
+   c. Update impacted wiki pages from code
+   d. wiki verify-page <project> <page> code-verified
+   e. wiki lint <project>
+   f. wiki lint-semantic <project>
+   g. wiki gate <project> --repo <path> --base <rev>
 ```
 
 ## Source of Truth

@@ -38,7 +38,8 @@ After implementation:
 4. update impacted wiki pages
 5. `wiki verify-page <project> <page> code-verified` or `test-verified`
 6. `wiki lint <project>`
-7. `wiki gate <project> --repo <path> --base <rev>`
+7. `wiki lint-semantic <project>`
+8. `wiki gate <project> --repo <path> --base <rev>`
 
 ## Default project setup
 
