@@ -27,12 +27,34 @@ echo "[ok] dependencies installed"
 bun link --silent 2>/dev/null || true
 echo "[ok] wiki CLI linked globally"
 
-# 4. Set up vault
+# 4. Install qmd CLI + sqlite prerequisites
+if command -v npm &>/dev/null; then
+  if ! command -v qmd &>/dev/null; then
+    echo "Installing qmd CLI..."
+  else
+    echo "Updating qmd CLI..."
+  fi
+  npm install -g @tobilu/qmd@latest --audit=false --fund=false >/dev/null 2>&1 || echo "[skip] qmd CLI install/update failed"
+  if command -v qmd &>/dev/null; then
+    echo "[ok] qmd installed"
+  fi
+else
+  echo "[skip] npm not found — install qmd manually: npm install -g @tobilu/qmd@latest"
+fi
+
+if [ "$(uname -s)" = "Darwin" ] && command -v brew &>/dev/null; then
+  if [ ! -f "/opt/homebrew/opt/sqlite/lib/libsqlite3.dylib" ] && [ ! -f "/usr/local/opt/sqlite/lib/libsqlite3.dylib" ]; then
+    echo "Installing Homebrew sqlite..."
+    brew install sqlite >/dev/null 2>&1 || echo "[skip] Homebrew sqlite install failed"
+  fi
+fi
+
+# 5. Set up vault
 read -rp "Vault path [$VAULT_DEFAULT]: " vault_input
 VAULT="${vault_input:-$VAULT_DEFAULT}"
 mkdir -p "$VAULT"
 
-# 5. Set KNOWLEDGE_VAULT_ROOT in shell config
+# 6. Set KNOWLEDGE_VAULT_ROOT in shell config
 SHELL_NAME="$(basename "${SHELL:-/bin/zsh}")"
 case "$SHELL_NAME" in
   zsh)  RC_FILE="$HOME/.zshrc" ;;
@@ -60,7 +82,7 @@ else
   echo "[warn] unknown shell — manually add: export KNOWLEDGE_VAULT_ROOT=\"$VAULT\""
 fi
 
-# 6. Install skills (if npx skills is available)
+# 7. Install skills (if npx skills is available)
 if command -v npx &>/dev/null; then
   echo ""
   echo "Installing skills..."
@@ -91,4 +113,5 @@ echo "  source $(basename "${RC_FILE:-your-shell-config}")"
 echo "  wiki help"
 echo ""
 echo "Obsidian users: enable the Obsidian CLI in Settings → General → CLI."
+echo "On macOS, wiki-forge retrieval uses Homebrew sqlite when available for Bun qmd SDK hybrid search."
 echo "See SETUP.md for full details."

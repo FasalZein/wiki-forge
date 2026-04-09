@@ -28,6 +28,10 @@ type Options = {
   project: string;
   query: string;
   askQuestion: string;
+  generalQuery: string;
+  generalAskQuestion: string;
+  rationaleQuery: string;
+  rationaleAskQuestion: string;
   topic: string;
   iterations: number;
   indexName: string;
@@ -70,8 +74,12 @@ async function main() {
     for (const limit of options.candidateLimits) {
       suites.push(await measureSuite(`qmd query (structured, -C ${limit})`, options.iterations, () => runQmd(options, ["query", buildStructuredHybridQuery(options.query), "-c", "knowledge", "--json", "-n", "10", "-C", String(limit)])));
     }
-    suites.push(...await measureColdWarmSuite("wiki query", options.iterations, () => runWiki(benchEnv, ["query", options.query]), () => clearWikiCache(tempVault)));
-    suites.push(...await measureColdWarmSuite("wiki ask", options.iterations, () => runWiki(benchEnv, ["ask", options.project, options.askQuestion]), () => clearWikiCache(tempVault)));
+    suites.push(...await measureColdWarmSuite("wiki query (structural)", options.iterations, () => runWiki(benchEnv, ["query", options.query]), () => clearWikiCache(tempVault)));
+    suites.push(...await measureColdWarmSuite("wiki ask (structural)", options.iterations, () => runWiki(benchEnv, ["ask", options.project, options.askQuestion]), () => clearWikiCache(tempVault)));
+    suites.push(...await measureColdWarmSuite("wiki query (general)", options.iterations, () => runWiki(benchEnv, ["query", options.generalQuery]), () => clearWikiCache(tempVault)));
+    suites.push(...await measureColdWarmSuite("wiki ask (general)", options.iterations, () => runWiki(benchEnv, ["ask", options.project, options.generalAskQuestion]), () => clearWikiCache(tempVault)));
+    suites.push(...await measureColdWarmSuite("wiki query (rationale)", options.iterations, () => runWiki(benchEnv, ["query", options.rationaleQuery]), () => clearWikiCache(tempVault)));
+    suites.push(...await measureColdWarmSuite("wiki ask (rationale)", options.iterations, () => runWiki(benchEnv, ["ask", options.project, options.rationaleAskQuestion]), () => clearWikiCache(tempVault)));
     suites.push(await measureSuite("ingest -> qmd update -> qmd embed", options.iterations, (run) => runPipeline(run, options, benchEnv, tempVault, sourceDir)));
 
     const results = suites.map(toBenchResult);
@@ -83,6 +91,10 @@ async function main() {
       topic: options.topic,
       query: options.query,
       askQuestion: options.askQuestion,
+      generalQuery: options.generalQuery,
+      generalAskQuestion: options.generalAskQuestion,
+      rationaleQuery: options.rationaleQuery,
+      rationaleAskQuestion: options.rationaleAskQuestion,
       iterations: options.iterations,
       candidateLimits: options.candidateLimits,
       results,
@@ -194,8 +206,12 @@ function printResults(options: Options, results: BenchResult[], jsonPath: string
   console.log(`index: ${options.indexName}`);
   console.log(`iterations: ${options.iterations}`);
   console.log(`candidate limits: ${options.candidateLimits.join(", ")}`);
-  console.log(`query: ${options.query}`);
-  console.log(`ask: ${options.askQuestion}`);
+  console.log(`structural query: ${options.query}`);
+  console.log(`structural ask: ${options.askQuestion}`);
+  console.log(`general query: ${options.generalQuery}`);
+  console.log(`general ask: ${options.generalAskQuestion}`);
+  console.log(`rationale query: ${options.rationaleQuery}`);
+  console.log(`rationale ask: ${options.rationaleAskQuestion}`);
   console.log("");
   console.log("| Benchmark | p50 ms | p95 ms | p99 ms | mean ms | min ms | max ms |");
   console.log("| --- | ---: | ---: | ---: | ---: | ---: | ---: |");
@@ -217,6 +233,10 @@ function parseArgs(args: string[]): Options {
     project: "wiki-forge",
     query: "where do PRDs live",
     askQuestion: "where do slice docs live",
+    generalQuery: "how does verification work",
+    generalAskQuestion: "how does the wiki verification flow work",
+    rationaleQuery: "why did we choose task-based spec folders",
+    rationaleAskQuestion: "why did we choose task-based spec folders over flat files",
     topic: "projects/wiki-forge/bench",
     iterations: 9,
     indexName: `wiki-forge-bench-${Date.now().toString(36)}`,
@@ -234,10 +254,14 @@ function parseArgs(args: string[]): Options {
     else if (arg === "--topic") values.topic = requireValue(args[index + 1], arg);
     else if (arg === "--iterations") values.iterations = parsePositiveInteger(requireValue(args[index + 1], arg), arg);
     else if (arg === "--index-name") values.indexName = requireValue(args[index + 1], arg);
+    else if (arg === "--general-query") values.generalQuery = requireValue(args[index + 1], arg);
+    else if (arg === "--general-ask") values.generalAskQuestion = requireValue(args[index + 1], arg);
+    else if (arg === "--rationale-query") values.rationaleQuery = requireValue(args[index + 1], arg);
+    else if (arg === "--rationale-ask") values.rationaleAskQuestion = requireValue(args[index + 1], arg);
     else if (arg === "--candidate-limits") values.candidateLimits = parseCandidateLimitsArg(requireValue(args[index + 1], arg));
-    else if (arg === "--keep-temp") values.keepTemp = true;
+    else if (arg === "--keep-temp") { values.keepTemp = true; continue; }
     else throw new Error(`unknown arg: ${arg}`);
-    if (arg !== "--keep-temp") index += 1;
+    index += 1;
   }
   return values;
 }

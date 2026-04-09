@@ -72,7 +72,7 @@ Notes:
   - Use the /research skill for actual investigation; wiki research/source commands only file, scaffold, ingest, and lint research artifacts in the vault
   - search uses qmd full-text search by default
   - search --hybrid is supported, but query is the preferred hybrid retrieval command
-  - query routes simple location/structure lookups to the faster lexical path; otherwise it uses qmd structured lex+vec retrieval
+  - query is SDK-first: location/general queries use BM25, rationale queries use pre-expanded lex+vec hybrid in-process, and --expand keeps the raw qmd expansion path
   - backlog reads project tasks by section
   - add-task appends a tracked task to backlog.md with a generated project task ID
   - move-task / complete-task update task state in backlog.md
@@ -91,7 +91,7 @@ Notes:
   - log appends/tails chronological wiki operations in log.md
   - wiki obsidian ... wraps a small app-dependent Obsidian CLI surface for vault-aware UI actions
   - ask reranks qmd results toward projects/<project>/ and prints a citation-ready brief
-  - ask routes simple location/structure questions to a faster project-aware BM25 path and keeps structured hybrid retrieval for broader/rationale questions
+  - ask is SDK-first: location/general questions use a faster project-aware BM25 path, rationale questions use in-process pre-expanded hybrid retrieval
   - file-answer saves an ask brief into wiki/syntheses/
   - use grouped commands: wiki research ..., wiki source ...
   - research file scaffolds a project research note into research/projects/<project>/ by default; it does not perform the research step
@@ -101,7 +101,7 @@ Notes:
   - source ingest copies a local file into raw/ or creates a raw URL pointer note, then scaffolds a linked research summary
   - research lint flags missing sources, stale unverified notes, unattributed claims, and unlinked research pages
   - query --expand uses qmd's raw natural-language expansion path
-  - qmd is invoked through a Node-based path when available to avoid the Bun sqlite-vec issue
+  - qmd CLI is still used for maintenance/admin commands; retrieval commands prefer the in-process SDK path
   - set QMD_INDEX_NAME to route wiki/qmd commands to a named qmd index (useful for isolated benchmarks)
   - set ${VAULT_ROOT_ENV} when the CLI is installed outside the vault repo
   - bind adds source_paths (repo-relative code paths) to a wiki page's frontmatter

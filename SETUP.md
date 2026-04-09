@@ -8,15 +8,16 @@ cd wiki-forge
 ./install.sh
 ```
 
-The install script handles everything: bun, dependencies, global CLI linking, shell config, vault directory, and skill installation. By default it creates `~/Knowledge` if it does not exist yet.
+The install script handles everything: bun, dependencies, global CLI linking, global qmd installation, shell config, vault directory, and skill installation. By default it creates `~/Knowledge` if it does not exist yet.
 
 ## Manual Setup
 
 ### 1. Prerequisites
 
 - [Bun](https://bun.sh) (the CLI runtime)
-- [Node.js / npm](https://nodejs.org) (for `npx skills`)
+- [Node.js / npm](https://nodejs.org) (for `npx skills` and global `qmd`)
 - [Obsidian](https://obsidian.md) (optional, for vault UI)
+- macOS: Homebrew `sqlite` is recommended so Bun can use qmd SDK hybrid retrieval via `Database.setCustomSQLite()`
 
 ### 2. Install the CLI
 
@@ -24,6 +25,13 @@ The install script handles everything: bun, dependencies, global CLI linking, sh
 cd wiki-forge
 bun install
 bun link          # makes `wiki` available globally
+npm install -g @tobilu/qmd@latest
+```
+
+On macOS, also install Homebrew sqlite if you do not already have it:
+
+```bash
+brew install sqlite
 ```
 
 ### 3. Set your vault path

@@ -1,5 +1,5 @@
-import { assertQmdAvailable, buildLexicalSearchQuery, classifyRetrievalIntent, ensureKnowledgeCollection, queryKnowledge, runQmd, searchKnowledge } from "../lib/qmd";
-import { searchKnowledgeLexicalSdk } from "../lib/qmd-sdk";
+import { assertQmdAvailable, buildLexicalSearchQuery, ensureKnowledgeCollection, queryKnowledge, resolveRetrievalMode, runQmd, searchKnowledge } from "../lib/qmd";
+import { sdkHybridAvailable, searchKnowledgeHybridSdk, searchKnowledgeLexicalSdk } from "../lib/qmd-sdk";
 
 export async function searchVault(args: string[]) {
   assertQmdAvailable();
@@ -21,12 +21,18 @@ export async function queryVault(args: string[]) {
     throw new Error("missing query");
   }
 
-  if (expand) {
+  const mode = resolveRetrievalMode(query, { expand, sdkHybridAvailable: sdkHybridAvailable() });
+  if (mode === "expand") {
     await queryKnowledge(query, { expand: true });
     return;
   }
-  if (classifyRetrievalIntent(query) === "location") {
-    const results = await searchKnowledgeLexicalSdk(buildLexicalSearchQuery(query), { maxResults: 5, cacheKeyPrefix: "query:sdk-location" });
+  if (mode === "bm25") {
+    const results = await searchKnowledgeLexicalSdk(buildLexicalSearchQuery(query), { maxResults: 5, cacheKeyPrefix: "query:sdk-bm25" });
+    console.log(renderQueryResults(results));
+    return;
+  }
+  if (mode === "sdk-hybrid") {
+    const results = await searchKnowledgeHybridSdk(query, { maxResults: 5, cacheKeyPrefix: "query:sdk-hybrid" });
     console.log(renderQueryResults(results));
     return;
   }

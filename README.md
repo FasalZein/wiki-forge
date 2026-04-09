@@ -38,7 +38,15 @@ cd wiki-forge
 ./install.sh
 ```
 
-The installer sets up bun, links the CLI, configures your shell, and creates the vault directory. By default that means `~/Knowledge` is created for you on first setup. See [SETUP.md](SETUP.md) for manual setup, Obsidian config, and troubleshooting.
+Manual qmd/runtime prerequisites when not using the installer:
+
+```bash
+npm install -g @tobilu/qmd@latest
+# macOS recommended for Bun SDK hybrid retrieval
+brew install sqlite
+```
+
+The installer sets up bun, links the CLI, installs qmd globally, configures your shell, and creates the vault directory. By default that means `~/Knowledge` is created for you on first setup. See [SETUP.md](SETUP.md) for manual setup, Obsidian config, and troubleshooting.
 
 ## Skills
 
@@ -151,7 +159,7 @@ wiki ingest-diff <project>            # auto-append change digests to impacted p
 
 # Query
 wiki search "query"                   # full-text search
-wiki query "question"                 # auto-routes structural lookups to lexical search, otherwise uses hybrid lex+vec retrieval
+wiki query "question"                 # SDK-first retrieval: BM25 for location/general queries, pre-expanded lex+vec hybrid for rationale queries
 wiki ask <project> "question"         # project-scoped Q&A with citations
 wiki research file <project> <title>   # file a research note after running /research
 wiki research scaffold <topic>         # create a research topic container
@@ -269,10 +277,15 @@ bun run bench:qmd
 The benchmark harness copies markdown-only vault content into a temp vault, then measures:
 - `qmd update`
 - `qmd embed`
-- direct structured `qmd query`
-- `wiki query` cold vs warm cache latency
-- `wiki ask` cold vs warm cache latency
+- direct qmd BM25/vector/expand/structured variants
+- `wiki query` / `wiki ask` cold vs warm for structural, general, and rationale queries
 - full `wiki source ingest -> qmd update -> qmd embed` pipeline latency
+
+Current retrieval architecture:
+- qmd SDK in-process for `wiki query` / `wiki ask`
+- BM25 SDK path for location/general queries
+- pre-expanded SDK hybrid (`lex` + `vec`, `rerank: false`) for rationale queries
+- qmd CLI retained for maintenance/admin commands like `qmd-update`, `qmd-embed`, and `qmd-status`
 
 ## Testing
 

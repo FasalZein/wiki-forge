@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { DEFAULT_CANDIDATE_LIMITS, parseCandidateLimitsArg } from "../scripts/qmd-bench";
 import { resolveQmdIndexPath } from "../src/constants";
 import { classifyAnswerScope, scoreAnswerSource } from "../src/commands/answers";
-import { buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText } from "../src/lib/qmd";
+import { buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText, resolveRetrievalMode } from "../src/lib/qmd";
 
 describe("qmd query shaping", () => {
   test("normalizes hyphenated project names for semantic queries", () => {
@@ -44,9 +44,55 @@ describe("retrieval intent routing", () => {
     expect(classifyRetrievalIntent("how does verification work")).toBe("general");
   });
 
+  test("routes general queries to bm25, not hybrid", () => {
+    // Only rationale queries should use the expensive hybrid path
+    expect(classifyRetrievalIntent("how does verification work")).not.toBe("rationale");
+    expect(classifyRetrievalIntent("what is the cache layer")).not.toBe("rationale");
+  });
+
+  test("only rationale queries trigger hybrid retrieval", () => {
+    expect(classifyRetrievalIntent("why did we choose qmd")).toBe("rationale");
+    expect(classifyRetrievalIntent("compare BM25 vs vector search")).toBe("rationale");
+    // General and location should both avoid hybrid
+    expect(classifyRetrievalIntent("how does verification work")).not.toBe("rationale");
+    expect(classifyRetrievalIntent("where do PRDs live")).not.toBe("rationale");
+  });
+
   test("builds a tighter lexical query for location questions", () => {
     expect(buildLexicalSearchQuery("where do PRDs live")).toBe("PRDs prd spec specs");
     expect(buildLexicalSearchQuery("which file owns auth routing")).toContain("file");
+  });
+});
+
+describe("retrieval mode resolution", () => {
+  test("location queries resolve to bm25 mode", () => {
+    expect(resolveRetrievalMode("where do PRDs live")).toBe("bm25");
+  });
+
+  test("general queries resolve to bm25 mode", () => {
+    expect(resolveRetrievalMode("how does verification work")).toBe("bm25");
+    expect(resolveRetrievalMode("what is the cache layer")).toBe("bm25");
+  });
+
+  test("rationale queries resolve to structured-hybrid when sdk hybrid unavailable", () => {
+    expect(resolveRetrievalMode("why did we choose qmd")).toBe("structured-hybrid");
+    expect(resolveRetrievalMode("compare BM25 vs vector search")).toBe("structured-hybrid");
+  });
+
+  test("rationale queries resolve to sdk-hybrid when available", () => {
+    expect(resolveRetrievalMode("why did we choose qmd", { sdkHybridAvailable: true })).toBe("sdk-hybrid");
+    expect(resolveRetrievalMode("compare BM25 vs vector search", { sdkHybridAvailable: true })).toBe("sdk-hybrid");
+  });
+
+  test("non-rationale queries stay on bm25 even with sdk hybrid available", () => {
+    expect(resolveRetrievalMode("where do PRDs live", { sdkHybridAvailable: true })).toBe("bm25");
+    expect(resolveRetrievalMode("how does verification work", { sdkHybridAvailable: true })).toBe("bm25");
+  });
+
+  test("expand flag overrides intent routing regardless of sdk hybrid", () => {
+    expect(resolveRetrievalMode("where do PRDs live", { expand: true })).toBe("expand");
+    expect(resolveRetrievalMode("why did we choose qmd", { expand: true })).toBe("expand");
+    expect(resolveRetrievalMode("why did we choose qmd", { expand: true, sdkHybridAvailable: true })).toBe("expand");
   });
 });
 

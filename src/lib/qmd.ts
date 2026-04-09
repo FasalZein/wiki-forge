@@ -94,6 +94,14 @@ export function buildStructuredHybridQuery(query: string, options?: { intent?: s
   return lines.join("\n");
 }
 
+export type RetrievalMode = "bm25" | "sdk-hybrid" | "structured-hybrid" | "expand";
+
+export function resolveRetrievalMode(query: string, options?: { expand?: boolean; sdkHybridAvailable?: boolean }): RetrievalMode {
+  if (options?.expand) return "expand";
+  if (classifyRetrievalIntent(query) !== "rationale") return "bm25";
+  return options?.sdkHybridAvailable ? "sdk-hybrid" : "structured-hybrid";
+}
+
 export function classifyRetrievalIntent(query: string): RetrievalIntent {
   const normalized = query.toLowerCase().replace(/\s+/g, " ").trim();
   if (/(^|\b)(where|which|what)\b/u.test(normalized) && /(\b(file|files|doc|docs|page|pages|module|modules|spec|specs|prd|prds|slice|slices|task|tasks|folder|folders|route|routes)\b|\blive\b|\blocated\b|\bimplemented\b|\bdefined\b|\bstored\b|\bkept\b|\bowned\b)/u.test(normalized)) {

@@ -56,7 +56,7 @@ export type AnswerBrief = {
   project: string;
   question: string;
   projectTitle: string;
-  retrievalMode: "bm25" | "structured-hybrid" | "expand";
+  retrievalMode: "bm25" | "sdk-hybrid" | "structured-hybrid" | "expand";
   retrievalQuery: string;
   answerSources: AnswerSource[];
   primarySources: AnswerSource[];
