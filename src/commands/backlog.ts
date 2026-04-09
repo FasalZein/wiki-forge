@@ -1,11 +1,10 @@
 import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
-import { assertExists, projectRoot, requireValue } from "../cli-shared";
+import { assertExists, mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, writeNormalizedPage } from "../cli-shared";
 import { readText, writeText } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
 import { writeProjectIndex } from "./index-log";
-import { createSpecDocumentInternal } from "./planning";
 
 type BacklogItem = { raw: string; id: string; title: string };
 type ParsedBacklog = { intro: string[]; sections: Record<string, BacklogItem[]>; extras: Record<string, string[]>; order: string[] };
@@ -45,13 +44,50 @@ export async function createIssueSlice(args: string[]) {
   const taskLine = renderTaskLine(taskId, options.title, options.priority, options.tags);
   await writeText(backlogPath, insertTaskIntoSection(current, options.section, taskLine));
 
-  const slugTitle = `${taskId.toLowerCase()} ${options.title}`;
-  const planPath = createSpecDocumentInternal(options.project, "plan", slugTitle, [
-    "# {{title}}",
+  const title = `${taskId.toLowerCase()} ${options.title}`;
+  const taskSpecsDir = join(projectRoot(options.project), "specs", taskId);
+  mkdirIfMissing(taskSpecsDir);
+  const indexPath = join(taskSpecsDir, "index.md");
+  const planPath = join(taskSpecsDir, "plan.md");
+  const testPlanPath = join(taskSpecsDir, "test-plan.md");
+  if (existsSync(indexPath) || existsSync(planPath) || existsSync(testPlanPath)) throw new Error(`slice docs already exist for ${taskId}: ${relative(VAULT_ROOT, taskSpecsDir)}`);
+
+  writeNormalizedPage(indexPath, [
+    `# ${taskId} — ${options.title}`,
+    "",
+    "> [!summary]",
+    `> Canonical hub for slice ${taskId}. Keep plan and test plan linked here so agents stay inside one bounded workspace.`,
+    "",
+    "## Documents",
+    "",
+    `- [[projects/${options.project}/specs/${taskId}/plan]]`,
+    `- [[projects/${options.project}/specs/${taskId}/test-plan]]`,
+    "",
+    "## Cross Links",
+    "",
+    "- [[projects/{{project}}/backlog]]",
+    "- [[projects/{{project}}/specs/index]]",
+    "",
+  ].join("\n").replaceAll("{{project}}", options.project), orderFrontmatter({
+    title: `${taskId} ${options.title}`,
+    type: "spec",
+    spec_kind: "task-hub",
+    project: options.project,
+    task_id: taskId,
+    created_at: nowIso(),
+    updated: nowIso(),
+    status: "draft",
+  }, ["title", "type", "spec_kind", "project", "task_id", "created_at", "updated", "status"]));
+
+  writeNormalizedPage(planPath, [
+    `# ${title}`,
+    "",
+    "> [!summary]",
+    `> Canonical execution plan for slice ${taskId}. Keep the slice vertical and independently verifiable.`,
     "",
     "## Task",
     "",
-    "- ID: {{taskId}}",
+    `- ID: ${taskId}`,
     "",
     "## Scope",
     "",
@@ -69,14 +105,31 @@ export async function createIssueSlice(args: string[]) {
     "",
     "## Cross Links",
     "",
-    "- [[projects/{{project}}/backlog]]",
-  ], taskId);
-  const testPlanPath = createSpecDocumentInternal(options.project, "test-plan", slugTitle, [
-    "# {{title}}",
+    `- [[projects/${options.project}/specs/${taskId}/index]]`,
+    `- [[projects/${options.project}/specs/${taskId}/test-plan]]`,
+    `- [[projects/${options.project}/backlog]]`,
+    `- [[projects/${options.project}/specs/index]]`,
+    "",
+  ].join("\n"), orderFrontmatter({
+    title,
+    type: "spec",
+    spec_kind: "plan",
+    project: options.project,
+    task_id: taskId,
+    created_at: nowIso(),
+    updated: nowIso(),
+    status: "draft",
+  }, ["title", "type", "spec_kind", "project", "task_id", "created_at", "updated", "status"]));
+
+  writeNormalizedPage(testPlanPath, [
+    `# ${title}`,
+    "",
+    "> [!summary]",
+    `> Red-green-refactor checklist for slice ${taskId}.`,
     "",
     "## Task",
     "",
-    "- ID: {{taskId}}",
+    `- ID: ${taskId}`,
     "",
     "## Red Tests",
     "",
@@ -92,16 +145,30 @@ export async function createIssueSlice(args: string[]) {
     "",
     "## Cross Links",
     "",
-    "- [[projects/{{project}}/backlog]]",
-  ], taskId);
+    `- [[projects/${options.project}/specs/${taskId}/index]]`,
+    `- [[projects/${options.project}/specs/${taskId}/plan]]`,
+    `- [[projects/${options.project}/backlog]]`,
+    `- [[projects/${options.project}/specs/index]]`,
+    "",
+  ].join("\n"), orderFrontmatter({
+    title,
+    type: "spec",
+    spec_kind: "test-plan",
+    project: options.project,
+    task_id: taskId,
+    created_at: nowIso(),
+    updated: nowIso(),
+    status: "draft",
+  }, ["title", "type", "spec_kind", "project", "task_id", "created_at", "updated", "status"]));
 
   await writeProjectIndex(options.project);
-  appendLogEntry("create-issue-slice", options.title, { project: options.project, details: [`task=${taskId}`, `plan=${relative(VAULT_ROOT, planPath)}`, `test=${relative(VAULT_ROOT, testPlanPath)}`] });
-  const result = { project: options.project, taskId, section: options.section, title: options.title, backlogPath: relative(VAULT_ROOT, backlogPath), planPath: relative(VAULT_ROOT, planPath), testPlanPath: relative(VAULT_ROOT, testPlanPath) };
+  appendLogEntry("create-issue-slice", options.title, { project: options.project, details: [`task=${taskId}`, `hub=${relative(VAULT_ROOT, indexPath)}`, `plan=${relative(VAULT_ROOT, planPath)}`, `test=${relative(VAULT_ROOT, testPlanPath)}`] });
+  const result = { project: options.project, taskId, section: options.section, title: options.title, backlogPath: relative(VAULT_ROOT, backlogPath), indexPath: relative(VAULT_ROOT, indexPath), planPath: relative(VAULT_ROOT, planPath), testPlanPath: relative(VAULT_ROOT, testPlanPath) };
   if (options.json) console.log(JSON.stringify(result, null, 2));
   else {
     console.log(`created issue slice ${taskId}`);
     console.log(`- backlog: ${result.backlogPath}`);
+    console.log(`- index: ${result.indexPath}`);
     console.log(`- plan: ${result.planPath}`);
     console.log(`- test-plan: ${result.testPlanPath}`);
   }

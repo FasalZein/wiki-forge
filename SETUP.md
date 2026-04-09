@@ -8,7 +8,7 @@ cd wiki-forge
 ./install.sh
 ```
 
-The install script handles everything: bun, dependencies, global CLI linking, shell config, vault directory, and skill installation.
+The install script handles everything: bun, dependencies, global CLI linking, shell config, vault directory, and skill installation. By default it creates `~/Knowledge` if it does not exist yet.
 
 ## Manual Setup
 
@@ -44,26 +44,36 @@ The CLI auto-detects `~/Knowledge` if the env var is unset.
 
 ### 4. Install skills
 
-Skills give agents the workflow instructions. Without `--all`, you'll be prompted to choose which agents to install for:
+`forge` is a workflow orchestrator. It depends on companion skills, so install both the repo skills and the external workflow skills it chains into.
+
+Repo skills:
 
 ```bash
-npx skills add ./skills/forge -g
-npx skills add ./skills/wiki -g
-npx skills add ./skills/prd-to-slices -g
+npx skills@latest add ./skills/forge -g
+npx skills@latest add ./skills/wiki -g
+npx skills@latest add ./skills/prd-to-slices -g
 ```
 
-Or from GitHub:
+Companion workflow skills from `mattpocock/skills`:
 
 ```bash
-npx skills add FasalZein/wiki-forge/skills/forge -g
-npx skills add FasalZein/wiki-forge/skills/wiki -g
-npx skills add FasalZein/wiki-forge/skills/prd-to-slices -g
+npx skills@latest add mattpocock/skills/grill-me -g
+npx skills@latest add mattpocock/skills/write-a-prd -g
+npx skills@latest add mattpocock/skills/tdd -g
+```
+
+Or install the repo skills from GitHub:
+
+```bash
+npx skills@latest add FasalZein/wiki-forge/skills/forge -g
+npx skills@latest add FasalZein/wiki-forge/skills/wiki -g
+npx skills@latest add FasalZein/wiki-forge/skills/prd-to-slices -g
 ```
 
 Verify:
 
 ```bash
-npx skills list -g | grep -E "forge|wiki|prd-to-slices"
+npx skills list -g | grep -E "forge|wiki|prd-to-slices|grill-me|write-a-prd|tdd"
 ```
 
 ## Obsidian Setup
@@ -107,17 +117,27 @@ templates/                       # page templates
 
 ### For Claude Code
 
-After installing skills, Claude Code automatically picks them up. Start any session with:
+After installing skills, Claude Code automatically picks them up. Start any non-trivial feature session with:
 
 ```
 /forge
 ```
 
-This loads the full SDLC workflow. Or use individual skills:
+`/forge` expects these companion skills to already be installed:
+- `/grill-me`
+- `/write-a-prd`
+- `/prd-to-slices`
+- `/tdd`
+- `/wiki`
+
+Or use individual skills directly:
 
 ```
 /wiki          # CLI operations reference
+/grill-me      # pressure-test the plan
+/write-a-prd   # create the PRD
 /prd-to-slices # break a PRD into backlog items
+/tdd           # implement via red-green-refactor
 ```
 
 ### For Other Agents (Cursor, Codex, Kiro, etc.)
@@ -194,6 +214,9 @@ Ensure you're on Obsidian 1.8+ and have enabled CLI in Settings → General. Res
 ### Skills not appearing in agent
 
 ```bash
-npx skills list -g              # verify installation
-npx skills add ./skills/forge -g   # reinstall (choose agents interactively)
+npx skills list -g                  # verify installation
+npx skills@latest add ./skills/forge -g
+npx skills@latest add mattpocock/skills/grill-me -g
+npx skills@latest add mattpocock/skills/write-a-prd -g
+npx skills@latest add mattpocock/skills/tdd -g
 ```

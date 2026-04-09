@@ -69,13 +69,14 @@ Usage:
 Notes:
   - Maintained docs live in ~/Knowledge
   - Project repos are source inputs only
+  - Use the /research skill for actual investigation; wiki research/source commands only file, scaffold, ingest, and lint research artifacts in the vault
   - search uses qmd full-text search by default
   - search --hybrid is supported, but query is the preferred hybrid retrieval command
   - query uses qmd hybrid retrieval via structured lex+vec query by default
   - backlog reads project tasks by section
   - add-task appends a tracked task to backlog.md with a generated project task ID
   - move-task / complete-task update task state in backlog.md
-  - create-issue-slice adds a backlog item and creates paired plan/test-plan docs
+  - create-issue-slice adds a backlog item and creates a task folder under projects/<project>/specs/<TASK-ID>/ with index.md, plan.md, and test-plan.md
   - create-prd/create-plan/create-test-plan scaffold durable planning docs under projects/<project>/specs/
   - onboard writes the scaffold and can also write a project-specific onboarding plan when --repo is provided
   - onboard-plan renders the canonical onboarding slices and can write a project-specific plan file
@@ -92,14 +93,15 @@ Notes:
   - ask reranks qmd results toward projects/<project>/ and prints a citation-ready brief
   - file-answer saves an ask brief into wiki/syntheses/
   - use grouped commands: wiki research ..., wiki source ...
-  - research file scaffolds project research into research/projects/<project>/ by default
+  - research file scaffolds a project research note into research/projects/<project>/ by default; it does not perform the research step
   - research scaffold creates a topic container with research/<topic>/_overview.md
   - research status reports research counts by status and verification level
-  - research ingest scaffolds a source-backed research page inside a topic
+  - research ingest scaffolds a source-backed research page inside a topic for findings you already gathered
   - source ingest copies a local file into raw/ or creates a raw URL pointer note, then scaffolds a linked research summary
   - research lint flags missing sources, stale unverified notes, unattributed claims, and unlinked research pages
   - query --expand uses qmd's raw natural-language expansion path
   - qmd is invoked through a Node-based path when available to avoid the Bun sqlite-vec issue
+  - set QMD_INDEX_NAME to route wiki/qmd commands to a named qmd index (useful for isolated benchmarks)
   - set ${VAULT_ROOT_ENV} when the CLI is installed outside the vault repo
   - bind adds source_paths (repo-relative code paths) to a wiki page's frontmatter
   - drift-check compares git modification times of source files against wiki page updated dates
@@ -207,13 +209,13 @@ export function findTableSpacingProblems(content: string): string[] {
 export function scaffoldFile(project: string, file: (typeof PROJECT_FILES)[number]) {
   switch (file) {
     case "_summary.md":
-      return `---\ntitle: "${project}"\ntype: project\nproject: ${project}\nupdated: ${today()}\nstatus: scaffold\nverification_level: scaffold\n---\n\n# ${project}\n\nScaffolded project summary.\n`;
+      return `---\ntitle: "${project}"\ntype: project\nproject: ${project}\nupdated: ${today()}\nstatus: scaffold\nverification_level: scaffold\n---\n\n# ${project}\n\n> [!summary]\n> Canonical project hub for \`${project}\`. Keep this note aligned with code, active slices, and research.\n\n## Current Focus\n\n- \n\n## Cross Links\n\n- [[projects/${project}/backlog]]\n- [[projects/${project}/decisions]]\n- [[projects/${project}/learnings]]\n- [[projects/${project}/specs/index]]\n`;
     case "backlog.md":
-      return `# Backlog\n\n## In Progress\n\n## Todo\n\n## Backlog\n\n## Done\n\n## Cancelled\n`;
+      return `# Backlog\n\n> [!todo]\n> Active task tracker for this project. Move slices through the sections instead of creating ad hoc task notes.\n\n## In Progress\n\n## Todo\n\n## Backlog\n\n## Done\n\n## Cancelled\n\n## Cross Links\n\n- [[projects/${project}/_summary]]\n- [[projects/${project}/specs/index]]\n`;
     case "decisions.md":
-      return `# Decisions\n`;
+      return `# Decisions\n\n> [!summary]\n> Record durable decisions linked back to code, specs, and research.\n\n## Entries\n\n- \n\n## Cross Links\n\n- [[projects/${project}/_summary]]\n- [[projects/${project}/specs/index]]\n`;
     case "learnings.md":
-      return `# Learnings\n`;
+      return `# Learnings\n\n> [!summary]\n> Record durable lessons, surprises, and future guardrails discovered while shipping.\n\n## Entries\n\n- \n\n## Cross Links\n\n- [[projects/${project}/_summary]]\n- [[projects/${project}/specs/index]]\n`;
   }
 }
 
@@ -258,7 +260,9 @@ export function nowIso() {
 }
 
 export function createdAt(data: FrontmatterData) {
-  return typeof data.created_at === "string" && data.created_at.trim() ? data.created_at : nowIso();
+  if (typeof data.created_at === "string" && data.created_at.trim()) return data.created_at;
+  if (data.created_at instanceof Date && !Number.isNaN(data.created_at.valueOf())) return data.created_at.toISOString();
+  return nowIso();
 }
 
 export function readProjectTitle(project: string) {

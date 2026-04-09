@@ -8,6 +8,9 @@ export async function createPrd(args: string[]) {
   const outputPath = await createSpecDocument(args, "prd", [
     "# {{title}}",
     "",
+    "> [!summary]",
+    "> Canonical PRD for this change. Keep this note aligned with [[projects/{{project}}/_summary]] and linked research before implementation.",
+    "",
     "## Problem",
     "",
     "What problem are we solving?",
@@ -44,6 +47,7 @@ export async function createPrd(args: string[]) {
     "",
     "- [[projects/{{project}}/_summary]]",
     "- [[projects/{{project}}/backlog]]",
+    "- [[projects/{{project}}/specs/index]]",
   ]);
   console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
 }
@@ -51,6 +55,9 @@ export async function createPrd(args: string[]) {
 export async function createPlan(args: string[]) {
   const outputPath = await createSpecDocument(args, "plan", [
     "# {{title}}",
+    "",
+    "> [!summary]",
+    "> Execution plan for this slice. Keep steps small, testable, and linked back to the project hub.",
     "",
     "## Scope",
     "",
@@ -84,6 +91,7 @@ export async function createPlan(args: string[]) {
     "",
     "- [[projects/{{project}}/_summary]]",
     "- [[projects/{{project}}/backlog]]",
+    "- [[projects/{{project}}/specs/index]]",
   ]);
   console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
 }
@@ -91,6 +99,9 @@ export async function createPlan(args: string[]) {
 export async function createTestPlan(args: string[]) {
   const outputPath = await createSpecDocument(args, "test-plan", [
     "# {{title}}",
+    "",
+    "> [!summary]",
+    "> Test-first checklist for this change. Record red, green, and blind spots explicitly.",
     "",
     "## Scope Under Test",
     "",
@@ -120,6 +131,7 @@ export async function createTestPlan(args: string[]) {
     "",
     "- [[projects/{{project}}/_summary]]",
     "- [[projects/{{project}}/verification/coverage]]",
+    "- [[projects/{{project}}/specs/index]]",
   ]);
   console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
 }

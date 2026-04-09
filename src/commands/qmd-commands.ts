@@ -42,4 +42,5 @@ export async function qmdSetup() {
   assertQmdAvailable();
   await ensureKnowledgeCollection();
   await runQmd(["update"]);
+  await runQmd(["embed"]);
 }

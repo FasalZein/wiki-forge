@@ -5,7 +5,7 @@ import { VAULT_ROOT } from "../constants";
 import { orderFrontmatter, projectRoot, mkdirIfMissing, readProjectTitle } from "../cli-shared";
 import { writeText } from "../lib/fs";
 import { buildEvidenceExcerpt, buildScopedNoteIndex, findNoteByVaultPath, fromQmdFile, normalizePath, stripMarkdownExtension } from "../lib/notes";
-import { assertQmdAvailable, queryKnowledge } from "../lib/qmd";
+import { assertQmdAvailable, buildStructuredHybridQuery, normalizeSemanticQueryText, queryKnowledge } from "../lib/qmd";
 import { appendLogEntry } from "../lib/log";
 import { questionTokens } from "../lib/research";
 import { createResearchPage } from "./research";
@@ -110,7 +110,18 @@ async function buildAnswerBrief(options: AskOptions): Promise<AnswerBrief> {
 
 function buildProjectAwareQuery(project: string, question: string) {
   const cleanQuestion = question.replace(/\s+/g, " ").trim();
-  return [`intent: Answer a question about project ${project}. Prefer maintained docs under projects/${project}/ and related wiki pages.`, `lex: ${cleanQuestion}`, `vec: ${cleanQuestion}`].join("\n");
+  const projectTerms = normalizeSemanticQueryText(project);
+  return [
+    `intent: Answer a question about project ${project}. Prefer maintained docs under projects/${project}/ and related wiki pages.`,
+    `lex: ${cleanQuestion}`,
+    `lex: ${projectTerms} ${cleanQuestion}`,
+    `vec: ${normalizeSemanticQueryText(`${cleanQuestion} ${projectTerms}`)}`,
+  ].join("\n");
+}
+
+function questionPrefersResearch(question: string) {
+  const normalized = question.toLowerCase();
+  return /(why|compare|comparison|tradeoff|tradeoffs|decision|decisions|evidence|research|landscape|history|rationale)/u.test(normalized);
 }
 
 function toAnswerSource(project: string, question: string, result: QmdResult, noteIndex: NoteIndex): AnswerSource {
@@ -123,7 +134,7 @@ function toAnswerSource(project: string, question: string, result: QmdResult, no
   return { result, adjustedScore, markdownPath, vaultPath, scope, note, evidence };
 }
 
-function classifyAnswerScope(project: string, markdownPath: string): AnswerSource["scope"] {
+export function classifyAnswerScope(project: string, markdownPath: string): AnswerSource["scope"] {
   const normalized = normalizePath(markdownPath).toLowerCase();
   const projectPrefix = `projects/${project.toLowerCase()}/`;
   const researchProjectPrefix = `research/projects/${project.toLowerCase()}/`;
@@ -134,19 +145,38 @@ function classifyAnswerScope(project: string, markdownPath: string): AnswerSourc
   return "other";
 }
 
-function scoreAnswerSource(project: string, question: string, markdownPath: string, scope: AnswerSource["scope"], score: number, evidenceScore: number) {
+export function scoreAnswerSource(project: string, question: string, markdownPath: string, scope: AnswerSource["scope"], score: number, evidenceScore: number) {
   let adjusted = score;
   if (scope === "project") adjusted += 1.2;
   else if (scope === "wiki") adjusted += 0.2;
   else if (scope === "meta") adjusted -= 0.9;
 
   const normalized = normalizePath(markdownPath).toLowerCase();
-  if (normalized === `projects/${project.toLowerCase()}/_summary.md`) adjusted += 0.4;
-  if (normalized.startsWith(`research/projects/${project.toLowerCase()}/`)) adjusted += 0.9;
-  if (normalized.endsWith("/_overview.md")) adjusted += 0.25;
+  const projectPrefix = `projects/${project.toLowerCase()}/`;
+  const prefersResearch = questionPrefersResearch(question);
+
+  if (normalized === `${projectPrefix}_summary.md`) adjusted += 0.9;
+  if (normalized === `${projectPrefix}decisions.md`) adjusted += 1.1;
+  if (normalized === `${projectPrefix}specs/index.md`) adjusted += 1;
+  if (normalized === `${projectPrefix}backlog.md`) adjusted += 0.2;
+  if (normalized.startsWith(`${projectPrefix}specs/prd-`)) adjusted += 0.75;
+  if (normalized.startsWith(`${projectPrefix}specs/`) && /\/(index|plan|test-plan)\.md$/u.test(normalized)) adjusted += 0.45;
+
+  const lowerQuestion = question.toLowerCase();
+  if (/\bprds?\b/u.test(lowerQuestion)) {
+    if (normalized === `${projectPrefix}specs/index.md`) adjusted += 0.8;
+    if (normalized.startsWith(`${projectPrefix}specs/prd-`)) adjusted += 0.7;
+  }
+  if (/\b(slice|task)\b/u.test(lowerQuestion) && normalized.startsWith(`${projectPrefix}specs/`)) adjusted += 0.45;
+  if (/\bforge\b/u.test(lowerQuestion) && normalized === `${projectPrefix}decisions.md`) adjusted += 0.5;
+
+  if (normalized.startsWith(`research/projects/${project.toLowerCase()}/`)) adjusted += prefersResearch ? 0.5 : -0.35;
+  if (normalized.endsWith("/_overview.md")) adjusted += prefersResearch ? 0.1 : -0.45;
   if (normalized.endsWith("/spec.md")) adjusted += 0.25;
   if (normalized.endsWith("/readme.md")) adjusted -= 0.2;
+  if (normalized.includes("/bench/")) adjusted -= 0.25;
   if (normalized.endsWith("/backlog.md") || normalized.includes("/verification/")) adjusted += 0.1;
+
   const topicBoost = questionTokens(question).reduce((total, token) => total + (normalized.includes(token) ? 0.08 : 0), 0);
   return adjusted + evidenceScore * 0.35 + Math.min(topicBoost, 0.4);
 }

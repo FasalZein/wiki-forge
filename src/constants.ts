@@ -5,6 +5,8 @@ import { homedir } from "node:os";
 export const VAULT_ROOT_ENV = "KNOWLEDGE_VAULT_ROOT";
 export const VAULT_ROOT = resolveVaultRoot();
 export const QMD_NODE_CLI = process.env.QMD_NODE_CLI ?? "/opt/homebrew/lib/node_modules/@tobilu/qmd/dist/cli/qmd.js";
+export const QMD_INDEX_NAME = normalizeQmdIndexName(process.env.QMD_INDEX_NAME);
+export const QMD_INDEX_PATH = resolveQmdIndexPath(QMD_INDEX_NAME);
 
 export const PROJECT_DIRS = [
   "modules",
@@ -40,6 +42,15 @@ export const QUERY_STOP_WORDS = new Set([
   "that", "them", "this", "what", "when", "where", "which",
   "with", "would", "could", "should", "project",
 ]);
+
+export function normalizeQmdIndexName(value: string | undefined) {
+  const trimmed = value?.trim();
+  return trimmed || "index";
+}
+
+export function resolveQmdIndexPath(indexName: string) {
+  return join(homedir(), ".cache", "qmd", indexName === "index" ? "index.sqlite" : `${indexName}.sqlite`);
+}
 
 function resolveVaultRoot() {
   const envRoot = process.env[VAULT_ROOT_ENV]?.trim();

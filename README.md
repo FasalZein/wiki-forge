@@ -38,58 +38,87 @@ cd wiki-forge
 ./install.sh
 ```
 
-The installer sets up bun, links the CLI, configures your shell, and creates the vault directory. See [SETUP.md](SETUP.md) for manual setup, Obsidian config, and troubleshooting.
+The installer sets up bun, links the CLI, configures your shell, and creates the vault directory. By default that means `~/Knowledge` is created for you on first setup. See [SETUP.md](SETUP.md) for manual setup, Obsidian config, and troubleshooting.
 
 ## Skills
 
-Three skills ship with the repo. Install from GitHub — you'll be prompted to choose which agents to install for:
+`forge` depends on companion skills. Install both the repo skills and the external workflow skills it chains into.
+
+Repo skills from GitHub:
 
 ```bash
-npx skills add FasalZein/wiki-forge/skills/forge -g
-npx skills add FasalZein/wiki-forge/skills/wiki -g
-npx skills add FasalZein/wiki-forge/skills/prd-to-slices -g
+npx skills@latest add FasalZein/wiki-forge/skills/forge -g
+npx skills@latest add FasalZein/wiki-forge/skills/wiki -g
+npx skills@latest add FasalZein/wiki-forge/skills/prd-to-slices -g
 ```
 
-Or from a local clone:
+Companion workflow skills from `mattpocock/skills`:
 
 ```bash
-npx skills add ./skills/forge -g
-npx skills add ./skills/wiki -g
-npx skills add ./skills/prd-to-slices -g
+npx skills@latest add mattpocock/skills/grill-me -g
+npx skills@latest add mattpocock/skills/write-a-prd -g
+npx skills@latest add mattpocock/skills/tdd -g
+```
+
+Or from a local clone for the repo-owned skills:
+
+```bash
+npx skills@latest add ./skills/forge -g
+npx skills@latest add ./skills/wiki -g
+npx skills@latest add ./skills/prd-to-slices -g
 ```
 
 | Skill | Invoke | Purpose |
 |-------|--------|---------|
-| **forge** | `/forge` | Workflow orchestrator: compose research → grill → PRD → slices → TDD → wiki verify |
+| **forge** | `/forge` | Workflow orchestrator for non-trivial delivery work: compose research → grill → PRD → slices → TDD → wiki verify |
 | **wiki** | `/wiki` | CLI reference for wiki, research, raw-source, drift, and verification operations |
 | **prd-to-slices** | `/prd-to-slices` | Breaks PRDs into vertical slices in the wiki backlog |
+| **grill-me** | `/grill-me` | Stress-tests a plan before the PRD is written |
+| **write-a-prd** | `/write-a-prd` | Captures the PRD that forge expects before slicing |
+| **tdd** | `/tdd` | Drives the red-green-refactor loop forge expects for implementation |
 
 `forge` is not the research system and not the wiki itself. It is the delivery workflow that coordinates the separate skills/layers:
-- `research` = evidence gathering and research filing
+- `research` = actual evidence gathering, comparison, and investigation
 - `wiki` = maintained knowledge + verification/drift/gate operations
 - `forge` = the policy/workflow that says when to use research, grill, PRD, slices, TDD, and wiki verify together
+
+Use `forge` only for work that actually needs that pipeline. For smaller tasks, prefer the smallest fitting path:
+- small code fix: `tdd` + `wiki`
+- wiki/note cleanup: `wiki` + `obsidian-markdown`
+- repo understanding / maintenance: `wiki maintain`
+
+Typical wiki trigger phrases should route to contextual maintenance, not blind note rewrites:
+- "update wiki"
+- "refresh memory"
+- "sync docs"
+- "close out this slice"
+
+That means: inspect changed code/tests, update only impacted wiki pages, verify them, then run the gate.
 
 ## Layer Model
 
 These are separate layers in the same system:
 
 - **Wiki layer** — maintained project memory in `~/Knowledge`
-- **Research layer** — evidence and source-backed notes under `research/` and `raw/`
+- **Research layer** — filed evidence and source-backed notes under `research/` and `raw/`
 - **Forge layer** — the delivery workflow for turning evidence into implemented, tested, verified slices
 
-Forge should consume the research layer and update the wiki layer. It should not own either one.
+Run the `/research` skill for the actual research work, then file the result into the research layer. Forge should consume that research layer and update the wiki layer. It should not own either one.
 
 ## Dogfooding Forge on wiki-forge
 
-Use forge as the workflow, and use wiki/research commands as the concrete system surfaces underneath it.
+Use forge as the workflow. Use `/research` for the investigation itself, and use wiki research/source commands to store the artifacts underneath it.
 
 ```bash
-# research layer
+# run actual research first
+/research "topic title"
+
+# then file the resulting brief into the research repository
 wiki research file wiki-forge "topic title"
 
 # PRD + slices
-wiki create-prd wiki-forge "feature name"
-wiki create-issue-slice wiki-forge "slice name"
+wiki create-prd wiki-forge "feature name"          # creates specs/prd-<slug>.md
+wiki create-issue-slice wiki-forge "slice name"   # creates specs/<TASK-ID>/{index,plan,test-plan}.md
 
 # implementation + verification
 # write tests first, then implement
@@ -97,7 +126,7 @@ wiki verify-page wiki-forge <page> code-verified
 wiki gate wiki-forge --repo "$PWD" --base <rev>
 ```
 
-That is the intended relationship: forge orchestrates; wiki and research do the work.
+That is the intended relationship: forge orchestrates; `/research` investigates; wiki research/source commands store and curate the outputs.
 
 ## Guardrails
 
@@ -122,11 +151,11 @@ wiki ingest-diff <project>            # auto-append change digests to impacted p
 wiki search "query"                   # full-text search
 wiki query "question"                 # hybrid lex+vec retrieval
 wiki ask <project> "question"         # project-scoped Q&A with citations
-wiki research file <project> <title>   # scaffold project research page
+wiki research file <project> <title>   # file a research note after running /research
 wiki research scaffold <topic>         # create a research topic container
-wiki research status [topic]           # research coverage/health summary
-wiki research ingest <topic> <source...> # scaffold one or many source-backed research pages
-wiki research lint [topic]              # lint research evidence and freshness
+wiki research status [topic]           # research repository coverage/health summary
+wiki research ingest <topic> <source...> # scaffold one or many source-backed research pages from existing findings
+wiki research lint [topic]              # lint filed research evidence and freshness
 wiki source ingest <path-or-url...>     # ingest one or many raw sources + linked summaries
 
 # Lint
@@ -145,7 +174,7 @@ wiki bind <project> <page> <paths>    # link wiki page to source code
 wiki scaffold-project <project>
 wiki create-module <project> <name> --source <paths...>
 wiki create-prd <project> <name>
-wiki create-issue-slice <project> <title>
+wiki create-issue-slice <project> <title>  # creates specs/<TASK-ID>/{index,plan,test-plan}.md
 wiki backlog <project>
 
 # Obsidian
@@ -168,14 +197,49 @@ The wiki is a directory of markdown files — works as a git repo, an Obsidian v
     _summary.md                    # project config (repo, code_paths)
     backlog.md                     # task tracking
     modules/<mod>/spec.md          # module documentation
-    specs/                         # PRDs, plans, test plans
+    specs/
+      prd-<slug>.md                # project-level PRDs
+      index.md                     # generated spec index
+      <TASK-ID>/
+        index.md                   # task hub
+        plan.md                    # implementation plan
+        test-plan.md               # test plan
   research/                        # research artifacts
   wiki/syntheses/                  # filed answer briefs
 ```
 
+## Current spec workflow
+
+Use this shape:
+- `wiki create-prd <project> <name>` → `projects/<project>/specs/prd-<slug>.md`
+- `wiki create-issue-slice <project> <title>` → `projects/<project>/specs/<TASK-ID>/{index,plan,test-plan}.md`
+
+So:
+- PRD = project-level intent doc under `specs/`
+- slice docs = task-scoped workspace under `specs/<TASK-ID>/`
+- chronology = metadata, not filename numbering
+
 ## Obsidian
 
-The vault is an [Obsidian](https://obsidian.md) vault. Wikilinks, graph view, and backlinks work out of the box.
+The vault is an [Obsidian](https://obsidian.md) vault. Wikilinks, graph view, backlinks, embeds, callouts, and properties should be treated as the default reading/writing experience for wiki pages.
+
+Recommended skill install for agents editing vault docs:
+
+```bash
+npx skills add ./skills/wiki -g
+npx skills add ~/.pi/agent/skills/obsidian-markdown -g
+npx skills add ~/.agents/skills/obsidian-cli -g
+npx skills add ~/.agents/skills/json-canvas -g
+npx skills add ~/.agents/skills/obsidian-bases -g
+```
+
+Recommended usage split:
+- `obsidian-markdown` — install and use by default for vault docs
+- `obsidian-cli` — useful if Obsidian CLI is enabled and agents need to operate the running app
+- `json-canvas` — useful for derived relationship maps and canvases; do not treat canvas files as source of truth
+- `obsidian-bases` — useful for derived dashboards/views over frontmatter; do not treat bases as source of truth
+
+Start with `obsidian-markdown`. Add the others because they complement the UI layer, but keep markdown/frontmatter as the canonical contract.
 
 **Enable the CLI** (Obsidian 1.8+): Settings → General → CLI. This lets `wiki obsidian open` work from the terminal. See [SETUP.md](SETUP.md#obsidian-setup).
 
@@ -190,6 +254,23 @@ Pages start at `scaffold` and get promoted as agents verify content against sour
 The burden with knowledge bases isn't reading — it's bookkeeping. Cross-references, consistency, contradictions. Humans abandon wikis because maintenance cost grows faster than value.
 
 Agents don't forget cross-references and can touch 15 files in one pass. The wiki sustains itself because maintenance cost approaches zero. You curate sources and ask good questions. Agents handle everything else.
+
+## QMD benchmarking
+
+Use an isolated qmd index when benchmarking retrieval so you do not pollute your main `~/.cache/qmd/index.sqlite` state.
+
+```bash
+QMD_INDEX_NAME=wiki-forge-bench bun src/index.ts qmd-setup
+bun run bench:qmd
+```
+
+The benchmark harness copies markdown-only vault content into a temp vault, then measures:
+- `qmd update`
+- `qmd embed`
+- direct structured `qmd query`
+- `wiki query` cold vs warm cache latency
+- `wiki ask` cold vs warm cache latency
+- full `wiki source ingest -> qmd update -> qmd embed` pipeline latency
 
 ## Testing
 

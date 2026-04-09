@@ -124,8 +124,9 @@ export async function discoverProject(args: string[]) {
       console.log(`${group.directory}/ (${group.files} files)${marker}`);
     }
     if (result.researchDirs.length) {
-      console.log("\nresearch layer detected:");
+      console.log("\nrepo-local research docs detected:");
       for (const dir of result.researchDirs) console.log(`  - ${dir}`);
+      console.log("  - file durable findings into wiki research notes; use /research for net-new investigation");
     }
     if (result.unboundPages.length) {
       console.log("\nunbound wiki pages:");

@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
-import { createdAt, mkdirIfMissing, projectRoot, requireValue, safeMatter } from "../cli-shared";
+import { createdAt, mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { readText, writeText } from "../lib/fs";
 import { tailLog, appendLogEntry } from "../lib/log";
 import { walkMarkdown } from "../lib/vault";
@@ -64,7 +64,7 @@ async function applyIndexPlan(plan: { targets: Array<{ path: string; content: st
   for (const target of plan.targets) {
     const absolutePath = join(VAULT_ROOT, target.path);
     mkdirIfMissing(dirname(absolutePath));
-    await writeText(absolutePath, target.content);
+    await writeIndexTarget(absolutePath, target.content);
   }
 }
 
@@ -72,14 +72,14 @@ export async function writeProjectIndex(project: string) {
   const target = await buildProjectIndexTarget(project);
   const absolutePath = join(VAULT_ROOT, target.path);
   mkdirIfMissing(dirname(absolutePath));
-  await writeText(absolutePath, target.content);
+  await writeIndexTarget(absolutePath, target.content);
   return target;
 }
 
 async function buildProjectIndexTarget(project: string) {
   const root = projectRoot(project);
   const pages = walkMarkdown(root).sort();
-  const sections = new Map<string, Array<{ line: string; sortKey: string }>>();
+  const sections = new Map<string, Array<{ line: string; sortKey: string; rel: string; data: Record<string, unknown> | undefined }>>();
   const pageRows = await Promise.all(pages.map(async (file) => {
     const rel = relative(root, file).replaceAll("\\", "/");
     const raw = await readText(file);
@@ -89,14 +89,23 @@ async function buildProjectIndexTarget(project: string) {
   }));
   for (const { file, rel, title, parsed } of pageRows) {
     const section = rel.includes("/") ? rel.split("/")[0] : "root";
+    if (section === "specs" && shouldSkipProjectIndexSpecEntry(rel)) continue;
     const vaultPath = relative(VAULT_ROOT, file).replace(/\.md$/u, "").replaceAll("\\", "/");
     const lines = sections.get(section) ?? [];
-    lines.push({ line: `- [[${vaultPath}|${title}]]`, sortKey: buildSectionSortKey(section, rel, parsed?.data) });
+    lines.push({ line: `- [[${vaultPath}|${title}]]`, sortKey: buildSectionSortKey(section, rel, parsed?.data), rel, data: parsed?.data as Record<string, unknown> | undefined });
     sections.set(section, lines);
   }
   const out = [`# ${project} Index`, "", `- [[projects/${project}/_summary|${project} summary]]`, ""];
   for (const [section, lines] of [...sections.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-    out.push(`## ${section}`, "", ...lines.sort((a, b) => a.sortKey.localeCompare(b.sortKey)).map((entry) => entry.line), "");
+    out.push(`## ${section}`, "");
+    if (section === "specs") {
+      const prds = lines.filter((entry) => specIndexGroup(entry.rel, entry.data) === "prds").sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+      const taskHubs = lines.filter((entry) => specIndexGroup(entry.rel, entry.data) === "task-hubs").sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+      if (prds.length) out.push("### PRDs", "", ...prds.map((entry) => entry.line), "");
+      if (taskHubs.length) out.push("### Task Hubs", "", ...taskHubs.map((entry) => entry.line), "");
+      continue;
+    }
+    out.push(...lines.sort((a, b) => a.sortKey.localeCompare(b.sortKey)).map((entry) => entry.line), "");
   }
   return { path: `projects/${project}/specs/index.md`, content: `${out.join("\n")}\n` };
 }
@@ -115,11 +124,40 @@ function readTitleFromParsed(parsed: ReturnType<typeof safeMatter> | null | unde
 
 function buildSectionSortKey(section: string, rel: string, data: Record<string, unknown> | undefined) {
   if (section !== "specs") return rel;
-  const kindOrder = { prd: "0", plan: "1", "test-plan": "2" } as const;
-  const kind = typeof data?.spec_kind === "string" ? data.spec_kind : "zzz";
+  const kindOrder = { prd: "0", "task-hub": "1", plan: "2", "test-plan": "3" } as const;
+  const kind = typeof data?.spec_kind === "string" ? data.spec_kind : rel.endsWith("/index.md") ? "task-hub" : "zzz";
   const taskId = typeof data?.task_id === "string" ? data.task_id : "";
   const taskMatch = taskId.match(/(\d{3,})$/);
   const taskNumber = taskMatch ? taskMatch[1].padStart(6, "0") : "000000";
   const created = createdAt((data ?? {}) as Record<string, unknown>);
   return `${created}:${kindOrder[kind as keyof typeof kindOrder] ?? "9"}:${taskNumber}:${rel}`;
+}
+
+function shouldSkipProjectIndexSpecEntry(rel: string) {
+  if (rel === "specs/index.md") return true;
+  if (!rel.startsWith("specs/")) return false;
+  const nested = rel.slice("specs/".length);
+  if (!nested.includes("/")) return false;
+  return !nested.endsWith("/index.md");
+}
+
+function specIndexGroup(rel: string, data: Record<string, unknown> | undefined) {
+  const kind = typeof data?.spec_kind === "string" ? data.spec_kind : rel.endsWith("/index.md") ? "task-hub" : "";
+  if (kind === "prd") return "prds";
+  return "task-hubs";
+}
+
+async function writeIndexTarget(absolutePath: string, content: string) {
+  if (!existsSync(absolutePath)) {
+    await writeText(absolutePath, content);
+    return;
+  }
+  const raw = await readText(absolutePath);
+  const parsed = safeMatter(relative(VAULT_ROOT, absolutePath), raw, { silent: true });
+  if (!parsed) {
+    await writeText(absolutePath, content);
+    return;
+  }
+  const data = orderFrontmatter({ ...parsed.data, updated: nowIso() }, ["title", "type", "project", "source_paths", "created_at", "updated", "status", "verification_level"]);
+  writeNormalizedPage(absolutePath, content, data);
 }

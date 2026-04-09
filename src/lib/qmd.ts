@@ -1,13 +1,10 @@
 import { existsSync } from "node:fs";
-import { join } from "node:path";
-import { homedir } from "node:os";
-import { QMD_NODE_CLI, VAULT_ROOT } from "../constants";
+import { QMD_INDEX_NAME, QMD_INDEX_PATH, QMD_NODE_CLI, VAULT_ROOT } from "../constants";
 import type { QmdResult } from "../types";
 import { fileFingerprint, readCache, writeCache } from "./cache";
 import { resolveCommandOnPath } from "./runtime";
 
 const QMD_CACHE_VERSION = "1";
-const QMD_INDEX_PATH = join(homedir(), ".cache", "qmd", "index.sqlite");
 
 type QmdCapture = {
   stdout: string;
@@ -15,6 +12,14 @@ type QmdCapture = {
 };
 
 let qmdAvailable: boolean | null = null;
+
+const DEFAULT_KNOWLEDGE_CONTEXTS = [
+  { path: "qmd://knowledge", text: "Knowledge vault: projects, wiki, research" },
+  { path: "/", text: "Use index.md first, then _summary.md, then drill deeper." },
+  { path: "qmd://knowledge/projects", text: "Project-specific maintained docs under projects/<name>. Prefer these for repo questions." },
+  { path: "qmd://knowledge/research", text: "Research notes and evidence. Prefer when the question asks why, compares options, or needs supporting sources." },
+  { path: "qmd://knowledge/wiki", text: "Cross-project concepts, entities, and syntheses. Use for shared patterns, not project-specific implementation unless no project docs exist." },
+] as const;
 
 export async function runQmd(args: string[]) {
   const proc = Bun.spawn(qmdInvocation(args), {
@@ -70,8 +75,26 @@ export async function captureQmdJsonCached(args: string[], cacheKey: string) {
   return parseQmdJson(capture.stdout);
 }
 
-export function buildStructuredHybridQuery(query: string) {
-  return `lex: ${query}\nvec: ${query}`;
+export function normalizeSemanticQueryText(query: string) {
+  return query
+    .replace(/\r?\n+/g, " ")
+    .replace(/(^|\s)-(?=(?:\p{L}|\p{N}|"))/gu, "$1")
+    .replace(/(?<=\p{L}|\p{N})[-_/]+(?=\p{L}|\p{N})/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function buildStructuredHybridQuery(query: string, options?: { intent?: string }) {
+  const lines: string[] = [];
+  if (options?.intent) lines.push(`intent: ${options.intent}`);
+  lines.push(`lex: ${query}`);
+  lines.push(`vec: ${normalizeSemanticQueryText(query)}`);
+  return lines.join("\n");
+}
+
+function isRecoverableStructuredQueryError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("Negation (-term) is not supported in vec/hyde queries");
 }
 
 export async function searchKnowledge(query: string, options?: { hybrid?: boolean; writeOutput?: boolean }) {
@@ -81,8 +104,16 @@ export async function searchKnowledge(query: string, options?: { hybrid?: boolea
     ? ["query", buildStructuredHybridQuery(query), "-c", "knowledge"]
     : ["search", query, "-c", "knowledge"];
   const cacheKey = hybrid ? `search:hybrid:${query}` : `search:${query}`;
-  if (options?.writeOutput === false) return captureQmd(args);
-  await runQmdCached(args, cacheKey);
+  try {
+    if (options?.writeOutput === false) return captureQmd(args);
+    await runQmdCached(args, cacheKey);
+  } catch (error) {
+    if (!hybrid || !isRecoverableStructuredQueryError(error)) throw error;
+    const fallbackArgs = ["query", query, "-c", "knowledge"];
+    const fallbackCacheKey = `${cacheKey}:expand-fallback`;
+    if (options?.writeOutput === false) return captureQmd(fallbackArgs);
+    await runQmdCached(fallbackArgs, fallbackCacheKey);
+  }
 }
 
 export async function queryKnowledge(query: string, options: { expand?: boolean; json: true; maxResults?: number; cacheKeyPrefix?: string; }): Promise<QmdResult[]>;
@@ -95,8 +126,19 @@ export async function queryKnowledge(query: string, options?: { expand?: boolean
   if (typeof options?.maxResults === "number") commandArgs.push("-n", String(options.maxResults));
   const cachePrefix = options?.cacheKeyPrefix ?? "query";
   const cacheKey = `${cachePrefix}:${expand ? "expand" : "structured"}:${query}:${options?.maxResults ?? "default"}:${options?.json ? "json" : "text"}`;
-  if (options?.json) return captureQmdJsonCached(commandArgs, cacheKey);
-  await runQmdCached(commandArgs, cacheKey);
+  try {
+    if (options?.json) return await captureQmdJsonCached(commandArgs, cacheKey);
+    await runQmdCached(commandArgs, cacheKey);
+    return;
+  } catch (error) {
+    if (expand || !isRecoverableStructuredQueryError(error)) throw error;
+    const fallbackArgs = ["query", query, "-c", "knowledge"];
+    if (options?.json) fallbackArgs.push("--json");
+    if (typeof options?.maxResults === "number") fallbackArgs.push("-n", String(options.maxResults));
+    const fallbackCacheKey = `${cacheKey}:expand-fallback`;
+    if (options?.json) return captureQmdJsonCached(fallbackArgs, fallbackCacheKey);
+    await runQmdCached(fallbackArgs, fallbackCacheKey);
+  }
 }
 
 export async function ensureKnowledgeCollection() {
@@ -107,19 +149,19 @@ export async function ensureKnowledgeCollection() {
   }
 
   const contexts = await captureQmd(["context", "list"]);
-  if (!contexts.stdout.includes("Knowledge vault: projects, wiki, research")) {
-    await runQmd(["context", "add", "qmd://knowledge", "Knowledge vault: projects, wiki, research"]);
-  }
-  if (!contexts.stdout.includes("Use index.md first, then _summary.md, then drill deeper.")) {
-    await runQmd(["context", "add", "/", "Use index.md first, then _summary.md, then drill deeper."]);
+  for (const context of DEFAULT_KNOWLEDGE_CONTEXTS) {
+    if (!contexts.stdout.includes(context.text)) {
+      await runQmd(["context", "add", context.path, context.text]);
+    }
   }
 }
 
 function qmdInvocation(args: string[]) {
+  const indexArgs = QMD_INDEX_NAME === "index" ? [] : ["--index", QMD_INDEX_NAME];
   if (existsSync(QMD_NODE_CLI)) {
-    return ["node", QMD_NODE_CLI, ...args];
+    return ["node", QMD_NODE_CLI, ...indexArgs, ...args];
   }
-  return ["qmd", ...args];
+  return ["qmd", ...indexArgs, ...args];
 }
 
 export function assertQmdAvailable() {

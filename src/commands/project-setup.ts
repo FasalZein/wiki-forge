@@ -160,11 +160,13 @@ function renderOnboardingPlan(project: string, repo?: string) {
       "", "#### Slice F: Research Layer", "",
       `Detected research docs in repo: ${researchDirs.join(", ")}`, "",
       `- [ ] Review existing research docs for key findings and architectural decisions`,
-      `- [ ] Create wiki research pages for high-signal findings: \`wiki research file ${project} <topic>\``,
+      `- [ ] Treat repo-local research docs as source material, not the active research workflow`,
+      `- [ ] Run \`/research\` for any net-new investigation or option comparison`,
+      `- [ ] File high-signal findings into the vault with \`wiki research file ${project} <topic>\``,
       `- [ ] Link research pages to relevant module specs and PRDs`,
       `- [ ] Record research-driven decisions in \`projects/${project}/decisions.md\``,
     );
   }
-  const body = [`# ${project} Onboarding Plan`, "", `Project-specific execution plan for onboarding \`${project}\` into the Knowledge vault using the canonical [[wiki/concepts/project-onboarding-playbook|Project Onboarding Playbook]].`, "", "## Inputs", "", `- Project: \`${project}\``, `- Repo: \`${repo ?? "TODO"}\``, "- Maintained wiki root: `~/Knowledge/projects/`", "- Source of truth: code", "", "## Phases", "", "### Phase 1: Prepare", "", "- [ ] Confirm project name and repo path", "- [ ] Read `index.md` and check for an existing project entry", `- [ ] Run \`wiki onboard ${project}${repo ? ` --repo ${repo}` : " --repo <path>"}\` if the project scaffold is missing`, "- [ ] Decide whether to onboard the whole repo or the highest-signal modules first", "", "### Phase 2: Parallel Exploration Slices", "", ...slices, ""].join("\n");
+  const body = [`# ${project} Onboarding Plan`, "", "> [!summary]", "> Canonical onboarding plan for this project. Use it to map repo structure into maintained wiki modules and verification pages.", "", `Project-specific execution plan for onboarding \`${project}\` into the Knowledge vault using the canonical [[wiki/concepts/project-onboarding-playbook|Project Onboarding Playbook]].`, "", "## Inputs", "", `- Project: \`${project}\``, `- Repo: \`${repo ?? "TODO"}\``, "- Maintained wiki root: `~/Knowledge/projects/`", "- Source of truth: code", "", "## Phases", "", "### Phase 1: Prepare", "", "- [ ] Confirm project name and repo path", "- [ ] Read `index.md` and check for an existing project entry", `- [ ] Run \`wiki onboard ${project}${repo ? ` --repo ${repo}` : " --repo <path>"}\` if the project scaffold is missing`, "- [ ] Decide whether to onboard the whole repo or the highest-signal modules first", "", "### Phase 2: Parallel Exploration Slices", "", ...slices, ""].join("\n");
   return normalizeFrontmatterFormatting(matter.stringify(body, data), data);
 }

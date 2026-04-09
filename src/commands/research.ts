@@ -60,6 +60,9 @@ export async function ingestResearch(args: string[]) {
     const body = [
       `# ${data.title}`,
       "",
+      "> [!summary]",
+      "> Source-backed research note. Capture the claim, what changed, and where it should influence the wiki.",
+      "",
       "## Source Summary",
       "",
       `- Source: ${source}`,
@@ -119,6 +122,9 @@ export async function ingestSource(args: string[]) {
       const rawBody = [
         `# ${rawTitle}`,
         "",
+        "> [!info]",
+        "> Raw-source pointer note. The canonical content remains external.",
+        "",
         "## Source",
         "",
         `- URL: ${source}`,
@@ -147,6 +153,9 @@ export async function ingestSource(args: string[]) {
     }, ["title", "type", "topic", "project", "status", "source_type", "sources", "created_at", "updated", "verification_level"]);
     const body = [
       `# ${data.title}`,
+      "",
+      "> [!summary]",
+      "> Source-backed research note linked to a raw artifact. Keep claims grounded in the raw note and promote only verified findings.",
       "",
       "## Source Summary",
       "",
@@ -212,6 +221,9 @@ export async function ensureResearchTopic(topic: string) {
     }, ["title", "type", "topic", "created_at", "updated", "status", "verification_level"]);
     const body = [
       `# ${topicLabel(normalizedTopic)}`,
+      "",
+      "> [!summary]",
+      "> Research topic hub. Link source-backed notes here and keep open questions visible.",
       "",
       "## Overview",
       "",
@@ -403,6 +415,9 @@ export async function createResearchPage(project: string, title: string, topic?:
   }, ["title", "type", "topic", "project", "status", "source_type", "sources", "created_at", "updated", "verification_level"]);
   const body = [
     `# ${title}`,
+    "",
+    "> [!summary]",
+    "> Research synthesis note. Capture conclusions here, then link the evidence that supports them.",
     "",
     "## TL;DR",
     "",

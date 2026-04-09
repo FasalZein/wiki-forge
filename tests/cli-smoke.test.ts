@@ -73,13 +73,16 @@ describe("wiki CLI smoke", () => {
 
     expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
     const demoBacklogPath = join(vault, "projects", "demo", "backlog.md");
-    writeFileSync(demoBacklogPath, readFileSync(demoBacklogPath, "utf8").replace("## Cancelled\n", "## Cancelled\n\n## Cross Links\n\n- [[projects/demo/_summary]]\n"), "utf8");
+    expect(readFileSync(join(vault, "projects", "demo", "_summary.md"), "utf8")).toContain("> [!summary]");
+    expect(readFileSync(demoBacklogPath, "utf8")).toContain("> [!todo]");
+    writeFileSync(demoBacklogPath, readFileSync(demoBacklogPath, "utf8").replace("## Cross Links\n\n- [[projects/demo/_summary]]\n- [[projects/demo/specs/index]]\n", "## Cross Links\n\n- [[projects/demo/_summary]]\n"), "utf8");
     expect(runWiki(["create-prd", "demo", "auth workflow"], env).exitCode).toBe(0);
     expect(existsSync(join(vault, "projects", "demo", "specs", "prd-auth-workflow.md"))).toBe(true);
     expect(runWiki(["add-task", "demo", "stabilize auth", "--priority", "p1", "--tag", "auth"], env).exitCode).toBe(0);
     expect(runWiki(["create-issue-slice", "demo", "auth slice", "--priority", "p1", "--tag", "auth"], env).exitCode).toBe(0);
-    expect(existsSync(join(vault, "projects", "demo", "specs", "plan-demo-002-auth-slice.md"))).toBe(true);
-    expect(existsSync(join(vault, "projects", "demo", "specs", "test-plan-demo-002-auth-slice.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "demo", "specs", "DEMO-002", "index.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "demo", "specs", "DEMO-002", "plan.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "demo", "specs", "DEMO-002", "test-plan.md"))).toBe(true);
     expect(runWiki(["move-task", "demo", "DEMO-001", "--to", "In Progress"], env).exitCode).toBe(0);
     expect(runWiki(["complete-task", "demo", "DEMO-002"], env).exitCode).toBe(0);
     const backlog = runWiki(["backlog", "demo", "--json"], env);
@@ -193,6 +196,7 @@ describe("wiki CLI smoke", () => {
     const scaffoldResearch = runWiki(["research", "scaffold", "projects/demo"], env);
     expect(scaffoldResearch.exitCode).toBe(0);
     expect(existsSync(join(vault, "research", "projects", "demo", "_overview.md"))).toBe(true);
+    expect(readFileSync(join(vault, "research", "projects", "demo", "_overview.md"), "utf8")).toContain("> [!summary]");
 
     const ingestResearch = runWiki(["research", "ingest", "projects/demo", "https://example.com/auth"], env);
     expect(ingestResearch.exitCode).toBe(0);
@@ -222,6 +226,7 @@ describe("wiki CLI smoke", () => {
     expect(researchContent).toContain("verification_level: unverified");
     expect(researchContent).toContain("## TL;DR");
     expect(researchContent).toContain("[[research/projects/demo/_overview]]");
+    expect(researchContent).toContain("> [!summary]");
 
     const sourceFile = join(repo, "notes.txt");
     writeFileSync(sourceFile, "Important source material\n", "utf8");
@@ -235,6 +240,7 @@ describe("wiki CLI smoke", () => {
     expect(existsSync(join(vault, "research", "projects", "demo", "notes.md"))).toBe(true);
     const ingestedSourceContent = readFileSync(join(vault, "research", "projects", "demo", "notes.md"), "utf8");
     expect(ingestedSourceContent).toContain("[[raw/conversations/notes.txt]]");
+    expect(ingestedSourceContent).toContain("> [!summary]");
 
     unlinkSync(join(vault, "raw", "conversations", "notes.txt"));
     const ingestSourceConflict = runWiki(["source", "ingest", sourceFile, "--topic", "projects/demo"], env);
@@ -307,22 +313,29 @@ describe("wiki CLI smoke", () => {
 
     const backlogContent = readFileSync(join(vault, "projects", "forgey", "backlog.md"), "utf8");
     expect(backlogContent).toContain("FORGEY-001");
-    const planPath = join(vault, "projects", "forgey", "specs", "plan-forgey-001-workflow-slice.md");
-    const testPlanPath = join(vault, "projects", "forgey", "specs", "test-plan-forgey-001-workflow-slice.md");
+    const taskIndexPath = join(vault, "projects", "forgey", "specs", "FORGEY-001", "index.md");
+    const planPath = join(vault, "projects", "forgey", "specs", "FORGEY-001", "plan.md");
+    const testPlanPath = join(vault, "projects", "forgey", "specs", "FORGEY-001", "test-plan.md");
+    expect(existsSync(taskIndexPath)).toBe(true);
     expect(existsSync(planPath)).toBe(true);
     expect(existsSync(testPlanPath)).toBe(true);
     const indexPath = join(vault, "projects", "forgey", "specs", "index.md");
     expect(existsSync(indexPath)).toBe(true);
     const indexContent = readFileSync(indexPath, "utf8");
     expect(indexContent.indexOf("[[projects/forgey/specs/prd-workflow-uplift|workflow uplift]]")).toBeGreaterThan(-1);
-    expect(indexContent.indexOf("[[projects/forgey/specs/plan-forgey-001-workflow-slice|forgey-001 workflow slice]]")).toBeGreaterThan(indexContent.indexOf("[[projects/forgey/specs/prd-workflow-uplift|workflow uplift]]"));
-    expect(indexContent.indexOf("[[projects/forgey/specs/test-plan-forgey-001-workflow-slice|forgey-001 workflow slice]]")).toBeGreaterThan(indexContent.indexOf("[[projects/forgey/specs/plan-forgey-001-workflow-slice|forgey-001 workflow slice]]"));
+    expect(indexContent.indexOf("[[projects/forgey/specs/FORGEY-001/index|FORGEY-001 workflow slice]]")).toBeGreaterThan(indexContent.indexOf("[[projects/forgey/specs/prd-workflow-uplift|workflow uplift]]"));
+    expect(indexContent).not.toContain("[[projects/forgey/specs/FORGEY-001/plan|");
+    expect(indexContent).not.toContain("[[projects/forgey/specs/FORGEY-001/test-plan|");
     expect(readFileSync(prdPath, "utf8")).toContain("created_at:");
     expect(readFileSync(planPath, "utf8")).toContain("created_at:");
     expect(readFileSync(testPlanPath, "utf8")).toContain("created_at:");
+    expect(readFileSync(prdPath, "utf8")).toContain("> [!summary]");
+    expect(readFileSync(planPath, "utf8")).toContain("> [!summary]");
+    expect(readFileSync(testPlanPath, "utf8")).toContain("> [!summary]");
+    expect(readFileSync(planPath, "utf8")).toContain("[[projects/forgey/specs/index]]");
 
     expect(runWiki(["create-module", "forgey", "feature", "--source", "src/feature.ts"], env).exitCode).toBe(0);
-    expect(runWiki(["verify-page", "forgey", "specs/prd-workflow-uplift.md", "specs/plan-forgey-001-workflow-slice.md", "code-verified"], env).exitCode).toBe(0);
+    expect(runWiki(["verify-page", "forgey", "specs/prd-workflow-uplift.md", "specs/FORGEY-001/plan.md", "code-verified"], env).exitCode).toBe(0);
     expect(runWiki(["verify-page", "forgey", "feature", "code-verified"], env).exitCode).toBe(0);
 
     const gate = runWiki(["gate", "forgey", "--repo", repo, "--base", "HEAD~1", "--json"], env);
@@ -428,6 +441,32 @@ describe("wiki CLI smoke", () => {
     const resultSource = runWiki(["source"]);
     expect(resultSource.exitCode).toBe(1);
     expect(resultSource.stderr.toString()).toContain("missing source subcommand");
+  });
+
+  test("help distinguishes research execution from wiki research filing", () => {
+    const result = runWiki(["help"]);
+    expect(result.exitCode).toBe(0);
+    const output = result.stdout.toString();
+    expect(output).toContain("Use the /research skill for actual investigation");
+    expect(output).toContain("research file scaffolds a project research note");
+    expect(output).toContain("it does not perform the research step");
+  });
+
+  test("onboard-plan treats repo research docs as source material and points net-new research to /research", () => {
+    const vault = tempDir("wiki-vault");
+    const repo = tempDir("wiki-repo-onboard-research");
+    mkdirSync(join(vault, "projects"), { recursive: true });
+    writeFileSync(join(vault, "AGENTS.md"), "# Agents\n", "utf8");
+    writeFileSync(join(vault, "index.md"), "# Index\n", "utf8");
+    mkdirSync(join(repo, "docs", "research"), { recursive: true });
+    writeFileSync(join(repo, "docs", "research", "decision.md"), "# Decision\n", "utf8");
+
+    const result = runWiki(["onboard-plan", "demo", "--repo", repo], { KNOWLEDGE_VAULT_ROOT: vault });
+    expect(result.exitCode).toBe(0);
+    const output = result.stdout.toString();
+    expect(output).toContain("Treat repo-local research docs as source material");
+    expect(output).toContain("Run `/research` for any net-new investigation or option comparison");
+    expect(output).toContain("File high-signal findings into the vault with `wiki research file demo <topic>`");
   });
 
   test("legacy flat research commands are rejected", () => {
