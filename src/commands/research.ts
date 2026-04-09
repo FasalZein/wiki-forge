@@ -5,7 +5,7 @@ import { VAULT_ROOT } from "../constants";
 import { mkdirIfMissing, nowIso, orderFrontmatter, requireValue, safeMatter, today, writeNormalizedPage } from "../cli-shared";
 import { appendLogEntry } from "../lib/log";
 import { readText, writeText } from "../lib/fs";
-import { deriveSourceSlug, deriveSourceTitle, detectResearchSourceType, inferRawBucket, normalizeTopicPath, rawBucketDir, rawPathForSource, rawVaultPath, researchOverviewPath, researchPagePath, researchRoot, researchTopicDir, slugifyResearchPage, topicCrossLinks, topicLabel } from "../lib/research";
+import { classifyRawPath, classifyResearchPath, describeAllowedRawPaths, describeAllowedResearchPaths, deriveSourceSlug, deriveSourceTitle, detectResearchSourceType, inferRawBucket, isAllowedRawBucket, normalizeTopicPath, rawBucketDir, rawPathForSource, rawRoot, rawVaultPath, researchOverviewPath, researchPagePath, researchRoot, researchTopicDir, slugifyResearchPage, topicCrossLinks, topicLabel } from "../lib/research";
 import { normalizePath, stripMarkdownExtension, walkMarkdown } from "../lib/vault";
 
 const RESEARCH_STATUSES = ["draft", "reviewed", "verified", "applied"] as const;
@@ -290,12 +290,20 @@ export async function collectResearchLintResult(topic?: string) {
       issues.push(`${rel} invalid frontmatter`);
       continue;
     }
+    if (!classifyResearchPath(rel)) issues.push(`${rel} invalid research path: expected ${describeAllowedResearchPaths()}`);
     if (file.endsWith("/_overview.md")) continue;
     if (!Array.isArray(parsed.data.sources) || parsed.data.sources.length === 0) issues.push(`${rel} missing sources in frontmatter`);
     else if ((parsed.data.sources as unknown[]).some((entry) => !entry || typeof entry !== "object" || !("claim" in (entry as Record<string, unknown>)))) issues.push(`${rel} source entries should include claim attribution`);
     if ((parsed.data.verification_level ?? "unverified") === "unverified" && isOlderThan(parsed.data.updated, STALE_UNVERIFIED_DAYS)) issues.push(`${rel} stale unverified research page`);
     if (hasUnattributedClaims(parsed.content)) issues.push(`${rel} key findings lack inline attribution`);
     if ((inbound.get(relNoExt) ?? 0) === 0) issues.push(`${rel} not linked from any project or idea page`);
+  }
+  const rawRootPath = rawRoot();
+  if (existsSync(rawRootPath)) {
+    for (const file of new Bun.Glob("**/*").scanSync({ cwd: rawRootPath, onlyFiles: true })) {
+      const rel = normalizePath(`raw/${file}`);
+      if (!classifyRawPath(rel)) issues.push(`${rel} invalid raw path: expected ${describeAllowedRawPaths()}`);
+    }
   }
   return { topic: normalizedTopic, root: relative(VAULT_ROOT, root) || "research", issues };
 }
@@ -348,6 +356,7 @@ function parseIngestSourceArgs(args: string[]) {
   if (topic !== undefined) requireValue(topic, "topic");
   if (title !== undefined) requireValue(title, "title");
   if (bucket !== undefined) requireValue(bucket, "bucket");
+  if (bucket && !isAllowedRawBucket(bucket)) throw new Error(`unknown raw bucket: ${bucket}`);
   if (title && sources.length > 1) throw new Error("--title only supports a single source");
   return { sources, topic, title, bucket };
 }

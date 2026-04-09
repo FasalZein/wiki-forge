@@ -187,6 +187,9 @@ describe("wiki CLI smoke", () => {
     const updateIndex = runWiki(["update-index", "demo", "--write"], env);
     expect(updateIndex.exitCode).toBe(0);
     expect(existsSync(join(vault, "projects", "demo", "specs", "index.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "demo", "specs", "prds", "index.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "demo", "specs", "slices", "index.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "demo", "specs", "archive", "index.md"))).toBe(true);
 
     const logTail = runWiki(["log", "tail", "5"], env);
     expect(logTail.exitCode).toBe(0);
@@ -321,7 +324,12 @@ describe("wiki CLI smoke", () => {
     expect(existsSync(testPlanPath)).toBe(true);
     const indexPath = join(vault, "projects", "forgey", "specs", "index.md");
     expect(existsSync(indexPath)).toBe(true);
+    expect(existsSync(join(vault, "projects", "forgey", "specs", "prds", "index.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "forgey", "specs", "slices", "index.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "forgey", "specs", "archive", "index.md"))).toBe(true);
     const indexContent = readFileSync(indexPath, "utf8");
+    expect(indexContent).toContain("[[projects/forgey/specs/prds/index|PRD Index]]");
+    expect(indexContent).toContain("[[projects/forgey/specs/slices/index|Slice Index]]");
     expect(indexContent.indexOf("[[projects/forgey/specs/prd-workflow-uplift|workflow uplift]]")).toBeGreaterThan(-1);
     expect(indexContent.indexOf("[[projects/forgey/specs/FORGEY-001/index|FORGEY-001 workflow slice]]")).toBeGreaterThan(indexContent.indexOf("[[projects/forgey/specs/prd-workflow-uplift|workflow uplift]]"));
     expect(indexContent).not.toContain("[[projects/forgey/specs/FORGEY-001/plan|");
@@ -449,6 +457,51 @@ describe("wiki CLI smoke", () => {
     const lintJson = JSON.parse(lint.stdout.toString());
     expect(Array.isArray(lintJson.issues)).toBe(true);
     expect(lintJson.issues.some((issue: string) => issue.includes("invalid project doc path"))).toBe(true);
+  });
+
+  test("research lint fails for misplaced research docs and unknown raw buckets", () => {
+    const vault = tempDir("wiki-vault");
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+    mkdirSync(join(vault, "projects"), { recursive: true });
+    mkdirSync(join(vault, "research"), { recursive: true });
+    writeFileSync(join(vault, "AGENTS.md"), "# Agents\n", "utf8");
+    writeFileSync(join(vault, "index.md"), "# Index\n", "utf8");
+    writeFileSync(join(vault, "research", "random.md"), "---\ntitle: Random\ntype: research\nsources:\n  - claim: note\n    url: https://example.com\nupdated: 2026-04-09\nverification_level: unverified\n---\n# Random\n\n## Key Findings\n\n- source: [1]\n", "utf8");
+
+    const lint = runWiki(["research", "lint", "--json"], env);
+    expect(lint.exitCode).toBe(1);
+    const lintJson = JSON.parse(lint.stdout.toString());
+    expect(lintJson.issues.some((issue: string) => issue.includes("invalid research path"))).toBe(true);
+
+    const badBucket = runWiki(["source", "ingest", "https://example.com/doc", "--bucket", "books"], env);
+    expect(badBucket.exitCode).toBe(1);
+    expect(badBucket.stderr.toString()).toContain("unknown raw bucket");
+  });
+
+  test("plugin-generated custom layers scaffold and unknown layers fail vault lint", () => {
+    const vault = tempDir("wiki-vault");
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+    mkdirSync(join(vault, "projects"), { recursive: true });
+    writeFileSync(join(vault, "AGENTS.md"), "# Agents\n", "utf8");
+    writeFileSync(join(vault, "index.md"), "# Index\n", "utf8");
+
+    const scaffoldLayer = runWiki(["scaffold-layer", "books"], env);
+    expect(scaffoldLayer.exitCode).toBe(0);
+    expect(existsSync(join(vault, "books", "index.md"))).toBe(true);
+
+    const createLayerPage = runWiki(["create-layer-page", "books", "Designing Data Intensive Applications"], env);
+    expect(createLayerPage.exitCode).toBe(0);
+    expect(existsSync(join(vault, "books", "designing-data-intensive-applications.md"))).toBe(true);
+
+    const lintVault = runWiki(["lint-vault", "--json"], env);
+    expect(lintVault.exitCode).toBe(0);
+    expect(JSON.parse(lintVault.stdout.toString()).issues).toEqual([]);
+
+    mkdirSync(join(vault, "junk"), { recursive: true });
+    writeFileSync(join(vault, "junk", "note.md"), "# nope\n", "utf8");
+    const badLint = runWiki(["lint-vault", "--json"], env);
+    expect(badLint.exitCode).toBe(1);
+    expect(JSON.parse(badLint.stdout.toString()).issues.some((issue: string) => issue.includes("unknown top-level layer"))).toBe(true);
   });
 
   test("grouped research and source commands require subcommands", () => {

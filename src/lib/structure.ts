@@ -14,12 +14,18 @@ export const PROJECT_FREEFORM_DOC_DIRS = [
 ] as const;
 
 export const TASK_ID_PATTERN = /^(?:[A-Z0-9]+-)+\d+$/u;
+export const SPEC_VIEW_FAMILIES = ["prds", "slices", "archive"] as const;
+
+export type SpecViewFamily = (typeof SPEC_VIEW_FAMILIES)[number];
 
 type ProjectDocKind =
   | "project-file"
   | "module-spec"
   | "freeform-zone-doc"
   | "spec-index"
+  | "spec-prds-index"
+  | "spec-slices-index"
+  | "spec-archive-index"
   | "spec-onboarding-plan"
   | "spec-prd"
   | "spec-plan"
@@ -38,6 +44,10 @@ export function projectSpecsIndexPath(project: string) {
 
 export function projectOnboardingPlanPath(project: string) {
   return join(projectSpecsDir(project), "onboarding-plan.md");
+}
+
+export function projectSpecViewIndexPath(project: string, family: SpecViewFamily) {
+  return join(projectSpecsDir(project), family, "index.md");
 }
 
 export function projectPrdPath(project: string, slug: string) {
@@ -94,6 +104,9 @@ export function classifyProjectDocPath(relPath: string): ProjectDocKind | null {
   if (/^modules\/[^/]+\/spec\.md$/u.test(rel)) return "module-spec";
   if (new RegExp(`^(?:${PROJECT_FREEFORM_DOC_DIRS.join("|")})\/.+\.md$`, "u").test(rel)) return "freeform-zone-doc";
   if (rel === "specs/index.md") return "spec-index";
+  if (rel === "specs/prds/index.md") return "spec-prds-index";
+  if (rel === "specs/slices/index.md") return "spec-slices-index";
+  if (rel === "specs/archive/index.md") return "spec-archive-index";
   if (rel === "specs/onboarding-plan.md") return "spec-onboarding-plan";
   if (/^specs\/prd-[^/]+\.md$/u.test(rel)) return "spec-prd";
   if (/^specs\/plan-[^/]+\.md$/u.test(rel)) return "spec-plan";
@@ -117,6 +130,9 @@ export function describeAllowedProjectDocPaths() {
     "modules/<module>/spec.md",
     `${PROJECT_FREEFORM_DOC_DIRS.join(" | ")}/**/*.md`,
     "specs/index.md",
+    "specs/prds/index.md",
+    "specs/slices/index.md",
+    "specs/archive/index.md",
     "specs/onboarding-plan.md",
     "specs/prd-<slug>.md",
     "specs/plan-<slug>.md",

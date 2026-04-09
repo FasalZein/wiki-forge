@@ -14,6 +14,9 @@ Usage:
   wiki research lint [topic] [--json]
   wiki research file <project> [--topic <topic>] <title...>
   wiki source ingest <path-or-url...> [--topic <topic>] [--title <title>] [--bucket <name>]
+  wiki scaffold-layer <name>
+  wiki create-layer-page <layer> <title...>
+  wiki lint-vault [--json]
 
   wiki scaffold-project <project>
   wiki backlog <project> [--json]
@@ -99,7 +102,10 @@ Notes:
   - research status reports research counts by status and verification level
   - research ingest scaffolds a source-backed research page inside a topic for findings you already gathered
   - source ingest copies a local file into raw/ or creates a raw URL pointer note, then scaffolds a linked research summary
-  - research lint flags missing sources, stale unverified notes, unattributed claims, and unlinked research pages
+  - research/source paths are mechanical: research expects research/<topic>/{_overview,<slug>}.md and raw expects bucketed paths under raw/
+  - research lint flags missing sources, stale unverified notes, unattributed claims, unlinked research pages, and misplaced research/raw files
+  - scaffold-layer/create-layer-page are the plugin-generated extension path for custom top-level layers such as books
+  - lint-vault hard-fails unknown top-level layers or invalid custom-layer paths
   - query --expand uses qmd's raw natural-language expansion path
   - qmd CLI is still used for maintenance/admin commands; retrieval commands prefer the in-process SDK path
   - set QMD_INDEX_NAME to route wiki/qmd commands to a named qmd index (useful for isolated benchmarks)

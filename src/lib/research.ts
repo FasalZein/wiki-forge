@@ -2,6 +2,12 @@ import { existsSync } from "node:fs";
 import { basename, extname, join } from "node:path";
 import { VAULT_ROOT } from "../constants";
 
+const TOPIC_SEGMENT = "[a-z0-9]+(?:-[a-z0-9]+)*";
+const TOPIC_PATH = `(?:${TOPIC_SEGMENT}\/)*${TOPIC_SEGMENT}`;
+const TOPIC_PATH_PATTERN = new RegExp(`^${TOPIC_PATH}$`, "u");
+
+export const RAW_BUCKETS = ["articles", "papers", "assets", "conversations"] as const;
+
 export function slugifySegment(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").replace(/-{2,}/g, "-") || "topic";
 }
@@ -13,6 +19,25 @@ export function normalizeTopicPath(topic: string) {
     .filter(Boolean)
     .map((segment) => slugifySegment(segment))
     .join("/");
+}
+
+export function isCanonicalResearchTopic(topic: string) {
+  return TOPIC_PATH_PATTERN.test(normalizeTopicPath(topic));
+}
+
+export function classifyResearchPath(relPath: string): "topic-overview" | "research-page" | null {
+  const rel = relPath.replaceAll("\\", "/").replace(/^\.\//u, "");
+  if (new RegExp(`^research\/${TOPIC_PATH}\/_overview\.md$`, "u").test(rel)) return "topic-overview";
+  if (new RegExp(`^research\/${TOPIC_PATH}\/[a-z0-9]+(?:-[a-z0-9]+)*\.md$`, "u").test(rel)) return "research-page";
+  return null;
+}
+
+export function isAllowedResearchPath(relPath: string) {
+  return classifyResearchPath(relPath) !== null;
+}
+
+export function describeAllowedResearchPaths() {
+  return "research/<topic>/_overview.md; research/<topic>/<slug>.md";
 }
 
 export function resolveProjectResearchTopic(project: string) {
@@ -95,6 +120,24 @@ export function rawRoot() {
   return join(VAULT_ROOT, "raw");
 }
 
+export function isAllowedRawBucket(bucket: string) {
+  return (RAW_BUCKETS as readonly string[]).includes(bucket);
+}
+
+export function classifyRawPath(relPath: string): "raw-file" | null {
+  const rel = relPath.replaceAll("\\", "/").replace(/^\.\//u, "");
+  if (new RegExp(`^raw\/(?:${RAW_BUCKETS.join("|")})\/[^/]+$`, "u").test(rel)) return "raw-file";
+  return null;
+}
+
+export function isAllowedRawPath(relPath: string) {
+  return classifyRawPath(relPath) !== null;
+}
+
+export function describeAllowedRawPaths() {
+  return `raw/<bucket>/<file> where <bucket> is one of: ${RAW_BUCKETS.join(", ")}`;
+}
+
 export function inferRawBucket(source: string) {
   const normalized = source.toLowerCase();
   if (/^https?:\/\//iu.test(source)) {
@@ -109,6 +152,7 @@ export function inferRawBucket(source: string) {
 }
 
 export function rawBucketDir(bucket: string) {
+  if (!isAllowedRawBucket(bucket)) throw new Error(`unknown raw bucket: ${bucket}`);
   return join(rawRoot(), bucket);
 }
 

@@ -9,6 +9,7 @@ import { bindSourcePaths, driftCheck, migrateVerification, verifyPage } from "./
 import { obsidianCommand } from "./commands/obsidian";
 import { setupShell } from "./commands/setup";
 import { summaryProject } from "./commands/summary";
+import { createLayerPage, lintVault, scaffoldLayer } from "./commands/layers";
 
 const commands: Record<string, CommandHandler> = {
   help: () => printHelp(),
@@ -61,6 +62,9 @@ const commands: Record<string, CommandHandler> = {
   "cache-clear": () => cacheClear(),
   summary: (args) => summaryProject(args),
   "setup-shell": (args) => setupShell(args),
+  "scaffold-layer": (args) => scaffoldLayer(args),
+  "create-layer-page": (args) => createLayerPage(args),
+  "lint-vault": (args) => lintVault(args),
 };
 
 const rawArgs = process.argv.slice(2);

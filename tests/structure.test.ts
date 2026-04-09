@@ -10,6 +10,7 @@ import {
   projectTaskPlanPath,
   projectTaskTestPlanPath,
 } from "../src/lib/structure";
+import { classifyRawPath, classifyResearchPath, isAllowedRawBucket } from "../src/lib/research";
 
 describe("project path primitives", () => {
   test("build canonical project spec paths", () => {
@@ -35,6 +36,9 @@ describe("project structure contract", () => {
     expect(classifyProjectDocPath("modules/auth/spec.md")).toBe("module-spec");
     expect(classifyProjectDocPath("architecture/context-map.md")).toBe("freeform-zone-doc");
     expect(classifyProjectDocPath("specs/index.md")).toBe("spec-index");
+    expect(classifyProjectDocPath("specs/prds/index.md")).toBe("spec-prds-index");
+    expect(classifyProjectDocPath("specs/slices/index.md")).toBe("spec-slices-index");
+    expect(classifyProjectDocPath("specs/archive/index.md")).toBe("spec-archive-index");
     expect(classifyProjectDocPath("specs/onboarding-plan.md")).toBe("spec-onboarding-plan");
     expect(classifyProjectDocPath("specs/prd-auth-flow.md")).toBe("spec-prd");
     expect(classifyProjectDocPath("specs/plan-auth-rollout.md")).toBe("spec-plan");
@@ -49,5 +53,21 @@ describe("project structure contract", () => {
     expect(isAllowedProjectDocPath("specs/random.md")).toBe(false);
     expect(isAllowedProjectDocPath("specs/demo-015/index.md")).toBe(false);
     expect(isAllowedProjectDocPath("modules/auth/notes.md")).toBe(false);
+  });
+});
+
+describe("research structure contract", () => {
+  test("allows canonical research topic and page paths", () => {
+    expect(classifyResearchPath("research/projects/wiki-forge/_overview.md")).toBe("topic-overview");
+    expect(classifyResearchPath("research/projects/wiki-forge/spec-ia.md")).toBe("research-page");
+    expect(classifyResearchPath("research/agents/_overview.md")).toBe("topic-overview");
+  });
+
+  test("allows canonical raw buckets only", () => {
+    expect(classifyRawPath("raw/articles/example.md")).toBe("raw-file");
+    expect(classifyRawPath("raw/conversations/chat.txt")).toBe("raw-file");
+    expect(isAllowedRawBucket("papers")).toBe(true);
+    expect(isAllowedRawBucket("books")).toBe(false);
+    expect(classifyRawPath("raw/books/note.md")).toBeNull();
   });
 });
