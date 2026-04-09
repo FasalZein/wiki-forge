@@ -124,6 +124,7 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
   const warnings: string[] = [];
   if (doctor.counts.lint > 0) warnings.push(`${doctor.counts.lint} structural lint issue(s)`);
   if (doctor.counts.semantic > 0) warnings.push(`${doctor.counts.semantic} semantic lint issue(s)`);
+  if (doctor.drift.stale > 0) warnings.push(`${doctor.drift.stale} impacted/bound page(s) are stale — run refresh, update docs, and verify-page before closeout`);
   if (doctor.maintain.refreshFromGit.uncoveredFiles.length > 0) warnings.push(`${doctor.maintain.refreshFromGit.uncoveredFiles.length} changed file(s) are not covered by wiki bindings`);
   if (doctor.counts.repoDocs > 0) warnings.push(`${doctor.counts.repoDocs} repo markdown doc(s) should live in the wiki vault`);
   return {

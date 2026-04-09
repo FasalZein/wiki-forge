@@ -257,6 +257,10 @@ export function nowIso() {
   return new Date().toISOString();
 }
 
+export function createdAt(data: FrontmatterData) {
+  return typeof data.created_at === "string" && data.created_at.trim() ? data.created_at : nowIso();
+}
+
 export function readProjectTitle(project: string) {
   const summaryPath = join(projectRoot(project), "_summary.md");
   if (!existsSync(summaryPath)) {

@@ -129,6 +129,11 @@ describe("wiki CLI smoke", () => {
     expect(maintainJson.refreshFromGit.testHealth.codeFilesWithoutChangedTests).toContain("src/auth.ts");
     expect(maintainJson.actions.some((action: { kind: string; message: string }) => action.kind === "add-tests")).toBe(true);
 
+    const maintainText = runWiki(["maintain", "demo", "--repo", repo, "--base", "HEAD~1"], env);
+    expect(maintainText.exitCode).toBe(0);
+    expect(maintainText.stdout.toString()).toContain("closeout:");
+    expect(maintainText.stdout.toString()).toContain("wiki verify-page demo <page...> <level>");
+
     const refreshFromGit = runWiki(["refresh-from-git", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
     expect(refreshFromGit.exitCode).toBe(0);
     const rfgJson = JSON.parse(refreshFromGit.stdout.toString());
@@ -312,6 +317,9 @@ describe("wiki CLI smoke", () => {
     expect(indexContent.indexOf("[[projects/forgey/specs/prd-workflow-uplift|workflow uplift]]")).toBeGreaterThan(-1);
     expect(indexContent.indexOf("[[projects/forgey/specs/plan-forgey-001-workflow-slice|forgey-001 workflow slice]]")).toBeGreaterThan(indexContent.indexOf("[[projects/forgey/specs/prd-workflow-uplift|workflow uplift]]"));
     expect(indexContent.indexOf("[[projects/forgey/specs/test-plan-forgey-001-workflow-slice|forgey-001 workflow slice]]")).toBeGreaterThan(indexContent.indexOf("[[projects/forgey/specs/plan-forgey-001-workflow-slice|forgey-001 workflow slice]]"));
+    expect(readFileSync(prdPath, "utf8")).toContain("created_at:");
+    expect(readFileSync(planPath, "utf8")).toContain("created_at:");
+    expect(readFileSync(testPlanPath, "utf8")).toContain("created_at:");
 
     expect(runWiki(["create-module", "forgey", "feature", "--source", "src/feature.ts"], env).exitCode).toBe(0);
     expect(runWiki(["verify-page", "forgey", "specs/prd-workflow-uplift.md", "specs/plan-forgey-001-workflow-slice.md", "code-verified"], env).exitCode).toBe(0);

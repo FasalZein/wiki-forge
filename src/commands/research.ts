@@ -2,7 +2,7 @@ import { copyFileSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import matter from "gray-matter";
 import { VAULT_ROOT } from "../constants";
-import { mkdirIfMissing, orderFrontmatter, requireValue, safeMatter, today, writeNormalizedPage } from "../cli-shared";
+import { mkdirIfMissing, nowIso, orderFrontmatter, requireValue, safeMatter, today, writeNormalizedPage } from "../cli-shared";
 import { appendLogEntry } from "../lib/log";
 import { readText, writeText } from "../lib/fs";
 import { deriveSourceSlug, deriveSourceTitle, detectResearchSourceType, inferRawBucket, normalizeTopicPath, rawBucketDir, rawPathForSource, rawVaultPath, researchOverviewPath, researchPagePath, researchRoot, researchTopicDir, slugifyResearchPage, topicCrossLinks, topicLabel } from "../lib/research";
@@ -53,9 +53,10 @@ export async function ingestResearch(args: string[]) {
       status: "draft",
       source_type: sourceType,
       sources: [{ ...sourceField, accessed: today(), claim: "TODO: capture the specific claim supported by this source." }],
-      updated: today(),
+      created_at: nowIso(),
+      updated: nowIso(),
       verification_level: "unverified",
-    }, ["title", "type", "topic", "project", "status", "source_type", "sources", "updated", "verification_level"]);
+    }, ["title", "type", "topic", "project", "status", "source_type", "sources", "created_at", "updated", "verification_level"]);
     const body = [
       `# ${data.title}`,
       "",
@@ -111,9 +112,10 @@ export async function ingestSource(args: string[]) {
         type: "raw-source",
         source_url: source,
         bucket: resolvedBucket,
+        created_at: nowIso(),
         captured: today(),
         immutable: true,
-      }, ["title", "type", "source_url", "bucket", "captured", "immutable"]);
+      }, ["title", "type", "source_url", "bucket", "created_at", "captured", "immutable"]);
       const rawBody = [
         `# ${rawTitle}`,
         "",
@@ -139,9 +141,10 @@ export async function ingestSource(args: string[]) {
       status: "draft",
       source_type: sourceType,
       sources: [{ raw: rawVaultPath(rawPath), accessed: today(), claim: "TODO: capture the specific claim supported by this source." }],
-      updated: today(),
+      created_at: nowIso(),
+      updated: nowIso(),
       verification_level: "unverified",
-    }, ["title", "type", "topic", "project", "status", "source_type", "sources", "updated", "verification_level"]);
+    }, ["title", "type", "topic", "project", "status", "source_type", "sources", "created_at", "updated", "verification_level"]);
     const body = [
       `# ${data.title}`,
       "",
@@ -202,10 +205,11 @@ export async function ensureResearchTopic(topic: string) {
       title: topicLabel(normalizedTopic),
       type: "research-topic",
       topic: normalizedTopic,
-      updated: today(),
+      created_at: nowIso(),
+      updated: nowIso(),
       status: "current",
       verification_level: "unverified",
-    }, ["title", "type", "topic", "updated", "status", "verification_level"]);
+    }, ["title", "type", "topic", "created_at", "updated", "status", "verification_level"]);
     const body = [
       `# ${topicLabel(normalizedTopic)}`,
       "",
@@ -393,9 +397,10 @@ export async function createResearchPage(project: string, title: string, topic?:
     status: "draft",
     source_type: "synthesis",
     sources: [],
-    updated: today(),
+    created_at: nowIso(),
+    updated: nowIso(),
     verification_level: "unverified",
-  }, ["title", "type", "topic", "project", "status", "source_type", "sources", "updated", "verification_level"]);
+  }, ["title", "type", "topic", "project", "status", "source_type", "sources", "created_at", "updated", "verification_level"]);
   const body = [
     `# ${title}`,
     "",

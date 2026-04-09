@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
-import { mkdirIfMissing, projectRoot, requireValue, safeMatter } from "../cli-shared";
+import { createdAt, mkdirIfMissing, projectRoot, requireValue, safeMatter } from "../cli-shared";
 import { readText, writeText } from "../lib/fs";
 import { tailLog, appendLogEntry } from "../lib/log";
 import { walkMarkdown } from "../lib/vault";
@@ -120,6 +120,6 @@ function buildSectionSortKey(section: string, rel: string, data: Record<string, 
   const taskId = typeof data?.task_id === "string" ? data.task_id : "";
   const taskMatch = taskId.match(/(\d{3,})$/);
   const taskNumber = taskMatch ? taskMatch[1].padStart(6, "0") : "000000";
-  const updated = typeof data?.updated === "string" ? data.updated : "9999-99-99";
-  return `${kindOrder[kind as keyof typeof kindOrder] ?? "9"}:${taskNumber}:${updated}:${rel}`;
+  const created = createdAt((data ?? {}) as Record<string, unknown>);
+  return `${created}:${kindOrder[kind as keyof typeof kindOrder] ?? "9"}:${taskNumber}:${rel}`;
 }

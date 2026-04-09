@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import matter from "gray-matter";
 import { MODULE_REQUIRED_HEADINGS, PROJECT_DIRS, PROJECT_FILES, VAULT_ROOT } from "../constants";
-import { assertExists, mkdirIfMissing, moduleTitle, normalizeFrontmatterFormatting, orderFrontmatter, projectRoot, requireValue, safeMatter, scaffoldFile, today, writeNormalizedPage } from "../cli-shared";
+import { assertExists, mkdirIfMissing, moduleTitle, normalizeFrontmatterFormatting, nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, scaffoldFile, today, writeNormalizedPage } from "../cli-shared";
 import { readText, writeText } from "../lib/fs";
 import {
   defaultCrossLinksSection,
@@ -74,7 +74,7 @@ export function createModuleInternal(project: string, moduleName: string, source
   const specPath = join(projectRoot(project), "modules", moduleName, "spec.md");
   mkdirIfMissing(join(projectRoot(project), "modules", moduleName));
   if (existsSync(specPath)) throw new Error(`module spec already exists: ${relative(VAULT_ROOT, specPath)}`);
-  const data = orderFrontmatter({ title: moduleTitle(moduleName), type: "module", project, module: moduleName, updated: today(), status: "current", verification_level: "scaffold", ...(sourcePaths.length ? { source_paths: sourcePaths.map((value) => value.replaceAll("\\", "/")) } : {}) }, ["title", "type", "project", "module", "updated", "status", "verification_level", "source_paths"]);
+  const data = orderFrontmatter({ title: moduleTitle(moduleName), type: "module", project, module: moduleName, created_at: nowIso(), updated: nowIso(), status: "current", verification_level: "scaffold", ...(sourcePaths.length ? { source_paths: sourcePaths.map((value) => value.replaceAll("\\", "/")) } : {}) }, ["title", "type", "project", "module", "created_at", "updated", "status", "verification_level", "source_paths"]);
   const body = [
     `# ${moduleTitle(moduleName)}`,
     "", "## Highlights", "", defaultHighlightsSection(),
@@ -146,7 +146,7 @@ function detectResearchDirs(repo: string): string[] {
 }
 
 function renderOnboardingPlan(project: string, repo?: string) {
-  const data = orderFrontmatter({ title: `${project} Onboarding Plan`, type: "spec", project, updated: today(), status: "current", repo: repo ?? "TODO", source_of_truth: "code", related_playbook: "wiki/concepts/project-onboarding-playbook.md" }, ["title", "type", "project", "updated", "status", "repo", "source_of_truth", "related_playbook"]);
+  const data = orderFrontmatter({ title: `${project} Onboarding Plan`, type: "spec", project, created_at: nowIso(), updated: nowIso(), status: "current", repo: repo ?? "TODO", source_of_truth: "code", related_playbook: "wiki/concepts/project-onboarding-playbook.md" }, ["title", "type", "project", "created_at", "updated", "status", "repo", "source_of_truth", "related_playbook"]);
   const researchDirs = repo ? detectResearchDirs(repo) : [];
   const slices = [
     "#### Slice A: Repo/App/Package Map", "", "- [ ] Identify apps, packages, services, and entry points", "- [ ] Identify build/test/dev tooling", "- [ ] Identify deployment/runtime surfaces", `- [ ] Seed \`projects/${project}/code-map/*.md\` and summary inputs`,

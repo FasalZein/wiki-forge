@@ -41,6 +41,14 @@ export async function maintainProject(args: string[]) {
     console.log(`- GATE: ${gateOk ? "PASS" : `FAIL — ${missingTests} code file(s) without tests`}`);
     console.log(`- actions:`);
     for (const action of result.actions) console.log(`  - [${action.kind}] ${action.message}`);
+    console.log(`- closeout:`);
+    console.log(`  1. run tests`);
+    console.log(`  2. wiki refresh-from-git ${options.project} --base ${options.base}`);
+    console.log(`  3. wiki drift-check ${options.project} --show-unbound`);
+    console.log(`  4. update impacted wiki pages`);
+    console.log(`  5. wiki verify-page ${options.project} <page...> <level>`);
+    console.log(`  6. wiki lint ${options.project} && wiki lint-semantic ${options.project}`);
+    console.log(`  7. wiki gate ${options.project} --repo ${result.repo} --base ${options.base}`);
   }
 }
 

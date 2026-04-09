@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
-import { mkdirIfMissing, orderFrontmatter, projectRoot, requireValue, today, writeNormalizedPage } from "../cli-shared";
+import { createdAt, mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, writeNormalizedPage } from "../cli-shared";
 import { writeProjectIndex } from "./index-log";
 
 export async function createPrd(args: string[]) {
@@ -136,10 +136,11 @@ export function createSpecDocumentInternal(project: string, kind: "prd" | "plan"
     type: "spec",
     spec_kind: kind,
     project,
-    updated: today(),
+    created_at: nowIso(),
+    updated: nowIso(),
     status: "draft",
     ...(taskId ? { task_id: taskId } : {}),
-  }, ["title", "type", "spec_kind", "project", "task_id", "updated", "status"]);
+  }, ["title", "type", "spec_kind", "project", "task_id", "created_at", "updated", "status"]);
   const body = templateLines.join("\n").replaceAll("{{title}}", title).replaceAll("{{project}}", project).replaceAll("{{taskId}}", taskId ?? "");
   writeNormalizedPage(outputPath, body, data);
   return outputPath;
