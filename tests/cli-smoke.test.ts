@@ -251,6 +251,49 @@ describe("wiki CLI smoke", () => {
     expect(prdContent).toContain("[[research/projects/demo/_overview]]");
   });
 
+  test("forge workflow scaffold chain works end-to-end", () => {
+    const vault = tempDir("wiki-vault-forge");
+    const repo = tempDir("wiki-repo-forge");
+    mkdirSync(join(vault, "projects"), { recursive: true });
+    writeFileSync(join(vault, "AGENTS.md"), "# Agents\n", "utf8");
+    writeFileSync(join(vault, "index.md"), "# Index\n", "utf8");
+    mkdirSync(join(repo, "src"), { recursive: true });
+    mkdirSync(join(repo, "tests"), { recursive: true });
+    writeFileSync(join(repo, "src", "feature.ts"), "export const feature = () => 'ok'\n", "utf8");
+    writeFileSync(join(repo, "tests", "feature.test.ts"), "import { test, expect } from 'bun:test'\ntest('feature', () => expect('ok').toBe('ok'))\n", "utf8");
+    runGit(repo, ["init", "-q"]);
+    runGit(repo, ["add", "."]);
+    runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
+    writeFileSync(join(repo, "src", "feature.ts"), "export const feature = () => 'better'\n", "utf8");
+    runGit(repo, ["add", "."]);
+    runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "second"]);
+
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+    expect(runWiki(["scaffold-project", "forgey"], env).exitCode).toBe(0);
+    const summaryPath = join(vault, "projects", "forgey", "_summary.md");
+    writeFileSync(summaryPath, readFileSync(summaryPath, "utf8").replace("status: scaffold", `status: current\nrepo: ${repo}`), "utf8");
+
+    expect(runWiki(["research", "file", "forgey", "workflow evidence"], env).exitCode).toBe(0);
+    expect(runWiki(["create-prd", "forgey", "workflow uplift"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "forgey", "workflow slice", "--priority", "p0", "--tag", "forge"], env).exitCode).toBe(0);
+
+    const prdPath = join(vault, "projects", "forgey", "specs", "prd-workflow-uplift.md");
+    const prdContent = readFileSync(prdPath, "utf8");
+    expect(prdContent).toContain("[[research/projects/forgey/_overview]]");
+
+    const backlogContent = readFileSync(join(vault, "projects", "forgey", "backlog.md"), "utf8");
+    expect(backlogContent).toContain("FORGEY-001");
+    expect(existsSync(join(vault, "projects", "forgey", "specs", "plan-forgey-001-workflow-slice.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "forgey", "specs", "test-plan-forgey-001-workflow-slice.md"))).toBe(true);
+
+    expect(runWiki(["create-module", "forgey", "feature", "--source", "src/feature.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["verify-page", "forgey", "feature", "code-verified"], env).exitCode).toBe(0);
+
+    const gate = runWiki(["gate", "forgey", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(gate.exitCode).toBe(1);
+    expect(JSON.parse(gate.stdout.toString()).counts.missingTests).toBe(1);
+  });
+
   test("gate passes when tests cover changed code", () => {
     const vault = tempDir("wiki-vault");
     const repo = tempDir("wiki-repo-gate-pass");

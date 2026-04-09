@@ -79,6 +79,26 @@ These are separate layers in the same system:
 
 Forge should consume the research layer and update the wiki layer. It should not own either one.
 
+## Dogfooding Forge on wiki-forge
+
+Use forge as the workflow, and use wiki/research commands as the concrete system surfaces underneath it.
+
+```bash
+# research layer
+wiki research file wiki-forge "topic title"
+
+# PRD + slices
+wiki create-prd wiki-forge "feature name"
+wiki create-issue-slice wiki-forge "slice name"
+
+# implementation + verification
+# write tests first, then implement
+wiki verify-page wiki-forge <page> code-verified
+wiki gate wiki-forge --repo "$PWD" --base <rev>
+```
+
+That is the intended relationship: forge orchestrates; wiki and research do the work.
+
 ## Guardrails
 
 - **Wiki vault is the knowledge store.** Agents write documentation to `~/Knowledge`, not to project repos. Project repos are source inputs only.
