@@ -1,4 +1,5 @@
 import { assertQmdAvailable, buildLexicalSearchQuery, classifyRetrievalIntent, ensureKnowledgeCollection, queryKnowledge, runQmd, searchKnowledge } from "../lib/qmd";
+import { searchKnowledgeLexicalSdk } from "../lib/qmd-sdk";
 
 export async function searchVault(args: string[]) {
   assertQmdAvailable();
@@ -25,7 +26,8 @@ export async function queryVault(args: string[]) {
     return;
   }
   if (classifyRetrievalIntent(query) === "location") {
-    await searchKnowledge(buildLexicalSearchQuery(query), { hybrid: false });
+    const results = await searchKnowledgeLexicalSdk(buildLexicalSearchQuery(query), { maxResults: 5, cacheKeyPrefix: "query:sdk-location" });
+    console.log(renderQueryResults(results));
     return;
   }
   await queryKnowledge(query, { expand: false });
@@ -44,6 +46,17 @@ export async function qmdUpdate() {
 export async function qmdEmbed() {
   assertQmdAvailable();
   await runQmd(["embed"]);
+}
+
+function renderQueryResults(results: Array<{ file: string; title: string; context?: string; score: number; snippet: string; docid: string }>) {
+  return results.map((result) => [
+    `${result.file}:${result.docid}`,
+    `Title: ${result.title}`,
+    ...(result.context ? [`Context: ${result.context}`] : []),
+    `Score:  ${Math.round(result.score * 100)}%`,
+    "",
+    result.snippet,
+  ].join("\n")).join("\n\n");
 }
 
 export async function qmdSetup() {

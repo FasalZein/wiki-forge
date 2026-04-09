@@ -25,6 +25,7 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
+    "@tobilu/qmd": "^2.1.0",
     "github-slugger": "2.0.0",
     "gray-matter": "4.0.3",
     "remark-parse": "11.0.0",

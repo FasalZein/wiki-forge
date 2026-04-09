@@ -5,8 +5,9 @@ import { VAULT_ROOT } from "../constants";
 import { orderFrontmatter, projectRoot, mkdirIfMissing, readProjectTitle } from "../cli-shared";
 import { writeText } from "../lib/fs";
 import { buildEvidenceExcerpt, buildScopedNoteIndex, findNoteByVaultPath, fromQmdFile, normalizePath, stripMarkdownExtension } from "../lib/notes";
-import { assertQmdAvailable, buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText, queryKnowledge, searchKnowledgeJson } from "../lib/qmd";
+import { assertQmdAvailable, buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText, queryKnowledge } from "../lib/qmd";
 import { appendLogEntry } from "../lib/log";
+import { searchKnowledgeLexicalSdk } from "../lib/qmd-sdk";
 import { questionTokens } from "../lib/research";
 import { createResearchPage } from "./research";
 import type { AnswerBrief, AnswerSource, AskOptions, NoteIndex, QmdResult } from "../types";
@@ -92,7 +93,7 @@ async function buildAnswerBrief(options: AskOptions): Promise<AnswerBrief> {
         cacheKeyPrefix: `answer:${options.project}:expand`,
       })
     : retrievalMode === "bm25"
-      ? await searchKnowledgeJson(retrievalQuery, {
+      ? await searchKnowledgeLexicalSdk(retrievalQuery, {
           maxResults: maxCandidates,
           cacheKeyPrefix: `answer:${options.project}:bm25`,
         })
