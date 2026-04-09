@@ -5,6 +5,8 @@ import { dirname, join, resolve } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { buildStructuredHybridQuery } from "../src/lib/qmd";
 
+export const DEFAULT_CANDIDATE_LIMITS = [8, 16, 40] as const;
+
 type BenchSuite = {
   label: string;
   samplesMs: number[];
@@ -30,53 +32,67 @@ type Options = {
   iterations: number;
   indexName: string;
   keepTemp: boolean;
+  candidateLimits: number[];
 };
 
 const repoRoot = resolve(import.meta.dir, "..");
-const options = parseArgs(process.argv.slice(2));
-const tempRoot = mkdtempSync(join(tmpdir(), "wiki-forge-qmd-bench-"));
-const tempVault = join(tempRoot, "Knowledge");
-const sourceDir = join(tempRoot, "sources");
-const outputPath = join(tempRoot, `qmd-bench-${Date.now().toString(36)}.json`);
 
-mkdirSync(tempVault, { recursive: true });
-mkdirSync(sourceDir, { recursive: true });
-copyMarkdownVault(options.vault, tempVault);
+if (import.meta.main) {
+  await main();
+}
 
-const benchEnv = {
-  ...process.env,
-  KNOWLEDGE_VAULT_ROOT: tempVault,
-  QMD_INDEX_NAME: options.indexName,
-};
+async function main() {
+  const options = parseArgs(process.argv.slice(2));
+  const tempRoot = mkdtempSync(join(tmpdir(), "wiki-forge-qmd-bench-"));
+  const tempVault = join(tempRoot, "Knowledge");
+  const sourceDir = join(tempRoot, "sources");
+  const outputPath = join(tempRoot, `qmd-bench-${Date.now().toString(36)}.json`);
 
-try {
-  runCommand(["bun", "src/index.ts", "qmd-setup"], { env: benchEnv, cwd: repoRoot });
+  mkdirSync(tempVault, { recursive: true });
+  mkdirSync(sourceDir, { recursive: true });
+  copyMarkdownVault(options.vault, tempVault);
 
-  const suites: BenchSuite[] = [];
-  suites.push(await measureSuite("qmd update", options.iterations, () => runQmd(["update"])));
-  suites.push(await measureSuite("qmd embed", options.iterations, () => runQmd(["embed"])));
-  suites.push(await measureSuite("qmd query (structured)", options.iterations, () => runQmd(["query", buildStructuredHybridQuery(options.query), "-c", "knowledge", "--json", "-n", "10"])));
-  suites.push(...await measureColdWarmSuite("wiki query", options.iterations, () => runWiki(["query", options.query]), () => clearWikiCache(tempVault)));
-  suites.push(...await measureColdWarmSuite("wiki ask", options.iterations, () => runWiki(["ask", options.project, options.askQuestion]), () => clearWikiCache(tempVault)));
-  suites.push(await measureSuite("ingest -> qmd update -> qmd embed", options.iterations, (run) => runPipeline(run)));
-
-  const results = suites.map(toBenchResult);
-  const payload = {
-    vault: options.vault,
-    tempVault,
-    indexName: options.indexName,
-    project: options.project,
-    topic: options.topic,
-    query: options.query,
-    askQuestion: options.askQuestion,
-    iterations: options.iterations,
-    results,
+  const benchEnv = {
+    ...process.env,
+    KNOWLEDGE_VAULT_ROOT: tempVault,
+    QMD_INDEX_NAME: options.indexName,
   };
 
-  writeFileSync(outputPath, JSON.stringify(payload, null, 2), "utf8");
-  printResults(results, outputPath, tempRoot);
-} finally {
-  if (!options.keepTemp) rmSync(tempRoot, { recursive: true, force: true });
+  try {
+    runCommand(["bun", "src/index.ts", "qmd-setup"], { env: benchEnv, cwd: repoRoot });
+
+    const suites: BenchSuite[] = [];
+    suites.push(await measureSuite("qmd update", options.iterations, () => runQmd(options, ["update"])));
+    suites.push(await measureSuite("qmd embed", options.iterations, () => runQmd(options, ["embed"])));
+    suites.push(await measureSuite("qmd search (bm25)", options.iterations, () => runQmd(options, ["search", options.query, "-c", "knowledge", "--json", "-n", "10"]))); 
+    suites.push(await measureSuite("qmd vsearch (vector)", options.iterations, () => runQmd(options, ["vsearch", options.query, "-c", "knowledge", "--json", "-n", "10"])));
+    suites.push(await measureSuite("qmd query (expand)", options.iterations, () => runQmd(options, ["query", options.query, "-c", "knowledge", "--json", "-n", "10"])));
+    for (const limit of options.candidateLimits) {
+      suites.push(await measureSuite(`qmd query (structured, -C ${limit})`, options.iterations, () => runQmd(options, ["query", buildStructuredHybridQuery(options.query), "-c", "knowledge", "--json", "-n", "10", "-C", String(limit)])));
+    }
+    suites.push(...await measureColdWarmSuite("wiki query", options.iterations, () => runWiki(benchEnv, ["query", options.query]), () => clearWikiCache(tempVault)));
+    suites.push(...await measureColdWarmSuite("wiki ask", options.iterations, () => runWiki(benchEnv, ["ask", options.project, options.askQuestion]), () => clearWikiCache(tempVault)));
+    suites.push(await measureSuite("ingest -> qmd update -> qmd embed", options.iterations, (run) => runPipeline(run, options, benchEnv, tempVault, sourceDir)));
+
+    const results = suites.map(toBenchResult);
+    const payload = {
+      vault: options.vault,
+      tempVault,
+      indexName: options.indexName,
+      project: options.project,
+      topic: options.topic,
+      query: options.query,
+      askQuestion: options.askQuestion,
+      iterations: options.iterations,
+      candidateLimits: options.candidateLimits,
+      results,
+    };
+
+    writeFileSync(outputPath, JSON.stringify(payload, null, 2), "utf8");
+    printResults(options, results, outputPath, tempRoot, tempVault);
+  } finally {
+    if (!options.keepTemp) rmSync(tempRoot, { recursive: true, force: true });
+  }
 }
 
 async function measureSuite(label: string, runs: number, runner: (run: number) => void | Promise<void>) {
@@ -102,24 +118,24 @@ async function measureColdWarmSuite(label: string, runs: number, runner: () => v
   return [cold, warm];
 }
 
-async function runPipeline(run: number) {
+async function runPipeline(run: number, options: Options, benchEnv: NodeJS.ProcessEnv, tempVault: string, sourceDir: string) {
   const sourceName = `bench-source-${run}.txt`;
   const sourcePath = join(sourceDir, sourceName);
   writeFileSync(sourcePath, [`# QMD bench source ${run}`, "", "- Measure ingest latency.", "- Measure qmd update latency.", "- Measure qmd embed latency.", ""].join("\n"), "utf8");
 
   try {
-    runWiki(["source", "ingest", sourcePath, "--topic", options.topic]);
-    runQmd(["update"]);
-    runQmd(["embed"]);
+    runWiki(benchEnv, ["source", "ingest", sourcePath, "--topic", options.topic]);
+    runQmd(options, ["update"]);
+    runQmd(options, ["embed"]);
   } finally {
-    cleanupPipelineArtifacts(sourceName);
-    runQmd(["update"]);
-    runQmd(["embed"]);
+    cleanupPipelineArtifacts(sourceName, options, tempVault);
+    runQmd(options, ["update"]);
+    runQmd(options, ["embed"]);
     if (existsSync(sourcePath)) unlinkSync(sourcePath);
   }
 }
 
-function cleanupPipelineArtifacts(sourceName: string) {
+function cleanupPipelineArtifacts(sourceName: string, options: Options, tempVault: string) {
   const slug = slugify(sourceName.replace(/\.[^.]+$/u, ""));
   const rawPath = join(tempVault, "raw", "conversations", sourceName);
   const researchPath = join(tempVault, "research", ...options.topic.split("/"), `${slug}.md`);
@@ -131,11 +147,11 @@ function clearWikiCache(vault: string) {
   rmSync(join(vault, ".cache", "wiki-cli"), { recursive: true, force: true });
 }
 
-function runWiki(args: string[]) {
+function runWiki(benchEnv: NodeJS.ProcessEnv, args: string[]) {
   runCommand(["bun", "src/index.ts", ...args], { env: benchEnv, cwd: repoRoot });
 }
 
-function runQmd(args: string[]) {
+function runQmd(options: Options, args: string[]) {
   runCommand(["qmd", "--index", options.indexName, ...args], { cwd: repoRoot, env: process.env });
 }
 
@@ -172,11 +188,12 @@ function percentile(sorted: number[], value: number) {
   return sorted[index];
 }
 
-function printResults(results: BenchResult[], jsonPath: string, tempPath: string) {
+function printResults(options: Options, results: BenchResult[], jsonPath: string, tempPath: string, tempVault: string) {
   console.log(`vault: ${options.vault}`);
   console.log(`temp vault: ${tempVault}`);
   console.log(`index: ${options.indexName}`);
   console.log(`iterations: ${options.iterations}`);
+  console.log(`candidate limits: ${options.candidateLimits.join(", ")}`);
   console.log(`query: ${options.query}`);
   console.log(`ask: ${options.askQuestion}`);
   console.log("");
@@ -204,6 +221,7 @@ function parseArgs(args: string[]): Options {
     iterations: 9,
     indexName: `wiki-forge-bench-${Date.now().toString(36)}`,
     keepTemp: false,
+    candidateLimits: [...DEFAULT_CANDIDATE_LIMITS],
   } satisfies Options;
 
   const values = { ...defaults };
@@ -216,6 +234,7 @@ function parseArgs(args: string[]): Options {
     else if (arg === "--topic") values.topic = requireValue(args[index + 1], arg);
     else if (arg === "--iterations") values.iterations = parsePositiveInteger(requireValue(args[index + 1], arg), arg);
     else if (arg === "--index-name") values.indexName = requireValue(args[index + 1], arg);
+    else if (arg === "--candidate-limits") values.candidateLimits = parseCandidateLimitsArg(requireValue(args[index + 1], arg));
     else if (arg === "--keep-temp") values.keepTemp = true;
     else throw new Error(`unknown arg: ${arg}`);
     if (arg !== "--keep-temp") index += 1;
@@ -232,6 +251,16 @@ function parsePositiveInteger(value: string, label: string) {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`invalid ${label}: ${value}`);
   return parsed;
+}
+
+export function parseCandidateLimitsArg(value: string) {
+  const parsed = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => parsePositiveInteger(entry, "--candidate-limits"));
+  if (!parsed.length) throw new Error("invalid --candidate-limits: empty list");
+  return parsed.filter((entry, index, values) => values.indexOf(entry) === index).sort((left, right) => left - right);
 }
 
 function slugify(value: string) {

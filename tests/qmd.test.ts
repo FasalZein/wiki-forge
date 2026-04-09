@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { DEFAULT_CANDIDATE_LIMITS, parseCandidateLimitsArg } from "../scripts/qmd-bench";
 import { resolveQmdIndexPath } from "../src/constants";
 import { classifyAnswerScope, scoreAnswerSource } from "../src/commands/answers";
 import { buildStructuredHybridQuery, normalizeSemanticQueryText } from "../src/lib/qmd";
@@ -35,6 +36,16 @@ describe("qmd index selection", () => {
 
   test("uses a named sqlite path for non-default indexes", () => {
     expect(resolveQmdIndexPath("wiki-forge-bench")).toEndWith("/.cache/qmd/wiki-forge-bench.sqlite");
+  });
+});
+
+describe("benchmark harness config", () => {
+  test("uses the expected default candidate limits", () => {
+    expect(DEFAULT_CANDIDATE_LIMITS).toEqual([8, 16, 40]);
+  });
+
+  test("parses and normalizes candidate limit args", () => {
+    expect(parseCandidateLimitsArg("40,8,16,8")).toEqual([8, 16, 40]);
   });
 });
 
