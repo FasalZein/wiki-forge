@@ -28,7 +28,7 @@ export async function runQmd(args: string[]) {
 }
 
 export async function runQmdCached(args: string[], cacheKey: string) {
-  const cached = readCache<QmdCapture>("qmd-output", cacheKey, QMD_CACHE_VERSION, qmdFingerprint());
+  const cached = await readCache<QmdCapture>("qmd-output", cacheKey, QMD_CACHE_VERSION, qmdFingerprint());
   if (cached) {
     if (cached.stderr) process.stderr.write(cached.stderr);
     if (cached.stdout) process.stdout.write(cached.stdout);
@@ -36,7 +36,7 @@ export async function runQmdCached(args: string[], cacheKey: string) {
   }
 
   const capture = await captureQmd(args);
-  writeCache("qmd-output", cacheKey, QMD_CACHE_VERSION, qmdFingerprint(), capture);
+  await writeCache("qmd-output", cacheKey, QMD_CACHE_VERSION, qmdFingerprint(), capture);
   if (capture.stderr) process.stderr.write(capture.stderr);
   if (capture.stdout) process.stdout.write(capture.stdout);
 }
@@ -60,13 +60,13 @@ export async function captureQmd(args: string[]) {
 }
 
 export async function captureQmdJsonCached(args: string[], cacheKey: string) {
-  const cached = readCache<QmdCapture>("qmd-json", cacheKey, QMD_CACHE_VERSION, qmdFingerprint());
+  const cached = await readCache<QmdCapture>("qmd-json", cacheKey, QMD_CACHE_VERSION, qmdFingerprint());
   if (cached) {
     return parseQmdJson(cached.stdout);
   }
 
   const capture = await captureQmd(args);
-  writeCache("qmd-json", cacheKey, QMD_CACHE_VERSION, qmdFingerprint(), capture);
+  await writeCache("qmd-json", cacheKey, QMD_CACHE_VERSION, qmdFingerprint(), capture);
   return parseQmdJson(capture.stdout);
 }
 

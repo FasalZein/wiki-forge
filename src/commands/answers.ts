@@ -83,7 +83,7 @@ async function buildAnswerBrief(options: AskOptions): Promise<AnswerBrief> {
     maxResults: maxCandidates,
     cacheKeyPrefix: `answer:${options.project}`,
   });
-  const noteIndex = buildScopedNoteIndex(qmdResults.map((result) => fromQmdFile(result.file)));
+  const noteIndex = await buildScopedNoteIndex(qmdResults.map((result) => fromQmdFile(result.file)));
   const sources = qmdResults
     .map((result) => toAnswerSource(options.project, options.question, result, noteIndex))
     .filter((result, index, results) => results.findIndex((entry) => entry.vaultPath === result.vaultPath) === index)

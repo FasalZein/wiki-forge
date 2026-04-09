@@ -4,7 +4,7 @@ import { collectLintResult, collectSemanticLintResult, collectStatusRow, collect
 import { collectMaintenancePlan, resolveDefaultBase } from "./maintenance";
 import { collectDriftSummary } from "./verification";
 
-export function doctorProject(args: string[]) {
+export async function doctorProject(args: string[]) {
   const project = args.find((arg, index) => index === 0 || (!arg.startsWith("--") && args[index - 1] !== "--repo" && args[index - 1] !== "--base"));
   requireValue(project, "project");
   const repoIndex = args.indexOf("--repo");
@@ -13,7 +13,7 @@ export function doctorProject(args: string[]) {
   const base = baseIndex >= 0 ? args[baseIndex + 1] : resolveDefaultBase(project, repo);
   if (baseIndex >= 0) requireValue(base, "base");
   const json = args.includes("--json");
-  const result = collectDoctor(project, base, repo);
+  const result = await collectDoctor(project, base, repo);
   if (json) {
     console.log(JSON.stringify(result, null, 2));
     return;
@@ -30,7 +30,7 @@ export function doctorProject(args: string[]) {
   for (const action of result.topActions) console.log(`  - [${action.kind}] ${action.message}`);
 }
 
-export function gateProject(args: string[]) {
+export async function gateProject(args: string[]) {
   const project = args.find((arg, index) => index === 0 || (!arg.startsWith("--") && args[index - 1] !== "--repo" && args[index - 1] !== "--base"));
   requireValue(project, "project");
   const repoIndex = args.indexOf("--repo");
@@ -39,7 +39,7 @@ export function gateProject(args: string[]) {
   const base = baseIndex >= 0 ? args[baseIndex + 1] : resolveDefaultBase(project, repo);
   if (baseIndex >= 0) requireValue(base, "base");
   const json = args.includes("--json");
-  const result = collectGate(project, base, repo);
+  const result = await collectGate(project, base, repo);
   if (json) {
     console.log(JSON.stringify(result, null, 2));
   } else {
@@ -60,14 +60,14 @@ export function gateProject(args: string[]) {
   if (!result.ok) throw new Error(`gate failed for ${project}`);
 }
 
-export function collectDoctor(project: string, base: string, explicitRepo?: string) {
-  const status = collectStatusRow(project);
-  const verify = collectVerifySummary(project);
+export async function collectDoctor(project: string, base: string, explicitRepo?: string) {
+  const status = await collectStatusRow(project);
+  const verify = await collectVerifySummary(project);
   const drift = collectDriftSummary(project, explicitRepo);
-  const lint = collectLintResult(project);
-  const semantic = collectSemanticLintResult(project);
+  const lint = await collectLintResult(project);
+  const semantic = await collectSemanticLintResult(project);
   const backlog = collectBacklog(project);
-  const maintain = collectMaintenancePlan(project, base, explicitRepo);
+  const maintain = await collectMaintenancePlan(project, base, explicitRepo);
 
   // Coverage ratio: what fraction of repo files are bound to wiki pages?
   const totalRepoFiles = maintain.discover.repoFiles || 1;
@@ -113,8 +113,8 @@ export function collectDoctor(project: string, base: string, explicitRepo?: stri
   };
 }
 
-export function collectGate(project: string, base: string, explicitRepo?: string) {
-  const doctor = collectDoctor(project, base, explicitRepo);
+export async function collectGate(project: string, base: string, explicitRepo?: string) {
+  const doctor = await collectDoctor(project, base, explicitRepo);
   // The gate blocks on the one non-negotiable: code must have tests.
   // Lint and semantic lint are quality signals reported as warnings — they are
   // too noisy to gate on (scaffolded projects always have broken wikilinks,

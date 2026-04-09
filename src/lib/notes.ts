@@ -1,5 +1,4 @@
 import { basename, join } from "node:path";
-import { existsSync, readFileSync } from "node:fs";
 import matter from "gray-matter";
 import GithubSlugger from "github-slugger";
 import remarkParse from "remark-parse";
@@ -7,6 +6,7 @@ import { unified } from "unified";
 import { QUERY_STOP_WORDS, VAULT_ROOT } from "../constants";
 import type { NoteIndex, NoteInfo, QmdResult } from "../types";
 import { filesFingerprint, readCache, writeCache } from "./cache";
+import { exists, readText } from "./fs";
 import { fromQmdFile, isNonMarkdownAttachment, normalizePath, stripMarkdownExtension, toVaultPath, walkMarkdown } from "./vault";
 
 const NOTE_INDEX_CACHE_VERSION = "1";
@@ -21,31 +21,31 @@ type SerializedNoteIndex = {
   }>;
 };
 
-export function buildNoteIndex(): NoteIndex {
+export async function buildNoteIndex(): Promise<NoteIndex> {
   const files = walkMarkdown(VAULT_ROOT);
   const fingerprint = filesFingerprint(files);
-  const cached = readCache<SerializedNoteIndex>("note-index", "vault", NOTE_INDEX_CACHE_VERSION, fingerprint);
+  const cached = await readCache<SerializedNoteIndex>("note-index", "vault", NOTE_INDEX_CACHE_VERSION, fingerprint);
   if (cached) {
     return deserializeNoteIndex(cached);
   }
 
   const index = createEmptyNoteIndex();
   for (const file of files) {
-    const note = buildNoteInfo(file, true);
+    const note = await buildNoteInfo(file, true);
     if (note) {
       indexNote(index, note);
     }
   }
 
-  writeCache("note-index", "vault", NOTE_INDEX_CACHE_VERSION, fingerprint, serializeNoteIndex(index));
+  await writeCache("note-index", "vault", NOTE_INDEX_CACHE_VERSION, fingerprint, serializeNoteIndex(index));
   return index;
 }
 
-export function buildScopedNoteIndex(markdownPaths: string[]): NoteIndex {
+export async function buildScopedNoteIndex(markdownPaths: string[]): Promise<NoteIndex> {
   const index = createEmptyNoteIndex();
   const uniquePaths = markdownPaths.filter((value, index, values) => values.indexOf(value) === index);
   for (const markdownPath of uniquePaths) {
-    const note = buildNoteInfo(join(VAULT_ROOT, markdownPath), false);
+    const note = await buildNoteInfo(join(VAULT_ROOT, markdownPath), false);
     if (note) {
       indexNote(index, note);
     }
@@ -62,7 +62,7 @@ export function buildEvidenceExcerpt(note: NoteInfo | null, result: QmdResult, q
     return { text: cleanSnippet(result.snippet), lineNumber: null, score: 0 };
   }
 
-  const raw = note.content ?? readFileSync(note.absolutePath, "utf8");
+  const raw = note.content ?? "";
   const lines = raw.replace(/\r\n/g, "\n").split("\n");
   const tokens = extractQueryTokens(question, note.vaultPath);
   let bestLine: { lineNumber: number; score: number; text: string } | null = null;
@@ -90,12 +90,12 @@ export function buildEvidenceExcerpt(note: NoteInfo | null, result: QmdResult, q
 
 export { fromQmdFile, isNonMarkdownAttachment, normalizePath, stripMarkdownExtension };
 
-function buildNoteInfo(file: string, includeHeadings: boolean): NoteInfo | null {
-  if (!existsSync(file)) {
+async function buildNoteInfo(file: string, includeHeadings: boolean): Promise<NoteInfo | null> {
+  if (!(await exists(file))) {
     return null;
   }
 
-  const raw = readFileSync(file, "utf8");
+  const raw = await readText(file);
   const parsed = safeMatter(file, raw, { silent: true });
   const vaultPath = toVaultPath(file);
   return {

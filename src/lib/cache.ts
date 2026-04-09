@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { VAULT_ROOT } from "../constants";
+import { exists, readJson, statFingerprint, writeText } from "./fs";
 
 const CACHE_ROOT = join(VAULT_ROOT, ".cache", "wiki-cli");
 
@@ -14,14 +14,14 @@ function cachePath(namespace: string, key: string) {
   return join(CACHE_ROOT, namespace, `${hashKey(key)}.json`);
 }
 
-export function readCache<T>(namespace: string, key: string, version: string, fingerprint: string): T | null {
+export async function readCache<T>(namespace: string, key: string, version: string, fingerprint: string): Promise<T | null> {
   const filePath = cachePath(namespace, key);
-  if (!existsSync(filePath)) {
+  if (!(await exists(filePath))) {
     return null;
   }
 
   try {
-    const parsed = JSON.parse(readFileSync(filePath, "utf8")) as CacheEnvelope<T>;
+    const parsed = await readJson<CacheEnvelope<T>>(filePath);
     if (parsed.version !== version || parsed.fingerprint !== fingerprint) {
       return null;
     }
@@ -31,18 +31,13 @@ export function readCache<T>(namespace: string, key: string, version: string, fi
   }
 }
 
-export function writeCache<T>(namespace: string, key: string, version: string, fingerprint: string, value: T) {
+export async function writeCache<T>(namespace: string, key: string, version: string, fingerprint: string, value: T) {
   const filePath = cachePath(namespace, key);
-  mkdirSync(dirname(filePath), { recursive: true });
-  writeFileSync(filePath, JSON.stringify({ version, fingerprint, value }), "utf8");
+  await writeText(filePath, JSON.stringify({ version, fingerprint, value }));
 }
 
 export function fileFingerprint(filePath: string) {
-  if (!existsSync(filePath)) {
-    return "missing";
-  }
-  const stat = statSync(filePath);
-  return `${stat.size}:${stat.mtimeMs}`;
+  return statFingerprint(filePath);
 }
 
 export function filesFingerprint(files: string[]) {

@@ -1,29 +1,30 @@
-import { existsSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { MODULE_REQUIRED_HEADINGS, PROJECT_DIRS, PROJECT_FILES, VAULT_ROOT } from "../constants";
 import { assertExists, projectRoot, requireValue, safeMatter } from "../cli-shared";
 import { buildNoteIndex } from "../lib/notes";
+import { readText } from "../lib/fs";
 import { readVerificationLevel } from "../lib/verification";
 import { walkMarkdown } from "../lib/vault";
 import { lintFrontmatter, lintWikilinks } from "../module-format";
 
 const MODULE_REQUIRED_LEVELS = ["scaffold", "inferred", "code-verified", "runtime-verified", "test-verified"];
 
-export function statusProject(args: string[]) {
+export async function statusProject(args: string[]) {
   const json = args.includes("--json");
   const project = args.find((arg) => !arg.startsWith("--"));
   const projectsRoot = join(VAULT_ROOT, "projects");
   const projects = project ? [project] : existsSync(projectsRoot) ? readdirSync(projectsRoot).filter((entry) => statSync(join(projectsRoot, entry)).isDirectory()) : [];
-  const rows = projects.map((name) => collectStatusRow(name));
+  const rows = await Promise.all(projects.map((name) => collectStatusRow(name)));
   if (json) console.log(JSON.stringify(rows, null, 2));
   else for (const row of rows) console.log(`${row.project}: modules=${row.modules} pages=${row.pages} bound=${row.bound} unbound=${row.unbound} stale=${row.stale} root=${row.root}`);
 }
 
-export function lintSemanticProject(args: string[]) {
+export async function lintSemanticProject(args: string[]) {
   const project = args.find((arg) => !arg.startsWith("--"));
   requireValue(project, "project");
   const json = args.includes("--json");
-  const result = collectSemanticLintResult(project);
+  const result = await collectSemanticLintResult(project);
   if (json) console.log(JSON.stringify(result, null, 2));
   else if (result.issues.length) {
     console.log(`semantic lint found ${result.issues.length} issue(s) for ${project}:`);
@@ -32,11 +33,11 @@ export function lintSemanticProject(args: string[]) {
   if (result.issues.length) throw new Error(`semantic lint failed for ${project}`);
 }
 
-export function lintProject(args: string[]) {
+export async function lintProject(args: string[]) {
   const project = args.find((arg) => !arg.startsWith("--"));
   requireValue(project, "project");
   const json = args.includes("--json");
-  const result = collectLintResult(project);
+  const result = await collectLintResult(project);
   if (json) console.log(JSON.stringify(result, null, 2));
   else if (result.issues.length) {
     console.log(`lint found ${result.issues.length} issue(s) for ${project}:`);
@@ -45,11 +46,11 @@ export function lintProject(args: string[]) {
   if (result.issues.length) throw new Error(`lint failed for ${project}`);
 }
 
-export function verifyProject(args: string[]) {
+export async function verifyProject(args: string[]) {
   const project = args.find((arg) => !arg.startsWith("--"));
   requireValue(project, "project");
   const json = args.includes("--json");
-  const summary = collectVerifySummary(project);
+  const summary = await collectVerifySummary(project);
   if (json) console.log(JSON.stringify(summary, null, 2));
   else {
     console.log(`verification summary for ${project}:`);
@@ -69,7 +70,7 @@ export function cacheClear() {
   console.log(`cleared ${relative(VAULT_ROOT, cachePath)}`);
 }
 
-export function collectStatusRow(project: string) {
+export async function collectStatusRow(project: string) {
   const root = projectRoot(project);
   const pages = walkMarkdown(root);
   const modulesRoot = join(root, "modules");
@@ -77,7 +78,7 @@ export function collectStatusRow(project: string) {
   let bound = 0;
   let stale = 0;
   for (const file of pages) {
-    const parsed = safeMatter(relative(VAULT_ROOT, file), readFileSync(file, "utf8"), { silent: true });
+    const parsed = safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true });
     if (!parsed) continue;
     if (Array.isArray(parsed.data.source_paths) && parsed.data.source_paths.length > 0) bound += 1;
     if (readVerificationLevel(parsed.data) === "stale") stale += 1;
@@ -85,13 +86,13 @@ export function collectStatusRow(project: string) {
   return { project, modules, pages: pages.length, bound, unbound: pages.length - bound, stale, root: relative(VAULT_ROOT, root) };
 }
 
-export function collectVerifySummary(project: string) {
+export async function collectVerifySummary(project: string) {
   const root = projectRoot(project);
   assertExists(root, `project not found: ${project}`);
   const pages = walkMarkdown(root);
   const summary = { project, pages: pages.length, moduleSpecs: 0, stale: 0, untracked: 0, byLevel: Object.fromEntries(["stale", ...MODULE_REQUIRED_LEVELS].map((level) => [level, 0])) as Record<string, number>, unboundPages: [] as string[] };
   for (const file of pages) {
-    const raw = readFileSync(file, "utf8");
+    const raw = await readText(file);
     const parsed = safeMatter(relative(VAULT_ROOT, file), raw, { silent: true });
     if (!parsed) continue;
     if (file.endsWith("/spec.md")) summary.moduleSpecs += 1;
@@ -106,15 +107,15 @@ export function collectVerifySummary(project: string) {
   return summary;
 }
 
-export function collectLintResult(project: string) {
+export async function collectLintResult(project: string) {
   const root = projectRoot(project);
   assertExists(root, `project not found: ${project}`);
   const issues: string[] = [];
   for (const dir of PROJECT_DIRS) if (!existsSync(join(root, dir))) issues.push(`missing directory: ${dir}`);
   for (const file of PROJECT_FILES) if (!existsSync(join(root, file))) issues.push(`missing file: ${file}`);
-  const noteIndex = buildNoteIndex();
+  const noteIndex = await buildNoteIndex();
   for (const file of walkMarkdown(root)) {
-    const content = readFileSync(file, "utf8");
+    const content = await readText(file);
     const vaultPath = relative(VAULT_ROOT, file).replace(/\.md$/u, "").replaceAll("\\", "/");
     const frontmatterResult = lintFrontmatter(vaultPath, content, safeMatter);
     if (frontmatterResult.error) { issues.push(`${relative(root, file)} invalid frontmatter: ${frontmatterResult.error}`); continue; }
@@ -127,7 +128,7 @@ export function collectLintResult(project: string) {
   return { project, issues };
 }
 
-export function collectSemanticLintResult(project: string) {
+export async function collectSemanticLintResult(project: string) {
   const root = projectRoot(project);
   assertExists(root, `project not found: ${project}`);
   const pages = walkMarkdown(root).sort();
@@ -138,7 +139,7 @@ export function collectSemanticLintResult(project: string) {
   for (const file of pages) {
     const rel = relative(root, file).replaceAll("\\", "/");
     const relNoExt = rel.replace(/\.md$/u, "");
-    const body = readFileSync(file, "utf8");
+    const body = await readText(file);
     const links = [...body.matchAll(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g)].map((match) => String(match[1]).trim()).filter(Boolean);
     const internalLinks = links.map((target) => target.replace(/\.md$/u, "").replace(/^projects\/[^/]+\//u, "")).filter((target) => !target.startsWith("index") && !target.startsWith("wiki/") && !target.startsWith("research/"));
     outbound.set(relNoExt, internalLinks.length);

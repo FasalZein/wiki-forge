@@ -1,9 +1,10 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { assertExists, mkdirIfMissing, projectRoot, requireValue } from "../cli-shared";
 import { appendLogEntry, tailLog } from "../lib/log";
 import { fileFingerprint, readCache, writeCache } from "../lib/cache";
+import { readText, writeText } from "../lib/fs";
 import { gitDiffSummary, readVerificationLevel, resolveRepoPath, assertGitRepo } from "../lib/verification";
 import { walkMarkdown } from "../lib/vault";
 import { safeMatter } from "../cli-shared";
@@ -12,15 +13,15 @@ import { slugify } from "./planning";
 import { collectDriftSummary } from "./verification";
 import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary } from "./linting";
 
-export function dashboardProject(args: string[]) {
+export async function dashboardProject(args: string[]) {
   const options = parseProjectRepoBaseArgs(args);
-  console.log(JSON.stringify(collectDashboard(options.project, options.base, options.repo), null, 2));
+  console.log(JSON.stringify(await collectDashboard(options.project, options.base, options.repo), null, 2));
 }
 
-export function maintainProject(args: string[]) {
+export async function maintainProject(args: string[]) {
   const options = parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
-  const result = collectMaintenancePlan(options.project, options.base, options.repo);
+  const result = await collectMaintenancePlan(options.project, options.base, options.repo);
   appendLogEntry("maintain", options.project, { project: options.project, details: [`base=${options.base}`, `actions=${result.actions.length}`] });
   const missingTests = result.refreshFromGit.testHealth.codeFilesWithoutChangedTests.length;
   const gateOk = missingTests === 0;
@@ -43,14 +44,14 @@ export function maintainProject(args: string[]) {
   }
 }
 
-export function refreshProject(args: string[]) {
+export async function refreshProject(args: string[]) {
   const project = findProjectArg(args);
   requireValue(project, "project");
   const repoIndex = args.indexOf("--repo");
   const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
   const json = args.includes("--json");
   const drift = collectDriftSummary(project, repo);
-  const lint = collectLintResult(project);
+  const lint = await collectLintResult(project);
   appendLogEntry("refresh", project, { project, details: [`stale=${drift.stale}`, `deleted=${drift.deleted}`, `unknown=${drift.unknown}`, `unbound=${drift.unboundPages.length}`, `lint_issues=${lint.issues.length}`] });
   const result = { project, repo: drift.repo, drift: { fresh: drift.fresh, stale: drift.stale, deleted: drift.deleted, unknown: drift.unknown, unbound: drift.unboundPages.length }, lint: { ok: lint.issues.length === 0, issues: lint.issues } };
   if (json) console.log(JSON.stringify(result, null, 2));
@@ -65,10 +66,10 @@ export function refreshProject(args: string[]) {
   }
 }
 
-export function refreshFromGit(args: string[]) {
+export async function refreshFromGit(args: string[]) {
   const options = parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
-  const result = collectRefreshFromGit(options.project, options.base, options.repo);
+  const result = await collectRefreshFromGit(options.project, options.base, options.repo);
   appendLogEntry("refresh-from-git", options.project, { project: options.project, details: [`base=${result.base}`, `changed=${result.changedFiles.length}`, `impacted=${result.impactedPages.length}`, `uncovered=${result.uncoveredFiles.length}`, `missing_tests=${result.testHealth.codeFilesWithoutChangedTests.length}`] });
   if (json) console.log(JSON.stringify(result, null, 2));
   else {
@@ -95,14 +96,14 @@ export function refreshFromGit(args: string[]) {
   }
 }
 
-export function discoverProject(args: string[]) {
+export async function discoverProject(args: string[]) {
   const project = findProjectArg(args);
   requireValue(project, "project");
   const repoIndex = args.indexOf("--repo");
   const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
   const json = args.includes("--json");
   const tree = args.includes("--tree");
-  const result = collectDiscoverSummary(project, repo);
+  const result = await collectDiscoverSummary(project, repo);
   if (json) console.log(JSON.stringify(tree ? { ...result, tree: buildDirectoryTree(result.uncoveredFiles) } : result, null, 2));
   else if (tree) {
     console.log(`discover --tree for ${project}:`);
@@ -158,10 +159,10 @@ function buildDirectoryTree(files: string[]) {
     .sort((a, b) => b.files - a.files);
 }
 
-export function ingestDiff(args: string[]) {
+export async function ingestDiff(args: string[]) {
   const options = parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
-  const result = collectIngestDiff(options.project, options.base, options.repo);
+  const result = await collectIngestDiff(options.project, options.base, options.repo);
   appendLogEntry("ingest-diff", options.project, { project: options.project, details: [`base=${options.base}`, `created=${result.created.length}`, `updated=${result.updated.length}`] });
   if (json) console.log(JSON.stringify(result, null, 2));
   else {
@@ -171,7 +172,7 @@ export function ingestDiff(args: string[]) {
   }
 }
 
-export function collectRefreshFromGit(project: string, base: string, explicitRepo?: string) {
+export async function collectRefreshFromGit(project: string, base: string, explicitRepo?: string) {
   const root = projectRoot(project);
   assertExists(root, `project not found: ${project}`);
   const repo = resolveRepoPath(project, explicitRepo);
@@ -181,7 +182,7 @@ export function collectRefreshFromGit(project: string, base: string, explicitRep
   const impactedPages: Array<{ page: string; matchedSourcePaths: string[]; verificationLevel: string | null; diffSummary: string[] }> = [];
   const covered = new Set<string>();
   for (const file of pages) {
-    const parsed = safeMatter(relative(VAULT_ROOT, file), readFileSync(file, "utf8"), { silent: true });
+    const parsed = safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true });
     if (!parsed) continue;
     const sourcePaths = Array.isArray(parsed.data.source_paths) ? parsed.data.source_paths.map((value: unknown) => String(value).replaceAll("\\", "/")) : [];
     const matchedSourcePaths = sourcePaths.filter((sourcePath: string) => changedFiles.includes(sourcePath));
@@ -193,11 +194,11 @@ export function collectRefreshFromGit(project: string, base: string, explicitRep
   return { project, repo, base, changedFiles, impactedPages, uncoveredFiles: changedFiles.filter((file) => isCodeFile(file) && !covered.has(file)), testHealth };
 }
 
-export function collectMaintenancePlan(project: string, base: string, explicitRepo?: string) {
-  const refreshFromGit = collectRefreshFromGit(project, base, explicitRepo);
-  const discover = collectDiscoverSummary(project, explicitRepo);
-  const lint = collectLintResult(project);
-  const semanticLint = collectSemanticLintResult(project);
+export async function collectMaintenancePlan(project: string, base: string, explicitRepo?: string) {
+  const refreshFromGit = await collectRefreshFromGit(project, base, explicitRepo);
+  const discover = await collectDiscoverSummary(project, explicitRepo);
+  const lint = await collectLintResult(project);
+  const semanticLint = await collectSemanticLintResult(project);
   const actions: Array<{ kind: string; message: string }> = [];
   for (const impacted of refreshFromGit.impactedPages) actions.push({ kind: "review-page", message: `${impacted.page} impacted by ${impacted.matchedSourcePaths.join(", ")}` });
   for (const file of refreshFromGit.uncoveredFiles.slice(0, 20)) actions.push({ kind: "create-or-bind", message: `cover changed file ${file}` });
@@ -209,12 +210,12 @@ export function collectMaintenancePlan(project: string, base: string, explicitRe
   return { project, repo: refreshFromGit.repo, base, refreshFromGit, discover, lint, semanticLint, actions };
 }
 
-function collectDashboard(project: string, base: string, explicitRepo?: string) {
-  const maintain = collectMaintenancePlan(project, base, explicitRepo);
-  return { project, repo: maintain.repo, base, status: collectStatusRow(project), verify: collectVerifySummary(project), drift: collectDriftSummary(project, explicitRepo), discover: maintain.discover, maintain, recentLog: tailLog(20) };
+async function collectDashboard(project: string, base: string, explicitRepo?: string) {
+  const maintain = await collectMaintenancePlan(project, base, explicitRepo);
+  return { project, repo: maintain.repo, base, status: await collectStatusRow(project), verify: await collectVerifySummary(project), drift: collectDriftSummary(project, explicitRepo), discover: maintain.discover, maintain, recentLog: tailLog(20) };
 }
 
-function collectDiscoverSummary(project: string, explicitRepo?: string) {
+async function collectDiscoverSummary(project: string, explicitRepo?: string) {
   const root = projectRoot(project);
   assertExists(root, `project not found: ${project}`);
   const repo = resolveRepoPath(project, explicitRepo);
@@ -225,7 +226,7 @@ function collectDiscoverSummary(project: string, explicitRepo?: string) {
   const unboundPages: string[] = [];
   const placeholderHeavyPages: string[] = [];
   for (const file of pages) {
-    const raw = readFileSync(file, "utf8");
+    const raw = await readText(file);
     const parsed = safeMatter(relative(VAULT_ROOT, file), raw, { silent: true });
     if (!parsed) continue;
     const sourcePaths = Array.isArray(parsed.data.source_paths) ? parsed.data.source_paths.map((value) => String(value).replaceAll("\\", "/")) : [];
@@ -245,20 +246,20 @@ function collectDiscoverSummary(project: string, explicitRepo?: string) {
       } catch {}
     }
   }
-  const repoDocFiles = listRepoMarkdownDocs(repo);
+  const repoDocFiles = await listRepoMarkdownDocs(repo);
   return { project, repo, repoFiles: repoFiles.length, boundFiles: boundFiles.size, uncoveredFiles: repoFiles.filter((file) => !boundFiles.has(file)), unboundPages: unboundPages.sort(), placeholderHeavyPages: placeholderHeavyPages.sort(), researchDirs, repoDocFiles };
 }
 
-function collectIngestDiff(project: string, base: string, explicitRepo?: string) {
-  const refresh = collectRefreshFromGit(project, base, explicitRepo);
+async function collectIngestDiff(project: string, base: string, explicitRepo?: string) {
+  const refresh = await collectRefreshFromGit(project, base, explicitRepo);
   const created: string[] = [];
   const updated: string[] = [];
   for (const page of refresh.impactedPages) {
     const pagePath = join(projectRoot(project), page.page);
-    const raw = readFileSync(pagePath, "utf8");
+    const raw = await readText(pagePath);
     const stamp = `\n## Change Digest\n\n- Updated from git diff base \`${base}\`\n${page.matchedSourcePaths.map((source) => `- Source: \`${source}\``).join("\n")}\n`;
     const next = raw.includes("## Change Digest") ? raw.replace(/\n## Change Digest[\s\S]*$/u, stamp.trimEnd() + "\n") : `${raw.trimEnd()}${stamp}`;
-    writeFileSync(pagePath, next, "utf8");
+    await writeText(pagePath, next);
     updated.push(relative(VAULT_ROOT, pagePath));
   }
   for (const file of refresh.uncoveredFiles) {
@@ -327,10 +328,10 @@ function listCodeFiles(repo: string, customPaths?: string[]) {
   return [...files].sort();
 }
 
-function listRepoMarkdownDocs(repo: string) {
+async function listRepoMarkdownDocs(repo: string) {
   const fingerprint = `${fileFingerprint(join(repo, ".git", "index"))}:${fileFingerprint(join(repo, ".git", "HEAD"))}`;
   const cacheKey = `repo-docs:${repo}`;
-  const cached = readCache<string[]>("repo-scan", cacheKey, "1", fingerprint);
+  const cached = await readCache<string[]>("repo-scan", cacheKey, "1", fingerprint);
   if (cached) return cached;
 
   const files = new Set<string>();
@@ -342,7 +343,7 @@ function listRepoMarkdownDocs(repo: string) {
     files.add(rel);
   }
   const result = [...files].sort();
-  writeCache("repo-scan", cacheKey, "1", fingerprint, result);
+  void writeCache("repo-scan", cacheKey, "1", fingerprint, result);
   return result;
 }
 

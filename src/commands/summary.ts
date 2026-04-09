@@ -7,13 +7,13 @@ import { collectDriftSummary } from "./verification";
 import { collectBacklog } from "./backlog";
 import { resolveDefaultBase } from "./maintenance";
 
-export function summaryProject(args: string[]) {
+export async function summaryProject(args: string[]) {
   const project = args.find((arg) => !arg.startsWith("--"));
   requireValue(project, "project");
   const json = args.includes("--json");
   const repoIndex = args.indexOf("--repo");
   const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
-  const result = collectSummary(project, repo);
+  const result = await collectSummary(project, repo);
   if (json) {
     console.log(JSON.stringify(result, null, 2));
   } else {
@@ -40,7 +40,7 @@ export function summaryProject(args: string[]) {
   }
 }
 
-function collectSummary(project: string, explicitRepo?: string) {
+async function collectSummary(project: string, explicitRepo?: string) {
   const root = projectRoot(project);
   const summaryPath = `${root}/_summary.md`;
   let description: string | undefined;
@@ -52,8 +52,8 @@ function collectSummary(project: string, explicitRepo?: string) {
       repoPath = parsed.data.repo ? String(parsed.data.repo) : undefined;
     }
   } catch {}
-  const status = collectStatusRow(project);
-  const verify = collectVerifySummary(project);
+  const status = await collectStatusRow(project);
+  const verify = await collectVerifySummary(project);
   let drift = { fresh: 0, stale: 0, unknown: 0, deleted: 0, renamed: 0 };
   try { const d = collectDriftSummary(project, explicitRepo); drift = { fresh: d.fresh, stale: d.stale, unknown: d.unknown, deleted: d.deleted, renamed: d.renamed }; } catch {}
   const backlog = collectBacklog(project);
