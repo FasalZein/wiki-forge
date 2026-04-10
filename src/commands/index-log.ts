@@ -116,6 +116,7 @@ function buildPlanningDerivedTargets(pageRows: ProjectPageRow[]): IndexTarget[] 
     return kind === "task-hub-index" || kind === "task-hub-plan" || kind === "task-hub-test-plan";
   });
   const moduleRows = pageRows.filter((row) => classifyProjectDocPath(row.rel) === "module-spec");
+  const freeformRows = pageRows.filter((row) => classifyProjectDocPath(row.rel) === "freeform-zone-doc");
 
   const prdsByFeature = new Map<string, ProjectPageRow[]>();
   for (const row of prdRows) {
@@ -143,6 +144,7 @@ function buildPlanningDerivedTargets(pageRows: ProjectPageRow[]): IndexTarget[] 
     ...prdRows.map((row) => buildPrdDerivedTarget(row, featureMap.get(frontmatterString(row, "parent_feature") ?? ""), taskHubsByPrd.get(frontmatterString(row, "prd_id") ?? "") ?? [], moduleRows)),
     ...sliceRows.map((row) => buildSliceDerivedTarget(row, prdMap.get(frontmatterString(row, "parent_prd") ?? ""), featureMap.get(frontmatterString(row, "parent_feature") ?? ""), moduleRows)),
     ...moduleRows.map((row) => buildModuleDerivedTarget(row, featureRows, prdRows, taskHubRows)),
+    ...freeformRows.map((row) => buildFreeformDerivedTarget(row, featureRows, prdRows, taskHubRows, moduleRows)),
   ];
 }
 
@@ -150,7 +152,7 @@ function buildFeatureDerivedTarget(row: ProjectPageRow, prdRows: ProjectPageRow[
   const orderedPrds = prdRows.sort((a, b) => buildSectionSortKey("specs", a.rel, a.parsed?.data).localeCompare(buildSectionSortKey("specs", b.rel, b.parsed?.data)));
   const childPrdIds = new Set(orderedPrds.map((item) => frontmatterString(item, "prd_id")).filter(Boolean));
   const childSlices = taskHubRows.filter((item) => childPrdIds.has(frontmatterString(item, "parent_prd") ?? ""));
-  const relatedModules = moduleRows.filter((item) => relatesToAny(item, [...orderedPrds, ...childSlices]));
+  const relatedModules = moduleRows.filter((item) => [...orderedPrds, ...childSlices].some((candidate) => rowsOverlap(item, candidate)));
   const content = rewriteSections(row, [
     { heading: "Included PRDs", lines: renderLinks(orderedPrds), insertBefore: "Cross Links" },
     { heading: "Child Slices", lines: renderLinks(childSlices), insertBefore: "Cross Links" },
@@ -160,7 +162,7 @@ function buildFeatureDerivedTarget(row: ProjectPageRow, prdRows: ProjectPageRow[
 }
 
 function buildPrdDerivedTarget(row: ProjectPageRow, featureRow: ProjectPageRow | undefined, taskHubRows: ProjectPageRow[], moduleRows: ProjectPageRow[]): IndexTarget {
-  const relatedModules = moduleRows.filter((item) => relatesToAny(item, [row, ...taskHubRows]));
+  const relatedModules = moduleRows.filter((item) => [row, ...taskHubRows].some((candidate) => rowsOverlap(item, candidate)));
   const content = rewriteSections(row, [
     { heading: "Parent Feature", lines: featureRow ? [linkLine(featureRow)] : ["- none"] },
     { heading: "Child Slices", lines: renderLinks(taskHubRows), insertBefore: "Cross Links" },
@@ -170,7 +172,7 @@ function buildPrdDerivedTarget(row: ProjectPageRow, featureRow: ProjectPageRow |
 }
 
 function buildSliceDerivedTarget(row: ProjectPageRow, prdRow: ProjectPageRow | undefined, featureRow: ProjectPageRow | undefined, moduleRows: ProjectPageRow[]): IndexTarget {
-  const relatedModules = moduleRows.filter((item) => relatesToAny(item, [row]));
+  const relatedModules = moduleRows.filter((item) => rowsOverlap(item, row));
   const content = rewriteSections(row, [
     { heading: "Parent PRD", lines: prdRow ? [linkLine(prdRow)] : ["- none"] },
     { heading: "Parent Feature", lines: featureRow ? [linkLine(featureRow)] : ["- none"], insertBefore: row.rel.endsWith("index.md") ? "Documents" : "Task" },
@@ -180,27 +182,26 @@ function buildSliceDerivedTarget(row: ProjectPageRow, prdRow: ProjectPageRow | u
 }
 
 function buildModuleDerivedTarget(row: ProjectPageRow, featureRows: ProjectPageRow[], prdRows: ProjectPageRow[], taskHubRows: ProjectPageRow[]): IndexTarget {
-  const relatedPrds = prdRows.filter((item) => relatesToAny(row, [item]));
-  const featureIds = new Set(relatedPrds.map((item) => frontmatterString(item, "parent_feature")).filter(Boolean));
-  const relatedFeatures = featureRows.filter((item) => featureIds.has(frontmatterString(item, "feature_id") ?? ""));
-  const relatedSlices = taskHubRows.filter((item) => relatesToAny(row, [item]));
+  const relatedPrds = prdRows.filter((item) => rowsOverlap(row, item));
+  const relatedSlices = taskHubRows.filter((item) => rowsOverlap(row, item));
+  const relatedFeatures = relatedFeaturesFor(featureRows, relatedPrds, relatedSlices);
   const content = rewriteSections(row, [{
     heading: "Related Planning",
-    lines: [
-      "### Features",
-      "",
-      ...renderLinks(relatedFeatures),
-      "",
-      "### PRDs",
-      "",
-      ...renderLinks(relatedPrds),
-      "",
-      "### Slices",
-      "",
-      ...renderLinks(relatedSlices),
-    ],
+    lines: relatedPlanningLines(relatedFeatures, relatedPrds, relatedSlices),
     insertBefore: "Cross Links",
   }]);
+  return { path: relative(VAULT_ROOT, row.file).replaceAll("\\", "/"), content };
+}
+
+function buildFreeformDerivedTarget(row: ProjectPageRow, featureRows: ProjectPageRow[], prdRows: ProjectPageRow[], taskHubRows: ProjectPageRow[], moduleRows: ProjectPageRow[]): IndexTarget {
+  const relatedModules = moduleRows.filter((item) => rowsOverlap(row, item));
+  const relatedPrds = prdRows.filter((item) => rowsOverlap(row, item));
+  const relatedSlices = taskHubRows.filter((item) => rowsOverlap(row, item));
+  const relatedFeatures = relatedFeaturesFor(featureRows, relatedPrds, relatedSlices);
+  const content = rewriteSections(row, [
+    { heading: "Related Modules", lines: renderLinks(relatedModules), insertBefore: "Cross Links" },
+    { heading: "Related Planning", lines: relatedPlanningLines(relatedFeatures, relatedPrds, relatedSlices), insertBefore: "Cross Links" },
+  ]);
   return { path: relative(VAULT_ROOT, row.file).replaceAll("\\", "/"), content };
 }
 
@@ -238,10 +239,34 @@ function sourcePaths(row: ProjectPageRow) {
   return Array.isArray(value) ? value.map((item) => String(item).replaceAll("\\", "/")).filter(Boolean) : [];
 }
 
-function relatesToAny(moduleRow: ProjectPageRow, planningRows: ProjectPageRow[]) {
-  const modulePaths = sourcePaths(moduleRow);
-  if (!modulePaths.length) return false;
-  return planningRows.some((row) => pathsOverlap(modulePaths, sourcePaths(row)));
+function rowsOverlap(left: ProjectPageRow, right: ProjectPageRow) {
+  const leftPaths = sourcePaths(left);
+  const rightPaths = sourcePaths(right);
+  return leftPaths.length > 0 && rightPaths.length > 0 && pathsOverlap(leftPaths, rightPaths);
+}
+
+function relatedFeaturesFor(featureRows: ProjectPageRow[], prdRows: ProjectPageRow[], sliceRows: ProjectPageRow[]) {
+  const featureIds = new Set([
+    ...prdRows.map((item) => frontmatterString(item, "parent_feature")),
+    ...sliceRows.map((item) => frontmatterString(item, "parent_feature")),
+  ].filter(Boolean));
+  return featureRows.filter((item) => featureIds.has(frontmatterString(item, "feature_id") ?? ""));
+}
+
+function relatedPlanningLines(featureRows: ProjectPageRow[], prdRows: ProjectPageRow[], sliceRows: ProjectPageRow[]) {
+  return [
+    "### Features",
+    "",
+    ...renderLinks(featureRows),
+    "",
+    "### PRDs",
+    "",
+    ...renderLinks(prdRows),
+    "",
+    "### Slices",
+    "",
+    ...renderLinks(sliceRows),
+  ];
 }
 
 function pathsOverlap(left: string[], right: string[]) {

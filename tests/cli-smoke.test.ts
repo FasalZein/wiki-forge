@@ -109,6 +109,17 @@ describe("wiki CLI smoke", () => {
     expect(moduleContent).toContain("FEAT-001 auth platform");
     expect(moduleContent).toContain("PRD-001 auth workflow");
     expect(moduleContent).toContain("DEMO-002 auth slice");
+    const architecturePath = join(vault, "projects", "demo", "architecture", "auth-context.md");
+    mkdirSync(join(vault, "projects", "demo", "architecture"), { recursive: true });
+    writeFileSync(architecturePath, "---\ntitle: Auth Context\ntype: notes\nproject: demo\nupdated: 2026-04-10\nstatus: current\nverification_level: code-verified\nsource_paths:\n  - src/auth.ts\n---\n\n# Auth Context\n\n## Cross Links\n\n- [[projects/demo/_summary]]\n", "utf8");
+    expect(runWiki(["update-index", "demo", "--write"], env).exitCode).toBe(0);
+    const architectureContent = readFileSync(architecturePath, "utf8");
+    expect(architectureContent).toContain("## Related Modules");
+    expect(architectureContent).toContain("Auth Module");
+    expect(architectureContent).toContain("## Related Planning");
+    expect(architectureContent).toContain("FEAT-001 auth platform");
+    expect(architectureContent).toContain("PRD-001 auth workflow");
+    expect(architectureContent).toContain("DEMO-002 auth slice");
     setRepoFrontmatter(vault, repo);
     expect(runWiki(["verify-page", "demo", "auth", "code-verified"], env).exitCode).toBe(0);
 

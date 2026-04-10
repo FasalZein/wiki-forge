@@ -229,6 +229,28 @@ These phrases route to the closeout sequence above:
 
 ---
 
+## Project Zones
+
+- `modules/` — runtime/code ownership. What code exists, what it owns, and how it is verified.
+- `architecture/` — cross-module topology, boundaries, and high-level design maps.
+- `code-map/` — repo/package/service maps, entrypoints, and where behavior lives.
+- `contracts/` — APIs, events, schemas, and external/internal interface surfaces.
+- `data/` — tables, entities, migrations, invariants, and relationships.
+- `changes/` — rollouts, migrations, change plans, and notable implementation deltas.
+- `runbooks/` — operational procedures, incident handling, and recurring manual workflows.
+- `verification/` — coverage, test strategy, runtime checks, and closeout evidence.
+- `legacy/` — old docs kept as source material, not canonical truth.
+- `specs/features/` — product/planning scopes.
+- `specs/prds/` — numbered requirement docs under one parent feature.
+- `specs/slices/` — execution slices under an optional parent PRD.
+
+Propagation rule:
+- planning lineage (`feature -> PRD -> slice`) comes from metadata
+- module/freeform-zone linkage comes from `source_paths` overlap
+- `wiki update-index <project> --write` regenerates those derived sections
+
+---
+
 ## Skills
 
 ### Repo-Owned Skills

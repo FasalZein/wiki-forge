@@ -188,6 +188,28 @@ wiki research file <project> <title>
 
 This creates `research/projects/<project>/<slug>.md` by default and ensures `research/projects/<project>/_overview.md` exists. `wiki research ...` does not perform the investigation step; it stores, organizes, and validates research artifacts after you used `/research` or gathered source material elsewhere. Use `wiki research scaffold <topic>` for non-project topics, `wiki research ingest <topic> <source>` to seed a source-backed note, `wiki source ingest <path-or-url> [--topic <topic>]` to copy a source into `raw/` and scaffold a linked summary, and `wiki research lint` to catch missing evidence. PRDs should link to research via the `## Prior Research` section.
 
+## Project Zones
+
+Use these folders mechanically:
+
+- `modules/` — runtime/code ownership and verification.
+- `architecture/` — cross-module structure and design maps.
+- `code-map/` — repo/app/package/service maps and entrypoints.
+- `contracts/` — APIs, events, schemas, and boundary definitions.
+- `data/` — schema, entities, invariants, and relationships.
+- `changes/` — rollout/migration/change records tied to code.
+- `runbooks/` — operations and human procedures.
+- `verification/` — coverage, checks, and test/runtime verification notes.
+- `legacy/` — useful old docs kept as source material, not canonical truth.
+- `specs/features/` — planning scope parents.
+- `specs/prds/` — numbered requirement docs.
+- `specs/slices/` — execution slices.
+
+Propagation rules:
+- `feature -> PRD -> slice` is metadata-driven (`feature_id`, `prd_id`, `parent_feature`, `parent_prd`)
+- module/freeform-zone docs connect to planning via `source_paths` overlap
+- run `wiki update-index <project> --write` after creating/moving pages or rebinding source paths so derived sections refresh
+
 ## Operating Guidelines
 
 - **Never create `.md` documentation inside project repos** except `README.md` and `CHANGELOG.md`. Specs, research, architecture notes, and maintained docs belong in the wiki vault.
