@@ -1,6 +1,6 @@
 import { requireValue } from "../cli-shared";
 import { collectBacklog } from "./backlog";
-import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary } from "./linting";
+import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "./linting";
 import { collectMaintenancePlan, resolveDefaultBase } from "./maintenance";
 import { collectDriftSummary } from "./verification";
 
@@ -61,11 +61,12 @@ export async function gateProject(args: string[]) {
 }
 
 export async function collectDoctor(project: string, base: string, explicitRepo?: string) {
-  const status = await collectStatusRow(project);
-  const verify = await collectVerifySummary(project);
+  const lintingSnapshot = await loadLintingSnapshot(project, { noteIndex: true });
+  const status = await collectStatusRow(project, lintingSnapshot);
+  const verify = await collectVerifySummary(project, lintingSnapshot);
   const drift = await collectDriftSummary(project, explicitRepo);
-  const lint = await collectLintResult(project);
-  const semantic = await collectSemanticLintResult(project);
+  const lint = await collectLintResult(project, lintingSnapshot);
+  const semantic = await collectSemanticLintResult(project, lintingSnapshot);
   const backlog = await collectBacklog(project);
   const maintain = await collectMaintenancePlan(project, base, explicitRepo);
 

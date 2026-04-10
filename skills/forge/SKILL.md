@@ -30,6 +30,8 @@ npx skills@latest add ./skills/prd-to-slices -g
 npx skills@latest add ./skills/wiki -g
 ```
 
+`/research` is also required. If it is not already available, stop instead of silently skipping the first forge step.
+
 Load these in order before writing production code:
 
 | Step | Invoke | Purpose |
@@ -47,18 +49,21 @@ If a skill is unavailable, stop and tell the user. Do not silently skip steps.
 
 ## What Counts as Non-Trivial
 
-Use forge only when the task actually needs the forge pipeline.
+Use forge when the task needs the forge pipeline **or is continuing work that already came from that pipeline**.
 
 Trigger `/forge` for work like:
 - a new feature or workflow
 - behavior that crosses module boundaries
 - changes that need research or design tradeoffs
+- performance or refactor work spanning multiple commands/modules
 - work likely to become a tracked slice/backlog item
 - anything that should leave PRD + slice history in the wiki
+- continuing an existing PRD / feature / slice, even if the next step sounds like "just proceed"
+- creating, selecting, or advancing a backlog slice
 
 Do **not** trigger `/forge` for:
 - bug fixes under ~50 lines of diff
-- small focused refactors
+- small focused refactors that do not need slice tracking
 - config or dependency changes
 - docs-only changes
 - wiki formatting / note cleanup
@@ -69,7 +74,28 @@ For smaller tasks, use the smallest fitting workflow instead:
 - wiki/note work: `/wiki` + `/obsidian-markdown`
 - exploration: `/wiki`
 
-When in doubt, ask: "does this need research → PRD → slices?" If not, don't use forge.
+When in doubt, ask: "does this need research → PRD → slices, or is it already part of existing PRD/slice work?" If yes, use forge.
+
+## Continuation Rule
+
+If the previous work was a non-trivial slice, PRD, or feature thread, stay in forge mode by default.
+
+Treat prompts like these as **continue-forge**, not as generic maintenance:
+- "proceed"
+- "continue"
+- "do the next slice"
+- "pick up the next perf task"
+- "finish the follow-up"
+
+Continuation still requires the forge structure. Usually this is a **delta forge cycle**:
+1. `/research` for the new evidence or decision delta
+2. `/grill-me` for unresolved design choices
+3. confirm the existing PRD still covers scope, or update/create the PRD
+4. `/prd-to-slices` to create/select the next slice
+5. `/tdd` for implementation
+6. `/wiki` for closeout
+
+Do not silently downgrade a slice continuation into `/wiki` maintenance mode just because the PRD already exists.
 
 ## Hard Gates
 
@@ -80,7 +106,8 @@ When in doubt, ask: "does this need research → PRD → slices?" If not, don't 
 5. **Grill before PRD.** Stress-test assumptions — don't commit to a spec you haven't defended.
 6. **Read code before updating wiki.** Never write docs from memory alone.
 7. **No unmaintainable code.** If a slice passes tests but worsens maintainability, refactor before closing.
-8. **Never create `.md` documentation inside project repos** except `README.md` and `CHANGELOG.md`. Specs, research, architecture notes, and maintained docs belong in the wiki vault.
+8. **Never create `.md` documentation inside project repos** except `README.md`, `CHANGELOG.md`, `AGENTS.md`, `SETUP.md`, and `skills/*/SKILL.md`. Specs, research, architecture notes, and maintained docs belong in the wiki vault.
+9. **Use the wiki vault or session artifacts for planning/handoffs.** Do not create ad hoc repo markdown handoff files.
 
 ## Definition of Done
 
@@ -99,12 +126,16 @@ A slice is complete only when all of these are true:
 2. /grill-me — defend the approach, resolve unknowns
 3. /write-a-prd — capture scope, link to research in Prior Research section
 4. /prd-to-slices — break into vertical slices (wiki create-issue-slice per slice)
-5. /tdd — for each slice:
+5. Fill the selected slice docs before coding:
+   a. move the slice to In Progress
+   b. fill plan.md
+   c. fill test-plan.md
+6. /tdd — for each slice:
    a. Write failing tests first
    b. Make them pass with minimal code
    c. Refactor
    d. Run tests
-6. /wiki — after each slice:
+7. /wiki — after each slice:
    a. wiki refresh-from-git <project> --base <rev>
    b. wiki drift-check <project> --show-unbound
    c. Update impacted wiki pages from code
@@ -112,6 +143,18 @@ A slice is complete only when all of these are true:
    e. wiki lint <project>
    f. wiki lint-semantic <project>
    g. wiki gate <project> --repo <path> --base <rev>
+```
+
+## Workflow: Continue an Existing PRD / Slice Thread
+
+```text
+1. Stay in /forge mode
+2. File any new evidence with /research + wiki research file
+3. Re-check unresolved decisions with /grill-me when needed
+4. Select or create the next slice under the existing PRD
+5. Move it to In Progress and fill plan.md + test-plan.md
+6. /tdd for the slice
+7. /wiki closeout sequence
 ```
 
 ## Workflow: Small Task / Bug Fix (< 50 lines)

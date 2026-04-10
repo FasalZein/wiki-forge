@@ -18,7 +18,8 @@
     "wiki": "bun src/index.ts",
     "check": "tsc --noEmit",
     "test": "bun test",
-    "bench:qmd": "bun scripts/qmd-bench.ts"
+    "bench:qmd": "bun scripts/qmd-bench.ts",
+    "bench:maint": "bun scripts/wiki-maintenance-bench.ts"
   },
   "devDependencies": {
     "bun-types": "1.3.11",

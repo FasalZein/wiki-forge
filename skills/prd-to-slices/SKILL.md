@@ -14,9 +14,15 @@ Break a PRD into independently-grabbable vertical slices. Each slice gets a back
 
 ### 1. Locate the PRD
 
-The PRD should be in the wiki at `projects/<project>/specs/prds/PRD-*.md`.
+The PRD should already exist in the wiki at `projects/<project>/specs/prds/PRD-*.md`.
 
-If the user points to a GitHub issue or external doc, read it first, then file it with `wiki create-feature <project> <name>` followed by `wiki create-prd <project> --feature <FEAT-ID> <name>` so it lives in the vault.
+If the user points to a GitHub issue or external doc and there is no vault PRD yet, stop this skill and route back to `/forge`:
+1. `/research`
+2. `/grill-me`
+3. `/write-a-prd`
+4. return to `/prd-to-slices` only after the PRD exists in the vault
+
+This skill decomposes an approved PRD. It does not replace the earlier forge steps.
 
 ### 2. Explore the codebase
 
@@ -72,7 +78,7 @@ Create slices in dependency order (blockers first) so you can reference task IDs
 
 ### 6. Fill in the plans
 
-After scaffolding, fill in each plan:
+After scaffolding, immediately move the selected slice to `In Progress`, then fill in each plan before starting code. Do not start implementation against an empty slice scaffold.
 
 **Implementation plan** (`specs/slices/<ID>/plan.md`):
 - Scope: what this slice covers end-to-end
@@ -85,28 +91,57 @@ After scaffolding, fill in each plan:
 - Green Criteria: what "passing" means
 - Refactor Checks: what to clean up after green
 
-### 7. Link back to PRD
+Only after the slice is in progress and both docs are filled should `/tdd` begin.
 
-Add wikilinks from the task hub and plans back to the PRD:
+### 7. Continuation rule
+
+If the user says "proceed", "continue", or otherwise asks for the next implementation step after a completed non-trivial slice, do not continue coding ad hoc.
+
+First:
+1. select the existing slice still in progress, or
+2. create the next slice under the current PRD
+
+Then fill its plan + test plan and resume with `/tdd`.
+
+Reuse the existing PRD when the scope still fits it. Only create or rewrite a PRD when the scope materially changes.
+
+### 8. Link back to PRD
+
+Pass `--prd <PRD-ID>` when creating each slice so lineage stays mechanical.
+That writes `parent_prd` / `parent_feature` metadata onto the slice docs, which `wiki update-index <project> --write` uses to regenerate parent/child planning sections.
+
+The generated task hub and plans already link back to the PRD:
 ```markdown
 - [[projects/<project>/specs/prds/PRD-<nnn>-<slug>]]
 ```
 
-And update the PRD's Cross Links to reference the slice hub.
+Do not hand-maintain PRD child-slice lists; let `update-index` regenerate them.
 
-### 8. Verify and close out
+### 9. Verify slicing artifacts, then hand off to implementation
 
-After creating and filling all slices, run the closeout sequence:
+After creating and filling all slices, run the planning-doc closeout sequence:
 
 ```bash
 wiki update-index <project> --write
 wiki lint <project>
 wiki lint-semantic <project>
-wiki verify-page <project> <page...> code-verified   # for each new slice page
-wiki gate <project> --repo <path> --base <rev>
 ```
 
-Do not declare slicing complete until `lint`, `lint-semantic`, and `gate` all pass. If `gate` fails, fix the reported issues before moving on.
+At this point the slice docs are planned, not implemented. Do **not** mark them `code-verified` from memory before `/tdd` produces code and tests.
+
+After implementation, use `/wiki` closeout to:
+- run `wiki refresh-from-git <project> --base <rev>`
+- run `wiki drift-check <project> --show-unbound`
+- update impacted pages from code/tests
+- run `wiki verify-page ...`
+- run `wiki gate ...`
+
+Status discipline:
+- create slice
+- move it to `In Progress`
+- implement with `/tdd`
+- verify + gate after code/tests exist
+- move it to `Done`
 
 ## When to use GitHub Issues instead
 

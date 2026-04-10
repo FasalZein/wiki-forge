@@ -11,7 +11,8 @@ import { safeMatter } from "../cli-shared";
 import { createModuleInternal } from "./project-setup";
 import { slugify } from "./planning";
 import { collectDriftSummary } from "./verification";
-import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary } from "./linting";
+import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "./linting";
+import type { LintingSnapshot } from "./linting";
 
 export async function dashboardProject(args: string[]) {
   const options = parseProjectRepoBaseArgs(args);
@@ -181,33 +182,78 @@ export async function ingestDiff(args: string[]) {
   }
 }
 
-export async function collectRefreshFromGit(project: string, base: string, explicitRepo?: string) {
+type ProjectSnapshot = {
+  project: string;
+  root: string;
+  repo: string;
+  repoFiles?: string[];
+  repoDocFiles?: string[];
+  pageEntries: Array<{
+    file: string;
+    page: string;
+    raw: string;
+    parsed: ReturnType<typeof safeMatter>;
+    sourcePaths: string[];
+    verificationLevel: string | null;
+    todoCount: number;
+  }>;
+};
+
+async function loadProjectSnapshot(project: string, explicitRepo?: string, options: { includeRepoInventory?: boolean } = {}): Promise<ProjectSnapshot> {
   const root = projectRoot(project);
   assertExists(root, `project not found: ${project}`);
   const repo = resolveRepoPath(project, explicitRepo);
   assertGitRepo(repo);
-  const changedFiles = gitChangedFiles(repo, base);
   const pages = walkMarkdown(root);
-  const impactedPages: Array<{ page: string; matchedSourcePaths: string[]; verificationLevel: string | null; diffSummary: string[] }> = [];
-  const covered = new Set<string>();
-  for (const file of pages) {
-    const parsed = safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true });
-    if (!parsed) continue;
-    const sourcePaths = Array.isArray(parsed.data.source_paths) ? parsed.data.source_paths.map((value: unknown) => String(value).replaceAll("\\", "/")) : [];
-    const matchedSourcePaths = sourcePaths.filter((sourcePath: string) => changedFiles.includes(sourcePath));
-    if (!matchedSourcePaths.length) continue;
-    for (const sourcePath of matchedSourcePaths) covered.add(sourcePath);
-    impactedPages.push({ page: relative(root, file), matchedSourcePaths, verificationLevel: readVerificationLevel(parsed.data), diffSummary: matchedSourcePaths.flatMap((sourcePath: string) => gitDiffSummary(repo, sourcePath) ?? []) });
-  }
-  const testHealth = collectChangedTestHealth(changedFiles);
-  return { project, repo, base, changedFiles, impactedPages, uncoveredFiles: changedFiles.filter((file) => isCodeFile(file) && !covered.has(file)), testHealth };
+  const pageEntries = await Promise.all(pages.map(async (file) => {
+    const raw = await readText(file);
+    const parsed = safeMatter(relative(VAULT_ROOT, file), raw, { silent: true });
+    const sourcePaths = parsed && Array.isArray(parsed.data.source_paths) ? parsed.data.source_paths.map((value: unknown) => String(value).replaceAll("\\", "/")) : [];
+    return {
+      file,
+      page: relative(root, file),
+      raw,
+      parsed,
+      sourcePaths,
+      verificationLevel: parsed ? readVerificationLevel(parsed.data) : null,
+      todoCount: (raw.match(/\bTODO\b/g) ?? []).length,
+    };
+  }));
+  if (!options.includeRepoInventory) return { project, root, repo, pageEntries };
+  return {
+    project,
+    root,
+    repo,
+    repoFiles: listCodeFiles(repo, await readCodePaths(project)),
+    repoDocFiles: await listRepoMarkdownDocs(repo),
+    pageEntries,
+  };
 }
 
-export async function collectMaintenancePlan(project: string, base: string, explicitRepo?: string) {
-  const refreshFromGit = await collectRefreshFromGit(project, base, explicitRepo);
-  const discover = await collectDiscoverSummary(project, explicitRepo);
-  const lint = await collectLintResult(project);
-  const semanticLint = await collectSemanticLintResult(project);
+export async function collectRefreshFromGit(project: string, base: string, explicitRepo?: string, snapshot?: ProjectSnapshot) {
+  const state = snapshot ?? await loadProjectSnapshot(project, explicitRepo);
+  const changedFiles = gitChangedFiles(state.repo, base);
+  const changedFileSet = new Set(changedFiles);
+  const impactedPages: Array<{ page: string; matchedSourcePaths: string[]; verificationLevel: string | null; diffSummary: string[] }> = [];
+  const covered = new Set<string>();
+  for (const entry of state.pageEntries) {
+    if (!entry.parsed) continue;
+    const matchedSourcePaths = entry.sourcePaths.filter((sourcePath) => changedFileSet.has(sourcePath));
+    if (!matchedSourcePaths.length) continue;
+    for (const sourcePath of matchedSourcePaths) covered.add(sourcePath);
+    impactedPages.push({ page: entry.page, matchedSourcePaths, verificationLevel: entry.verificationLevel, diffSummary: matchedSourcePaths.flatMap((sourcePath) => gitDiffSummary(state.repo, sourcePath) ?? []) });
+  }
+  const testHealth = collectChangedTestHealth(changedFiles);
+  return { project, repo: state.repo, base, changedFiles, impactedPages, uncoveredFiles: changedFiles.filter((file) => isCodeFile(file) && !covered.has(file)), testHealth };
+}
+
+export async function collectMaintenancePlan(project: string, base: string, explicitRepo?: string, snapshot?: ProjectSnapshot, lintingSnapshot?: LintingSnapshot) {
+  const projectSnapshot = snapshot ?? await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
+  const lintingState = lintingSnapshot ?? await loadLintingSnapshot(project, { noteIndex: true });
+  const refreshFromGit = await collectRefreshFromGit(project, base, explicitRepo, projectSnapshot);
+  const discover = await collectDiscoverSummary(project, explicitRepo, projectSnapshot);
+  const lint = await collectLintResult(project, lintingState);
+  const semanticLint = await collectSemanticLintResult(project, lintingState);
   const actions: Array<{ kind: string; message: string }> = [];
   for (const impacted of refreshFromGit.impactedPages) actions.push({ kind: "review-page", message: `${impacted.page} impacted by ${impacted.matchedSourcePaths.join(", ")}` });
   for (const file of refreshFromGit.uncoveredFiles.slice(0, 20)) actions.push({ kind: "create-or-bind", message: `cover changed file ${file}` });
@@ -220,34 +266,27 @@ export async function collectMaintenancePlan(project: string, base: string, expl
 }
 
 async function collectDashboard(project: string, base: string, explicitRepo?: string) {
-  const maintain = await collectMaintenancePlan(project, base, explicitRepo);
-  return { project, repo: maintain.repo, base, status: await collectStatusRow(project), verify: await collectVerifySummary(project), drift: await collectDriftSummary(project, explicitRepo), discover: maintain.discover, maintain, recentLog: tailLog(20) };
+  const projectSnapshot = await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
+  const lintingSnapshot = await loadLintingSnapshot(project, { noteIndex: true });
+  const maintain = await collectMaintenancePlan(project, base, explicitRepo, projectSnapshot, lintingSnapshot);
+  return { project, repo: maintain.repo, base, status: await collectStatusRow(project, lintingSnapshot), verify: await collectVerifySummary(project, lintingSnapshot), drift: await collectDriftSummary(project, explicitRepo), discover: maintain.discover, maintain, recentLog: tailLog(20) };
 }
 
-async function collectDiscoverSummary(project: string, explicitRepo?: string) {
-  const root = projectRoot(project);
-  assertExists(root, `project not found: ${project}`);
-  const repo = resolveRepoPath(project, explicitRepo);
-  assertGitRepo(repo);
-  const repoFiles = listCodeFiles(repo, await readCodePaths(project));
-  const pages = walkMarkdown(root);
+async function collectDiscoverSummary(project: string, explicitRepo?: string, snapshot?: ProjectSnapshot) {
+  const state = snapshot ?? await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
   const boundFiles = new Set<string>();
   const unboundPages: string[] = [];
   const placeholderHeavyPages: string[] = [];
-  for (const file of pages) {
-    const raw = await readText(file);
-    const parsed = safeMatter(relative(VAULT_ROOT, file), raw, { silent: true });
-    if (!parsed) continue;
-    const sourcePaths = Array.isArray(parsed.data.source_paths) ? parsed.data.source_paths.map((value) => String(value).replaceAll("\\", "/")) : [];
-    if (!sourcePaths.length) unboundPages.push(relative(root, file));
-    for (const sourcePath of sourcePaths) boundFiles.add(sourcePath);
-    const todoCount = (raw.match(/\bTODO\b/g) ?? []).length;
-    if (todoCount >= 6) placeholderHeavyPages.push(relative(root, file));
+  for (const entry of state.pageEntries) {
+    if (!entry.parsed) continue;
+    if (!entry.sourcePaths.length) unboundPages.push(entry.page);
+    for (const sourcePath of entry.sourcePaths) boundFiles.add(sourcePath);
+    if (entry.todoCount >= 6) placeholderHeavyPages.push(entry.page);
   }
   // Detect research/docs directories in the repo
   const researchDirs: string[] = [];
   for (const candidate of ["docs/research", "docs", "research", "docs/specs"]) {
-    const candidatePath = join(repo, candidate);
+    const candidatePath = join(state.repo, candidate);
     if (existsSync(candidatePath)) {
       try {
         const count = [...new Bun.Glob("**/*.md").scanSync({ cwd: candidatePath, onlyFiles: true })].length;
@@ -255,8 +294,9 @@ async function collectDiscoverSummary(project: string, explicitRepo?: string) {
       } catch {}
     }
   }
-  const repoDocFiles = await listRepoMarkdownDocs(repo);
-  return { project, repo, repoFiles: repoFiles.length, boundFiles: boundFiles.size, uncoveredFiles: repoFiles.filter((file) => !boundFiles.has(file)), unboundPages: unboundPages.sort(), placeholderHeavyPages: placeholderHeavyPages.sort(), researchDirs, repoDocFiles };
+  const repoFiles = state.repoFiles ?? listCodeFiles(state.repo, await readCodePaths(project));
+  const repoDocFiles = state.repoDocFiles ?? await listRepoMarkdownDocs(state.repo);
+  return { project, repo: state.repo, repoFiles: repoFiles.length, boundFiles: boundFiles.size, uncoveredFiles: repoFiles.filter((file) => !boundFiles.has(file)), unboundPages: unboundPages.sort(), placeholderHeavyPages: placeholderHeavyPages.sort(), researchDirs, repoDocFiles };
 }
 
 async function collectIngestDiff(project: string, base: string, explicitRepo?: string) {
@@ -338,22 +378,28 @@ function listCodeFiles(repo: string, customPaths?: string[]) {
 }
 
 async function listRepoMarkdownDocs(repo: string) {
-  const fingerprint = `${fileFingerprint(join(repo, ".git", "index"))}:${fileFingerprint(join(repo, ".git", "HEAD"))}`;
+  const fingerprint = `${fileFingerprint(join(repo, ".git", "index"))}:${fileFingerprint(join(repo, ".git", "HEAD"))}:${gitMarkdownStatusFingerprint(repo)}`;
   const cacheKey = `repo-docs:${repo}`;
-  const cached = await readCache<string[]>("repo-scan", cacheKey, "1", fingerprint);
+  const cached = await readCache<string[]>("repo-scan", cacheKey, "2", fingerprint);
   if (cached) return cached;
 
   const files = new Set<string>();
   for (const absolute of new Bun.Glob("**/*.md").scanSync({ cwd: repo, absolute: true, onlyFiles: true })) {
     const rel = relative(repo, absolute).replaceAll("\\", "/");
     if (/\/(node_modules|dist|build|coverage|\.next|\.git)\//u.test(`/${rel}`)) continue;
-    const base = rel.split("/").pop() ?? rel;
-    if (/^(README|CHANGELOG)\.md$/iu.test(base)) continue;
+    if (isAllowedRepoMarkdownDoc(rel)) continue;
     files.add(rel);
   }
   const result = [...files].sort();
-  void writeCache("repo-scan", cacheKey, "1", fingerprint, result);
+  void writeCache("repo-scan", cacheKey, "2", fingerprint, result);
   return result;
+}
+
+function isAllowedRepoMarkdownDoc(rel: string) {
+  const base = rel.split("/").pop() ?? rel;
+  if (/^(README|CHANGELOG|AGENTS|SETUP)\.md$/iu.test(base)) return true;
+  if (/^skills\/[^/]+\/SKILL\.md$/u.test(rel)) return true;
+  return false;
 }
 
 async function readCodePaths(project: string): Promise<string[] | undefined> {
@@ -363,6 +409,11 @@ async function readCodePaths(project: string): Promise<string[] | undefined> {
   if (!parsed) return undefined;
   const paths = parsed.data.code_paths;
   return Array.isArray(paths) ? paths.map(String) : undefined;
+}
+
+function gitMarkdownStatusFingerprint(repo: string) {
+  const proc = Bun.spawnSync(["git", "status", "--porcelain", "--untracked-files=all", "--", "*.md", "**/*.md"], { cwd: repo, stdout: "pipe", stderr: "pipe" });
+  return proc.exitCode === 0 ? proc.stdout.toString().trim() : "status-unavailable";
 }
 
 function gitChangedFiles(repo: string, base: string) {

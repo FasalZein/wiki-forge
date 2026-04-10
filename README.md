@@ -61,7 +61,8 @@ wiki refresh-from-git my-app --base main                   # map git changes -> 
 wiki drift-check my-app --show-unbound                     # find stale + unbound pages
 wiki ingest-diff my-app --base main                        # auto-append change digests
 wiki verify-page my-app modules/auth/spec code-verified    # promote verification level
-wiki bind my-app modules/auth/spec src/auth/               # link page to source files
+wiki bind my-app modules/auth/spec src/auth/               # replace source_paths
+wiki bind my-app modules/auth/spec --mode merge src/new.ts # append normalized unique source_paths
 ```
 
 ### Quality Gates
@@ -101,22 +102,28 @@ wiki source ingest https://example.com/article             # raw source -> raw/ 
 
 ### Planning and Backlog
 
-Features, PRDs, and vertical slices with task-scoped spec hubs — zero API calls.
+Features, PRDs, standalone planning docs, and vertical slices with task-scoped spec hubs — zero API calls.
 
 ```bash
 wiki create-feature my-app "user onboarding"               # -> specs/features/FEAT-001-user-onboarding.md
 wiki create-prd my-app --feature FEAT-001 "email signup"   # -> specs/prds/PRD-001-email-signup.md
-wiki create-issue-slice my-app "email verification" --prd PRD-001
+wiki create-plan my-app "rollout checklist"                # -> specs/plan-rollout-checklist.md
+wiki create-test-plan my-app "rollout checklist"           # -> specs/test-plan-rollout-checklist.md
+wiki create-issue-slice my-app "email verification" --prd PRD-001  # inherits parent PRD source_paths when present
 wiki backlog my-app                                        # list tracked tasks
 ```
+
+`create-plan` and `create-test-plan` stay visible under `specs/index.md` as planning docs.
 
 ### Navigation and Index
 
 ```bash
 wiki summary my-app                                        # one-shot project overview
-wiki update-index my-app --write                           # regenerate spec indexes + derived planning links
+wiki update-index my-app --write                           # regenerate spec indexes + derived relationship sections
 wiki log                                                   # chronological operation log
 ```
+
+`update-index` refreshes feature/PRD/slice lineage sections, module/freeform-zone planning links from `source_paths`, and the generated spec family indexes.
 
 ### Obsidian Integration
 
@@ -245,9 +252,12 @@ These phrases route to the closeout sequence above:
 - `specs/slices/` — execution slices under an optional parent PRD.
 
 Propagation rule:
-- planning lineage (`feature -> PRD -> slice`) comes from metadata
+- planning lineage (`feature -> PRD -> slice`) comes from metadata (`feature_id`, `prd_id`, `parent_feature`, `parent_prd`)
+- `create-issue-slice --prd <PRD-ID>` also auto-binds the new slice hub/plan/test-plan to the parent PRD's `source_paths` when they already exist
 - module/freeform-zone linkage comes from `source_paths` overlap
-- `wiki update-index <project> --write` regenerates those derived sections
+- standalone `create-plan` / `create-test-plan` docs stay listed under `specs/index.md`
+- `create-issue-slice --prd <PRD-ID>` inherits the parent PRD's `source_paths` when that PRD is already bound
+- `wiki update-index <project> --write` regenerates those derived sections across spec pages, modules, and freeform project zones
 
 ---
 
@@ -335,7 +345,7 @@ wiki gate my-app --repo ~/Dev/my-app --base main
 
 - **Wiki vault is the knowledge store.** Agents write documentation to `~/Knowledge`, not to project repos.
 - **Code is the source of truth.** Wiki pages compile from code, never the other way around.
-- **No docs in project repos.** Architecture docs, module specs, research — all go to the vault. Only `README.md` and `CHANGELOG.md` stay in repos.
+- **No wiki-style docs in project repos.** Architecture docs, module specs, research — all go to the vault. Allowed repo markdown: `README.md`, `CHANGELOG.md`, `AGENTS.md`, `SETUP.md`, and `skills/*/SKILL.md`.
 - **Verification prevents drift.** Every page has a verification level. `drift-check` demotes stale pages when source code changes.
 
 ---

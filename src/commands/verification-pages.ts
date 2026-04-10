@@ -7,29 +7,64 @@ import { walkMarkdown } from "../lib/vault";
 import { applyVerificationLevel, computeLevelFromBooleans, isValidVerificationLevel, resolveWikiPagePath } from "./verification-shared";
 
 export async function bindSourcePaths(args: string[]) {
-  const dryRun = args.includes("--dry-run");
-  const filteredArgs = args.filter((arg) => arg !== "--dry-run");
-  const project = filteredArgs[0];
-  const pageArg = filteredArgs[1];
-  const sourcePaths = filteredArgs.slice(2);
-  requireValue(project, "project");
-  requireValue(pageArg, "module-or-page");
-  if (!sourcePaths.length) throw new Error("missing source-paths");
+  const { project, pageArg, sourcePaths, mode, dryRun } = parseBindArgs(args);
   const root = projectRoot(project);
   const wikiFilePath = resolveWikiPagePath(root, pageArg);
   assertExists(wikiFilePath, `wiki page not found: ${relative(VAULT_ROOT, wikiFilePath)}`);
   const parsed = safeMatter(relative(VAULT_ROOT, wikiFilePath), await readText(wikiFilePath));
   if (!parsed) throw new Error(`unable to parse frontmatter for ${relative(VAULT_ROOT, wikiFilePath)}`);
-  const normalizedSourcePaths = sourcePaths.map((value) => value.replaceAll("\\", "/"));
-  const currentSourcePaths = Array.isArray(parsed.data.source_paths) ? parsed.data.source_paths.map((value) => String(value)) : [];
-  const unchanged = currentSourcePaths.length === normalizedSourcePaths.length && currentSourcePaths.every((value, index) => value === normalizedSourcePaths[index]);
+  const incomingSourcePaths = normalizeSourcePaths(sourcePaths);
+  const currentSourcePaths = normalizeSourcePaths(Array.isArray(parsed.data.source_paths) ? parsed.data.source_paths.map((value) => String(value)) : []);
+  const nextSourcePaths = mode === "merge" ? normalizeSourcePaths([...currentSourcePaths, ...incomingSourcePaths]) : incomingSourcePaths;
+  const unchanged = currentSourcePaths.length === nextSourcePaths.length && currentSourcePaths.every((value, index) => value === nextSourcePaths[index]);
   if (unchanged) return console.log(`source_paths already current for ${relative(VAULT_ROOT, wikiFilePath)}`);
   if (dryRun) {
     console.log(`would update ${relative(VAULT_ROOT, wikiFilePath)}`);
-    return console.log(`source_paths: ${normalizedSourcePaths.join(", ")}`);
+    return console.log(`source_paths: ${nextSourcePaths.join(", ")}`);
   }
-  writeNormalizedPage(wikiFilePath, parsed.content, { ...parsed.data, source_paths: normalizedSourcePaths, updated: nowIso() });
+  writeNormalizedPage(wikiFilePath, parsed.content, { ...parsed.data, source_paths: nextSourcePaths, updated: nowIso() });
   console.log(`updated ${relative(VAULT_ROOT, wikiFilePath)}`);
+}
+
+function parseBindArgs(args: string[]) {
+  let dryRun = false;
+  let mode: "replace" | "merge" = "replace";
+  const positional: string[] = [];
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
+    if (arg === "--mode") {
+      const value = args[index + 1];
+      requireValue(value, "mode");
+      if (value !== "replace" && value !== "merge") throw new Error(`invalid mode: ${value}`);
+      mode = value;
+      index += 1;
+      continue;
+    }
+    positional.push(arg);
+  }
+  const project = positional[0];
+  const pageArg = positional[1];
+  const sourcePaths = positional.slice(2);
+  requireValue(project, "project");
+  requireValue(pageArg, "module-or-page");
+  if (!sourcePaths.length) throw new Error("missing source-paths");
+  return { project, pageArg, sourcePaths, mode, dryRun };
+}
+
+function normalizeSourcePaths(sourcePaths: string[]) {
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+  for (const sourcePath of sourcePaths) {
+    const value = sourcePath.trim().replaceAll("\\", "/");
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    normalized.push(value);
+  }
+  return normalized;
 }
 
 export async function verifyPage(args: string[]) {

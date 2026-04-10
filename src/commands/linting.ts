@@ -9,6 +9,21 @@ import { readVerificationLevel } from "../lib/verification";
 import { walkMarkdown } from "../lib/vault";
 import { lintFrontmatter, lintWikilinks } from "../module-format";
 
+export type LintingSnapshot = {
+  project: string;
+  root: string;
+  pages: string[];
+  noteIndex?: Awaited<ReturnType<typeof buildNoteIndex>>;
+  pageEntries: Array<{
+    file: string;
+    relPath: string;
+    vaultPath: string;
+    raw: string;
+    parsed: ReturnType<typeof safeMatter>;
+    verificationLevel: string | null;
+  }>;
+};
+
 const MODULE_REQUIRED_LEVELS = ["scaffold", "inferred", "code-verified", "runtime-verified", "test-verified"];
 
 export async function statusProject(args: string[]) {
@@ -71,34 +86,47 @@ export function cacheClear() {
   console.log(`cleared ${relative(VAULT_ROOT, cachePath)}`);
 }
 
-export async function collectStatusRow(project: string) {
-  const root = projectRoot(project);
-  const pages = walkMarkdown(root);
-  const modulesRoot = join(root, "modules");
-  const modules = existsSync(modulesRoot) ? readdirSync(modulesRoot).filter((entry) => statSync(join(modulesRoot, entry)).isDirectory()).length : 0;
-  let bound = 0;
-  let stale = 0;
-  for (const file of pages) {
-    const parsed = safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true });
-    if (!parsed) continue;
-    if (Array.isArray(parsed.data.source_paths) && parsed.data.source_paths.length > 0) bound += 1;
-    if (readVerificationLevel(parsed.data) === "stale") stale += 1;
-  }
-  return { project, modules, pages: pages.length, bound, unbound: pages.length - bound, stale, root: relative(VAULT_ROOT, root) };
-}
-
-export async function collectVerifySummary(project: string) {
+export async function loadLintingSnapshot(project: string, options: { noteIndex?: boolean } = {}): Promise<LintingSnapshot> {
   const root = projectRoot(project);
   assertExists(root, `project not found: ${project}`);
   const pages = walkMarkdown(root);
-  const summary = { project, pages: pages.length, moduleSpecs: 0, stale: 0, untracked: 0, byLevel: Object.fromEntries(["stale", ...MODULE_REQUIRED_LEVELS].map((level) => [level, 0])) as Record<string, number>, unboundPages: [] as string[] };
-  for (const file of pages) {
+  const pageEntries = await Promise.all(pages.map(async (file) => {
     const raw = await readText(file);
     const parsed = safeMatter(relative(VAULT_ROOT, file), raw, { silent: true });
-    if (!parsed) continue;
-    if (file.endsWith("/spec.md")) summary.moduleSpecs += 1;
-    const level = readVerificationLevel(parsed.data);
-    if (!Array.isArray(parsed.data.source_paths) || parsed.data.source_paths.length === 0) summary.unboundPages.push(relative(root, file));
+    return {
+      file,
+      relPath: relative(root, file).replaceAll("\\", "/"),
+      vaultPath: relative(VAULT_ROOT, file).replace(/\.md$/u, "").replaceAll("\\", "/"),
+      raw,
+      parsed,
+      verificationLevel: parsed ? readVerificationLevel(parsed.data) : null,
+    };
+  }));
+  return { project, root, pages, noteIndex: options.noteIndex ? await buildNoteIndex() : undefined, pageEntries };
+}
+
+export async function collectStatusRow(project: string, snapshot?: LintingSnapshot) {
+  const state = snapshot ?? await loadLintingSnapshot(project);
+  const modulesRoot = join(state.root, "modules");
+  const modules = existsSync(modulesRoot) ? readdirSync(modulesRoot).filter((entry) => statSync(join(modulesRoot, entry)).isDirectory()).length : 0;
+  let bound = 0;
+  let stale = 0;
+  for (const entry of state.pageEntries) {
+    if (!entry.parsed) continue;
+    if (Array.isArray(entry.parsed.data.source_paths) && entry.parsed.data.source_paths.length > 0) bound += 1;
+    if (entry.verificationLevel === "stale") stale += 1;
+  }
+  return { project, modules, pages: state.pages.length, bound, unbound: state.pages.length - bound, stale, root: relative(VAULT_ROOT, state.root) };
+}
+
+export async function collectVerifySummary(project: string, snapshot?: LintingSnapshot) {
+  const state = snapshot ?? await loadLintingSnapshot(project);
+  const summary = { project, pages: state.pages.length, moduleSpecs: 0, stale: 0, untracked: 0, byLevel: Object.fromEntries(["stale", ...MODULE_REQUIRED_LEVELS].map((level) => [level, 0])) as Record<string, number>, unboundPages: [] as string[] };
+  for (const entry of state.pageEntries) {
+    if (!entry.parsed) continue;
+    if (entry.file.endsWith("/spec.md")) summary.moduleSpecs += 1;
+    const level = entry.verificationLevel;
+    if (!Array.isArray(entry.parsed.data.source_paths) || entry.parsed.data.source_paths.length === 0) summary.unboundPages.push(entry.relPath);
     if (!level) summary.untracked += 1;
     else {
       summary.byLevel[level] = (summary.byLevel[level] ?? 0) + 1;
@@ -108,62 +136,55 @@ export async function collectVerifySummary(project: string) {
   return summary;
 }
 
-export async function collectLintResult(project: string) {
-  const root = projectRoot(project);
-  assertExists(root, `project not found: ${project}`);
+export async function collectLintResult(project: string, snapshot?: LintingSnapshot) {
+  const state = snapshot ?? await loadLintingSnapshot(project, { noteIndex: true });
   const issues: string[] = [];
-  for (const dir of PROJECT_DIRS) if (!existsSync(join(root, dir))) issues.push(`missing directory: ${dir}`);
-  for (const file of PROJECT_FILES) if (!existsSync(join(root, file))) issues.push(`missing file: ${file}`);
-  const noteIndex = await buildNoteIndex();
-  for (const file of walkMarkdown(root)) {
-    const content = await readText(file);
-    const relPath = relative(root, file).replaceAll("\\", "/");
-    const vaultPath = relative(VAULT_ROOT, file).replace(/\.md$/u, "").replaceAll("\\", "/");
-    if (!classifyProjectDocPath(relPath)) issues.push(`${relPath} invalid project doc path: expected ${describeAllowedProjectDocPaths()}`);
-    const frontmatterResult = lintFrontmatter(vaultPath, content, safeMatter);
-    if (frontmatterResult.error) { issues.push(`${relative(root, file)} invalid frontmatter: ${frontmatterResult.error}`); continue; }
-    if (frontmatterResult.missingFields.length > 0) issues.push(`${relative(root, file)} missing frontmatter fields: ${frontmatterResult.missingFields.join(", ")}`);
-    for (const issue of lintWikilinks(vaultPath, frontmatterResult.body, noteIndex)) issues.push(`${relative(root, file)} ${issue}`);
-    if (vaultPath.includes("/modules/") && vaultPath.endsWith("/spec")) {
-      for (const heading of MODULE_REQUIRED_HEADINGS) if (!frontmatterResult.body.includes(`${heading}\n`) && !frontmatterResult.body.endsWith(heading)) issues.push(`${relative(root, file)} missing required heading: ${heading}`);
+  for (const dir of PROJECT_DIRS) if (!existsSync(join(state.root, dir))) issues.push(`missing directory: ${dir}`);
+  for (const file of PROJECT_FILES) if (!existsSync(join(state.root, file))) issues.push(`missing file: ${file}`);
+  const noteIndex = state.noteIndex ?? await buildNoteIndex();
+  for (const entry of state.pageEntries) {
+    if (!classifyProjectDocPath(entry.relPath)) issues.push(`${entry.relPath} invalid project doc path: expected ${describeAllowedProjectDocPaths()}`);
+    const frontmatterResult = lintFrontmatter(entry.vaultPath, entry.raw, safeMatter);
+    if (frontmatterResult.error) { issues.push(`${entry.relPath} invalid frontmatter: ${frontmatterResult.error}`); continue; }
+    if (frontmatterResult.missingFields.length > 0) issues.push(`${entry.relPath} missing frontmatter fields: ${frontmatterResult.missingFields.join(", ")}`);
+    for (const issue of lintWikilinks(entry.vaultPath, frontmatterResult.body, noteIndex)) issues.push(`${entry.relPath} ${issue}`);
+    if (entry.vaultPath.includes("/modules/") && entry.vaultPath.endsWith("/spec")) {
+      for (const heading of MODULE_REQUIRED_HEADINGS) if (!frontmatterResult.body.includes(`${heading}\n`) && !frontmatterResult.body.endsWith(heading)) issues.push(`${entry.relPath} missing required heading: ${heading}`);
     }
   }
   return { project, issues };
 }
 
-export async function collectSemanticLintResult(project: string) {
-  const root = projectRoot(project);
-  assertExists(root, `project not found: ${project}`);
-  const pages = walkMarkdown(root).sort();
-  const pageSet = new Set(pages.map((file) => relative(root, file).replace(/\.md$/u, "").replaceAll("\\", "/")));
+export async function collectSemanticLintResult(project: string, snapshot?: LintingSnapshot) {
+  const state = snapshot ?? await loadLintingSnapshot(project);
+  const pageEntries = [...state.pageEntries].sort((a, b) => a.relPath.localeCompare(b.relPath));
+  const pageSet = new Set(pageEntries.map((entry) => entry.relPath.replace(/\.md$/u, "")));
   const inbound = new Map<string, number>();
   const outbound = new Map<string, number>();
   const issues: string[] = [];
-  for (const file of pages) {
-    const rel = relative(root, file).replaceAll("\\", "/");
+  for (const entry of pageEntries) {
+    const rel = entry.relPath;
     const relNoExt = rel.replace(/\.md$/u, "");
-    const body = await readText(file);
-    const links = [...body.matchAll(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g)].map((match) => String(match[1]).trim()).filter(Boolean);
+    const links = [...entry.raw.matchAll(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g)].map((match) => String(match[1]).trim()).filter(Boolean);
     const internalLinks = links.map((target) => target.replace(/\.md$/u, "").replace(/^projects\/[^/]+\//u, "")).filter((target) => !target.startsWith("index") && !target.startsWith("wiki/") && !target.startsWith("research/"));
     outbound.set(relNoExt, internalLinks.length);
     for (const target of internalLinks) if (pageSet.has(target.replace(/^\.\//u, ""))) inbound.set(target.replace(/^\.\//u, ""), (inbound.get(target.replace(/^\.\//u, "")) ?? 0) + 1);
-    const todoCount = (body.match(/\bTODO\b/g) ?? []).length;
+    const todoCount = (entry.raw.match(/\bTODO\b/g) ?? []).length;
     if (todoCount >= 6) issues.push(`${rel} placeholder-heavy: ${todoCount} TODO markers`);
-    const parsed = safeMatter(relative(VAULT_ROOT, file), body, { silent: true });
-    const bodyLength = (parsed?.content ?? body).replace(/^---[\s\S]*?---\s*/u, "").trim().length;
+    const bodyLength = (entry.parsed?.content ?? entry.raw).replace(/^---[\s\S]*?---\s*/u, "").trim().length;
     if (bodyLength > 0 && bodyLength < 180 && !rel.endsWith("backlog.md") && !rel.endsWith("decisions.md") && !rel.endsWith("learnings.md")) issues.push(`${rel} thin page: very little maintained content`);
-    if (parsed && (!Array.isArray(parsed.data.source_paths) || parsed.data.source_paths.length === 0) && rel.includes("/modules/")) issues.push(`${rel} module page has no source_paths`);
+    if (entry.parsed && (!Array.isArray(entry.parsed.data.source_paths) || entry.parsed.data.source_paths.length === 0) && rel.includes("/modules/")) issues.push(`${rel} module page has no source_paths`);
     if (rel.startsWith("specs/") || rel.includes("/specs/")) {
       const kind = classifyProjectDocPath(rel);
-      if (!body.includes("[[projects/")) issues.push(`${rel} spec page missing cross-links to project pages`);
-      if (kind === "spec-prd" && !body.includes("Acceptance Criteria")) issues.push(`${rel} PRD missing acceptance criteria section`);
-      if (kind === "spec-prd" && !body.includes("Prior Research")) issues.push(`${rel} PRD missing prior research section`);
-      if (kind === "spec-prd" && body.includes("Prior Research") && !body.includes("[[research/")) issues.push(`${rel} PRD has no research links in Prior Research section`);
-      if ((kind === "spec-test-plan" || kind === "task-hub-test-plan") && !body.includes("Red Tests")) issues.push(`${rel} test plan missing TDD structure`);
+      if (!entry.raw.includes("[[projects/")) issues.push(`${rel} spec page missing cross-links to project pages`);
+      if (kind === "spec-prd" && !entry.raw.includes("Acceptance Criteria")) issues.push(`${rel} PRD missing acceptance criteria section`);
+      if (kind === "spec-prd" && !entry.raw.includes("Prior Research")) issues.push(`${rel} PRD missing prior research section`);
+      if (kind === "spec-prd" && entry.raw.includes("Prior Research") && !entry.raw.includes("[[research/")) issues.push(`${rel} PRD has no research links in Prior Research section`);
+      if ((kind === "spec-test-plan" || kind === "task-hub-test-plan") && !entry.raw.includes("Red Tests")) issues.push(`${rel} test plan missing TDD structure`);
     }
   }
-  for (const file of pages) {
-    const relNoExt = relative(root, file).replace(/\.md$/u, "").replaceAll("\\", "/");
+  for (const entry of pageEntries) {
+    const relNoExt = entry.relPath.replace(/\.md$/u, "");
     const inboundCount = inbound.get(relNoExt) ?? 0;
     const outboundCount = outbound.get(relNoExt) ?? 0;
     const rel = `${relNoExt}.md`;

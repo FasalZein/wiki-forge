@@ -80,6 +80,11 @@ describe("wiki CLI smoke", () => {
     expect(existsSync(join(vault, "projects", "demo", "specs", "features", "FEAT-001-auth-platform.md"))).toBe(true);
     expect(runWiki(["create-prd", "demo", "--feature", "FEAT-001", "auth workflow"], env).exitCode).toBe(0);
     expect(existsSync(join(vault, "projects", "demo", "specs", "prds", "PRD-001-auth-workflow.md"))).toBe(true);
+    expect(runWiki(["create-plan", "demo", "auth rollout"], env).exitCode).toBe(0);
+    expect(runWiki(["create-test-plan", "demo", "auth rollout"], env).exitCode).toBe(0);
+    const planningIndexContent = readFileSync(join(vault, "projects", "demo", "specs", "index.md"), "utf8");
+    expect(planningIndexContent).toContain("[[projects/demo/specs/plan-auth-rollout|auth rollout]]");
+    expect(planningIndexContent).toContain("[[projects/demo/specs/test-plan-auth-rollout|auth rollout]]");
     expect(runWiki(["add-task", "demo", "stabilize auth", "--priority", "p1", "--tag", "auth"], env).exitCode).toBe(0);
     expect(runWiki(["create-issue-slice", "demo", "auth slice", "--priority", "p1", "--tag", "auth", "--prd", "PRD-001"], env).exitCode).toBe(0);
     expect(existsSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-002", "index.md"))).toBe(true);
@@ -151,6 +156,8 @@ describe("wiki CLI smoke", () => {
     expect(typeof doctorJson.score).toBe("number");
     expect(Array.isArray(doctorJson.topActions)).toBe(true);
     expect(doctorJson.counts.missingTests).toBe(1);
+    expect(doctorJson.status.pages).toBe(doctorJson.verify.pages);
+    expect(doctorJson.status.bound + doctorJson.status.unbound).toBe(doctorJson.status.pages);
 
     const maintain = runWiki(["maintain", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
     expect(maintain.exitCode).toBe(0);
@@ -181,6 +188,7 @@ describe("wiki CLI smoke", () => {
     expect(gateJson.counts.missingTests).toBe(1);
     expect(Array.isArray(gateJson.warnings)).toBe(true);
     expect(typeof gateJson.counts.semantic).toBe("number");
+    expect(gateJson.doctor.status.pages).toBe(gateJson.doctor.verify.pages);
 
     const semantic = runWiki(["lint-semantic", "demo", "--json"], env);
     expect(semantic.exitCode).toBe(1);
@@ -192,6 +200,11 @@ describe("wiki CLI smoke", () => {
     const discoverJson = JSON.parse(discover.stdout.toString());
     expect(discoverJson.repoFiles).toBeGreaterThan(0);
     expect(Array.isArray(discoverJson.unboundPages)).toBe(true);
+    expect(discoverJson.uncoveredFiles).toEqual(maintainJson.discover.uncoveredFiles);
+
+    const discoverTree = runWiki(["discover", "demo", "--repo", repo, "--json", "--tree"], env);
+    expect(discoverTree.exitCode).toBe(0);
+    expect(Array.isArray(JSON.parse(discoverTree.stdout.toString()).tree)).toBe(true);
 
     const repo2 = tempDir("wiki-repo-uncovered");
     mkdirSync(join(repo2, "src"), { recursive: true });
@@ -311,6 +324,51 @@ describe("wiki CLI smoke", () => {
     const prdContent = readFileSync(join(vault, "projects", "demo", "specs", "prds", "PRD-001-auth-workflow.md"), "utf8");
     expect(prdContent).toContain("## Prior Research");
     expect(prdContent).toContain("[[research/projects/demo/_overview]]");
+  });
+
+  test("create-issue-slice inherits source_paths from parent prd", () => {
+    const { vault } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "autobind"], env).exitCode).toBe(0);
+    expect(runWiki(["create-feature", "autobind", "auth platform"], env).exitCode).toBe(0);
+    expect(runWiki(["create-prd", "autobind", "--feature", "FEAT-001", "auth workflow"], env).exitCode).toBe(0);
+    expect(runWiki(["bind", "autobind", "specs/prds/PRD-001-auth-workflow.md", "src/auth.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "autobind", "auth slice", "--prd", "PRD-001"], env).exitCode).toBe(0);
+
+    const taskDir = join(vault, "projects", "autobind", "specs", "slices", "AUTOBIND-001");
+    expect(readFileSync(join(taskDir, "index.md"), "utf8")).toContain("src/auth.ts");
+    expect(readFileSync(join(taskDir, "plan.md"), "utf8")).toContain("src/auth.ts");
+    expect(readFileSync(join(taskDir, "test-plan.md"), "utf8")).toContain("src/auth.ts");
+  });
+
+  test("bind supports merge mode without dropping existing source_paths", () => {
+    const { vault } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "bindmode"], env).exitCode).toBe(0);
+    expect(runWiki(["create-module", "bindmode", "auth", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+
+    const modulePath = join(vault, "projects", "bindmode", "modules", "auth", "spec.md");
+    expect(readFileSync(modulePath, "utf8")).toContain("src/auth.ts");
+
+    expect(runWiki(["bind", "bindmode", "modules/auth/spec.md", "src/replaced.ts"], env).exitCode).toBe(0);
+    const replaced = readFileSync(modulePath, "utf8");
+    expect(replaced).toContain("src/replaced.ts");
+    expect(replaced).not.toContain("src/auth.ts");
+
+    const dryRun = runWiki(["bind", "bindmode", "modules/auth/spec.md", "--mode", "merge", "src\\replaced.ts", " src/auth.ts ", "src/extra.ts", "--dry-run"], env);
+    expect(dryRun.exitCode).toBe(0);
+    expect(dryRun.stdout.toString()).toContain("source_paths: src/replaced.ts, src/auth.ts, src/extra.ts");
+
+    expect(runWiki(["bind", "bindmode", "modules/auth/spec.md", "--mode", "merge", "src\\replaced.ts", " src/auth.ts ", "src/extra.ts"], env).exitCode).toBe(0);
+    const merged = readFileSync(modulePath, "utf8");
+    expect(merged).toContain("source_paths:");
+    expect(merged).toContain("  - src/replaced.ts\n  - src/auth.ts\n  - src/extra.ts");
+
+    const rerun = runWiki(["bind", "bindmode", "modules/auth/spec.md", "--mode", "merge", "src/replaced.ts", "src/auth.ts", "src/extra.ts"], env);
+    expect(rerun.exitCode).toBe(0);
+    expect(rerun.stdout.toString()).toContain("source_paths already current");
   });
 
   test("forge workflow scaffold chain works end-to-end", () => {
@@ -456,7 +514,11 @@ describe("wiki CLI smoke", () => {
     const { vault, repo } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
     mkdirSync(join(repo, "docs"), { recursive: true });
+    mkdirSync(join(repo, "skills", "local-skill"), { recursive: true });
     writeFileSync(join(repo, "docs", "architecture.md"), "# Architecture\n", "utf8");
+    writeFileSync(join(repo, "AGENTS.md"), "# Agents\n", "utf8");
+    writeFileSync(join(repo, "SETUP.md"), "# Setup\n", "utf8");
+    writeFileSync(join(repo, "skills", "local-skill", "SKILL.md"), "# Skill\n", "utf8");
     expect(runWiki(["scaffold-project", "docswarn"], env).exitCode).toBe(0);
     expect(runWiki(["create-module", "docswarn", "auth", "--source", "src/auth.ts"], env).exitCode).toBe(0);
     const summaryPath = join(vault, "projects", "docswarn", "_summary.md");
@@ -465,13 +527,19 @@ describe("wiki CLI smoke", () => {
     const doctor = runWiki(["doctor", "docswarn", "--repo", repo, "--base", "HEAD~1", "--json"], env);
     expect(doctor.exitCode).toBe(0);
     const doctorJson = JSON.parse(doctor.stdout.toString());
-    expect(doctorJson.counts.repoDocs).toBeGreaterThan(0);
+    expect(doctorJson.counts.repoDocs).toBe(1);
     expect(doctorJson.topActions.some((action: { kind: string; message: string }) => action.kind === "move-doc-to-wiki")).toBe(true);
 
     const gate = runWiki(["gate", "docswarn", "--repo", repo, "--base", "HEAD~1", "--json"], env);
     const gateJson = JSON.parse(gate.stdout.toString());
     expect(Array.isArray(gateJson.warnings)).toBe(true);
     expect(gateJson.warnings.some((warning: string) => warning.includes("repo markdown doc"))).toBe(true);
+
+    unlinkSync(join(repo, "docs", "architecture.md"));
+    const doctorAfterDelete = runWiki(["doctor", "docswarn", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(doctorAfterDelete.exitCode).toBe(0);
+    const doctorAfterDeleteJson = JSON.parse(doctorAfterDelete.stdout.toString());
+    expect(doctorAfterDeleteJson.counts.repoDocs).toBe(0);
   });
 
   test("lint fails for misplaced project docs outside the canonical structure", () => {

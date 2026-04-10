@@ -1,19 +1,25 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
-import { createdAt, mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
+import { mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { readText, writeText } from "../lib/fs";
 import { tailLog, appendLogEntry } from "../lib/log";
-import { classifyProjectDocPath, projectSpecsIndexPath, projectSpecViewIndexPath } from "../lib/structure";
-import { walkMarkdown } from "../lib/vault";
+import { projectSpecsIndexPath, projectSpecViewIndexPath } from "../lib/structure";
+import {
+  buildProjectPageIndex,
+  collectProjectPageRows,
+  collectTaskHubSections,
+  readPageTitle,
+  relatedFeaturesFor,
+  rowsOverlap,
+  selectTaskHubSections,
+  type ProjectPageRow,
+  type SpecIndexGroup,
+} from "./index-log-relationships";
+import { linkLine, relatedPlanningLines, renderLinks, rewriteRowSections } from "./index-log-markdown";
 
 type IndexTarget = { path: string; content: string };
-type ProjectPageRow = {
-  file: string;
-  rel: string;
-  title: string;
-  parsed: ReturnType<typeof safeMatter> | null | undefined;
-};
+type SectionEntry = { line: string; sortKey: string; specGroup: SpecIndexGroup | null };
 
 export async function updateIndex(args: string[]) {
   const json = args.includes("--json");
@@ -85,207 +91,92 @@ export async function writeProjectIndex(project: string) {
 
 async function buildProjectIndexTargets(project: string): Promise<IndexTarget[]> {
   const pageRows = await collectProjectPageRows(project);
+  const pageIndex = buildProjectPageIndex(pageRows);
+  const taskHubSections = await collectTaskHubSections(project, pageRows);
   return [
-    ...buildPlanningDerivedTargets(pageRows),
+    ...buildPlanningDerivedTargets(pageIndex),
     buildProjectOverviewIndexTarget(project, pageRows),
-    await buildSpecFamilyIndexTarget(project, pageRows, "features"),
-    await buildSpecFamilyIndexTarget(project, pageRows, "prds"),
-    await buildSpecFamilyIndexTarget(project, pageRows, "slices"),
-    await buildSpecFamilyIndexTarget(project, pageRows, "archive"),
+    buildSpecFamilyIndexTarget(project, pageRows, taskHubSections, "features"),
+    buildSpecFamilyIndexTarget(project, pageRows, taskHubSections, "prds"),
+    buildSpecFamilyIndexTarget(project, pageRows, taskHubSections, "slices"),
+    buildSpecFamilyIndexTarget(project, pageRows, taskHubSections, "archive"),
   ];
 }
 
-async function collectProjectPageRows(project: string): Promise<ProjectPageRow[]> {
-  const root = projectRoot(project);
-  const pages = walkMarkdown(root).sort();
-  return Promise.all(pages.map(async (file) => {
-    const rel = relative(root, file).replaceAll("\\", "/");
-    const raw = await readText(file);
-    const parsed = safeMatter(relative(VAULT_ROOT, file), raw, { silent: true });
-    const title = readTitleFromParsed(parsed, file);
-    return { file, rel, title, parsed };
-  }));
-}
-
-function buildPlanningDerivedTargets(pageRows: ProjectPageRow[]): IndexTarget[] {
-  const featureRows = pageRows.filter((row) => classifyProjectDocPath(row.rel) === "spec-feature");
-  const prdRows = pageRows.filter((row) => classifyProjectDocPath(row.rel) === "spec-prd");
-  const taskHubRows = pageRows.filter((row) => classifyProjectDocPath(row.rel) === "task-hub-index");
-  const sliceRows = pageRows.filter((row) => {
-    const kind = classifyProjectDocPath(row.rel);
-    return kind === "task-hub-index" || kind === "task-hub-plan" || kind === "task-hub-test-plan";
-  });
-  const moduleRows = pageRows.filter((row) => classifyProjectDocPath(row.rel) === "module-spec");
-  const freeformRows = pageRows.filter((row) => classifyProjectDocPath(row.rel) === "freeform-zone-doc");
-
-  const prdsByFeature = new Map<string, ProjectPageRow[]>();
-  for (const row of prdRows) {
-    const featureId = frontmatterString(row, "parent_feature");
-    if (!featureId) continue;
-    const rows = prdsByFeature.get(featureId) ?? [];
-    rows.push(row);
-    prdsByFeature.set(featureId, rows);
-  }
-
-  const taskHubsByPrd = new Map<string, ProjectPageRow[]>();
-  for (const row of taskHubRows) {
-    const prdId = frontmatterString(row, "parent_prd");
-    if (!prdId) continue;
-    const rows = taskHubsByPrd.get(prdId) ?? [];
-    rows.push(row);
-    taskHubsByPrd.set(prdId, rows);
-  }
-
-  const featureMap = new Map(featureRows.map((row) => [frontmatterString(row, "feature_id") ?? row.title, row]));
-  const prdMap = new Map(prdRows.map((row) => [frontmatterString(row, "prd_id") ?? row.title, row]));
-
+function buildPlanningDerivedTargets(pageIndex: ReturnType<typeof buildProjectPageIndex>): IndexTarget[] {
   return [
-    ...featureRows.map((row) => buildFeatureDerivedTarget(row, prdsByFeature.get(frontmatterString(row, "feature_id") ?? "") ?? [], taskHubRows, moduleRows)),
-    ...prdRows.map((row) => buildPrdDerivedTarget(row, featureMap.get(frontmatterString(row, "parent_feature") ?? ""), taskHubsByPrd.get(frontmatterString(row, "prd_id") ?? "") ?? [], moduleRows)),
-    ...sliceRows.map((row) => buildSliceDerivedTarget(row, prdMap.get(frontmatterString(row, "parent_prd") ?? ""), featureMap.get(frontmatterString(row, "parent_feature") ?? ""), moduleRows)),
-    ...moduleRows.map((row) => buildModuleDerivedTarget(row, featureRows, prdRows, taskHubRows)),
-    ...freeformRows.map((row) => buildFreeformDerivedTarget(row, featureRows, prdRows, taskHubRows, moduleRows)),
+    ...pageIndex.featureRows.map((row) => buildFeatureDerivedTarget(row, pageIndex)),
+    ...pageIndex.prdRows.map((row) => buildPrdDerivedTarget(row, pageIndex)),
+    ...pageIndex.sliceRows.map((row) => buildSliceDerivedTarget(row, pageIndex)),
+    ...pageIndex.moduleRows.map((row) => buildModuleDerivedTarget(row, pageIndex)),
+    ...pageIndex.freeformRows.map((row) => buildFreeformDerivedTarget(row, pageIndex)),
   ];
 }
 
-function buildFeatureDerivedTarget(row: ProjectPageRow, prdRows: ProjectPageRow[], taskHubRows: ProjectPageRow[], moduleRows: ProjectPageRow[]): IndexTarget {
-  const orderedPrds = prdRows.sort((a, b) => buildSectionSortKey("specs", a.rel, a.parsed?.data).localeCompare(buildSectionSortKey("specs", b.rel, b.parsed?.data)));
-  const childPrdIds = new Set(orderedPrds.map((item) => frontmatterString(item, "prd_id")).filter(Boolean));
-  const childSlices = taskHubRows.filter((item) => childPrdIds.has(frontmatterString(item, "parent_prd") ?? ""));
-  const relatedModules = moduleRows.filter((item) => [...orderedPrds, ...childSlices].some((candidate) => rowsOverlap(item, candidate)));
-  const content = rewriteSections(row, [
+function buildFeatureDerivedTarget(row: ProjectPageRow, pageIndex: ReturnType<typeof buildProjectPageIndex>): IndexTarget {
+  const orderedPrds = sortRows(pageIndex.prdsByFeature.get(row.featureId ?? "") ?? []);
+  const childPrdIds = new Set(orderedPrds.map((item) => item.prdId).filter(Boolean));
+  const childSlices = pageIndex.taskHubRows.filter((item) => childPrdIds.has(item.parentPrd ?? ""));
+  const planningRows = [...orderedPrds, ...childSlices];
+  const relatedModules = pageIndex.moduleRows.filter((item) => planningRows.some((candidate) => rowsOverlap(item, candidate)));
+  return buildTarget(row, rewriteRowSections(row, [
     { heading: "Included PRDs", lines: renderLinks(orderedPrds), insertBefore: "Cross Links" },
     { heading: "Child Slices", lines: renderLinks(childSlices), insertBefore: "Cross Links" },
     { heading: "Related Modules", lines: renderLinks(relatedModules), insertBefore: "Cross Links" },
-  ]);
-  return { path: relative(VAULT_ROOT, row.file).replaceAll("\\", "/"), content };
+  ]));
 }
 
-function buildPrdDerivedTarget(row: ProjectPageRow, featureRow: ProjectPageRow | undefined, taskHubRows: ProjectPageRow[], moduleRows: ProjectPageRow[]): IndexTarget {
-  const relatedModules = moduleRows.filter((item) => [row, ...taskHubRows].some((candidate) => rowsOverlap(item, candidate)));
-  const content = rewriteSections(row, [
+function buildPrdDerivedTarget(row: ProjectPageRow, pageIndex: ReturnType<typeof buildProjectPageIndex>): IndexTarget {
+  const taskHubRows = pageIndex.taskHubsByPrd.get(row.prdId ?? "") ?? [];
+  const relatedModules = pageIndex.moduleRows.filter((item) => [row, ...taskHubRows].some((candidate) => rowsOverlap(item, candidate)));
+  const featureRow = row.parentFeature ? pageIndex.featureMap.get(row.parentFeature) : undefined;
+  return buildTarget(row, rewriteRowSections(row, [
     { heading: "Parent Feature", lines: featureRow ? [linkLine(featureRow)] : ["- none"] },
     { heading: "Child Slices", lines: renderLinks(taskHubRows), insertBefore: "Cross Links" },
     { heading: "Related Modules", lines: renderLinks(relatedModules), insertBefore: "Cross Links" },
-  ]);
-  return { path: relative(VAULT_ROOT, row.file).replaceAll("\\", "/"), content };
+  ]));
 }
 
-function buildSliceDerivedTarget(row: ProjectPageRow, prdRow: ProjectPageRow | undefined, featureRow: ProjectPageRow | undefined, moduleRows: ProjectPageRow[]): IndexTarget {
-  const relatedModules = moduleRows.filter((item) => rowsOverlap(item, row));
-  const content = rewriteSections(row, [
+function buildSliceDerivedTarget(row: ProjectPageRow, pageIndex: ReturnType<typeof buildProjectPageIndex>): IndexTarget {
+  const prdRow = row.parentPrd ? pageIndex.prdMap.get(row.parentPrd) : undefined;
+  const featureRow = row.parentFeature ? pageIndex.featureMap.get(row.parentFeature) : undefined;
+  const relatedModules = pageIndex.moduleRows.filter((item) => rowsOverlap(item, row));
+  return buildTarget(row, rewriteRowSections(row, [
     { heading: "Parent PRD", lines: prdRow ? [linkLine(prdRow)] : ["- none"] },
     { heading: "Parent Feature", lines: featureRow ? [linkLine(featureRow)] : ["- none"], insertBefore: row.rel.endsWith("index.md") ? "Documents" : "Task" },
     { heading: "Related Modules", lines: renderLinks(relatedModules), insertBefore: "Cross Links" },
-  ]);
-  return { path: relative(VAULT_ROOT, row.file).replaceAll("\\", "/"), content };
+  ]));
 }
 
-function buildModuleDerivedTarget(row: ProjectPageRow, featureRows: ProjectPageRow[], prdRows: ProjectPageRow[], taskHubRows: ProjectPageRow[]): IndexTarget {
-  const relatedPrds = prdRows.filter((item) => rowsOverlap(row, item));
-  const relatedSlices = taskHubRows.filter((item) => rowsOverlap(row, item));
-  const relatedFeatures = relatedFeaturesFor(featureRows, relatedPrds, relatedSlices);
-  const content = rewriteSections(row, [{
+function buildModuleDerivedTarget(row: ProjectPageRow, pageIndex: ReturnType<typeof buildProjectPageIndex>): IndexTarget {
+  const relatedPrds = pageIndex.prdRows.filter((item) => rowsOverlap(row, item));
+  const relatedSlices = pageIndex.taskHubRows.filter((item) => rowsOverlap(row, item));
+  const relatedFeatures = relatedFeaturesFor(pageIndex.featureRows, relatedPrds, relatedSlices);
+  return buildTarget(row, rewriteRowSections(row, [{
     heading: "Related Planning",
     lines: relatedPlanningLines(relatedFeatures, relatedPrds, relatedSlices),
     insertBefore: "Cross Links",
-  }]);
-  return { path: relative(VAULT_ROOT, row.file).replaceAll("\\", "/"), content };
+  }]));
 }
 
-function buildFreeformDerivedTarget(row: ProjectPageRow, featureRows: ProjectPageRow[], prdRows: ProjectPageRow[], taskHubRows: ProjectPageRow[], moduleRows: ProjectPageRow[]): IndexTarget {
-  const relatedModules = moduleRows.filter((item) => rowsOverlap(row, item));
-  const relatedPrds = prdRows.filter((item) => rowsOverlap(row, item));
-  const relatedSlices = taskHubRows.filter((item) => rowsOverlap(row, item));
-  const relatedFeatures = relatedFeaturesFor(featureRows, relatedPrds, relatedSlices);
-  const content = rewriteSections(row, [
+function buildFreeformDerivedTarget(row: ProjectPageRow, pageIndex: ReturnType<typeof buildProjectPageIndex>): IndexTarget {
+  const relatedModules = pageIndex.moduleRows.filter((item) => rowsOverlap(row, item));
+  const relatedPrds = pageIndex.prdRows.filter((item) => rowsOverlap(row, item));
+  const relatedSlices = pageIndex.taskHubRows.filter((item) => rowsOverlap(row, item));
+  const relatedFeatures = relatedFeaturesFor(pageIndex.featureRows, relatedPrds, relatedSlices);
+  return buildTarget(row, rewriteRowSections(row, [
     { heading: "Related Modules", lines: renderLinks(relatedModules), insertBefore: "Cross Links" },
     { heading: "Related Planning", lines: relatedPlanningLines(relatedFeatures, relatedPrds, relatedSlices), insertBefore: "Cross Links" },
-  ]);
-  return { path: relative(VAULT_ROOT, row.file).replaceAll("\\", "/"), content };
-}
-
-function rewriteSections(row: ProjectPageRow, sections: Array<{ heading: string; lines: string[]; insertBefore?: string }>) {
-  let content = row.parsed?.content?.replace(/\r\n/g, "\n").trim() ?? "";
-  for (const section of sections) content = upsertSection(content, section.heading, section.lines, section.insertBefore);
-  return `${content.trim()}\n`;
-}
-
-function upsertSection(content: string, heading: string, lines: string[], insertBefore?: string) {
-  const section = `## ${heading}`;
-  const body = lines.length ? lines.join("\n") : "- none";
-  const pattern = new RegExp(`## ${escapeRegExp(heading)}\\n[\\s\\S]*?(?=\\n## |$)`, "u");
-  if (pattern.test(content)) return content.replace(pattern, `${section}\n\n${body}\n`);
-  const anchor = insertBefore ? `## ${insertBefore}` : "## Cross Links";
-  if (content.includes(anchor)) return content.replace(anchor, `${section}\n\n${body}\n\n${anchor}`);
-  return `${content.trim()}\n\n${section}\n\n${body}\n`;
-}
-
-function renderLinks(rows: ProjectPageRow[]) {
-  return rows.length ? rows.map((row) => linkLine(row)) : ["- none"];
-}
-
-function linkLine(row: ProjectPageRow) {
-  return `- [[${relative(VAULT_ROOT, row.file).replace(/\.md$/u, "").replaceAll("\\", "/")}|${row.title}]]`;
-}
-
-function frontmatterString(row: ProjectPageRow, key: string) {
-  const value = row.parsed?.data?.[key];
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
-function sourcePaths(row: ProjectPageRow) {
-  const value = row.parsed?.data?.source_paths;
-  return Array.isArray(value) ? value.map((item) => String(item).replaceAll("\\", "/")).filter(Boolean) : [];
-}
-
-function rowsOverlap(left: ProjectPageRow, right: ProjectPageRow) {
-  const leftPaths = sourcePaths(left);
-  const rightPaths = sourcePaths(right);
-  return leftPaths.length > 0 && rightPaths.length > 0 && pathsOverlap(leftPaths, rightPaths);
-}
-
-function relatedFeaturesFor(featureRows: ProjectPageRow[], prdRows: ProjectPageRow[], sliceRows: ProjectPageRow[]) {
-  const featureIds = new Set([
-    ...prdRows.map((item) => frontmatterString(item, "parent_feature")),
-    ...sliceRows.map((item) => frontmatterString(item, "parent_feature")),
-  ].filter(Boolean));
-  return featureRows.filter((item) => featureIds.has(frontmatterString(item, "feature_id") ?? ""));
-}
-
-function relatedPlanningLines(featureRows: ProjectPageRow[], prdRows: ProjectPageRow[], sliceRows: ProjectPageRow[]) {
-  return [
-    "### Features",
-    "",
-    ...renderLinks(featureRows),
-    "",
-    "### PRDs",
-    "",
-    ...renderLinks(prdRows),
-    "",
-    "### Slices",
-    "",
-    ...renderLinks(sliceRows),
-  ];
-}
-
-function pathsOverlap(left: string[], right: string[]) {
-  return left.some((a) => right.some((b) => a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`)));
-}
-
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  ]));
 }
 
 function buildProjectOverviewIndexTarget(project: string, pageRows: ProjectPageRow[]): IndexTarget {
-  const sections = new Map<string, Array<{ line: string; sortKey: string; rel: string; data: Record<string, unknown> | undefined }>>();
-  for (const { file, rel, title, parsed } of pageRows) {
-    const section = rel.includes("/") ? rel.split("/")[0] : "root";
-    if (section === "specs" && shouldSkipProjectIndexSpecEntry(rel)) continue;
-    const vaultPath = relative(VAULT_ROOT, file).replace(/\.md$/u, "").replaceAll("\\", "/");
-    const lines = sections.get(section) ?? [];
-    lines.push({ line: `- [[${vaultPath}|${title}]]`, sortKey: buildSectionSortKey(section, rel, parsed?.data), rel, data: parsed?.data as Record<string, unknown> | undefined });
-    sections.set(section, lines);
+  const sections = new Map<string, SectionEntry[]>();
+  for (const row of pageRows) {
+    if (row.section === "specs" && row.skipProjectIndex) continue;
+    const lines = sections.get(row.section) ?? [];
+    lines.push({ line: linkLine(row), sortKey: row.sortKey, specGroup: row.specGroup });
+    sections.set(row.section, lines);
   }
 
   const featuresView = relative(VAULT_ROOT, projectSpecViewIndexPath(project, "features")).replace(/\.md$/u, "").replaceAll("\\", "/");
@@ -297,10 +188,10 @@ function buildProjectOverviewIndexTarget(project: string, pageRows: ProjectPageR
   for (const [section, lines] of [...sections.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     out.push(`## ${section}`, "");
     if (section === "specs") {
-      const features = lines.filter((entry) => specIndexGroup(entry.rel, entry.data) === "features").sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-      const prds = lines.filter((entry) => specIndexGroup(entry.rel, entry.data) === "prds").sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-      const taskHubs = lines.filter((entry) => specIndexGroup(entry.rel, entry.data) === "task-hubs").sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-      const plans = lines.filter((entry) => specIndexGroup(entry.rel, entry.data) === "plans").sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+      const features = sortSectionEntries(lines, "features");
+      const prds = sortSectionEntries(lines, "prds");
+      const taskHubs = sortSectionEntries(lines, "task-hubs");
+      const plans = sortSectionEntries(lines, "plans");
       out.push("### Views", "", `- [[${featuresView}|Feature Index]]`, `- [[${prdsView}|PRD Index]]`, `- [[${slicesView}|Slice Index]]`, `- [[${archiveView}|Archive Index]]`, "");
       if (features.length) out.push("### Features", "", ...features.map((entry) => entry.line), "");
       if (prds.length) out.push("### PRDs", "", ...prds.map((entry) => entry.line), "");
@@ -313,15 +204,12 @@ function buildProjectOverviewIndexTarget(project: string, pageRows: ProjectPageR
   return { path: relative(VAULT_ROOT, projectSpecsIndexPath(project)).replaceAll("\\", "/"), content: `${out.join("\n")}\n` };
 }
 
-async function buildSpecFamilyIndexTarget(project: string, pageRows: ProjectPageRow[], family: "features" | "prds" | "slices" | "archive"): Promise<IndexTarget> {
+function buildSpecFamilyIndexTarget(project: string, pageRows: ProjectPageRow[], taskHubSections: Map<string, string[]>, family: "features" | "prds" | "slices" | "archive"): IndexTarget {
   const familyPath = relative(VAULT_ROOT, projectSpecViewIndexPath(project, family)).replaceAll("\\", "/");
   const specsIndex = relative(VAULT_ROOT, projectSpecsIndexPath(project)).replace(/\.md$/u, "").replaceAll("\\", "/");
 
   if (family === "features") {
-    const features = pageRows
-      .filter((row) => specIndexGroup(row.rel, row.parsed?.data as Record<string, unknown> | undefined) === "features")
-      .sort((a, b) => buildSectionSortKey("specs", a.rel, a.parsed?.data).localeCompare(buildSectionSortKey("specs", b.rel, b.parsed?.data)))
-      .map((row) => `- [[${relative(VAULT_ROOT, row.file).replace(/\.md$/u, "").replaceAll("\\", "/")}|${row.title}]]`);
+    const features = sortRows(pageRows.filter((row) => row.kind === "spec-feature")).map((row) => linkLine(row));
     const out = [
       `# ${project} Features`,
       "",
@@ -337,19 +225,13 @@ async function buildSpecFamilyIndexTarget(project: string, pageRows: ProjectPage
   }
 
   if (family === "prds") {
-    const featureTitles = new Map<string, string>();
-    for (const row of pageRows) {
-      const featureId = typeof row.parsed?.data.feature_id === "string" ? row.parsed.data.feature_id : undefined;
-      if (featureId && specIndexGroup(row.rel, row.parsed?.data as Record<string, unknown> | undefined) === "features") featureTitles.set(featureId, row.title);
-    }
-    const prds = pageRows
-      .filter((row) => specIndexGroup(row.rel, row.parsed?.data as Record<string, unknown> | undefined) === "prds")
-      .sort((a, b) => buildSectionSortKey("specs", a.rel, a.parsed?.data).localeCompare(buildSectionSortKey("specs", b.rel, b.parsed?.data)));
+    const featureTitles = new Map(pageRows.filter((row) => row.kind === "spec-feature" && row.featureId).map((row) => [row.featureId!, row.title]));
+    const prds = sortRows(pageRows.filter((row) => row.kind === "spec-prd"));
     const grouped = new Map<string, string[]>();
     for (const row of prds) {
-      const parentFeature = typeof row.parsed?.data.parent_feature === "string" ? row.parsed.data.parent_feature : "unscoped";
+      const parentFeature = row.parentFeature ?? "unscoped";
       const lines = grouped.get(parentFeature) ?? [];
-      lines.push(`- [[${relative(VAULT_ROOT, row.file).replace(/\.md$/u, "").replaceAll("\\", "/")}|${row.title}]]`);
+      lines.push(linkLine(row));
       grouped.set(parentFeature, lines);
     }
     const out = [
@@ -361,15 +243,12 @@ async function buildSpecFamilyIndexTarget(project: string, pageRows: ProjectPage
     ];
     if (!grouped.size) out.push("## Project Requirement Docs", "", "- none", "");
     else {
-      for (const featureId of [...grouped.keys()].sort()) {
-        out.push(`## ${featureTitles.get(featureId) ?? featureId}`, "", ...(grouped.get(featureId) ?? ["- none"]), "");
-      }
+      for (const featureId of [...grouped.keys()].sort()) out.push(`## ${featureTitles.get(featureId) ?? featureId}`, "", ...(grouped.get(featureId) ?? ["- none"]), "");
     }
     return { path: familyPath, content: `${out.join("\n")}\n` };
   }
 
   if (family === "slices") {
-    const sections = await buildTaskHubSections(project, pageRows, ["In Progress", "Todo", "Backlog", "Done", "Cancelled"]);
     const out = [
       `# ${project} Slices`,
       "",
@@ -378,11 +257,10 @@ async function buildSpecFamilyIndexTarget(project: string, pageRows: ProjectPage
       `- [[projects/${project}/backlog|backlog]]`,
       "",
     ];
-    for (const [heading, lines] of sections) out.push(`## ${heading}`, "", ...(lines.length ? lines : ["- none"]), "");
+    for (const [heading, lines] of selectTaskHubSections(taskHubSections, ["In Progress", "Todo", "Backlog", "Done", "Cancelled"])) out.push(`## ${heading}`, "", ...(lines.length ? lines : ["- none"]), "");
     return { path: familyPath, content: `${out.join("\n")}\n` };
   }
 
-  const archiveSections = await buildTaskHubSections(project, pageRows, ["Done", "Cancelled"]);
   const out = [
     `# ${project} Archive`,
     "",
@@ -393,81 +271,20 @@ async function buildSpecFamilyIndexTarget(project: string, pageRows: ProjectPage
     "> Generated archive/history view. Physical archive paths can be added later without changing the canonical task workspace model.",
     "",
   ];
-  for (const [heading, lines] of archiveSections) out.push(`## ${heading}`, "", ...(lines.length ? lines : ["- none"]), "");
+  for (const [heading, lines] of selectTaskHubSections(taskHubSections, ["Done", "Cancelled"])) out.push(`## ${heading}`, "", ...(lines.length ? lines : ["- none"]), "");
   return { path: familyPath, content: `${out.join("\n")}\n` };
 }
 
-async function buildTaskHubSections(project: string, pageRows: ProjectPageRow[], wantedSections: string[]) {
-  const backlogPath = join(projectRoot(project), "backlog.md");
-  const raw = await readText(backlogPath);
-  const rowsByTaskId = new Map<string, string>();
-  for (const row of pageRows) {
-    const taskId = typeof row.parsed?.data.task_id === "string" ? row.parsed.data.task_id : undefined;
-    if (!taskId || classifyProjectDocPath(row.rel) !== "task-hub-index") continue;
-    rowsByTaskId.set(taskId, `- [[${relative(VAULT_ROOT, row.file).replace(/\.md$/u, "").replaceAll("\\", "/")}|${row.title}]]`);
-  }
-  const sections = new Map<string, string[]>();
-  let currentSection: string | undefined;
-  for (const line of raw.replace(/\r\n/g, "\n").split("\n")) {
-    if (line.startsWith("## ")) {
-      currentSection = line.slice(3).trim();
-      if (wantedSections.includes(currentSection)) sections.set(currentSection, []);
-      continue;
-    }
-    if (!currentSection || !wantedSections.includes(currentSection)) continue;
-    const match = line.match(/^- \[[^\]]+\] \*\*([^*]+)\*\*\s+(.*)$/u);
-    if (!match) continue;
-    const [, taskId, rawTitle] = match;
-    if (!taskId) continue;
-    const sectionLines = sections.get(currentSection) ?? [];
-    sectionLines.push(rowsByTaskId.get(taskId) ?? `- ${taskId} ${rawTitle ?? ""}`.trim());
-    sections.set(currentSection, sectionLines);
-  }
-  return wantedSections.map((section) => [section, sections.get(section) ?? []] as const);
+function buildTarget(row: ProjectPageRow, content: string): IndexTarget {
+  return { path: relative(VAULT_ROOT, row.file).replaceAll("\\", "/"), content };
 }
 
-async function readPageTitle(file: string) {
-  const parsed = safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true });
-  return readTitleFromParsed(parsed, file);
+function sortRows(rows: ProjectPageRow[]) {
+  return [...rows].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 }
 
-function readTitleFromParsed(parsed: ReturnType<typeof safeMatter> | null | undefined, file: string) {
-  const title = parsed?.data.title;
-  if (typeof title === "string" && title.trim()) return title.trim();
-  const heading = parsed?.content.split("\n").find((line) => line.startsWith("# "));
-  return heading?.replace(/^#\s+/u, "").trim() || relative(VAULT_ROOT, file).replace(/\.md$/u, "");
-}
-
-function buildSectionSortKey(section: string, rel: string, data: Record<string, unknown> | undefined) {
-  if (section !== "specs") return rel;
-  const kindOrder = { feature: "0", prd: "1", "task-hub": "2", plan: "3", "test-plan": "4" } as const;
-  const kind = typeof data?.spec_kind === "string" ? data.spec_kind : rel.endsWith("/index.md") ? "task-hub" : "zzz";
-  const ordinalSource = typeof data?.feature_id === "string"
-    ? data.feature_id
-    : typeof data?.prd_id === "string"
-      ? data.prd_id
-      : typeof data?.task_id === "string"
-        ? data.task_id
-        : "";
-  const ordinalMatch = ordinalSource.match(/(\d{3,})$/);
-  const ordinal = ordinalMatch ? ordinalMatch[1].padStart(6, "0") : "999999";
-  const created = createdAt((data ?? {}) as Record<string, unknown>);
-  return `${kindOrder[kind as keyof typeof kindOrder] ?? "9"}:${ordinal}:${created}:${rel}`;
-}
-
-function shouldSkipProjectIndexSpecEntry(rel: string) {
-  const kind = classifyProjectDocPath(rel);
-  if (kind === "spec-index" || kind === "spec-features-index" || kind === "spec-prds-index" || kind === "spec-slices-index" || kind === "spec-archive-index") return true;
-  if (kind === "task-hub-plan" || kind === "task-hub-test-plan") return true;
-  return false;
-}
-
-function specIndexGroup(rel: string, data: Record<string, unknown> | undefined) {
-  const kind = typeof data?.spec_kind === "string" ? data.spec_kind : classifyProjectDocPath(rel);
-  if (kind === "feature" || kind === "spec-feature") return "features";
-  if (kind === "prd" || kind === "spec-prd") return "prds";
-  if (kind === "plan" || kind === "test-plan" || kind === "spec-plan" || kind === "spec-test-plan") return "plans";
-  return "task-hubs";
+function sortSectionEntries(lines: SectionEntry[], group: SpecIndexGroup) {
+  return lines.filter((entry) => entry.specGroup === group).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 }
 
 async function writeIndexTarget(absolutePath: string, content: string) {
@@ -513,7 +330,13 @@ function generatedIndexFrontmatter(relPath: string) {
     title,
     type: "index",
     project,
-    source_paths: ["src/commands/index-log.ts", "src/lib/structure.ts", "src/commands/backlog.ts"],
+    source_paths: [
+      "src/commands/index-log.ts",
+      "src/commands/index-log-relationships.ts",
+      "src/commands/index-log-markdown.ts",
+      "src/lib/structure.ts",
+      "src/commands/backlog.ts",
+    ],
     updated: nowIso(),
     status: "current",
     verification_level: "code-verified",

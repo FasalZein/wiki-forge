@@ -62,7 +62,7 @@ Usage:
   wiki lint-semantic <project> [--json]
   wiki verify <project> [--json]
   wiki search [--hybrid] <query...>
-  wiki bind <project> <module-or-page> <source-path...> [--dry-run]
+  wiki bind <project> <module-or-page> <source-path...> [--mode replace|merge] [--dry-run]
   wiki drift-check <project> [--repo <path>] [--show-unbound] [--fix] [--json]
   wiki verify-page <project> <module-or-page...> <level> [--dry-run]
   wiki verify-page <project> --all <level> [--dry-run]
@@ -80,9 +80,10 @@ Notes:
   - backlog reads project tasks by section
   - add-task appends a tracked task to backlog.md with a generated project task ID
   - move-task / complete-task update task state in backlog.md
-  - create-issue-slice adds a backlog item and creates a task folder under projects/<project>/specs/slices/<TASK-ID>/ with index.md, plan.md, and test-plan.md
+  - create-issue-slice adds a backlog item and creates a task folder under projects/<project>/specs/slices/<TASK-ID>/ with index.md, plan.md, and test-plan.md; when --prd is provided and the parent PRD already has source_paths, the new slice docs inherit those bindings
   - create-feature allocates an immutable feature ID (FEAT-001) and scaffolds a canonical feature page under projects/<project>/specs/features/
   - create-prd requires --feature, allocates an immutable project-scoped PRD ID (PRD-001), and scaffolds a canonical PRD under projects/<project>/specs/prds/
+  - create-plan / create-test-plan scaffold standalone planning docs under projects/<project>/specs/ and keep them visible in specs/index.md
   - onboard writes the scaffold and can also write a project-specific onboarding plan when --repo is provided
   - onboard-plan renders the canonical onboarding slices and can write a project-specific plan file
   - dashboard emits a single JSON overview for apps and agents
@@ -92,7 +93,7 @@ Notes:
   - refresh-from-git maps recent code changes to impacted wiki pages and uncovered files
   - ingest-diff applies a first-pass sync: appends change digests to impacted pages and scaffolds missing module pages for uncovered changed files
   - discover surfaces uncovered repo files, unbound pages, and placeholder-heavy pages
-  - update-index maintains generated index pages and refreshes code-driven planning relationship sections (dry-run by default)
+  - update-index maintains generated index pages and refreshes code-driven relationship sections across planning docs, modules, and freeform project zones (dry-run by default)
   - log appends/tails chronological wiki operations in log.md
   - wiki obsidian ... wraps a small app-dependent Obsidian CLI surface for vault-aware UI actions
   - ask reranks qmd results toward projects/<project>/ and prints a citation-ready brief
@@ -112,7 +113,7 @@ Notes:
   - qmd CLI is still used for maintenance/admin commands; retrieval commands prefer the in-process SDK path
   - set QMD_INDEX_NAME to route wiki/qmd commands to a named qmd index (useful for isolated benchmarks)
   - set ${VAULT_ROOT_ENV} when the CLI is installed outside the vault repo
-  - bind adds source_paths (repo-relative code paths) to a wiki page's frontmatter
+  - bind manages source_paths (repo-relative code paths) on a wiki page's frontmatter; default mode is replace, and --mode merge appends normalized unique paths without dropping existing bindings
   - drift-check compares git modification times of source files against wiki page updated dates
   - drift-check also detects simple rename candidates from git history
   - drift-check --show-unbound lists pages without source_paths

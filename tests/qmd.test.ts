@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { DEFAULT_CANDIDATE_LIMITS, parseCandidateLimitsArg } from "../scripts/qmd-bench";
+import { DEFAULT_BENCH_COMMANDS, parseCommandList } from "../scripts/wiki-maintenance-bench";
 import { resolveQmdIndexPath } from "../src/constants";
 import { classifyAnswerScope, scoreAnswerSource } from "../src/commands/answers";
 import { buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText, resolveRetrievalMode } from "../src/lib/qmd";
@@ -113,6 +114,14 @@ describe("benchmark harness config", () => {
 
   test("parses and normalizes candidate limit args", () => {
     expect(parseCandidateLimitsArg("40,8,16,8")).toEqual([8, 16, 40]);
+  });
+
+  test("uses the expected maintenance benchmark commands", () => {
+    expect(DEFAULT_BENCH_COMMANDS).toEqual(["update-index", "maintain", "discover", "doctor", "gate", "drift-check", "bind", "verify-page"]);
+  });
+
+  test("parses and normalizes maintenance benchmark commands", () => {
+    expect(parseCommandList("gate,update-index,gate,bind")).toEqual(["gate", "update-index", "bind"]);
   });
 });
 
