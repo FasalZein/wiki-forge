@@ -86,6 +86,7 @@ export async function writeProjectIndex(project: string) {
 async function buildProjectIndexTargets(project: string): Promise<IndexTarget[]> {
   const pageRows = await collectProjectPageRows(project);
   return [
+    ...buildPlanningDerivedTargets(pageRows),
     buildProjectOverviewIndexTarget(project, pageRows),
     await buildSpecFamilyIndexTarget(project, pageRows, "features"),
     await buildSpecFamilyIndexTarget(project, pageRows, "prds"),
@@ -104,6 +105,151 @@ async function collectProjectPageRows(project: string): Promise<ProjectPageRow[]
     const title = readTitleFromParsed(parsed, file);
     return { file, rel, title, parsed };
   }));
+}
+
+function buildPlanningDerivedTargets(pageRows: ProjectPageRow[]): IndexTarget[] {
+  const featureRows = pageRows.filter((row) => classifyProjectDocPath(row.rel) === "spec-feature");
+  const prdRows = pageRows.filter((row) => classifyProjectDocPath(row.rel) === "spec-prd");
+  const taskHubRows = pageRows.filter((row) => classifyProjectDocPath(row.rel) === "task-hub-index");
+  const sliceRows = pageRows.filter((row) => {
+    const kind = classifyProjectDocPath(row.rel);
+    return kind === "task-hub-index" || kind === "task-hub-plan" || kind === "task-hub-test-plan";
+  });
+  const moduleRows = pageRows.filter((row) => classifyProjectDocPath(row.rel) === "module-spec");
+
+  const prdsByFeature = new Map<string, ProjectPageRow[]>();
+  for (const row of prdRows) {
+    const featureId = frontmatterString(row, "parent_feature");
+    if (!featureId) continue;
+    const rows = prdsByFeature.get(featureId) ?? [];
+    rows.push(row);
+    prdsByFeature.set(featureId, rows);
+  }
+
+  const taskHubsByPrd = new Map<string, ProjectPageRow[]>();
+  for (const row of taskHubRows) {
+    const prdId = frontmatterString(row, "parent_prd");
+    if (!prdId) continue;
+    const rows = taskHubsByPrd.get(prdId) ?? [];
+    rows.push(row);
+    taskHubsByPrd.set(prdId, rows);
+  }
+
+  const featureMap = new Map(featureRows.map((row) => [frontmatterString(row, "feature_id") ?? row.title, row]));
+  const prdMap = new Map(prdRows.map((row) => [frontmatterString(row, "prd_id") ?? row.title, row]));
+
+  return [
+    ...featureRows.map((row) => buildFeatureDerivedTarget(row, prdsByFeature.get(frontmatterString(row, "feature_id") ?? "") ?? [], taskHubRows, moduleRows)),
+    ...prdRows.map((row) => buildPrdDerivedTarget(row, featureMap.get(frontmatterString(row, "parent_feature") ?? ""), taskHubsByPrd.get(frontmatterString(row, "prd_id") ?? "") ?? [], moduleRows)),
+    ...sliceRows.map((row) => buildSliceDerivedTarget(row, prdMap.get(frontmatterString(row, "parent_prd") ?? ""), featureMap.get(frontmatterString(row, "parent_feature") ?? ""), moduleRows)),
+    ...moduleRows.map((row) => buildModuleDerivedTarget(row, featureRows, prdRows, taskHubRows)),
+  ];
+}
+
+function buildFeatureDerivedTarget(row: ProjectPageRow, prdRows: ProjectPageRow[], taskHubRows: ProjectPageRow[], moduleRows: ProjectPageRow[]): IndexTarget {
+  const orderedPrds = prdRows.sort((a, b) => buildSectionSortKey("specs", a.rel, a.parsed?.data).localeCompare(buildSectionSortKey("specs", b.rel, b.parsed?.data)));
+  const childPrdIds = new Set(orderedPrds.map((item) => frontmatterString(item, "prd_id")).filter(Boolean));
+  const childSlices = taskHubRows.filter((item) => childPrdIds.has(frontmatterString(item, "parent_prd") ?? ""));
+  const relatedModules = moduleRows.filter((item) => relatesToAny(item, [...orderedPrds, ...childSlices]));
+  const content = rewriteSections(row, [
+    { heading: "Included PRDs", lines: renderLinks(orderedPrds), insertBefore: "Cross Links" },
+    { heading: "Child Slices", lines: renderLinks(childSlices), insertBefore: "Cross Links" },
+    { heading: "Related Modules", lines: renderLinks(relatedModules), insertBefore: "Cross Links" },
+  ]);
+  return { path: relative(VAULT_ROOT, row.file).replaceAll("\\", "/"), content };
+}
+
+function buildPrdDerivedTarget(row: ProjectPageRow, featureRow: ProjectPageRow | undefined, taskHubRows: ProjectPageRow[], moduleRows: ProjectPageRow[]): IndexTarget {
+  const relatedModules = moduleRows.filter((item) => relatesToAny(item, [row, ...taskHubRows]));
+  const content = rewriteSections(row, [
+    { heading: "Parent Feature", lines: featureRow ? [linkLine(featureRow)] : ["- none"] },
+    { heading: "Child Slices", lines: renderLinks(taskHubRows), insertBefore: "Cross Links" },
+    { heading: "Related Modules", lines: renderLinks(relatedModules), insertBefore: "Cross Links" },
+  ]);
+  return { path: relative(VAULT_ROOT, row.file).replaceAll("\\", "/"), content };
+}
+
+function buildSliceDerivedTarget(row: ProjectPageRow, prdRow: ProjectPageRow | undefined, featureRow: ProjectPageRow | undefined, moduleRows: ProjectPageRow[]): IndexTarget {
+  const relatedModules = moduleRows.filter((item) => relatesToAny(item, [row]));
+  const content = rewriteSections(row, [
+    { heading: "Parent PRD", lines: prdRow ? [linkLine(prdRow)] : ["- none"] },
+    { heading: "Parent Feature", lines: featureRow ? [linkLine(featureRow)] : ["- none"], insertBefore: row.rel.endsWith("index.md") ? "Documents" : "Task" },
+    { heading: "Related Modules", lines: renderLinks(relatedModules), insertBefore: "Cross Links" },
+  ]);
+  return { path: relative(VAULT_ROOT, row.file).replaceAll("\\", "/"), content };
+}
+
+function buildModuleDerivedTarget(row: ProjectPageRow, featureRows: ProjectPageRow[], prdRows: ProjectPageRow[], taskHubRows: ProjectPageRow[]): IndexTarget {
+  const relatedPrds = prdRows.filter((item) => relatesToAny(row, [item]));
+  const featureIds = new Set(relatedPrds.map((item) => frontmatterString(item, "parent_feature")).filter(Boolean));
+  const relatedFeatures = featureRows.filter((item) => featureIds.has(frontmatterString(item, "feature_id") ?? ""));
+  const relatedSlices = taskHubRows.filter((item) => relatesToAny(row, [item]));
+  const content = rewriteSections(row, [{
+    heading: "Related Planning",
+    lines: [
+      "### Features",
+      "",
+      ...renderLinks(relatedFeatures),
+      "",
+      "### PRDs",
+      "",
+      ...renderLinks(relatedPrds),
+      "",
+      "### Slices",
+      "",
+      ...renderLinks(relatedSlices),
+    ],
+    insertBefore: "Cross Links",
+  }]);
+  return { path: relative(VAULT_ROOT, row.file).replaceAll("\\", "/"), content };
+}
+
+function rewriteSections(row: ProjectPageRow, sections: Array<{ heading: string; lines: string[]; insertBefore?: string }>) {
+  let content = row.parsed?.content?.replace(/\r\n/g, "\n").trim() ?? "";
+  for (const section of sections) content = upsertSection(content, section.heading, section.lines, section.insertBefore);
+  return `${content.trim()}\n`;
+}
+
+function upsertSection(content: string, heading: string, lines: string[], insertBefore?: string) {
+  const section = `## ${heading}`;
+  const body = lines.length ? lines.join("\n") : "- none";
+  const pattern = new RegExp(`## ${escapeRegExp(heading)}\\n[\\s\\S]*?(?=\\n## |$)`, "u");
+  if (pattern.test(content)) return content.replace(pattern, `${section}\n\n${body}\n`);
+  const anchor = insertBefore ? `## ${insertBefore}` : "## Cross Links";
+  if (content.includes(anchor)) return content.replace(anchor, `${section}\n\n${body}\n\n${anchor}`);
+  return `${content.trim()}\n\n${section}\n\n${body}\n`;
+}
+
+function renderLinks(rows: ProjectPageRow[]) {
+  return rows.length ? rows.map((row) => linkLine(row)) : ["- none"];
+}
+
+function linkLine(row: ProjectPageRow) {
+  return `- [[${relative(VAULT_ROOT, row.file).replace(/\.md$/u, "").replaceAll("\\", "/")}|${row.title}]]`;
+}
+
+function frontmatterString(row: ProjectPageRow, key: string) {
+  const value = row.parsed?.data?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function sourcePaths(row: ProjectPageRow) {
+  const value = row.parsed?.data?.source_paths;
+  return Array.isArray(value) ? value.map((item) => String(item).replaceAll("\\", "/")).filter(Boolean) : [];
+}
+
+function relatesToAny(moduleRow: ProjectPageRow, planningRows: ProjectPageRow[]) {
+  const modulePaths = sourcePaths(moduleRow);
+  if (!modulePaths.length) return false;
+  return planningRows.some((row) => pathsOverlap(modulePaths, sourcePaths(row)));
+}
+
+function pathsOverlap(left: string[], right: string[]) {
+  return left.some((a) => right.some((b) => a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`)));
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function buildProjectOverviewIndexTarget(project: string, pageRows: ProjectPageRow[]): IndexTarget {

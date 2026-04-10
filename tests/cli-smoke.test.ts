@@ -94,6 +94,21 @@ describe("wiki CLI smoke", () => {
     expect(backlogJson.sections["Done"][0].id).toBe("DEMO-002");
     expect(readFileSync(demoBacklogPath, "utf8")).toContain("[[projects/demo/_summary]]");
     expect(runWiki(["create-module", "demo", "auth", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["bind", "demo", "specs/prds/PRD-001-auth-workflow.md", "src/auth.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["bind", "demo", "specs/slices/DEMO-002/index.md", "src/auth.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["update-index", "demo", "--write"], env).exitCode).toBe(0);
+    const featureContent = readFileSync(join(vault, "projects", "demo", "specs", "features", "FEAT-001-auth-platform.md"), "utf8");
+    expect(featureContent).toContain("PRD-001 auth workflow");
+    expect(featureContent).toContain("DEMO-002 auth slice");
+    const prdLinkedContent = readFileSync(join(vault, "projects", "demo", "specs", "prds", "PRD-001-auth-workflow.md"), "utf8");
+    expect(prdLinkedContent).toContain("FEAT-001 auth platform");
+    expect(prdLinkedContent).toContain("DEMO-002 auth slice");
+    expect(prdLinkedContent).toContain("Auth Module");
+    const moduleContent = readFileSync(join(vault, "projects", "demo", "modules", "auth", "spec.md"), "utf8");
+    expect(moduleContent).toContain("## Related Planning");
+    expect(moduleContent).toContain("FEAT-001 auth platform");
+    expect(moduleContent).toContain("PRD-001 auth workflow");
+    expect(moduleContent).toContain("DEMO-002 auth slice");
     setRepoFrontmatter(vault, repo);
     expect(runWiki(["verify-page", "demo", "auth", "code-verified"], env).exitCode).toBe(0);
 

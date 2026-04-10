@@ -114,7 +114,7 @@ wiki backlog my-app                                        # list tracked tasks
 
 ```bash
 wiki summary my-app                                        # one-shot project overview
-wiki update-index my-app --write                           # regenerate spec index
+wiki update-index my-app --write                           # regenerate spec indexes + derived planning links
 wiki log                                                   # chronological operation log
 ```
 

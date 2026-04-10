@@ -200,7 +200,7 @@ This creates `research/projects/<project>/<slug>.md` by default and ensures `res
 - **Set `code_paths:` in `_summary.md`** to customize which directories are scanned (default: src, lib, app, packages, services, workers, server, api, functions, components, pages, routes, cmd, internal).
 - **Verify after updating.** `wiki verify-page <project> <page> code-verified`.
 - **Prefer `test-verified`** for critical pages once code and tests are both checked.
-- **Keep navigation current.** `wiki update-index <project> --write` after creating/moving pages.
+- **Keep navigation and derived planning links current.** `wiki update-index <project> --write` after creating/moving pages or rebinding source paths.
 - **Use the log.** `wiki log` gives durable session continuity outside chat history.
 - **Don't invent CLI features.** If a command isn't listed here, it doesn't exist.
 - **Do not invent document layouts.** Use the CLI-generated structure and fill it in; improve the generators when the structure is weak.

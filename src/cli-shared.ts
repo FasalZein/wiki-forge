@@ -92,7 +92,7 @@ Notes:
   - refresh-from-git maps recent code changes to impacted wiki pages and uncovered files
   - ingest-diff applies a first-pass sync: appends change digests to impacted pages and scaffolds missing module pages for uncovered changed files
   - discover surfaces uncovered repo files, unbound pages, and placeholder-heavy pages
-  - update-index maintains root/project index pages (dry-run by default)
+  - update-index maintains generated index pages and refreshes code-driven planning relationship sections (dry-run by default)
   - log appends/tails chronological wiki operations in log.md
   - wiki obsidian ... wraps a small app-dependent Obsidian CLI surface for vault-aware UI actions
   - ask reranks qmd results toward projects/<project>/ and prints a citation-ready brief
