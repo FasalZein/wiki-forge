@@ -14,7 +14,9 @@ export const PROJECT_FREEFORM_DOC_DIRS = [
 ] as const;
 
 export const TASK_ID_PATTERN = /^(?:[A-Z0-9]+-)+\d+$/u;
-export const SPEC_VIEW_FAMILIES = ["prds", "slices", "archive"] as const;
+export const FEATURE_ID_PATTERN = /^FEAT-\d{3,}$/u;
+export const PRD_ID_PATTERN = /^PRD-\d{3,}$/u;
+export const SPEC_VIEW_FAMILIES = ["features", "prds", "slices", "archive"] as const;
 
 export type SpecViewFamily = (typeof SPEC_VIEW_FAMILIES)[number];
 
@@ -23,10 +25,12 @@ type ProjectDocKind =
   | "module-spec"
   | "freeform-zone-doc"
   | "spec-index"
+  | "spec-features-index"
   | "spec-prds-index"
   | "spec-slices-index"
   | "spec-archive-index"
   | "spec-onboarding-plan"
+  | "spec-feature"
   | "spec-prd"
   | "spec-plan"
   | "spec-test-plan"
@@ -50,12 +54,20 @@ export function projectSpecViewIndexPath(project: string, family: SpecViewFamily
   return join(projectSpecsDir(project), family, "index.md");
 }
 
+export function projectFeaturesDir(project: string) {
+  return join(projectSpecsDir(project), "features");
+}
+
+export function projectFeaturePath(project: string, featureId: string, slug: string) {
+  return join(projectFeaturesDir(project), `${featureId}-${slug}.md`);
+}
+
 export function projectPrdsDir(project: string) {
   return join(projectSpecsDir(project), "prds");
 }
 
-export function projectPrdPath(project: string, slug: string) {
-  return join(projectPrdsDir(project), `prd-${slug}.md`);
+export function projectPrdPath(project: string, prdId: string, slug: string) {
+  return join(projectPrdsDir(project), `${prdId}-${slug}.md`);
 }
 
 export function projectPlanPath(project: string, slug: string) {
@@ -106,17 +118,27 @@ export function isCanonicalTaskId(value: string) {
   return TASK_ID_PATTERN.test(value.trim());
 }
 
+export function isCanonicalFeatureId(value: string) {
+  return FEATURE_ID_PATTERN.test(value.trim());
+}
+
+export function isCanonicalPrdId(value: string) {
+  return PRD_ID_PATTERN.test(value.trim());
+}
+
 export function classifyProjectDocPath(relPath: string): ProjectDocKind | null {
   const rel = relPath.replaceAll("\\", "/").replace(/^\.\//u, "");
   if (["_summary.md", "backlog.md", "decisions.md", "learnings.md"].includes(rel)) return "project-file";
   if (/^modules\/[^/]+\/spec\.md$/u.test(rel)) return "module-spec";
   if (new RegExp(`^(?:${PROJECT_FREEFORM_DOC_DIRS.join("|")})\/.+\.md$`, "u").test(rel)) return "freeform-zone-doc";
   if (rel === "specs/index.md") return "spec-index";
+  if (rel === "specs/features/index.md") return "spec-features-index";
   if (rel === "specs/prds/index.md") return "spec-prds-index";
   if (rel === "specs/slices/index.md") return "spec-slices-index";
   if (rel === "specs/archive/index.md") return "spec-archive-index";
   if (rel === "specs/onboarding-plan.md") return "spec-onboarding-plan";
-  if (/^specs\/prds\/prd-[^/]+\.md$/u.test(rel)) return "spec-prd";
+  if (/^specs\/features\/FEAT-\d{3,}-[^/]+\.md$/u.test(rel)) return "spec-feature";
+  if (/^specs\/prds\/PRD-\d{3,}-[^/]+\.md$/u.test(rel)) return "spec-prd";
   if (/^specs\/plan-[^/]+\.md$/u.test(rel)) return "spec-plan";
   if (/^specs\/test-plan-[^/]+\.md$/u.test(rel)) return "spec-test-plan";
   const taskMatch = rel.match(/^specs\/slices\/([^/]+)\/(index|plan|test-plan)\.md$/u);
@@ -138,11 +160,13 @@ export function describeAllowedProjectDocPaths() {
     "modules/<module>/spec.md",
     `${PROJECT_FREEFORM_DOC_DIRS.join(" | ")}/**/*.md`,
     "specs/index.md",
+    "specs/features/index.md",
     "specs/prds/index.md",
     "specs/slices/index.md",
     "specs/archive/index.md",
     "specs/onboarding-plan.md",
-    "specs/prds/prd-<slug>.md",
+    "specs/features/FEAT-<nnn>-<slug>.md",
+    "specs/prds/PRD-<nnn>-<slug>.md",
     "specs/plan-<slug>.md",
     "specs/test-plan-<slug>.md",
     "specs/slices/<TASK-ID>/{index,plan,test-plan}.md",

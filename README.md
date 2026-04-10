@@ -101,11 +101,12 @@ wiki source ingest https://example.com/article             # raw source -> raw/ 
 
 ### Planning and Backlog
 
-PRDs and vertical slices with task-scoped spec hubs — zero API calls.
+Features, PRDs, and vertical slices with task-scoped spec hubs — zero API calls.
 
 ```bash
-wiki create-prd my-app "user onboarding"                   # -> specs/prds/prd-user-onboarding.md
-wiki create-issue-slice my-app "email verification"        # -> specs/slices/MY-APP-001/{index,plan,test-plan}.md
+wiki create-feature my-app "user onboarding"               # -> specs/features/FEAT-001-user-onboarding.md
+wiki create-prd my-app --feature FEAT-001 "email signup"   # -> specs/prds/PRD-001-email-signup.md
+wiki create-issue-slice my-app "email verification" --prd PRD-001
 wiki backlog my-app                                        # list tracked tasks
 ```
 
@@ -208,12 +209,19 @@ These phrases route to the closeout sequence above:
     learnings.md                      # lessons learned
     modules/<mod>/spec.md             # module documentation
     specs/
-      prd-<slug>.md                   # project-level PRDs
       index.md                        # generated spec index
-      <TASK-ID>/
-        index.md                      # task hub
-        plan.md                       # implementation plan
-        test-plan.md                  # test plan
+      features/
+        index.md
+        FEAT-<nnn>-<slug>.md          # canonical feature hubs
+      prds/
+        index.md
+        PRD-<nnn>-<slug>.md           # project-level PRDs scoped to a feature
+      slices/
+        index.md
+        <TASK-ID>/
+          index.md                    # task hub
+          plan.md                     # implementation plan
+          test-plan.md                # test plan
   research/                           # research artifacts
   raw/                                # ingested raw sources
   wiki/syntheses/                     # filed answer briefs
@@ -279,11 +287,12 @@ wiki research file my-app "topic title"
 # 2. Stress-test the plan
 /grill-me
 
-# 3. Write the PRD
-wiki create-prd my-app "feature name"
+# 3. Create the parent feature + PRD
+wiki create-feature my-app "feature name"
+wiki create-prd my-app --feature FEAT-001 "prd name"
 
 # 4. Break into slices
-wiki create-issue-slice my-app "slice name"
+wiki create-issue-slice my-app "slice name" --prd PRD-001
 
 # 5. Implement (TDD)
 # write tests first, then implement, then refactor

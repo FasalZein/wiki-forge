@@ -76,10 +76,12 @@ describe("wiki CLI smoke", () => {
     expect(readFileSync(join(vault, "projects", "demo", "_summary.md"), "utf8")).toContain("> [!summary]");
     expect(readFileSync(demoBacklogPath, "utf8")).toContain("> [!todo]");
     writeFileSync(demoBacklogPath, readFileSync(demoBacklogPath, "utf8").replace("## Cross Links\n\n- [[projects/demo/_summary]]\n- [[projects/demo/specs/index]]\n", "## Cross Links\n\n- [[projects/demo/_summary]]\n"), "utf8");
-    expect(runWiki(["create-prd", "demo", "auth workflow"], env).exitCode).toBe(0);
-    expect(existsSync(join(vault, "projects", "demo", "specs", "prds", "prd-auth-workflow.md"))).toBe(true);
+    expect(runWiki(["create-feature", "demo", "auth platform"], env).exitCode).toBe(0);
+    expect(existsSync(join(vault, "projects", "demo", "specs", "features", "FEAT-001-auth-platform.md"))).toBe(true);
+    expect(runWiki(["create-prd", "demo", "--feature", "FEAT-001", "auth workflow"], env).exitCode).toBe(0);
+    expect(existsSync(join(vault, "projects", "demo", "specs", "prds", "PRD-001-auth-workflow.md"))).toBe(true);
     expect(runWiki(["add-task", "demo", "stabilize auth", "--priority", "p1", "--tag", "auth"], env).exitCode).toBe(0);
-    expect(runWiki(["create-issue-slice", "demo", "auth slice", "--priority", "p1", "--tag", "auth"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice", "--priority", "p1", "--tag", "auth", "--prd", "PRD-001"], env).exitCode).toBe(0);
     expect(existsSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-002", "index.md"))).toBe(true);
     expect(existsSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-002", "plan.md"))).toBe(true);
     expect(existsSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-002", "test-plan.md"))).toBe(true);
@@ -187,6 +189,7 @@ describe("wiki CLI smoke", () => {
     const updateIndex = runWiki(["update-index", "demo", "--write"], env);
     expect(updateIndex.exitCode).toBe(0);
     expect(existsSync(join(vault, "projects", "demo", "specs", "index.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "demo", "specs", "features", "index.md"))).toBe(true);
     expect(existsSync(join(vault, "projects", "demo", "specs", "prds", "index.md"))).toBe(true);
     expect(existsSync(join(vault, "projects", "demo", "specs", "slices", "index.md"))).toBe(true);
     expect(existsSync(join(vault, "projects", "demo", "specs", "archive", "index.md"))).toBe(true);
@@ -279,7 +282,7 @@ describe("wiki CLI smoke", () => {
     expect(researchDup.stderr.toString()).toContain("already exists");
 
     // PRD template includes Prior Research section
-    const prdContent = readFileSync(join(vault, "projects", "demo", "specs", "prds", "prd-auth-workflow.md"), "utf8");
+    const prdContent = readFileSync(join(vault, "projects", "demo", "specs", "prds", "PRD-001-auth-workflow.md"), "utf8");
     expect(prdContent).toContain("## Prior Research");
     expect(prdContent).toContain("[[research/projects/demo/_overview]]");
   });
@@ -307,10 +310,11 @@ describe("wiki CLI smoke", () => {
     writeFileSync(summaryPath, readFileSync(summaryPath, "utf8").replace("status: scaffold", `status: current\nrepo: ${repo}`), "utf8");
 
     expect(runWiki(["research", "file", "forgey", "workflow evidence"], env).exitCode).toBe(0);
-    expect(runWiki(["create-prd", "forgey", "workflow uplift"], env).exitCode).toBe(0);
-    expect(runWiki(["create-issue-slice", "forgey", "workflow slice", "--priority", "p0", "--tag", "forge"], env).exitCode).toBe(0);
+    expect(runWiki(["create-feature", "forgey", "workflow hardening"], env).exitCode).toBe(0);
+    expect(runWiki(["create-prd", "forgey", "--feature", "FEAT-001", "workflow uplift"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "forgey", "workflow slice", "--priority", "p0", "--tag", "forge", "--prd", "PRD-001"], env).exitCode).toBe(0);
 
-    const prdPath = join(vault, "projects", "forgey", "specs", "prds", "prd-workflow-uplift.md");
+    const prdPath = join(vault, "projects", "forgey", "specs", "prds", "PRD-001-workflow-uplift.md");
     const prdContent = readFileSync(prdPath, "utf8");
     expect(prdContent).toContain("[[research/projects/forgey/_overview]]");
 
@@ -324,14 +328,17 @@ describe("wiki CLI smoke", () => {
     expect(existsSync(testPlanPath)).toBe(true);
     const indexPath = join(vault, "projects", "forgey", "specs", "index.md");
     expect(existsSync(indexPath)).toBe(true);
+    expect(existsSync(join(vault, "projects", "forgey", "specs", "features", "index.md"))).toBe(true);
     expect(existsSync(join(vault, "projects", "forgey", "specs", "prds", "index.md"))).toBe(true);
     expect(existsSync(join(vault, "projects", "forgey", "specs", "slices", "index.md"))).toBe(true);
     expect(existsSync(join(vault, "projects", "forgey", "specs", "archive", "index.md"))).toBe(true);
     const indexContent = readFileSync(indexPath, "utf8");
+    expect(indexContent).toContain("[[projects/forgey/specs/features/index|Feature Index]]");
     expect(indexContent).toContain("[[projects/forgey/specs/prds/index|PRD Index]]");
     expect(indexContent).toContain("[[projects/forgey/specs/slices/index|Slice Index]]");
-    expect(indexContent.indexOf("[[projects/forgey/specs/prds/prd-workflow-uplift|workflow uplift]]")).toBeGreaterThan(-1);
-    expect(indexContent.indexOf("[[projects/forgey/specs/slices/FORGEY-001/index|FORGEY-001 workflow slice]]")).toBeGreaterThan(indexContent.indexOf("[[projects/forgey/specs/prds/prd-workflow-uplift|workflow uplift]]"));
+    expect(indexContent.indexOf("[[projects/forgey/specs/features/FEAT-001-workflow-hardening|FEAT-001 workflow hardening]]")).toBeGreaterThan(-1);
+    expect(indexContent.indexOf("[[projects/forgey/specs/prds/PRD-001-workflow-uplift|PRD-001 workflow uplift]]")).toBeGreaterThan(-1);
+    expect(indexContent.indexOf("[[projects/forgey/specs/slices/FORGEY-001/index|FORGEY-001 workflow slice]]")).toBeGreaterThan(indexContent.indexOf("[[projects/forgey/specs/prds/PRD-001-workflow-uplift|PRD-001 workflow uplift]]"));
     expect(indexContent).not.toContain("[[projects/forgey/specs/slices/FORGEY-001/plan|");
     expect(indexContent).not.toContain("[[projects/forgey/specs/slices/FORGEY-001/test-plan|");
     expect(readFileSync(prdPath, "utf8")).toContain("created_at:");
@@ -343,7 +350,7 @@ describe("wiki CLI smoke", () => {
     expect(readFileSync(planPath, "utf8")).toContain("[[projects/forgey/specs/index]]");
 
     expect(runWiki(["create-module", "forgey", "feature", "--source", "src/feature.ts"], env).exitCode).toBe(0);
-    expect(runWiki(["verify-page", "forgey", "specs/prds/prd-workflow-uplift.md", "specs/slices/FORGEY-001/plan.md", "code-verified"], env).exitCode).toBe(0);
+    expect(runWiki(["verify-page", "forgey", "specs/features/FEAT-001-workflow-hardening.md", "specs/prds/PRD-001-workflow-uplift.md", "specs/slices/FORGEY-001/plan.md", "code-verified"], env).exitCode).toBe(0);
     expect(runWiki(["verify-page", "forgey", "feature", "code-verified"], env).exitCode).toBe(0);
 
     const gate = runWiki(["gate", "forgey", "--repo", repo, "--base", "HEAD~1", "--json"], env);

@@ -23,8 +23,9 @@ Usage:
   wiki add-task <project> <title...> [--section <name>] [--priority <p>] [--tag <t>] [--json]
   wiki move-task <project> <task-id> --to <section>
   wiki complete-task <project> <task-id>
-  wiki create-issue-slice <project> <title...> [--section <name>] [--priority <p>] [--tag <t>] [--json]
-  wiki create-prd <project> <name...>
+  wiki create-issue-slice <project> <title...> [--section <name>] [--priority <p>] [--tag <t>] [--prd <PRD-ID>] [--json]
+  wiki create-feature <project> <name...>
+  wiki create-prd <project> --feature <FEAT-ID> <name...> [--supersedes <PRD-ID>] [--split-from <PRD-ID>]
   wiki create-plan <project> <name...>
   wiki create-test-plan <project> <name...>
   wiki create-module <project> <module> [--source <path...>]
@@ -80,7 +81,8 @@ Notes:
   - add-task appends a tracked task to backlog.md with a generated project task ID
   - move-task / complete-task update task state in backlog.md
   - create-issue-slice adds a backlog item and creates a task folder under projects/<project>/specs/slices/<TASK-ID>/ with index.md, plan.md, and test-plan.md
-  - create-prd scaffolds PRDs under projects/<project>/specs/prds/ while create-plan/create-test-plan scaffold project planning docs under projects/<project>/specs/
+  - create-feature allocates an immutable feature ID (FEAT-001) and scaffolds a canonical feature page under projects/<project>/specs/features/
+  - create-prd requires --feature, allocates an immutable project-scoped PRD ID (PRD-001), and scaffolds a canonical PRD under projects/<project>/specs/prds/
   - onboard writes the scaffold and can also write a project-specific onboarding plan when --repo is provided
   - onboard-plan renders the canonical onboarding slices and can write a project-specific plan file
   - dashboard emits a single JSON overview for apps and agents

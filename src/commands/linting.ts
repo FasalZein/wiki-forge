@@ -154,11 +154,12 @@ export async function collectSemanticLintResult(project: string) {
     if (bodyLength > 0 && bodyLength < 180 && !rel.endsWith("backlog.md") && !rel.endsWith("decisions.md") && !rel.endsWith("learnings.md")) issues.push(`${rel} thin page: very little maintained content`);
     if (parsed && (!Array.isArray(parsed.data.source_paths) || parsed.data.source_paths.length === 0) && rel.includes("/modules/")) issues.push(`${rel} module page has no source_paths`);
     if (rel.startsWith("specs/") || rel.includes("/specs/")) {
+      const kind = classifyProjectDocPath(rel);
       if (!body.includes("[[projects/")) issues.push(`${rel} spec page missing cross-links to project pages`);
-      if (rel.includes("prd-") && !body.includes("Acceptance Criteria")) issues.push(`${rel} PRD missing acceptance criteria section`);
-      if (rel.includes("prd-") && !body.includes("Prior Research")) issues.push(`${rel} PRD missing prior research section`);
-      if (rel.includes("prd-") && body.includes("Prior Research") && !body.includes("[[research/")) issues.push(`${rel} PRD has no research links in Prior Research section`);
-      if (rel.includes("test-plan-") && !body.includes("Red Tests")) issues.push(`${rel} test plan missing TDD structure`);
+      if (kind === "spec-prd" && !body.includes("Acceptance Criteria")) issues.push(`${rel} PRD missing acceptance criteria section`);
+      if (kind === "spec-prd" && !body.includes("Prior Research")) issues.push(`${rel} PRD missing prior research section`);
+      if (kind === "spec-prd" && body.includes("Prior Research") && !body.includes("[[research/")) issues.push(`${rel} PRD has no research links in Prior Research section`);
+      if ((kind === "spec-test-plan" || kind === "task-hub-test-plan") && !body.includes("Red Tests")) issues.push(`${rel} test plan missing TDD structure`);
     }
   }
   for (const file of pages) {

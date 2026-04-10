@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import type { CommandHandler } from "./types";
-import { printHelp, scaffoldProject, addTask, backlogCommand, moveTask, completeTask, createIssueSlice, createPrd, createPlan, createTestPlan, createModule, onboardProject, onboardPlan, normalizeModule, dashboardProject, maintainProject, refreshProject, refreshFromGit, discoverProject, ingestDiff, updateIndex, logCommand, statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch } from "./commands/system";
+import { printHelp, scaffoldProject, addTask, backlogCommand, moveTask, completeTask, createIssueSlice, createFeature, createPrd, createPlan, createTestPlan, createModule, onboardProject, onboardPlan, normalizeModule, dashboardProject, maintainProject, refreshProject, refreshFromGit, discoverProject, ingestDiff, updateIndex, logCommand, statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch } from "./commands/system";
 import { doctorProject, gateProject } from "./commands/diagnostics";
 import { askProject, fileAnswer, fileResearch } from "./commands/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "./commands/qmd-commands";
@@ -19,6 +19,7 @@ const commands: Record<string, CommandHandler> = {
   "move-task": (args) => moveTask(args),
   "complete-task": (args) => completeTask(args),
   "create-issue-slice": (args) => createIssueSlice(args),
+  "create-feature": (args) => createFeature(args),
   "create-prd": (args) => createPrd(args),
   "create-plan": (args) => createPlan(args),
   "create-test-plan": (args) => createTestPlan(args),

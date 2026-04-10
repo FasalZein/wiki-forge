@@ -14,9 +14,9 @@ Break a PRD into independently-grabbable vertical slices. Each slice gets a back
 
 ### 1. Locate the PRD
 
-The PRD should be in the wiki at `projects/<project>/specs/prds/prd-*.md`.
+The PRD should be in the wiki at `projects/<project>/specs/prds/PRD-*.md`.
 
-If the user points to a GitHub issue or external doc, read it first, then file it with `wiki create-prd <project> <name>` so it lives in the vault.
+If the user points to a GitHub issue or external doc, read it first, then file it with `wiki create-feature <project> <name>` followed by `wiki create-prd <project> --feature <FEAT-ID> <name>` so it lives in the vault.
 
 ### 2. Explore the codebase
 
@@ -59,7 +59,7 @@ Iterate until the user approves.
 For each approved slice, run:
 
 ```bash
-wiki create-issue-slice <project> <title> [--priority p0|p1|p2] [--tag <tag>]
+wiki create-issue-slice <project> <title> [--priority p0|p1|p2] [--tag <tag>] [--prd <PRD-ID>]
 ```
 
 This creates four things per slice:
@@ -89,7 +89,7 @@ After scaffolding, fill in each plan:
 
 Add wikilinks from the task hub and plans back to the PRD:
 ```markdown
-- [[projects/<project>/specs/prds/prd-<name>]]
+- [[projects/<project>/specs/prds/PRD-<nnn>-<slug>]]
 ```
 
 And update the PRD's Cross Links to reference the slice hub.

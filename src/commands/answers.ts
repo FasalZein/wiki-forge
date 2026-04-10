@@ -180,10 +180,12 @@ export function scoreAnswerSource(project: string, question: string, markdownPat
   if (normalized === `${projectPrefix}decisions.md`) adjusted += 1.1;
   if (normalized === `${projectPrefix}specs/index.md`) adjusted += 1;
   if (normalized === `${projectPrefix}backlog.md`) adjusted += 0.2;
+  if (normalized.startsWith(`${projectPrefix}specs/features/feat-`)) adjusted += 0.55;
   if (normalized.startsWith(`${projectPrefix}specs/prds/prd-`)) adjusted += 0.75;
   if (normalized.startsWith(`${projectPrefix}specs/slices/`) && /\/(index|plan|test-plan)\.md$/u.test(normalized)) adjusted += 0.45;
 
   const lowerQuestion = question.toLowerCase();
+  if (/\bfeatures?\b/u.test(lowerQuestion) && normalized.startsWith(`${projectPrefix}specs/features/feat-`)) adjusted += 0.6;
   if (/\bprds?\b/u.test(lowerQuestion)) {
     if (normalized === `${projectPrefix}specs/index.md`) adjusted += 0.8;
     if (normalized.startsWith(`${projectPrefix}specs/prds/prd-`)) adjusted += 0.7;

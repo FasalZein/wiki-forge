@@ -1,14 +1,24 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
-import { assertExists, mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, writeNormalizedPage } from "../cli-shared";
+import { assertExists, mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { readText, writeText } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
-import { projectTaskDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath, toVaultWikilinkPath } from "../lib/structure";
+import { isCanonicalPrdId, projectPrdsDir, projectTaskDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath, toVaultWikilinkPath } from "../lib/structure";
 import { writeProjectIndex } from "./index-log";
 
 type BacklogItem = { raw: string; id: string; title: string };
 type ParsedBacklog = { intro: string[]; sections: Record<string, BacklogItem[]>; extras: Record<string, string[]>; order: string[] };
+
+type TaskOptions = {
+  project: string;
+  title: string;
+  section: string;
+  priority?: string;
+  tags: string[];
+  parentPrd?: string;
+  json: boolean;
+};
 
 export async function backlogCommand(args: string[]) {
   const project = args[0];
@@ -39,6 +49,7 @@ export async function addTask(args: string[]) {
 
 export async function createIssueSlice(args: string[]) {
   const options = parseTaskArgs(args);
+  const prd = options.parentPrd ? await resolvePrdRecord(options.project, options.parentPrd) : null;
   const backlogPath = backlogPathFor(options.project);
   const current = (await readText(backlogPath)).replace(/\r\n/g, "\n");
   const taskId = nextTaskId(options.project, current);
@@ -59,6 +70,7 @@ export async function createIssueSlice(args: string[]) {
     "> [!summary]",
     `> Canonical hub for slice ${taskId}. Keep plan and test plan linked here so agents stay inside one bounded workspace.`,
     "",
+    ...(prd ? ["## Parent PRD", "", `- [[${prd.linkPath}|${prd.title}]]`, ""] : []),
     "## Documents",
     "",
     `- [[${toVaultWikilinkPath(planPath)}]]`,
@@ -66,6 +78,7 @@ export async function createIssueSlice(args: string[]) {
     "",
     "## Cross Links",
     "",
+    ...(prd ? [`- [[${prd.linkPath}|${prd.title}]]`] : []),
     "- [[projects/{{project}}/backlog]]",
     "- [[projects/{{project}}/specs/index]]",
     "",
@@ -75,10 +88,12 @@ export async function createIssueSlice(args: string[]) {
     spec_kind: "task-hub",
     project: options.project,
     task_id: taskId,
+    ...(prd?.prdId ? { parent_prd: prd.prdId } : {}),
+    ...(prd?.parentFeature ? { parent_feature: prd.parentFeature } : {}),
     created_at: nowIso(),
     updated: nowIso(),
     status: "draft",
-  }, ["title", "type", "spec_kind", "project", "task_id", "created_at", "updated", "status"]));
+  }, ["title", "type", "spec_kind", "project", "task_id", "parent_prd", "parent_feature", "created_at", "updated", "status"]));
 
   writeNormalizedPage(planPath, [
     `# ${title}`,
@@ -86,6 +101,7 @@ export async function createIssueSlice(args: string[]) {
     "> [!summary]",
     `> Canonical execution plan for slice ${taskId}. Keep the slice vertical and independently verifiable.`,
     "",
+    ...(prd ? ["## Parent PRD", "", `- [[${prd.linkPath}|${prd.title}]]`, ""] : []),
     "## Task",
     "",
     `- ID: ${taskId}`,
@@ -108,6 +124,7 @@ export async function createIssueSlice(args: string[]) {
     "",
     `- [[${toVaultWikilinkPath(indexPath)}]]`,
     `- [[${toVaultWikilinkPath(testPlanPath)}]]`,
+    ...(prd ? [`- [[${prd.linkPath}|${prd.title}]]`] : []),
     `- [[projects/${options.project}/backlog]]`,
     `- [[projects/${options.project}/specs/index]]`,
     "",
@@ -117,10 +134,12 @@ export async function createIssueSlice(args: string[]) {
     spec_kind: "plan",
     project: options.project,
     task_id: taskId,
+    ...(prd?.prdId ? { parent_prd: prd.prdId } : {}),
+    ...(prd?.parentFeature ? { parent_feature: prd.parentFeature } : {}),
     created_at: nowIso(),
     updated: nowIso(),
     status: "draft",
-  }, ["title", "type", "spec_kind", "project", "task_id", "created_at", "updated", "status"]));
+  }, ["title", "type", "spec_kind", "project", "task_id", "parent_prd", "parent_feature", "created_at", "updated", "status"]));
 
   writeNormalizedPage(testPlanPath, [
     `# ${title}`,
@@ -128,6 +147,7 @@ export async function createIssueSlice(args: string[]) {
     "> [!summary]",
     `> Red-green-refactor checklist for slice ${taskId}.`,
     "",
+    ...(prd ? ["## Parent PRD", "", `- [[${prd.linkPath}|${prd.title}]]`, ""] : []),
     "## Task",
     "",
     `- ID: ${taskId}`,
@@ -148,6 +168,7 @@ export async function createIssueSlice(args: string[]) {
     "",
     `- [[${toVaultWikilinkPath(indexPath)}]]`,
     `- [[${toVaultWikilinkPath(planPath)}]]`,
+    ...(prd ? [`- [[${prd.linkPath}|${prd.title}]]`] : []),
     `- [[projects/${options.project}/backlog]]`,
     `- [[projects/${options.project}/specs/index]]`,
     "",
@@ -157,10 +178,12 @@ export async function createIssueSlice(args: string[]) {
     spec_kind: "test-plan",
     project: options.project,
     task_id: taskId,
+    ...(prd?.prdId ? { parent_prd: prd.prdId } : {}),
+    ...(prd?.parentFeature ? { parent_feature: prd.parentFeature } : {}),
     created_at: nowIso(),
     updated: nowIso(),
     status: "draft",
-  }, ["title", "type", "spec_kind", "project", "task_id", "created_at", "updated", "status"]));
+  }, ["title", "type", "spec_kind", "project", "task_id", "parent_prd", "parent_feature", "created_at", "updated", "status"]));
 
   await writeProjectIndex(options.project);
   appendLogEntry("create-issue-slice", options.title, { project: options.project, details: [`task=${taskId}`, `hub=${relative(VAULT_ROOT, indexPath)}`, `plan=${relative(VAULT_ROOT, planPath)}`, `test=${relative(VAULT_ROOT, testPlanPath)}`] });
@@ -216,11 +239,12 @@ function backlogPathFor(project: string) {
   return backlogPath;
 }
 
-function parseTaskArgs(args: string[]) {
+function parseTaskArgs(args: string[]): TaskOptions {
   const project = args[0];
   requireValue(project, "project");
   let section = "Todo";
   let priority: string | undefined;
+  let parentPrd: string | undefined;
   const tags: string[] = [];
   const titleParts: string[] = [];
   for (let index = 1; index < args.length; index += 1) {
@@ -228,12 +252,13 @@ function parseTaskArgs(args: string[]) {
     if (arg === "--section") { section = args[index + 1] || section; index += 1; continue; }
     if (arg === "--priority") { priority = args[index + 1] || undefined; index += 1; continue; }
     if (arg === "--tag") { const tag = args[index + 1]; if (tag) tags.push(tag.replace(/^#/, "")); index += 1; continue; }
+    if (arg === "--prd") { parentPrd = args[index + 1] || undefined; index += 1; continue; }
     if (arg === "--json") continue;
     titleParts.push(arg);
   }
   const title = titleParts.join(" ").trim();
   requireValue(title || undefined, "title");
-  return { project, title, section, priority, tags, json: args.includes("--json") };
+  return { project, title, section, priority, tags, parentPrd, json: args.includes("--json") };
 }
 
 function renderTaskLine(taskId: string, title: string, priority?: string, tags: string[] = []) {
@@ -308,4 +333,17 @@ function removeTask(parsed: ParsedBacklog, taskId: string) {
     if (index >= 0) return items.splice(index, 1)[0];
   }
   return null;
+}
+
+async function resolvePrdRecord(project: string, prdId: string) {
+  if (!isCanonicalPrdId(prdId)) throw new Error(`invalid PRD id: ${prdId}`);
+  const dir = projectPrdsDir(project);
+  assertExists(dir, `PRD not found: ${prdId}`);
+  const fileName = readdirSync(dir).find((entry) => entry.startsWith(`${prdId}-`) && entry.endsWith(".md"));
+  if (!fileName) throw new Error(`PRD not found: ${prdId}`);
+  const file = join(dir, fileName);
+  const parsed = safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true });
+  const title = typeof parsed?.data.title === "string" && parsed.data.title.trim() ? parsed.data.title.trim() : prdId;
+  const parentFeature = typeof parsed?.data.parent_feature === "string" ? parsed.data.parent_feature : undefined;
+  return { prdId, title, parentFeature, linkPath: toVaultWikilinkPath(file) };
 }

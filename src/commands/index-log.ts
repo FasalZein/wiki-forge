@@ -87,6 +87,7 @@ async function buildProjectIndexTargets(project: string): Promise<IndexTarget[]>
   const pageRows = await collectProjectPageRows(project);
   return [
     buildProjectOverviewIndexTarget(project, pageRows),
+    await buildSpecFamilyIndexTarget(project, pageRows, "features"),
     await buildSpecFamilyIndexTarget(project, pageRows, "prds"),
     await buildSpecFamilyIndexTarget(project, pageRows, "slices"),
     await buildSpecFamilyIndexTarget(project, pageRows, "archive"),
@@ -116,6 +117,7 @@ function buildProjectOverviewIndexTarget(project: string, pageRows: ProjectPageR
     sections.set(section, lines);
   }
 
+  const featuresView = relative(VAULT_ROOT, projectSpecViewIndexPath(project, "features")).replace(/\.md$/u, "").replaceAll("\\", "/");
   const prdsView = relative(VAULT_ROOT, projectSpecViewIndexPath(project, "prds")).replace(/\.md$/u, "").replaceAll("\\", "/");
   const slicesView = relative(VAULT_ROOT, projectSpecViewIndexPath(project, "slices")).replace(/\.md$/u, "").replaceAll("\\", "/");
   const archiveView = relative(VAULT_ROOT, projectSpecViewIndexPath(project, "archive")).replace(/\.md$/u, "").replaceAll("\\", "/");
@@ -124,10 +126,12 @@ function buildProjectOverviewIndexTarget(project: string, pageRows: ProjectPageR
   for (const [section, lines] of [...sections.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     out.push(`## ${section}`, "");
     if (section === "specs") {
+      const features = lines.filter((entry) => specIndexGroup(entry.rel, entry.data) === "features").sort((a, b) => a.sortKey.localeCompare(b.sortKey));
       const prds = lines.filter((entry) => specIndexGroup(entry.rel, entry.data) === "prds").sort((a, b) => a.sortKey.localeCompare(b.sortKey));
       const taskHubs = lines.filter((entry) => specIndexGroup(entry.rel, entry.data) === "task-hubs").sort((a, b) => a.sortKey.localeCompare(b.sortKey));
       const plans = lines.filter((entry) => specIndexGroup(entry.rel, entry.data) === "plans").sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-      out.push("### Views", "", `- [[${prdsView}|PRD Index]]`, `- [[${slicesView}|Slice Index]]`, `- [[${archiveView}|Archive Index]]`, "");
+      out.push("### Views", "", `- [[${featuresView}|Feature Index]]`, `- [[${prdsView}|PRD Index]]`, `- [[${slicesView}|Slice Index]]`, `- [[${archiveView}|Archive Index]]`, "");
+      if (features.length) out.push("### Features", "", ...features.map((entry) => entry.line), "");
       if (prds.length) out.push("### PRDs", "", ...prds.map((entry) => entry.line), "");
       if (taskHubs.length) out.push("### Task Hubs", "", ...taskHubs.map((entry) => entry.line), "");
       if (plans.length) out.push("### Planning Docs", "", ...plans.map((entry) => entry.line), "");
@@ -138,26 +142,58 @@ function buildProjectOverviewIndexTarget(project: string, pageRows: ProjectPageR
   return { path: relative(VAULT_ROOT, projectSpecsIndexPath(project)).replaceAll("\\", "/"), content: `${out.join("\n")}\n` };
 }
 
-async function buildSpecFamilyIndexTarget(project: string, pageRows: ProjectPageRow[], family: "prds" | "slices" | "archive"): Promise<IndexTarget> {
+async function buildSpecFamilyIndexTarget(project: string, pageRows: ProjectPageRow[], family: "features" | "prds" | "slices" | "archive"): Promise<IndexTarget> {
   const familyPath = relative(VAULT_ROOT, projectSpecViewIndexPath(project, family)).replaceAll("\\", "/");
   const specsIndex = relative(VAULT_ROOT, projectSpecsIndexPath(project)).replace(/\.md$/u, "").replaceAll("\\", "/");
 
-  if (family === "prds") {
-    const prds = pageRows
-      .filter((row) => specIndexGroup(row.rel, row.parsed?.data as Record<string, unknown> | undefined) === "prds")
+  if (family === "features") {
+    const features = pageRows
+      .filter((row) => specIndexGroup(row.rel, row.parsed?.data as Record<string, unknown> | undefined) === "features")
       .sort((a, b) => buildSectionSortKey("specs", a.rel, a.parsed?.data).localeCompare(buildSectionSortKey("specs", b.rel, b.parsed?.data)))
       .map((row) => `- [[${relative(VAULT_ROOT, row.file).replace(/\.md$/u, "").replaceAll("\\", "/")}|${row.title}]]`);
+    const out = [
+      `# ${project} Features`,
+      "",
+      `- [[projects/${project}/_summary|${project} summary]]`,
+      `- [[${specsIndex}|spec index]]`,
+      "",
+      "## Product Features",
+      "",
+      ...(features.length ? features : ["- none"]),
+      "",
+    ];
+    return { path: familyPath, content: `${out.join("\n")}\n` };
+  }
+
+  if (family === "prds") {
+    const featureTitles = new Map<string, string>();
+    for (const row of pageRows) {
+      const featureId = typeof row.parsed?.data.feature_id === "string" ? row.parsed.data.feature_id : undefined;
+      if (featureId && specIndexGroup(row.rel, row.parsed?.data as Record<string, unknown> | undefined) === "features") featureTitles.set(featureId, row.title);
+    }
+    const prds = pageRows
+      .filter((row) => specIndexGroup(row.rel, row.parsed?.data as Record<string, unknown> | undefined) === "prds")
+      .sort((a, b) => buildSectionSortKey("specs", a.rel, a.parsed?.data).localeCompare(buildSectionSortKey("specs", b.rel, b.parsed?.data)));
+    const grouped = new Map<string, string[]>();
+    for (const row of prds) {
+      const parentFeature = typeof row.parsed?.data.parent_feature === "string" ? row.parsed.data.parent_feature : "unscoped";
+      const lines = grouped.get(parentFeature) ?? [];
+      lines.push(`- [[${relative(VAULT_ROOT, row.file).replace(/\.md$/u, "").replaceAll("\\", "/")}|${row.title}]]`);
+      grouped.set(parentFeature, lines);
+    }
     const out = [
       `# ${project} PRDs`,
       "",
       `- [[projects/${project}/_summary|${project} summary]]`,
       `- [[${specsIndex}|spec index]]`,
       "",
-      "## Project Requirement Docs",
-      "",
-      ...(prds.length ? prds : ["- none"]),
-      "",
     ];
+    if (!grouped.size) out.push("## Project Requirement Docs", "", "- none", "");
+    else {
+      for (const featureId of [...grouped.keys()].sort()) {
+        out.push(`## ${featureTitles.get(featureId) ?? featureId}`, "", ...(grouped.get(featureId) ?? ["- none"]), "");
+      }
+    }
     return { path: familyPath, content: `${out.join("\n")}\n` };
   }
 
@@ -233,24 +269,31 @@ function readTitleFromParsed(parsed: ReturnType<typeof safeMatter> | null | unde
 
 function buildSectionSortKey(section: string, rel: string, data: Record<string, unknown> | undefined) {
   if (section !== "specs") return rel;
-  const kindOrder = { prd: "0", "task-hub": "1", plan: "2", "test-plan": "3" } as const;
+  const kindOrder = { feature: "0", prd: "1", "task-hub": "2", plan: "3", "test-plan": "4" } as const;
   const kind = typeof data?.spec_kind === "string" ? data.spec_kind : rel.endsWith("/index.md") ? "task-hub" : "zzz";
-  const taskId = typeof data?.task_id === "string" ? data.task_id : "";
-  const taskMatch = taskId.match(/(\d{3,})$/);
-  const taskNumber = taskMatch ? taskMatch[1].padStart(6, "0") : "000000";
+  const ordinalSource = typeof data?.feature_id === "string"
+    ? data.feature_id
+    : typeof data?.prd_id === "string"
+      ? data.prd_id
+      : typeof data?.task_id === "string"
+        ? data.task_id
+        : "";
+  const ordinalMatch = ordinalSource.match(/(\d{3,})$/);
+  const ordinal = ordinalMatch ? ordinalMatch[1].padStart(6, "0") : "999999";
   const created = createdAt((data ?? {}) as Record<string, unknown>);
-  return `${created}:${kindOrder[kind as keyof typeof kindOrder] ?? "9"}:${taskNumber}:${rel}`;
+  return `${kindOrder[kind as keyof typeof kindOrder] ?? "9"}:${ordinal}:${created}:${rel}`;
 }
 
 function shouldSkipProjectIndexSpecEntry(rel: string) {
   const kind = classifyProjectDocPath(rel);
-  if (kind === "spec-index" || kind === "spec-prds-index" || kind === "spec-slices-index" || kind === "spec-archive-index") return true;
+  if (kind === "spec-index" || kind === "spec-features-index" || kind === "spec-prds-index" || kind === "spec-slices-index" || kind === "spec-archive-index") return true;
   if (kind === "task-hub-plan" || kind === "task-hub-test-plan") return true;
   return false;
 }
 
 function specIndexGroup(rel: string, data: Record<string, unknown> | undefined) {
   const kind = typeof data?.spec_kind === "string" ? data.spec_kind : classifyProjectDocPath(rel);
+  if (kind === "feature" || kind === "spec-feature") return "features";
   if (kind === "prd" || kind === "spec-prd") return "prds";
   if (kind === "plan" || kind === "test-plan" || kind === "spec-plan" || kind === "spec-test-plan") return "plans";
   return "task-hubs";
@@ -283,16 +326,18 @@ async function writeIndexTarget(absolutePath: string, content: string) {
 }
 
 function generatedIndexFrontmatter(relPath: string) {
-  const match = relPath.match(/^projects\/([^/]+)\/specs(?:\/(prds|slices|archive))?\/index\.md$/u);
+  const match = relPath.match(/^projects\/([^/]+)\/specs(?:\/(features|prds|slices|archive))?\/index\.md$/u);
   if (!match) return null;
   const [, project, family] = match;
-  const title = family === "prds"
-    ? `${project} PRDs`
-    : family === "slices"
-      ? `${project} Slices`
-      : family === "archive"
-        ? `${project} Archive`
-        : `${project} Index`;
+  const title = family === "features"
+    ? `${project} Features`
+    : family === "prds"
+      ? `${project} PRDs`
+      : family === "slices"
+        ? `${project} Slices`
+        : family === "archive"
+          ? `${project} Archive`
+          : `${project} Index`;
   return orderFrontmatter({
     title,
     type: "index",
