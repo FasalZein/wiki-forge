@@ -4,7 +4,8 @@ import { assertExists, nowIso, projectRoot, requireValue, safeMatter, today, wri
 import { readText } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
 import { batchGitLastModified, parseUpdatedDate, readVerificationLevel, resolveRepoPath, assertGitRepo, sourcePathStatus } from "../lib/verification";
-import { walkMarkdown } from "../lib/vault";
+import { loadLintingSnapshot } from "./linting";
+import type { LintingSnapshot } from "./linting";
 
 type DriftRow = {
   wikiPage: string; absolutePath: string; updated: string; sourcePaths: string[]; currentLevel: VerificationLevel | null;
@@ -32,30 +33,24 @@ export async function driftCheck(args: string[]) {
   appendLogEntry("drift-fix", summary.project, { project: summary.project, details: [`fixed=${fixed}`, `stale=${summary.stale}`, `deleted=${summary.deleted}`] });
 }
 
-export async function collectDriftSummary(project: string, explicitRepo?: string): Promise<DriftSummary> {
+export async function collectDriftSummary(project: string, explicitRepo?: string, snapshot?: LintingSnapshot): Promise<DriftSummary> {
   requireValue(project, "project");
   const root = projectRoot(project);
   assertExists(root, `project not found: ${project}`);
   const repoPath = resolveRepoPath(project, explicitRepo);
   assertGitRepo(repoPath);
+  const state = snapshot ?? await loadLintingSnapshot(project);
   let boundCount = 0, freshCount = 0, staleCount = 0, unknownCount = 0, deletedCount = 0, renamedCount = 0;
   const results: DriftRow[] = [];
-  const allFiles = walkMarkdown(root);
   const unboundPages: string[] = [];
   const entries: Array<{ file: string; relPath: string; sourcePaths: string[]; wikiUpdated: Date | null; currentLevel: VerificationLevel | null; rawUpdated: unknown }> = [];
   const allSourcePaths = new Set<string>();
-  const pageMetadata = await Promise.all(allFiles.map(async (file) => ({
-    file,
-    relPath: relative(root, file),
-    parsed: safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true }),
-  })));
-  for (const { file, relPath, parsed } of pageMetadata) {
-    if (!parsed) continue;
-    const sourcePaths = Array.isArray(parsed.data.source_paths) ? parsed.data.source_paths.map((value) => String(value).replaceAll("\\", "/")) : [];
-    if (!sourcePaths.length) { unboundPages.push(relPath); continue; }
+  for (const entry of state.pageEntries) {
+    if (!entry.parsed) continue;
+    if (!entry.sourcePaths.length) { unboundPages.push(entry.relPath); continue; }
     boundCount += 1;
-    for (const sourcePath of sourcePaths) allSourcePaths.add(sourcePath);
-    entries.push({ file, relPath, sourcePaths, wikiUpdated: parseUpdatedDate(parsed.data.updated), currentLevel: readVerificationLevel(parsed.data), rawUpdated: parsed.data.updated });
+    for (const sourcePath of entry.sourcePaths) allSourcePaths.add(sourcePath);
+    entries.push({ file: entry.file, relPath: entry.relPath, sourcePaths: entry.sourcePaths, wikiUpdated: parseUpdatedDate(entry.rawUpdated), currentLevel: entry.verificationLevel, rawUpdated: entry.rawUpdated });
   }
   const gitDates = batchGitLastModified(repoPath, [...allSourcePaths]);
   const sourceStatusCache = new Map<string, ReturnType<typeof sourcePathStatus>>();
@@ -82,7 +77,7 @@ export async function collectDriftSummary(project: string, explicitRepo?: string
     if (status === "stale") staleCount += 1; else if (status === "fresh") freshCount += 1; else if (status === "deleted") deletedCount += 1; else if (status === "renamed") renamedCount += 1; else unknownCount += 1;
     results.push({ wikiPage: entry.relPath, absolutePath: entry.file, updated: entry.wikiUpdated.toISOString().slice(0, 10), sourcePaths: entry.sourcePaths, currentLevel: entry.currentLevel, status, driftedSources, renamedSources, deletedSources, errors });
   }
-  return { project, repo: repoPath, totalWikiPages: allFiles.length, pagesWithSourcePaths: boundCount, unboundPages: unboundPages.sort(), fresh: freshCount, stale: staleCount, unknown: unknownCount, deleted: deletedCount, renamed: renamedCount, results };
+  return { project, repo: repoPath, totalWikiPages: state.pages.length, pagesWithSourcePaths: boundCount, unboundPages: unboundPages.sort(), fresh: freshCount, stale: staleCount, unknown: unknownCount, deleted: deletedCount, renamed: renamedCount, results };
 }
 
 function renderDriftSummary(summary: DriftSummary, showUnbound: boolean) {

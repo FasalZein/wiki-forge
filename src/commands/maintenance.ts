@@ -59,8 +59,9 @@ export async function refreshProject(args: string[]) {
   const repoIndex = args.indexOf("--repo");
   const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
   const json = args.includes("--json");
-  const drift = await collectDriftSummary(project, repo);
-  const lint = await collectLintResult(project);
+  const lintingSnapshot = await loadLintingSnapshot(project, { noteIndex: true });
+  const drift = await collectDriftSummary(project, repo, lintingSnapshot);
+  const lint = await collectLintResult(project, lintingSnapshot);
   appendLogEntry("refresh", project, { project, details: [`stale=${drift.stale}`, `deleted=${drift.deleted}`, `unknown=${drift.unknown}`, `unbound=${drift.unboundPages.length}`, `lint_issues=${lint.issues.length}`] });
   const result = { project, repo: drift.repo, drift: { fresh: drift.fresh, stale: drift.stale, deleted: drift.deleted, unknown: drift.unknown, unbound: drift.unboundPages.length }, lint: { ok: lint.issues.length === 0, issues: lint.issues } };
   if (json) console.log(JSON.stringify(result, null, 2));
@@ -269,7 +270,7 @@ async function collectDashboard(project: string, base: string, explicitRepo?: st
   const projectSnapshot = await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
   const lintingSnapshot = await loadLintingSnapshot(project, { noteIndex: true });
   const maintain = await collectMaintenancePlan(project, base, explicitRepo, projectSnapshot, lintingSnapshot);
-  return { project, repo: maintain.repo, base, status: await collectStatusRow(project, lintingSnapshot), verify: await collectVerifySummary(project, lintingSnapshot), drift: await collectDriftSummary(project, explicitRepo), discover: maintain.discover, maintain, recentLog: tailLog(20) };
+  return { project, repo: maintain.repo, base, status: await collectStatusRow(project, lintingSnapshot), verify: await collectVerifySummary(project, lintingSnapshot), drift: await collectDriftSummary(project, explicitRepo, lintingSnapshot), discover: maintain.discover, maintain, recentLog: tailLog(20) };
 }
 
 async function collectDiscoverSummary(project: string, explicitRepo?: string, snapshot?: ProjectSnapshot) {

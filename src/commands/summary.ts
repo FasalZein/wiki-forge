@@ -2,7 +2,7 @@ import { relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { projectRoot, requireValue, safeMatter } from "../cli-shared";
 import { readText } from "../lib/fs";
-import { collectStatusRow, collectVerifySummary } from "./linting";
+import { collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "./linting";
 import { collectDriftSummary } from "./verification";
 import { collectBacklog } from "./backlog";
 import { resolveDefaultBase } from "./maintenance";
@@ -52,10 +52,11 @@ async function collectSummary(project: string, explicitRepo?: string) {
       repoPath = parsed.data.repo ? String(parsed.data.repo) : undefined;
     }
   } catch {}
-  const status = await collectStatusRow(project);
-  const verify = await collectVerifySummary(project);
+  const lintingSnapshot = await loadLintingSnapshot(project);
+  const status = await collectStatusRow(project, lintingSnapshot);
+  const verify = await collectVerifySummary(project, lintingSnapshot);
   let drift = { fresh: 0, stale: 0, unknown: 0, deleted: 0, renamed: 0 };
-  try { const d = await collectDriftSummary(project, explicitRepo); drift = { fresh: d.fresh, stale: d.stale, unknown: d.unknown, deleted: d.deleted, renamed: d.renamed }; } catch {}
+  try { const d = await collectDriftSummary(project, explicitRepo, lintingSnapshot); drift = { fresh: d.fresh, stale: d.stale, unknown: d.unknown, deleted: d.deleted, renamed: d.renamed }; } catch {}
   const backlog = await collectBacklog(project);
   const activeWork = backlog.sections["In Progress"] ?? [];
   const topTodo = (backlog.sections["Todo"] ?? []).slice(0, 5);

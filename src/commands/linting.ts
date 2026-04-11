@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { MODULE_REQUIRED_HEADINGS, PROJECT_DIRS, PROJECT_FILES, VAULT_ROOT } from "../constants";
+import { MODULE_REQUIRED_HEADINGS, PROJECT_DIRS, PROJECT_FILES, VAULT_ROOT, type VerificationLevel } from "../constants";
 import { assertExists, projectRoot, requireValue, safeMatter } from "../cli-shared";
 import { buildNoteIndex } from "../lib/notes";
 import { classifyProjectDocPath, describeAllowedProjectDocPaths } from "../lib/structure";
@@ -20,7 +20,9 @@ export type LintingSnapshot = {
     vaultPath: string;
     raw: string;
     parsed: ReturnType<typeof safeMatter>;
-    verificationLevel: string | null;
+    sourcePaths: string[];
+    rawUpdated: unknown;
+    verificationLevel: VerificationLevel | null;
   }>;
 };
 
@@ -99,6 +101,8 @@ export async function loadLintingSnapshot(project: string, options: { noteIndex?
       vaultPath: relative(VAULT_ROOT, file).replace(/\.md$/u, "").replaceAll("\\", "/"),
       raw,
       parsed,
+      sourcePaths: parsed && Array.isArray(parsed.data.source_paths) ? parsed.data.source_paths.map((value: unknown) => String(value).replaceAll("\\", "/")) : [],
+      rawUpdated: parsed?.data.updated,
       verificationLevel: parsed ? readVerificationLevel(parsed.data) : null,
     };
   }));
@@ -113,7 +117,7 @@ export async function collectStatusRow(project: string, snapshot?: LintingSnapsh
   let stale = 0;
   for (const entry of state.pageEntries) {
     if (!entry.parsed) continue;
-    if (Array.isArray(entry.parsed.data.source_paths) && entry.parsed.data.source_paths.length > 0) bound += 1;
+    if (entry.sourcePaths.length > 0) bound += 1;
     if (entry.verificationLevel === "stale") stale += 1;
   }
   return { project, modules, pages: state.pages.length, bound, unbound: state.pages.length - bound, stale, root: relative(VAULT_ROOT, state.root) };
@@ -126,7 +130,7 @@ export async function collectVerifySummary(project: string, snapshot?: LintingSn
     if (!entry.parsed) continue;
     if (entry.file.endsWith("/spec.md")) summary.moduleSpecs += 1;
     const level = entry.verificationLevel;
-    if (!Array.isArray(entry.parsed.data.source_paths) || entry.parsed.data.source_paths.length === 0) summary.unboundPages.push(entry.relPath);
+    if (entry.sourcePaths.length === 0) summary.unboundPages.push(entry.relPath);
     if (!level) summary.untracked += 1;
     else {
       summary.byLevel[level] = (summary.byLevel[level] ?? 0) + 1;

@@ -144,11 +144,17 @@ describe("wiki CLI smoke", () => {
 
     const drift = runWiki(["drift-check", "demo", "--repo", repo, "--json"], env);
     expect(drift.exitCode).toBe(0);
-    expect(JSON.parse(drift.stdout.toString()).project).toBe("demo");
+    const driftJson = JSON.parse(drift.stdout.toString());
+    expect(driftJson.project).toBe("demo");
+    expect(driftJson.totalWikiPages).toBe(dashboardJson.status.pages);
+    expect(driftJson.unboundPages.length).toBe(dashboardJson.status.unbound);
 
     const summary = runWiki(["summary", "demo", "--repo", repo, "--json"], env);
     expect(summary.exitCode).toBe(0);
-    expect(JSON.parse(summary.stdout.toString()).project).toBe("demo");
+    const summaryJson = JSON.parse(summary.stdout.toString());
+    expect(summaryJson.project).toBe("demo");
+    expect(summaryJson.status.pages).toBe(summaryJson.verify.pages);
+    expect(summaryJson.status.unbound).toBe(driftJson.unboundPages.length);
 
     const doctor = runWiki(["doctor", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
     expect(doctor.exitCode).toBe(0);

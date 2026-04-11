@@ -64,7 +64,7 @@ export async function collectDoctor(project: string, base: string, explicitRepo?
   const lintingSnapshot = await loadLintingSnapshot(project, { noteIndex: true });
   const status = await collectStatusRow(project, lintingSnapshot);
   const verify = await collectVerifySummary(project, lintingSnapshot);
-  const drift = await collectDriftSummary(project, explicitRepo);
+  const drift = await collectDriftSummary(project, explicitRepo, lintingSnapshot);
   const lint = await collectLintResult(project, lintingSnapshot);
   const semantic = await collectSemanticLintResult(project, lintingSnapshot);
   const backlog = await collectBacklog(project);
