@@ -187,7 +187,7 @@ export async function ingestDiff(args: string[]) {
   }
 }
 
-type ProjectSnapshot = {
+export type ProjectSnapshot = {
   project: string;
   root: string;
   repo: string;
@@ -204,7 +204,7 @@ type ProjectSnapshot = {
   }>;
 };
 
-async function loadProjectSnapshot(project: string, explicitRepo?: string, options: { includeRepoInventory?: boolean } = {}): Promise<ProjectSnapshot> {
+export async function loadProjectSnapshot(project: string, explicitRepo?: string, options: { includeRepoInventory?: boolean } = {}): Promise<ProjectSnapshot> {
   const root = projectRoot(project);
   assertExists(root, `project not found: ${project}`);
   const repo = resolveRepoPath(project, explicitRepo);

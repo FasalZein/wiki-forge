@@ -176,6 +176,7 @@ describe("wiki CLI smoke", () => {
     expect(maintainJson.refreshFromGit.testHealth.codeFilesWithoutChangedTests).toContain("src/auth.ts");
     expect(maintainJson.actions.some((action: { kind: string; message: string }) => action.kind === "active-task")).toBe(true);
     expect(maintainJson.actions.some((action: { kind: string; message: string }) => action.kind === "add-tests")).toBe(true);
+    expect(doctorJson.maintain.discover.uncoveredFiles).toEqual(maintainJson.discover.uncoveredFiles);
 
     const maintainText = runWiki(["maintain", "demo", "--repo", repo, "--base", "HEAD~1"], env);
     expect(maintainText.exitCode).toBe(0);
@@ -200,6 +201,7 @@ describe("wiki CLI smoke", () => {
     expect(Array.isArray(gateJson.warnings)).toBe(true);
     expect(typeof gateJson.counts.semantic).toBe("number");
     expect(gateJson.doctor.status.pages).toBe(gateJson.doctor.verify.pages);
+    expect(gateJson.doctor.maintain.discover.uncoveredFiles).toEqual(maintainJson.discover.uncoveredFiles);
 
     const semantic = runWiki(["lint-semantic", "demo", "--json"], env);
     expect(semantic.exitCode).toBe(1);

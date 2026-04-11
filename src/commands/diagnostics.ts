@@ -1,7 +1,7 @@
 import { requireValue } from "../cli-shared";
 import { collectBacklog, collectBacklogFocus } from "./backlog";
 import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "./linting";
-import { collectMaintenancePlan, resolveDefaultBase } from "./maintenance";
+import { collectMaintenancePlan, loadProjectSnapshot, resolveDefaultBase } from "./maintenance";
 import { collectDriftSummary } from "./verification";
 
 export async function doctorProject(args: string[]) {
@@ -68,6 +68,7 @@ export async function gateProject(args: string[]) {
 
 export async function collectDoctor(project: string, base: string, explicitRepo?: string) {
   const lintingSnapshot = await loadLintingSnapshot(project, { noteIndex: true });
+  const projectSnapshot = await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
   const status = await collectStatusRow(project, lintingSnapshot);
   const verify = await collectVerifySummary(project, lintingSnapshot);
   const drift = await collectDriftSummary(project, explicitRepo, lintingSnapshot);
@@ -75,7 +76,7 @@ export async function collectDoctor(project: string, base: string, explicitRepo?
   const semantic = await collectSemanticLintResult(project, lintingSnapshot);
   const backlog = await collectBacklog(project);
   const focus = await collectBacklogFocus(project);
-  const maintain = await collectMaintenancePlan(project, base, explicitRepo);
+  const maintain = await collectMaintenancePlan(project, base, explicitRepo, projectSnapshot, lintingSnapshot);
 
   // Coverage ratio: what fraction of repo files are bound to wiki pages?
   const totalRepoFiles = maintain.discover.repoFiles || 1;
