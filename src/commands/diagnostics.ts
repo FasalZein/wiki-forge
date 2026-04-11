@@ -1,5 +1,5 @@
 import { requireValue } from "../cli-shared";
-import { collectBacklog, collectBacklogFocus } from "./backlog";
+import { collectBacklog } from "./backlog";
 import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "./linting";
 import { collectMaintenancePlan, loadProjectSnapshot, resolveDefaultBase } from "./maintenance";
 import { collectDriftSummary } from "./verification";
@@ -75,8 +75,8 @@ export async function collectDoctor(project: string, base: string, explicitRepo?
   const lint = await collectLintResult(project, lintingSnapshot);
   const semantic = await collectSemanticLintResult(project, lintingSnapshot);
   const backlog = await collectBacklog(project);
-  const focus = await collectBacklogFocus(project);
   const maintain = await collectMaintenancePlan(project, base, explicitRepo, projectSnapshot, lintingSnapshot);
+  const focus = maintain.focus;
 
   // Coverage ratio: what fraction of repo files are bound to wiki pages?
   const totalRepoFiles = maintain.discover.repoFiles || 1;

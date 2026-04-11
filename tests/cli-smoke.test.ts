@@ -164,6 +164,7 @@ describe("wiki CLI smoke", () => {
     expect(Array.isArray(doctorJson.topActions)).toBe(true);
     expect(doctorJson.counts.missingTests).toBe(1);
     expect(doctorJson.focus.activeTask.id).toBe("DEMO-001");
+    expect(doctorJson.focus.activeTask.id).toBe(doctorJson.maintain.focus.activeTask.id);
     expect(doctorJson.status.pages).toBe(doctorJson.verify.pages);
     expect(doctorJson.status.bound + doctorJson.status.unbound).toBe(doctorJson.status.pages);
 
