@@ -191,15 +191,19 @@ export type ProjectSnapshot = {
   project: string;
   root: string;
   repo: string;
+  pages: string[];
   repoFiles?: string[];
   repoDocFiles?: string[];
   pageEntries: Array<{
     file: string;
     page: string;
+    relPath: string;
+    vaultPath: string;
     raw: string;
     parsed: ReturnType<typeof safeMatter>;
     sourcePaths: string[];
-    verificationLevel: string | null;
+    rawUpdated: unknown;
+    verificationLevel: ReturnType<typeof readVerificationLevel>;
     todoCount: number;
   }>;
 };
@@ -212,23 +216,29 @@ export async function loadProjectSnapshot(project: string, explicitRepo?: string
   const pages = walkMarkdown(root);
   const pageEntries = await Promise.all(pages.map(async (file) => {
     const raw = await readText(file);
+    const relPath = relative(root, file).replaceAll("\\", "/");
+    const vaultPath = relative(VAULT_ROOT, file).replace(/\.md$/u, "").replaceAll("\\", "/");
     const parsed = safeMatter(relative(VAULT_ROOT, file), raw, { silent: true });
     const sourcePaths = parsed && Array.isArray(parsed.data.source_paths) ? parsed.data.source_paths.map((value: unknown) => String(value).replaceAll("\\", "/")) : [];
     return {
       file,
-      page: relative(root, file),
+      page: relPath,
+      relPath,
+      vaultPath,
       raw,
       parsed,
       sourcePaths,
+      rawUpdated: parsed?.data.updated,
       verificationLevel: parsed ? readVerificationLevel(parsed.data) : null,
       todoCount: (raw.match(/\bTODO\b/g) ?? []).length,
     };
   }));
-  if (!options.includeRepoInventory) return { project, root, repo, pageEntries };
+  if (!options.includeRepoInventory) return { project, root, repo, pages, pageEntries };
   return {
     project,
     root,
     repo,
+    pages,
     repoFiles: listCodeFiles(repo, await readCodePaths(project)),
     repoDocFiles: await listRepoMarkdownDocs(repo),
     pageEntries,
@@ -252,9 +262,28 @@ export async function collectRefreshFromGit(project: string, base: string, expli
   return { project, repo: state.repo, base, changedFiles, impactedPages, uncoveredFiles: changedFiles.filter((file) => isCodeFile(file) && !covered.has(file)), testHealth };
 }
 
+function projectSnapshotToLintingSnapshot(snapshot: ProjectSnapshot, noteIndex?: LintingSnapshot["noteIndex"]): LintingSnapshot {
+  return {
+    project: snapshot.project,
+    root: snapshot.root,
+    pages: snapshot.pages,
+    noteIndex,
+    pageEntries: snapshot.pageEntries.map((entry) => ({
+      file: entry.file,
+      relPath: entry.relPath,
+      vaultPath: entry.vaultPath,
+      raw: entry.raw,
+      parsed: entry.parsed,
+      sourcePaths: entry.sourcePaths,
+      rawUpdated: entry.rawUpdated,
+      verificationLevel: entry.verificationLevel,
+    })),
+  };
+}
+
 export async function collectMaintenancePlan(project: string, base: string, explicitRepo?: string, snapshot?: ProjectSnapshot, lintingSnapshot?: LintingSnapshot) {
   const projectSnapshot = snapshot ?? await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
-  const lintingState = lintingSnapshot ?? await loadLintingSnapshot(project, { noteIndex: true });
+  const lintingState = lintingSnapshot ?? projectSnapshotToLintingSnapshot(projectSnapshot);
   const refreshFromGit = await collectRefreshFromGit(project, base, explicitRepo, projectSnapshot);
   const discover = await collectDiscoverSummary(project, explicitRepo, projectSnapshot);
   const lint = await collectLintResult(project, lintingState);

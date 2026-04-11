@@ -214,6 +214,7 @@ describe("wiki CLI smoke", () => {
     expect(discoverJson.repoFiles).toBeGreaterThan(0);
     expect(Array.isArray(discoverJson.unboundPages)).toBe(true);
     expect(discoverJson.uncoveredFiles).toEqual(maintainJson.discover.uncoveredFiles);
+    expect(discoverJson.unboundPages).toEqual(maintainJson.discover.unboundPages);
 
     const discoverTree = runWiki(["discover", "demo", "--repo", repo, "--json", "--tree"], env);
     expect(discoverTree.exitCode).toBe(0);
