@@ -1,5 +1,5 @@
 import { requireValue } from "../cli-shared";
-import { collectBacklog } from "./backlog";
+import { collectBacklog, collectBacklogFocus } from "./backlog";
 import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "./linting";
 import { collectMaintenancePlan, resolveDefaultBase } from "./maintenance";
 import { collectDriftSummary } from "./verification";
@@ -26,6 +26,12 @@ export async function doctorProject(args: string[]) {
   console.log(`- stale=${result.counts.stale} renamed=${result.counts.renamed} deleted=${result.counts.deleted} unbound=${result.counts.unbound}`);
   console.log(`- lint=${result.counts.lint} semantic=${result.counts.semantic} uncovered=${result.counts.uncovered} repo_docs=${result.counts.repoDocs} missing_tests=${result.counts.missingTests}`);
   console.log(`- task sections: ${Object.entries(result.backlog.sections).map(([k, v]) => `${k}=${v.length}`).join(" ")}`);
+  if (result.focus.activeTask) console.log(`- active task: ${result.focus.activeTask.id} ${result.focus.activeTask.title} (plan=${result.focus.activeTask.planStatus} test-plan=${result.focus.activeTask.testPlanStatus})`);
+  else if (result.focus.recommendedTask) console.log(`- next task: ${result.focus.recommendedTask.id} ${result.focus.recommendedTask.title}`);
+  if (result.backlogWarnings.length) {
+    console.log(`- backlog warnings:`);
+    for (const warning of result.backlogWarnings) console.log(`  - ${warning}`);
+  }
   console.log(`- top actions:`);
   for (const action of result.topActions) console.log(`  - [${action.kind}] ${action.message}`);
 }
@@ -68,6 +74,7 @@ export async function collectDoctor(project: string, base: string, explicitRepo?
   const lint = await collectLintResult(project, lintingSnapshot);
   const semantic = await collectSemanticLintResult(project, lintingSnapshot);
   const backlog = await collectBacklog(project);
+  const focus = await collectBacklogFocus(project);
   const maintain = await collectMaintenancePlan(project, base, explicitRepo);
 
   // Coverage ratio: what fraction of repo files are bound to wiki pages?
@@ -97,6 +104,8 @@ export async function collectDoctor(project: string, base: string, explicitRepo?
     lint,
     semantic,
     backlog,
+    focus,
+    backlogWarnings: focus.warnings,
     maintain,
     counts: {
       stale: drift.stale,
@@ -109,6 +118,7 @@ export async function collectDoctor(project: string, base: string, explicitRepo?
       uncovered: maintain.discover.uncoveredFiles.length,
       repoDocs: maintain.discover.repoDocFiles.length,
       missingTests: maintain.refreshFromGit.testHealth.codeFilesWithoutChangedTests.length,
+      backlogWarnings: focus.warnings.length,
     },
     topActions: maintain.actions.slice(0, 25),
   };

@@ -4,11 +4,31 @@ import { VAULT_ROOT } from "../constants";
 import { assertExists, mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { readText, writeText } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
-import { isCanonicalPrdId, projectPrdsDir, projectTaskDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath, toVaultWikilinkPath } from "../lib/structure";
+import { isCanonicalPrdId, projectPrdsDir, projectTaskDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath, toVaultMarkdownPath, toVaultWikilinkPath } from "../lib/structure";
 import { writeProjectIndex } from "./index-log";
 
-type BacklogItem = { raw: string; id: string; title: string };
+export type BacklogItem = { raw: string; id: string; title: string };
 type ParsedBacklog = { intro: string[]; sections: Record<string, BacklogItem[]>; extras: Record<string, string[]>; order: string[] };
+export type TaskDocState = "missing" | "incomplete" | "ready";
+export type BacklogTaskContext = {
+  id: string;
+  title: string;
+  section: string;
+  taskHubPath?: string;
+  planPath?: string;
+  testPlanPath?: string;
+  hasSliceDocs: boolean;
+  planStatus: TaskDocState;
+  testPlanStatus: TaskDocState;
+};
+export type BacklogFocus = {
+  project: string;
+  activeTask: BacklogTaskContext | null;
+  recommendedTask: BacklogTaskContext | null;
+  inProgress: BacklogItem[];
+  todo: BacklogItem[];
+  warnings: string[];
+};
 type PrdRecord = { prdId: string; title: string; parentFeature?: string; linkPath: string; sourcePaths: string[] };
 type SliceSpecKind = "task-hub" | "plan" | "test-plan";
 type SlicePaths = { taskSpecsDir: string; indexPath: string; planPath: string; testPlanPath: string };
@@ -136,11 +156,55 @@ export async function collectBacklog(project: string) {
   return { project, backlogPath: relative(VAULT_ROOT, backlogPath), sections: parsed.sections };
 }
 
+export async function collectBacklogFocus(project: string): Promise<BacklogFocus> {
+  const backlog = await collectBacklog(project);
+  const inProgress = backlog.sections["In Progress"] ?? [];
+  const todo = backlog.sections["Todo"] ?? [];
+  const activeTask = inProgress[0] ? await collectTaskContext(project, inProgress[0], "In Progress") : null;
+  const recommendedTask = activeTask ?? (todo[0] ? await collectTaskContext(project, todo[0], "Todo") : null);
+  const warnings: string[] = [];
+  if (inProgress.length > 1) warnings.push(`multiple tasks are in progress: ${inProgress.map((task) => task.id).join(", ")}`);
+  if (activeTask?.hasSliceDocs) {
+    if (activeTask.planStatus !== "ready") warnings.push(`${activeTask.id} plan is ${activeTask.planStatus}`);
+    if (activeTask.testPlanStatus !== "ready") warnings.push(`${activeTask.id} test-plan is ${activeTask.testPlanStatus}`);
+  }
+  if (!activeTask && recommendedTask?.hasSliceDocs) warnings.push(`no task is marked In Progress; next ready slice is ${recommendedTask.id}`);
+  return { project, activeTask, recommendedTask, inProgress, todo, warnings };
+}
+
 function printBacklogSummary(sections: Record<string, BacklogItem[]>) {
   for (const [section, items] of Object.entries(sections)) {
     console.log(`${section}: ${items.length}`);
     for (const item of items.slice(0, 20)) console.log(`- ${item.id} ${item.title}`);
   }
+}
+
+async function collectTaskContext(project: string, item: BacklogItem, section: string): Promise<BacklogTaskContext> {
+  const taskHubPath = projectTaskHubPath(project, item.id);
+  const planPath = projectTaskPlanPath(project, item.id);
+  const testPlanPath = projectTaskTestPlanPath(project, item.id);
+  const hasTaskHub = existsSync(taskHubPath);
+  const hasPlan = existsSync(planPath);
+  const hasTestPlan = existsSync(testPlanPath);
+  return {
+    id: item.id,
+    title: item.title,
+    section,
+    ...(hasTaskHub ? { taskHubPath: toVaultMarkdownPath(taskHubPath) } : {}),
+    ...(hasPlan ? { planPath: toVaultMarkdownPath(planPath) } : {}),
+    ...(hasTestPlan ? { testPlanPath: toVaultMarkdownPath(testPlanPath) } : {}),
+    hasSliceDocs: hasTaskHub || hasPlan || hasTestPlan,
+    planStatus: await detectTaskDocState(planPath),
+    testPlanStatus: await detectTaskDocState(testPlanPath),
+  };
+}
+
+async function detectTaskDocState(path: string): Promise<TaskDocState> {
+  if (!existsSync(path)) return "missing";
+  const raw = await readNormalizedText(path);
+  const body = raw.replace(/^---\n[\s\S]*?\n---\n?/u, "");
+  if (/^\s*(?:-\s*(?:\[ \])?\s*|\d+\.\s*)$/mu.test(body)) return "incomplete";
+  return "ready";
 }
 
 function backlogPathFor(project: string) {

@@ -155,6 +155,7 @@ describe("wiki CLI smoke", () => {
     expect(summaryJson.project).toBe("demo");
     expect(summaryJson.status.pages).toBe(summaryJson.verify.pages);
     expect(summaryJson.status.unbound).toBe(driftJson.unboundPages.length);
+    expect(summaryJson.focus.activeTask.id).toBe("DEMO-001");
 
     const doctor = runWiki(["doctor", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
     expect(doctor.exitCode).toBe(0);
@@ -162,6 +163,7 @@ describe("wiki CLI smoke", () => {
     expect(typeof doctorJson.score).toBe("number");
     expect(Array.isArray(doctorJson.topActions)).toBe(true);
     expect(doctorJson.counts.missingTests).toBe(1);
+    expect(doctorJson.focus.activeTask.id).toBe("DEMO-001");
     expect(doctorJson.status.pages).toBe(doctorJson.verify.pages);
     expect(doctorJson.status.bound + doctorJson.status.unbound).toBe(doctorJson.status.pages);
 
@@ -170,11 +172,14 @@ describe("wiki CLI smoke", () => {
     const maintainJson = JSON.parse(maintain.stdout.toString());
     expect(Array.isArray(maintainJson.actions)).toBe(true);
     expect(maintainJson.actions.length).toBeGreaterThan(0);
+    expect(maintainJson.focus.activeTask.id).toBe("DEMO-001");
     expect(maintainJson.refreshFromGit.testHealth.codeFilesWithoutChangedTests).toContain("src/auth.ts");
+    expect(maintainJson.actions.some((action: { kind: string; message: string }) => action.kind === "active-task")).toBe(true);
     expect(maintainJson.actions.some((action: { kind: string; message: string }) => action.kind === "add-tests")).toBe(true);
 
     const maintainText = runWiki(["maintain", "demo", "--repo", repo, "--base", "HEAD~1"], env);
     expect(maintainText.exitCode).toBe(0);
+    expect(maintainText.stdout.toString()).toContain("active task: DEMO-001");
     expect(maintainText.stdout.toString()).toContain("closeout:");
     expect(maintainText.stdout.toString()).toContain("wiki verify-page demo <page...> <level>");
 
@@ -514,6 +519,26 @@ describe("wiki CLI smoke", () => {
     const gateJson = JSON.parse(gate.stdout.toString());
     expect(Array.isArray(gateJson.warnings)).toBe(true);
     expect(gateJson.warnings.some((w: string) => w.includes("not covered by wiki bindings"))).toBe(true);
+  });
+
+  test("doctor warns about invalid backlog state", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "backlogwarn"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "backlogwarn", "first slice"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "backlogwarn", "second slice"], env).exitCode).toBe(0);
+    expect(runWiki(["move-task", "backlogwarn", "BACKLOGWARN-001", "--to", "In Progress"], env).exitCode).toBe(0);
+    expect(runWiki(["move-task", "backlogwarn", "BACKLOGWARN-002", "--to", "In Progress"], env).exitCode).toBe(0);
+
+    const doctor = runWiki(["doctor", "backlogwarn", "--repo", repo, "--base", "HEAD", "--json"], env);
+    expect(doctor.exitCode).toBe(0);
+    const doctorJson = JSON.parse(doctor.stdout.toString());
+    expect(doctorJson.focus.activeTask.id).toBe("BACKLOGWARN-002");
+    expect(doctorJson.counts.backlogWarnings).toBeGreaterThan(0);
+    expect(doctorJson.backlogWarnings.some((warning: string) => warning.includes("multiple tasks are in progress"))).toBe(true);
+    expect(doctorJson.backlogWarnings.some((warning: string) => warning.includes("plan is incomplete"))).toBe(true);
+    expect(doctorJson.backlogWarnings.some((warning: string) => warning.includes("test-plan is incomplete"))).toBe(true);
   });
 
   test("doctor and gate warn about repo docs that belong in the wiki", () => {

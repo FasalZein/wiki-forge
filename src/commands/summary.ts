@@ -4,7 +4,7 @@ import { projectRoot, requireValue, safeMatter } from "../cli-shared";
 import { readText } from "../lib/fs";
 import { collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "./linting";
 import { collectDriftSummary } from "./verification";
-import { collectBacklog } from "./backlog";
+import { collectBacklog, collectBacklogFocus } from "./backlog";
 import { resolveDefaultBase } from "./maintenance";
 
 export async function summaryProject(args: string[]) {
@@ -24,6 +24,14 @@ export async function summaryProject(args: string[]) {
     console.log(`modules: ${result.status.modules} | pages: ${result.status.pages} | bound: ${result.status.bound} | unbound: ${result.status.unbound}`);
     console.log(`verification: ${Object.entries(result.verify.byLevel).filter(([, v]) => v > 0).map(([k, v]) => `${k}=${v}`).join(" ") || "none"}`);
     console.log(`drift: fresh=${result.drift.fresh} stale=${result.drift.stale} unknown=${result.drift.unknown}`);
+    if (result.focus.activeTask) {
+      console.log(`\nfocus:`);
+      console.log(`  - active: ${result.focus.activeTask.id} ${result.focus.activeTask.title}`);
+      if (result.focus.activeTask.hasSliceDocs) console.log(`    plan=${result.focus.activeTask.planStatus} test-plan=${result.focus.activeTask.testPlanStatus}`);
+    } else if (result.focus.recommendedTask) {
+      console.log(`\nfocus:`);
+      console.log(`  - next: ${result.focus.recommendedTask.id} ${result.focus.recommendedTask.title}`);
+    }
     if (result.activeWork.length) {
       console.log(`\nactive work:`);
       for (const item of result.activeWork) console.log(`  - ${item.id} ${item.title}`);
@@ -58,8 +66,9 @@ async function collectSummary(project: string, explicitRepo?: string) {
   let drift = { fresh: 0, stale: 0, unknown: 0, deleted: 0, renamed: 0 };
   try { const d = await collectDriftSummary(project, explicitRepo, lintingSnapshot); drift = { fresh: d.fresh, stale: d.stale, unknown: d.unknown, deleted: d.deleted, renamed: d.renamed }; } catch {}
   const backlog = await collectBacklog(project);
+  const focus = await collectBacklogFocus(project);
   const activeWork = backlog.sections["In Progress"] ?? [];
   const topTodo = (backlog.sections["Todo"] ?? []).slice(0, 5);
   const base = resolveDefaultBase(project, explicitRepo);
-  return { project, description, repo: repoPath, base, status, verify, drift, activeWork, topTodo };
+  return { project, description, repo: repoPath, base, status, verify, drift, activeWork, topTodo, focus };
 }

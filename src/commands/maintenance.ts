@@ -10,6 +10,7 @@ import { walkMarkdown } from "../lib/vault";
 import { safeMatter } from "../cli-shared";
 import { createModuleInternal } from "./project-setup";
 import { slugify } from "./planning";
+import { collectBacklogFocus } from "./backlog";
 import { collectDriftSummary } from "./verification";
 import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "./linting";
 import type { LintingSnapshot } from "./linting";
@@ -28,6 +29,9 @@ export async function maintainProject(args: string[]) {
   const gateOk = missingTests === 0;
   if (json) console.log(JSON.stringify({ ...result, gate: { ok: gateOk, missingTests } }, null, 2));
   else {
+    if (result.focus.activeTask) console.log(`active task: ${result.focus.activeTask.id} ${result.focus.activeTask.title} (plan=${result.focus.activeTask.planStatus} test-plan=${result.focus.activeTask.testPlanStatus})`);
+    else if (result.focus.recommendedTask) console.log(`next backlog task: ${result.focus.recommendedTask.id} ${result.focus.recommendedTask.title}`);
+    for (const warning of result.focus.warnings) console.log(`- backlog warning: ${warning}`);
     console.log(`maintain plan for ${options.project}:`);
     console.log(`- repo: ${result.repo}`);
     console.log(`- base: ${result.base}`);
@@ -255,7 +259,11 @@ export async function collectMaintenancePlan(project: string, base: string, expl
   const discover = await collectDiscoverSummary(project, explicitRepo, projectSnapshot);
   const lint = await collectLintResult(project, lintingState);
   const semanticLint = await collectSemanticLintResult(project, lintingState);
+  const focus = await collectBacklogFocus(project);
   const actions: Array<{ kind: string; message: string }> = [];
+  if (focus.activeTask) actions.push({ kind: "active-task", message: `${focus.activeTask.id} ${focus.activeTask.title} (plan=${focus.activeTask.planStatus}, test-plan=${focus.activeTask.testPlanStatus})` });
+  else if (focus.recommendedTask) actions.push({ kind: "next-task", message: `${focus.recommendedTask.id} ${focus.recommendedTask.title}` });
+  for (const warning of focus.warnings) actions.push({ kind: "backlog-warning", message: warning });
   for (const impacted of refreshFromGit.impactedPages) actions.push({ kind: "review-page", message: `${impacted.page} impacted by ${impacted.matchedSourcePaths.join(", ")}` });
   for (const file of refreshFromGit.uncoveredFiles.slice(0, 20)) actions.push({ kind: "create-or-bind", message: `cover changed file ${file}` });
   for (const file of refreshFromGit.testHealth.codeFilesWithoutChangedTests.slice(0, 20)) actions.push({ kind: "add-tests", message: `changed code without changed tests: ${file}` });
@@ -263,7 +271,7 @@ export async function collectMaintenancePlan(project: string, base: string, expl
   for (const page of discover.unboundPages.slice(0, 20)) actions.push({ kind: "bind-page", message: `${page} has no source_paths` });
   for (const issue of lint.issues.slice(0, 20)) actions.push({ kind: "fix-structure", message: issue });
   for (const issue of semanticLint.issues.slice(0, 20)) actions.push({ kind: "fix-semantic", message: issue });
-  return { project, repo: refreshFromGit.repo, base, refreshFromGit, discover, lint, semanticLint, actions };
+  return { project, repo: refreshFromGit.repo, base, focus, refreshFromGit, discover, lint, semanticLint, actions };
 }
 
 async function collectDashboard(project: string, base: string, explicitRepo?: string) {
