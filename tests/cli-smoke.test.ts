@@ -190,6 +190,9 @@ describe("wiki CLI smoke", () => {
     expect(rfgJson.changedFiles).toContain("src/auth.ts");
     expect(rfgJson.impactedPages[0].page).toBe("modules/auth/spec.md");
     expect(Array.isArray(rfgJson.impactedPages[0].diffSummary)).toBe(true);
+    const authImpactedPages = rfgJson.impactedPages.filter((page: { matchedSourcePaths: string[] }) => page.matchedSourcePaths.includes("src/auth.ts"));
+    expect(authImpactedPages.length).toBeGreaterThan(1);
+    expect(authImpactedPages.every((page: { diffSummary: string[] }) => JSON.stringify(page.diffSummary) === JSON.stringify(authImpactedPages[0].diffSummary))).toBe(true);
     expect(rfgJson.testHealth.changedTestFiles).toContain("tests/other.test.ts");
     expect(rfgJson.testHealth.codeFilesWithoutChangedTests).toContain("src/auth.ts");
 

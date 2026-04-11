@@ -249,6 +249,7 @@ export async function collectRefreshFromGit(project: string, base: string, expli
   const state = snapshot ?? await loadProjectSnapshot(project, explicitRepo);
   const changedFiles = gitChangedFiles(state.repo, base);
   const changedFileSet = new Set(changedFiles);
+  const diffSummaryCache = new Map<string, string[]>();
   const impactedPages: Array<{ page: string; matchedSourcePaths: string[]; verificationLevel: string | null; diffSummary: string[] }> = [];
   const covered = new Set<string>();
   for (const entry of state.pageEntries) {
@@ -256,7 +257,11 @@ export async function collectRefreshFromGit(project: string, base: string, expli
     const matchedSourcePaths = entry.sourcePaths.filter((sourcePath) => changedFileSet.has(sourcePath));
     if (!matchedSourcePaths.length) continue;
     for (const sourcePath of matchedSourcePaths) covered.add(sourcePath);
-    impactedPages.push({ page: entry.page, matchedSourcePaths, verificationLevel: entry.verificationLevel, diffSummary: matchedSourcePaths.flatMap((sourcePath) => gitDiffSummary(state.repo, sourcePath) ?? []) });
+    const diffSummary = matchedSourcePaths.flatMap((sourcePath) => {
+      if (!diffSummaryCache.has(sourcePath)) diffSummaryCache.set(sourcePath, gitDiffSummary(state.repo, sourcePath) ?? []);
+      return diffSummaryCache.get(sourcePath) ?? [];
+    });
+    impactedPages.push({ page: entry.page, matchedSourcePaths, verificationLevel: entry.verificationLevel, diffSummary });
   }
   const testHealth = collectChangedTestHealth(changedFiles);
   return { project, repo: state.repo, base, changedFiles, impactedPages, uncoveredFiles: changedFiles.filter((file) => isCodeFile(file) && !covered.has(file)), testHealth };
