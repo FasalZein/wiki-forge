@@ -35,8 +35,13 @@ if command -v npm &>/dev/null; then
     echo "Updating qmd CLI..."
   fi
   npm install -g @tobilu/qmd@latest --audit=false --fund=false >/dev/null 2>&1 || echo "[skip] qmd CLI install/update failed"
+  npm rebuild -g @tobilu/qmd >/dev/null 2>&1 || true
   if command -v qmd &>/dev/null; then
-    echo "[ok] qmd installed"
+    if qmd --help >/dev/null 2>&1; then
+      echo "[ok] qmd installed"
+    else
+      echo "[warn] qmd installed but failed to start cleanly; try: npm rebuild -g @tobilu/qmd"
+    fi
   fi
 else
   echo "[skip] npm not found — install qmd manually: npm install -g @tobilu/qmd@latest"
@@ -86,14 +91,14 @@ fi
 if command -v npx &>/dev/null; then
   echo ""
   echo "Installing skills..."
-  echo "You'll be prompted to choose which agents to install for."
   echo ""
-  npx skills@latest add "$REPO_DIR/skills/forge" -g 2>/dev/null || echo "[skip] forge skill (npx skills not configured)"
-  npx skills@latest add "$REPO_DIR/skills/wiki" -g 2>/dev/null || echo "[skip] wiki skill"
-  npx skills@latest add "$REPO_DIR/skills/prd-to-slices" -g 2>/dev/null || echo "[skip] prd-to-slices skill"
-  npx skills@latest add mattpocock/skills/grill-me -g 2>/dev/null || echo "[skip] grill-me skill"
-  npx skills@latest add mattpocock/skills/write-a-prd -g 2>/dev/null || echo "[skip] write-a-prd skill"
-  npx skills@latest add mattpocock/skills/tdd -g 2>/dev/null || echo "[skip] tdd skill"
+  npx skills@latest add "$REPO_DIR/skills/forge" -g -y 2>/dev/null || echo "[skip] forge skill (npx skills not configured)"
+  npx skills@latest add "$REPO_DIR/skills/wiki" -g -y 2>/dev/null || echo "[skip] wiki skill"
+  npx skills@latest add "$REPO_DIR/skills/prd-to-slices" -g -y 2>/dev/null || echo "[skip] prd-to-slices skill"
+  npx skills@latest add mattpocock/skills/grill-me -g -y 2>/dev/null || echo "[skip] grill-me skill"
+  npx skills@latest add mattpocock/skills/write-a-prd -g -y 2>/dev/null || echo "[skip] write-a-prd skill"
+  npx skills@latest add mattpocock/skills/tdd -g -y 2>/dev/null || echo "[skip] tdd skill"
+  echo "[note] /research is also required for full forge chaining. Install your agent's research skill separately if it is not already available."
 else
   echo ""
   echo "[skip] npx not found — install skills manually:"

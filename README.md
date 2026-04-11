@@ -31,6 +31,7 @@ The installer handles bun, dependencies, global CLI linking, global qmd, shell c
 
 ```bash
 npm install -g @tobilu/qmd@latest
+npm rebuild -g @tobilu/qmd
 brew install sqlite   # macOS — required for Bun SDK hybrid retrieval
 ```
 
@@ -278,6 +279,8 @@ npx skills@latest add mattpocock/skills/grill-me -g
 npx skills@latest add mattpocock/skills/write-a-prd -g
 npx skills@latest add mattpocock/skills/tdd -g
 ```
+
+`/research` is also required for full forge chaining. Install your agent's research skill separately if it is not already available.
 
 ### Skill Reference
 

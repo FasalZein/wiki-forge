@@ -26,6 +26,7 @@ cd wiki-forge
 bun install
 bun link          # makes `wiki` available globally
 npm install -g @tobilu/qmd@latest
+npm rebuild -g @tobilu/qmd
 ```
 
 On macOS, also install Homebrew sqlite if you do not already have it:
@@ -69,6 +70,8 @@ npx skills@latest add mattpocock/skills/grill-me -g
 npx skills@latest add mattpocock/skills/write-a-prd -g
 npx skills@latest add mattpocock/skills/tdd -g
 ```
+
+`/research` is also required for full forge chaining. Install your agent's research skill separately if it is not already available.
 
 Or install the repo skills from GitHub:
 
@@ -207,6 +210,23 @@ Run `bun link` from the wiki-forge directory, then `source ~/.zshrc`.
 ### `KNOWLEDGE_VAULT_ROOT not set`
 
 Run `wiki setup-shell` or manually export it. The CLI also auto-detects `~/Knowledge`.
+
+### `qmd` fails with `better-sqlite3` bindings errors
+
+Rebuild the global qmd package so its native module matches your current Node install:
+
+```bash
+npm rebuild -g @tobilu/qmd
+qmd --help
+```
+
+If it still fails, reinstall it cleanly:
+
+```bash
+npm uninstall -g @tobilu/qmd
+npm install -g @tobilu/qmd@latest
+npm rebuild -g @tobilu/qmd
+```
 
 ### `qmd` search returns no results
 
