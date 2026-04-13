@@ -5,7 +5,7 @@
 This repo uses a skill-driven workflow. Load `/forge` for the full policy.
 
 Use `/forge` for non-trivial implementation workflow: research → PRD → slices → TDD → wiki verification.
-Use `/wiki` for memory/verification operations: refresh, drift, retrieval, filing research, and closeout once implementation choices are already made.
+Use `/wiki` for knowledge-layer work: research filing/audit, retrieval, refresh, drift, verification, and closeout once implementation choices are already made.
 
 For non-trivial work:
 1. use `research`
@@ -22,7 +22,8 @@ For small tasks, do not trigger forge by default. Use the smallest fitting workf
 
 Decision rule:
 - changing runtime/product behavior -> `forge`
-- maintaining memory, verification, or retrieval around existing behavior -> `wiki`
+- researching, retrieving, documenting, or verifying without active product changes -> `wiki`
+- research as part of a larger feature/refactor/perf effort -> `forge` (with research as phase 1)
 
 Do not silently skip missing skills. If a required skill is unavailable, say so explicitly.
 
@@ -58,6 +59,6 @@ export KNOWLEDGE_VAULT_ROOT=~/Knowledge
 
 - `wiki` is globally available on PATH.
 - Skills: `forge` (policy), `wiki` (operations), `prd-to-slices` (decomposition), plus `grill-me`, `write-a-prd`, and `tdd` for forge chaining, at `~/.agents/skills/`.
-- Harness portability: `/wiki` is the more portable skill because it only needs CLI/file access; `/forge` also needs reliable multi-step workflow discipline and companion skills.
+- Harness decision rule: assume a skill-capable harness can use both `/wiki` and `/forge`; choose based on task scope, not capability.
 - Use `wiki maintain` as the default agent entry point for maintenance work.
 - When editing vault markdown, prefer Obsidian-flavored notes: properties, wikilinks, embeds, and callouts. Load `obsidian-markdown` for note-authoring rules.

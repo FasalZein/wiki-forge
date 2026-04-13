@@ -18,26 +18,15 @@ Every non-trivial change follows this order. No exceptions.
 research → grill-me → PRD → slices → TDD → wiki verify
 ```
 
-## Harness Compatibility
+## Invocation Model
 
-`/forge` works best in harnesses that support:
-- slash-triggered skills or equivalent skill loading
-- shell access to run `wiki`, tests, and git commands
-- file read/write access for repo code and the wiki vault
-- enough session continuity to carry a PRD/slice thread across turns
+Assume a harness can use both `/wiki` and `/forge`.
+The real decision is **which workflow fits the task**.
 
-Nice to have, but not required:
-- subagents / parallel workers
-- structured questions / forms
-- background jobs or overlays
+- `/wiki` = memory, research filing/audit, retrieval, verification, drift, closeout
+- `/forge` = full software-delivery workflow for non-trivial implementation
 
-If a harness supports skills but not slash commands, load the same companion skills manually and follow the same sequence. Do not downgrade the workflow just because the invocation syntax differs.
-
-Current gaps across harnesses:
-- some harnesses cannot persist long-running slice context well, so handoff still needs stronger first-class support
-- some harnesses cannot launch subagents, so research and validation can be slower and more token-heavy
-- some harnesses do not expose structured UI for PRD/slice review, so the grill/approval loop is more manual
-- some harnesses do not expose lightweight background automation, so commit/CI checks must stay CLI-first
+If a harness uses different syntax for skills, keep the same boundary and sequence.
 
 ## Companion Skills
 
@@ -70,26 +59,29 @@ If a skill is unavailable, stop and tell the user. Do not silently skip steps.
 
 ## Use Forge vs Wiki
 
-Use `/forge` when the task is implementation workflow.
-Use `/wiki` when the task is wiki maintenance or retrieval.
+Use `/forge` when the task is non-trivial implementation workflow.
+Use `/wiki` when the task stays in the knowledge/verification layer.
 
 Choose `/forge` for:
 - new features or workflows
 - cross-module behavior changes
-- performance or refactor work with tradeoffs
+- performance or refactor work with design tradeoffs
 - any task that should leave PRD + slice history
 - continuing an existing PRD/slice thread
-- selecting, claiming, implementing, or closing backlog slices
+- selecting, claiming, implementing, verifying, or closing a slice as part of shipping code
+- research that is the first phase of a larger implementation effort
 
-Choose `/wiki` only for:
+Choose `/wiki` for:
+- research-only work or research filing/audit
+- retrieval and project Q&A
 - refresh/verify/gate work after implementation choices are already made
-- wiki maintenance, drift cleanup, binding, retrieval, or filing research
-- docs/wiki formatting and navigation work
+- wiki maintenance, drift cleanup, binding, navigation, and vault hygiene
+- docs/wiki formatting work
 - repo exploration or onboarding
 
 Rule of thumb:
-- if you are changing product/runtime behavior, use `/forge`
-- if you are maintaining the memory/verification layer around already-chosen work, use `/wiki`
+- changing runtime/product behavior -> `/forge`
+- researching, retrieving, documenting, or verifying without active product changes -> `/wiki`
 
 ## What Counts as Non-Trivial
 

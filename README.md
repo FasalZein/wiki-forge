@@ -316,7 +316,7 @@ npx skills@latest add mattpocock/skills/tdd -g
 
 | Skill | Invoke | What it does | When to use |
 |-------|--------|-------------|-------------|
-| **wiki** | `/wiki` | Memory + verification operations: maintenance, drift, retrieval, filing, gates | When implementation choices are already known or no product behavior is changing |
+| **wiki** | `/wiki` | Knowledge-layer operations: research, retrieval, maintenance, drift, verification, gates | When no non-trivial product behavior is being planned or changed |
 | **forge** | `/forge` | Software-development workflow: research -> grill -> PRD -> slices -> TDD -> verify | Non-trivial implementation work, new features, cross-module changes, or existing slice continuation |
 | **prd-to-slices** | `/prd-to-slices` | Breaks a PRD into tracked vertical slices in the wiki backlog | After writing a PRD, before implementation |
 | **grill-me** | `/grill-me` | Stress-tests a plan before committing to it | Before writing a PRD |
@@ -328,6 +328,7 @@ npx skills@latest add mattpocock/skills/tdd -g
 | Task | Workflow |
 |------|----------|
 | Knowledge maintenance / verification / retrieval | `/wiki` |
+| Research-only work | `/wiki` + `/research` when external investigation is needed |
 | Research capture | `/research` + `wiki research file` |
 | Small code fix (< 50 lines) | `/tdd` + `/wiki` |
 | Wiki / note cleanup | `/wiki` + `/obsidian-markdown` |
@@ -337,23 +338,29 @@ npx skills@latest add mattpocock/skills/tdd -g
 
 ---
 
-## Harness Portability and Gaps
+## Wiki vs Forge
 
-Works best across skill-capable harnesses when they support:
-- skill loading or slash-command equivalents
-- shell access for `wiki`, tests, and git
-- file read/write access for repo + vault
-- enough session continuity to carry PRD/slice threads
+Assume a skill-capable harness can use both.
+The real question is which layer the task belongs to.
 
-Current cross-harness gaps:
-- uneven slash-command support; some harnesses need manual skill loading
-- weak session continuity for long forge threads
-- inconsistent subagent/background support, which makes research and validation more expensive
-- inconsistent artifact UX for derived files like `.canvas`
+Use **`/wiki`** for:
+- research filing, audit, and status
+- retrieval and project Q&A
+- refresh, drift, verify, lint, gate, and closeout
+- wiki formatting, vault cleanup, onboarding, and navigation
+- research-only work that does not yet commit to implementation
 
-Practical rule:
-- `wiki` is the more portable skill across harnesses
-- `forge` needs stronger multi-step workflow discipline and companion-skill availability
+Use **`/forge`** for:
+- non-trivial implementation work
+- new features and workflows
+- cross-module changes
+- performance/refactor work with tradeoffs
+- existing PRD/slice continuation
+- research when it is phase 1 of a larger implementation effort
+
+Rule of thumb:
+- changing product/runtime behavior -> `/forge`
+- researching, retrieving, documenting, or verifying without active product changes -> `/wiki`
 
 ## Forge Workflow
 

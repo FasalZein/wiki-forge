@@ -12,21 +12,15 @@ Code is the source of truth. The wiki is compiled memory maintained by agents â€
 
 When code changes, the wiki updates. When the wiki drifts, the CLI catches it.
 
-## Harness Compatibility
+## Invocation Model
 
-`/wiki` works in any harness that can:
-- run the `wiki` CLI
-- read repo files and vault files
-- edit markdown safely
+Assume the harness can use both `/wiki` and `/forge`.
+The decision is not capability â€” it is scope.
 
-It does not require subagents, background jobs, or rich UI. That makes it the more portable skill across harnesses.
+Use `/wiki` when the task stays in memory, research, retrieval, verification, drift, or closeout.
+Escalate to `/forge` only when the work becomes non-trivial implementation.
 
-Across skill-capable harnesses, the main remaining gaps are:
-- uneven slash-command support
-- weak session continuity for long wiki maintenance threads
-- inconsistent support for opening/inspecting derived artifacts like `.canvas`
-
-When a harness lacks slash commands, load the equivalent instructions manually and keep using the `wiki` CLI.
+When a harness uses different skill syntax, keep the same task boundary and still drive the actual work through the `wiki` CLI.
 
 Trigger this skill for requests like:
 - "wiki refresh" / "wiki closeout"
@@ -62,7 +56,8 @@ Use `/forge` when the work is about planning and shipping non-trivial code chang
 
 Stay in `/wiki` for:
 - `refresh-from-git`, `drift-check`, `verify-page`, `lint`, `gate`
-- `research file`, `research lint`, `research audit`, `source ingest`
+- `research file`, `research lint`, `research audit`, `research status`, `source ingest`
+- research-only investigation follow-up after `/research` has produced findings
 - `ask`, `query`, `search`, `file-answer`
 - wiki formatting, vault cleanup, and project onboarding
 
@@ -71,6 +66,7 @@ Escalate to `/forge` for:
 - behavior changes across modules
 - backlog slice selection or continuation
 - refactors/perf work with design tradeoffs
+- research that is part of a larger implementation pipeline
 - any task where code changes are still being planned, implemented, or decomposed
 
 Escalate from `/wiki` to `/forge` immediately when the task involves:
