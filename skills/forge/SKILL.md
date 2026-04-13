@@ -172,13 +172,9 @@ A slice is complete only when all of these are true:
    c. Refactor
    d. Run tests
 7. /wiki — after each slice:
-   a. wiki refresh-from-git <project> --base <rev>
-   b. wiki drift-check <project> --show-unbound
-   c. Update impacted wiki pages from code
-   d. wiki verify-page <project> <page> code-verified
-   e. wiki lint <project>
-   f. wiki lint-semantic <project>
-   g. wiki gate <project> --repo <path> --base <rev>
+   a. Update impacted wiki pages from code
+   b. wiki verify-page <project> <page> code-verified
+   c. wiki closeout <project> --repo <path> --base <rev>
 ```
 
 ## Workflow: Continue an Existing PRD / Slice Thread
@@ -199,13 +195,9 @@ A slice is complete only when all of these are true:
 1. /tdd — write a failing test that reproduces the bug
 2. Fix the code, make the test pass
 3. /wiki — closeout:
-   a. wiki refresh-from-git <project> --base <rev>
-   b. wiki drift-check <project> --show-unbound
-   c. Update impacted wiki pages from code
-   d. wiki verify-page <project> <page> code-verified
-   e. wiki lint <project>
-   f. wiki lint-semantic <project>
-   g. wiki gate <project> --repo <path> --base <rev>
+   a. Update impacted wiki pages from code
+   b. wiki verify-page <project> <page> code-verified
+   c. wiki closeout <project> --repo <path> --base <rev>
 ```
 
 ## Source of Truth

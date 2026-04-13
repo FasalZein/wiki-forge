@@ -38,13 +38,9 @@ Do NOT trigger on generic phrases that could mean something else:
 Treat those as contextual maintenance requests, not blind keyword matches. The concrete closeout sequence is:
 
 1. Inspect changed code/tests
-2. `wiki refresh-from-git <project> --base <rev>`
-3. `wiki drift-check <project> --show-unbound`
-4. Update only the impacted wiki pages from code
-5. `wiki verify-page <project> <page> code-verified`
-6. `wiki lint <project>`
-7. `wiki lint-semantic <project>`
-8. `wiki gate <project> --repo <path> --base <rev>`
+2. Update only the impacted wiki pages from code
+3. `wiki verify-page <project> <page> code-verified`
+4. `wiki closeout <project> --repo <path> --base <rev>`
 
 For the full build workflow (research → grill → PRD → slices → TDD → verify), use `/forge`. The wiki skill is the knowledge/verification layer; forge is the workflow layer that composes it with research and TDD.
 Use `/forge` only for non-trivial pipeline work; do not trigger it for small fixes, note cleanup, or simple maintenance.
@@ -121,6 +117,7 @@ Auto-detection: if `KNOWLEDGE_VAULT_ROOT` is unset, the CLI walks up from `cwd` 
 | Stale + unbound pages | `wiki drift-check <project> --show-unbound` |
 | Re-verify updated pages | `wiki verify-page <project> <page> <level>` |
 | Pass/fail completion gate | `wiki gate <project> --base <rev>` |
+| Compact closeout review | `wiki closeout <project> --base <rev>` |
 | Broad health check | `wiki doctor <project> --base <rev>` |
 | Find pages by topic | `wiki search "<query>"` or `wiki query "<query>"` |
 | Project-scoped Q&A | `wiki ask <project> "<question>"` |
@@ -129,6 +126,7 @@ Auto-detection: if `KNOWLEDGE_VAULT_ROOT` is unset, the CLI walks up from `cwd` 
 | File project research output | `wiki research file <project> <title>` |
 | Create a research topic | `wiki research scaffold <topic>` |
 | Check research repository health | `wiki research status [topic]` |
+| Audit research quality | `wiki research audit [topic]` |
 | Scaffold source-backed research notes | `wiki research ingest <topic> <source>` |
 | Ingest raw source + summary | `wiki source ingest <path-or-url> [--topic <topic>]` |
 | Lint filed research evidence | `wiki research lint [topic]` |
@@ -188,11 +186,9 @@ How to identify modules: look for directories that own a distinct concern — a 
 4. As code emerges, create modules:
    wiki create-module <project> <module-name> --source <paths...>
 5. After each slice, run the closeout sequence:
-   wiki refresh-from-git <project> --base <rev>
-   wiki drift-check <project> --show-unbound
+   update impacted wiki pages from code
    wiki verify-page <project> <page> code-verified
-   wiki lint <project> && wiki lint-semantic <project>
-   wiki gate <project> --repo <path> --base <rev>
+   wiki closeout <project> --repo <path> --base <rev>
 ```
 
 ### 2. Refresh Docs After Code Changes
@@ -203,12 +199,9 @@ If the user is really asking to start or continue non-trivial implementation wor
 
 ```text
 1. wiki maintain <project> --base <rev>
-2. wiki refresh-from-git <project> --base <rev>
-3. wiki drift-check <project> --show-unbound
-4. For each impacted/stale page: read source, update wiki, verify-page.
-5. wiki lint <project> && wiki lint-semantic <project>
-6. If navigation changed: wiki update-index <project> --write
-7. wiki gate <project> --repo <path> --base <rev>
+2. For each impacted/stale page: read source, update wiki, verify-page.
+3. If navigation changed: wiki update-index <project> --write
+4. wiki closeout <project> --repo <path> --base <rev>
 ```
 
 ### 3. Retrieval
@@ -253,7 +246,6 @@ Propagation rules:
 - `create-issue-slice --prd <PRD-ID>` auto-binds the new slice docs to that PRD's `source_paths` when the parent PRD is already bound
 - module/freeform-zone docs connect to planning via `source_paths` overlap
 - standalone `create-plan` / `create-test-plan` docs stay visible in `specs/index.md`
-- `create-issue-slice --prd <PRD-ID>` inherits bound parent-PRD `source_paths` onto the generated slice docs when available
 - run `wiki update-index <project> --write` after creating/moving pages or rebinding source paths so derived sections refresh across spec pages and freeform project zones
 
 ## Operating Guidelines

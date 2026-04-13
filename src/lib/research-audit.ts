@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
-import { VAULT_ROOT } from "../constants";
+import { STALE_UNVERIFIED_DAYS, VAULT_ROOT } from "../constants";
 import { safeMatter } from "../cli-shared";
 import { readText } from "./fs";
 import { normalizePath, stripMarkdownExtension, walkMarkdown } from "./vault";
@@ -24,8 +24,6 @@ export type ResearchAuditResult = {
   staleUnverified: string[];
 };
 
-const STALE_UNVERIFIED_DAYS = 30;
-
 export async function collectResearchAudit(topic?: string): Promise<ResearchAuditResult> {
   const normalizedTopic = topic ? normalizeTopicPath(topic) : undefined;
   const root = normalizedTopic ? researchTopicDir(normalizedTopic) : researchRoot();
@@ -35,7 +33,7 @@ export async function collectResearchAudit(topic?: string): Promise<ResearchAudi
   const invalidInfluence: Array<{ page: string; target: string }> = [];
   const missingSources: string[] = [];
   const staleUnverified: string[] = [];
-  const checkedUrls = new Map<string, { status: number | null; message: string }>();
+  const checkedUrls = new Map<string, Promise<{ status: number | null; message: string }>>();
 
   for (const file of pages) {
     const page = normalizePath(relative(VAULT_ROOT, file));
@@ -54,9 +52,12 @@ export async function collectResearchAudit(topic?: string): Promise<ResearchAudi
       }
     }
 
-    for (const url of await extractAuditUrls(parsed.data.sources)) {
-      if (!checkedUrls.has(url)) checkedUrls.set(url, await checkUrl(url));
-      const result = checkedUrls.get(url)!;
+    const urls = await extractAuditUrls(parsed.data.sources);
+    for (const url of urls) {
+      if (!checkedUrls.has(url)) checkedUrls.set(url, checkUrl(url));
+    }
+    for (const url of urls) {
+      const result = await checkedUrls.get(url)!;
       if (result.status !== null && result.status < 400) continue;
       if (result.status === null && result.message === "ok") continue;
       deadLinks.push({ page, url, ...result });
@@ -101,16 +102,21 @@ async function extractAuditUrls(sources: unknown) {
 }
 
 async function checkUrl(url: string) {
-  const proc = Bun.spawnSync(["curl", "-L", "-I", "-sS", "--max-time", "2", "-o", "/dev/null", "-w", "%{http_code}", url], {
+  const proc = Bun.spawn(["curl", "-L", "-I", "-sS", "--max-time", "2", "-o", "/dev/null", "-w", "%{http_code}", url], {
     stdout: "pipe",
     stderr: "pipe",
   });
-  if (proc.exitCode === 0) {
-    const rawStatus = proc.stdout.toString().trim();
+  const [exitCode, stdout, stderr] = await Promise.all([
+    proc.exited,
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+  ]);
+  if (exitCode === 0) {
+    const rawStatus = stdout.trim();
     const status = Number.parseInt(rawStatus || "0", 10);
     return { status: Number.isFinite(status) ? status : null, message: status >= 200 && status < 400 ? "ok" : `HTTP ${rawStatus || "000"}` };
   }
-  const message = proc.stderr.toString().trim() || "request failed";
+  const message = stderr.trim() || "request failed";
   return { status: null, message };
 }
 

@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { VAULT_ROOT } from "../constants";
+import { CODE_FILE_PATTERN, VAULT_ROOT } from "../constants";
 import { assertExists, mkdirIfMissing, projectRoot, requireValue } from "../cli-shared";
 import { appendLogEntry, tailLog } from "../lib/log";
 import { fileFingerprint, readCache, writeCache } from "../lib/cache";
@@ -55,6 +55,16 @@ export async function maintainProject(args: string[]) {
     console.log(`  6. wiki lint ${options.project} && wiki lint-semantic ${options.project}`);
     console.log(`  7. wiki gate ${options.project} --repo ${result.repo} --base ${options.base}`);
   }
+}
+
+export async function closeoutProject(args: string[]) {
+  const options = parseProjectRepoBaseArgs(args);
+  const json = args.includes("--json");
+  const verbose = args.includes("--verbose");
+  const result = await collectCloseout(options.project, options.base, options.repo);
+  if (json) console.log(JSON.stringify(result, null, 2));
+  else renderCloseout(result, verbose);
+  if (!result.ok) throw new Error(`closeout failed for ${options.project}`);
 }
 
 export async function refreshProject(args: string[]) {
@@ -286,6 +296,42 @@ function projectSnapshotToLintingSnapshot(snapshot: ProjectSnapshot, noteIndex?:
   };
 }
 
+export async function collectCloseout(project: string, base: string, explicitRepo?: string, snapshot?: ProjectSnapshot, lintingSnapshot?: LintingSnapshot) {
+  const projectSnapshot = snapshot ?? await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
+  const lintingState = lintingSnapshot ?? projectSnapshotToLintingSnapshot(projectSnapshot);
+  const refreshFromGit = await collectRefreshFromGit(project, base, explicitRepo, projectSnapshot);
+  const drift = await collectDriftSummary(project, explicitRepo, lintingState);
+  const lint = await collectLintResult(project, lintingState);
+  const semanticLint = await collectSemanticLintResult(project, lintingState);
+  const impacted = new Set(refreshFromGit.impactedPages.map((page) => page.page));
+  const staleImpactedPages = drift.results.filter((row) => impacted.has(row.wikiPage) && row.status !== "fresh");
+  const blockers: string[] = [];
+  if (refreshFromGit.testHealth.codeFilesWithoutChangedTests.length > 0) blockers.push(`${refreshFromGit.testHealth.codeFilesWithoutChangedTests.length} changed code file(s) have no matching changed tests`);
+  const warnings: string[] = [];
+  if (lint.issues.length > 0) warnings.push(`${lint.issues.length} structural lint issue(s)`);
+  if (semanticLint.issues.length > 0) warnings.push(`${semanticLint.issues.length} semantic lint issue(s)`);
+  if (staleImpactedPages.length > 0) warnings.push(`${staleImpactedPages.length} impacted page(s) are stale or otherwise drifted`);
+  if (refreshFromGit.uncoveredFiles.length > 0) warnings.push(`${refreshFromGit.uncoveredFiles.length} changed file(s) are not covered by wiki bindings`);
+  return {
+    project,
+    repo: refreshFromGit.repo,
+    base,
+    ok: blockers.length === 0,
+    refreshFromGit,
+    drift,
+    staleImpactedPages,
+    lint,
+    semanticLint,
+    blockers,
+    warnings,
+    nextSteps: [
+      `update impacted wiki pages from code`,
+      `wiki verify-page ${project} <page...> <level>`,
+      `re-run wiki closeout ${project} --repo ${refreshFromGit.repo} --base ${base}`,
+    ],
+  };
+}
+
 export async function collectMaintenancePlan(project: string, base: string, explicitRepo?: string, snapshot?: ProjectSnapshot, lintingSnapshot?: LintingSnapshot) {
   const projectSnapshot = snapshot ?? await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
   const lintingState = lintingSnapshot ?? projectSnapshotToLintingSnapshot(projectSnapshot);
@@ -492,8 +538,27 @@ function isTestFile(file: string) {
   return /(^|\/)(tests?|__tests__)\//u.test(file) || /\.(test|spec)\.[^.]+$/u.test(file) || /\/test_[^/]+\.[^.]+$/u.test(file);
 }
 
+function renderCloseout(result: Awaited<ReturnType<typeof collectCloseout>>, verbose: boolean) {
+  console.log(`closeout for ${result.project}: ${result.ok ? "PASS" : "FAIL"}`);
+  console.log(`- repo: ${result.repo}`);
+  console.log(`- base: ${result.base}`);
+  console.log(`- changed files: ${result.refreshFromGit.changedFiles.length}`);
+  console.log(`- impacted pages: ${result.refreshFromGit.impactedPages.length}`);
+  console.log(`- stale impacted pages: ${result.staleImpactedPages.length}`);
+  console.log(`- lint: ${result.lint.issues.length}`);
+  console.log(`- semantic: ${result.semanticLint.issues.length}`);
+  console.log(`- missing tests: ${result.refreshFromGit.testHealth.codeFilesWithoutChangedTests.length}`);
+  if (verbose || !result.ok) {
+    for (const page of result.refreshFromGit.impactedPages.slice(0, 20)) console.log(`  - impacted: ${page.page} <= ${page.matchedSourcePaths.join(", ")}`);
+    for (const blocker of result.blockers) console.log(`  - blocker: ${blocker}`);
+    for (const warning of result.warnings) console.log(`  - warning: ${warning}`);
+  }
+  console.log(`- manual steps:`);
+  for (const step of result.nextSteps) console.log(`  - ${step}`);
+}
+
 function isCodeFile(file: string) {
-  return /\.(ts|tsx|js|jsx|mjs|cjs|mts|cts|py|rb|go|rs|java|kt|swift)$/.test(file);
+  return CODE_FILE_PATTERN.test(file);
 }
 
 // Normalize file basenames for matching: strip conventional suffixes

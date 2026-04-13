@@ -41,6 +41,7 @@ Usage:
   wiki qmd-update
   wiki qmd-embed
   wiki dashboard <project> [--repo <path>] [--base <rev>] [--json]
+  wiki closeout <project> [--repo <path>] [--base <rev>] [--json] [--verbose]
   wiki commit-check <project> [--repo <path>] [--json] [--verbose]
   wiki install-git-hook <project> [--repo <path>] [--hook <name>] [--force] [--json]
   wiki refresh-on-merge <project> [--repo <path>] [--base <rev>] [--json] [--verbose]
@@ -98,6 +99,7 @@ Notes:
   - onboard writes the scaffold and can also write a project-specific onboarding plan when --repo is provided
   - onboard-plan renders the canonical onboarding slices and can write a project-specific plan file
   - dashboard emits a single JSON overview for apps and agents
+  - closeout composes refresh-from-git, drift, lint, semantic lint, and gate into one compact review surface
   - commit-check inspects staged repo files against bound wiki pages and fails when staged code would leave pages stale
   - install-git-hook writes a repo-local hook that runs wiki commit-check before commit
   - refresh-on-merge is a CI-friendly merge check that wraps refresh-from-git, drift status, and gate output

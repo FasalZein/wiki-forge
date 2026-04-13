@@ -1,7 +1,7 @@
 export { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeModule } from "./project-setup";
 export { backlogCommand, addTask, moveTask, completeTask, createIssueSlice } from "./backlog";
 export { createFeature, createPrd, createPlan, createTestPlan } from "./planning";
-export { dashboardProject, maintainProject, refreshProject, refreshFromGit, discoverProject, ingestDiff } from "./maintenance";
+export { dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, discoverProject, ingestDiff } from "./maintenance";
 export { handoverProject, claimSlice, noteProject, nextProject, verifySlice, closeSlice } from "./coordination";
 export { commitCheck, installGitHook, refreshOnMerge } from "./automation";
 export { dependencyGraph } from "./dependency-graph";

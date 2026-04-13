@@ -62,6 +62,7 @@ wiki refresh-from-git my-app --base main                   # map git changes -> 
 wiki drift-check my-app --show-unbound                     # find stale + unbound pages
 wiki ingest-diff my-app --base main                        # auto-append change digests
 wiki verify-page my-app modules/auth/spec code-verified    # promote verification level
+wiki closeout my-app --repo ~/Dev/my-app --base main       # compact refresh/drift/lint/gate review
 wiki bind my-app modules/auth/spec src/auth/               # replace source_paths
 wiki bind my-app modules/auth/spec --mode merge src/new.ts # append normalized unique source_paths
 ```
@@ -197,25 +198,13 @@ When source code changes after verification, `drift-check` demotes the page to `
 Every workflow — feature, bug fix, slicing, maintenance — ends with the same sequence:
 
 ```bash
-# 1. Map changes to impacted pages
-wiki refresh-from-git <project> --base <rev>
+# 1. Update impacted wiki pages from code (manual step)
 
-# 2. Detect drift
-wiki drift-check <project> --show-unbound
-
-# 3. Update impacted wiki pages from code (manual step)
-
-# 4. Re-verify updated pages
+# 2. Re-verify updated pages
 wiki verify-page <project> <page> code-verified
 
-# 5. Structural lint
-wiki lint <project>
-
-# 6. Semantic lint
-wiki lint-semantic <project>
-
-# 7. Pass/fail gate
-wiki gate <project> --repo <path> --base <rev>
+# 3. Run the compact closeout wrapper
+wiki closeout <project> --repo <path> --base <rev>
 ```
 
 No step is optional. Agents cannot declare done until `gate` exits 0.
@@ -287,7 +276,6 @@ Propagation rule:
 - `create-issue-slice --prd <PRD-ID>` also auto-binds the new slice hub/plan/test-plan to the parent PRD's `source_paths` when they already exist
 - module/freeform-zone linkage comes from `source_paths` overlap
 - standalone `create-plan` / `create-test-plan` docs stay listed under `specs/index.md`
-- `create-issue-slice --prd <PRD-ID>` inherits the parent PRD's `source_paths` when that PRD is already bound
 - `wiki update-index <project> --write` regenerates those derived sections across spec pages, modules, and freeform project zones
 
 ---
@@ -389,13 +377,9 @@ wiki create-issue-slice my-app "slice name" --prd PRD-001
 # write tests first, then implement, then refactor
 
 # 6. Close out (mandatory sequence)
-wiki refresh-from-git my-app --base main
-wiki drift-check my-app --show-unbound
 # update impacted pages
 wiki verify-page my-app <page> code-verified
-wiki lint my-app
-wiki lint-semantic my-app
-wiki gate my-app --repo ~/Dev/my-app --base main
+wiki closeout my-app --repo ~/Dev/my-app --base main
 ```
 
 ---

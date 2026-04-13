@@ -37,6 +37,9 @@ export const MODULE_REQUIRED_HEADINGS = [
 export const VERIFICATION_LEVELS = ["scaffold", "inferred", "code-verified", "runtime-verified", "test-verified"] as const;
 export type VerificationLevel = (typeof VERIFICATION_LEVELS)[number] | "stale";
 
+export const STALE_UNVERIFIED_DAYS = 30;
+export const CODE_FILE_PATTERN = /\.(ts|tsx|js|jsx|mjs|cjs|mts|cts|py|rb|go|rs|java|kt|swift|vue|svelte|sql|proto|graphql|gql|css|scss|sass|less)$/u;
+
 export const QUERY_STOP_WORDS = new Set([
   "about", "after", "before", "does", "from", "have", "into",
   "that", "them", "this", "what", "when", "where", "which",

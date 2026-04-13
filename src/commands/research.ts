@@ -1,7 +1,6 @@
 import { copyFileSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
-import matter from "gray-matter";
-import { VAULT_ROOT } from "../constants";
+import { VAULT_ROOT, STALE_UNVERIFIED_DAYS } from "../constants";
 import { mkdirIfMissing, nowIso, orderFrontmatter, requireValue, safeMatter, today, writeNormalizedPage } from "../cli-shared";
 import { appendLogEntry } from "../lib/log";
 import { readText, writeText } from "../lib/fs";
@@ -11,7 +10,6 @@ import { collectResearchAudit } from "../lib/research-audit";
 
 const RESEARCH_STATUSES = ["draft", "reviewed", "verified", "applied"] as const;
 const RESEARCH_VERIFICATION_LEVELS = ["unverified", "cross-referenced", "source-checked"] as const;
-const STALE_UNVERIFIED_DAYS = 30;
 
 export async function scaffoldResearch(args: string[]) {
   const topic = args.find((arg) => !arg.startsWith("--"));
@@ -482,6 +480,6 @@ export async function createResearchPage(project: string, title: string, topic?:
     ...topicCrossLinks(normalizedTopic),
     "",
   ].join("\n");
-  await writeText(outputPath, matter.stringify(body, data));
+  writeNormalizedPage(outputPath, body, data);
   return { topic: normalizedTopic, outputPath };
 }

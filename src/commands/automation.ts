@@ -1,8 +1,7 @@
 import { chmodSync, existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
-import { VAULT_ROOT } from "../constants";
-import { assertExists, projectRoot, requireValue, safeMatter } from "../cli-shared";
-import { readText } from "../lib/fs";
+import { dirname, join } from "node:path";
+import { CODE_FILE_PATTERN } from "../constants";
+import { requireValue } from "../cli-shared";
 import { parseUpdatedDate, resolveRepoPath, assertGitRepo } from "../lib/verification";
 import { collectGate } from "./diagnostics";
 import { collectRefreshFromGit, loadProjectSnapshot, resolveDefaultBase } from "./maintenance";
@@ -53,23 +52,7 @@ export async function refreshOnMerge(args: string[]) {
   const options = parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
   const verbose = args.includes("--verbose");
-  const refresh = await collectRefreshFromGit(options.project, options.base, options.repo);
-  const drift = await collectDriftSummary(options.project, options.repo);
-  const gate = await collectGate(options.project, options.base, options.repo);
-  const impacted = new Set(refresh.impactedPages.map((page) => page.page));
-  const impactedDrift = drift.results.filter((row) => impacted.has(row.wikiPage));
-  const staleImpacted = impactedDrift.filter((row) => row.status !== "fresh");
-  const result = {
-    project: options.project,
-    repo: refresh.repo,
-    base: options.base,
-    ok: gate.ok && staleImpacted.length === 0,
-    changedFiles: refresh.changedFiles,
-    impactedPages: refresh.impactedPages,
-    staleImpactedPages: staleImpacted,
-    uncoveredFiles: refresh.uncoveredFiles,
-    gate,
-  };
+  const result = await collectRefreshOnMerge(options.project, options.base, options.repo);
   if (json) console.log(JSON.stringify(result, null, 2));
   else renderRefreshOnMerge(result, verbose);
   if (!result.ok) throw new Error(`refresh-on-merge failed for ${options.project}`);
@@ -116,7 +99,9 @@ function renderCommitCheck(result: Awaited<ReturnType<typeof collectCommitCheck>
   }
 }
 
-function renderRefreshOnMerge(result: Awaited<ReturnType<typeof buildRefreshOnMergeShape>>, verbose: boolean) {
+type RefreshOnMergeResult = Awaited<ReturnType<typeof collectRefreshOnMerge>>;
+
+function renderRefreshOnMerge(result: RefreshOnMergeResult, verbose: boolean) {
   console.log(`refresh-on-merge for ${result.project}: ${result.ok ? "PASS" : "FAIL"}`);
   console.log(`- repo: ${result.repo}`);
   console.log(`- base: ${result.base}`);
@@ -132,9 +117,7 @@ function renderRefreshOnMerge(result: Awaited<ReturnType<typeof buildRefreshOnMe
   }
 }
 
-type RefreshOnMergeShape = Awaited<ReturnType<typeof buildRefreshOnMergeShape>>;
-
-async function buildRefreshOnMergeShape(project: string, base: string, explicitRepo?: string) {
+async function collectRefreshOnMerge(project: string, base: string, explicitRepo?: string) {
   const refresh = await collectRefreshFromGit(project, base, explicitRepo);
   const drift = await collectDriftSummary(project, explicitRepo);
   const gate = await collectGate(project, base, explicitRepo);
@@ -181,7 +164,7 @@ function isWorktreeSourceNewer(repo: string, sourcePath: string, updated: Date |
 }
 
 function isCodeFile(file: string) {
-  return /\.(ts|tsx|js|jsx|mjs|cjs|mts|cts|py|rb|go|rs|java|kt|swift)$/u.test(file);
+  return CODE_FILE_PATTERN.test(file);
 }
 
 function shellQuote(value: string) {

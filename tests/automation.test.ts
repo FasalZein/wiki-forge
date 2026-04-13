@@ -35,12 +35,14 @@ describe("wiki automation commands", () => {
     expect(runWiki(["create-module", "demo", "auth", "--source", "src/auth.ts"], env).exitCode).toBe(0);
 
     writeFileSync(join(repo, "src", "auth.ts"), "export const a = 3\n", "utf8");
-    runGit(repo, ["add", "src/auth.ts"]);
+    writeFileSync(join(repo, "src", "schema.sql"), "select 1;\n", "utf8");
+    runGit(repo, ["add", "src/auth.ts", "src/schema.sql"]);
 
     const failing = runWiki(["commit-check", "demo", "--repo", repo, "--json"], env);
     expect(failing.exitCode).toBe(1);
     const failingJson = JSON.parse(failing.stdout.toString());
     expect(failingJson.stalePages[0].page).toBe("modules/auth/spec.md");
+    expect(failingJson.uncoveredFiles).toContain("src/schema.sql");
 
     expect(runWiki(["verify-page", "demo", "modules/auth/spec", "code-verified"], env).exitCode).toBe(0);
     const passing = runWiki(["commit-check", "demo", "--repo", repo, "--json"], env);
@@ -60,6 +62,23 @@ describe("wiki automation commands", () => {
     const json = JSON.parse(result.stdout.toString());
     const hookBody = readFileSync(json.hookPath, "utf8");
     expect(hookBody).toContain('wiki commit-check "$PROJECT" --repo "$REPO"');
+  });
+
+  test("closeout composes refresh drift lint semantic and gate", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "gated"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "gated");
+    expect(runWiki(["create-module", "gated", "payments", "--source", "src/payments.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["verify-page", "gated", "modules/payments/spec", "code-verified"], env).exitCode).toBe(0);
+
+    const result = runWiki(["closeout", "gated", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.ok).toBe(true);
+    expect(json.refreshFromGit.impactedPages[0].page).toBe("modules/payments/spec.md");
+    expect(Array.isArray(json.nextSteps)).toBe(true);
   });
 
   test("refresh-on-merge is CI-friendly and supports verbose output", () => {
