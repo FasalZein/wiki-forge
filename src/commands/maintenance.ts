@@ -534,7 +534,7 @@ function collectChangedTestHealth(changedFiles: string[]) {
   };
 }
 
-function isTestFile(file: string) {
+export function isTestFile(file: string) {
   return /(^|\/)(tests?|__tests__)\//u.test(file) || /\.(test|spec)\.[^.]+$/u.test(file) || /\/test_[^/]+\.[^.]+$/u.test(file);
 }
 

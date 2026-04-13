@@ -601,6 +601,8 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("Use the /research skill for actual investigation");
     expect(output).toContain("wiki research audit [topic] [--json]");
     expect(output).toContain("wiki closeout <project> [--repo <path>] [--base <rev>] [--json] [--verbose]");
+    expect(output).toContain("wiki backlog <project> [--assignee <agent>] [--json]");
+    expect(output).toContain("wiki create-issue-slice <project> <title...> [--section <name>] [--priority <p>] [--tag <t>] [--prd <PRD-ID>] [--assignee <agent>] [--source <path...>] [--json]");
     expect(output).toContain("wiki commit-check <project> [--repo <path>] [--json] [--verbose]");
     expect(output).toContain("wiki install-git-hook <project> [--repo <path>] [--hook <name>] [--force] [--json]");
     expect(output).toContain("wiki refresh-on-merge <project> [--repo <path>] [--base <rev>] [--json] [--verbose]");
@@ -608,9 +610,14 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("wiki file-answer <project> [--expand] [--verbose] [--slug <slug>] [-n <num>] <question...>");
     expect(output).toContain("wiki qmd-setup");
     expect(output).toContain("wiki qmd-status");
+    expect(output).toContain("wiki gate <project> [--repo <path>] [--base <rev>] [--structural-refactor] [--json]");
+    expect(output).toContain("wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]");
+    expect(output).toContain("wiki resume <project> [--repo <path>] [--base <rev>] [--json]");
     expect(output).toContain("wiki dependency-graph <project> [--write] [--json]");
     expect(output).toContain("research audit layers dead-link checks and influenced_by coverage");
     expect(output).toContain("closeout composes refresh-from-git, drift, lint, semantic lint, and gate into one compact review surface");
+    expect(output).toContain("export-prompt prints a self-contained execution prompt for codex, claude, or pi without writing into the project repo");
+    expect(output).toContain("resume prints a quick session pickup view: recent commits, dirty files, stale pages, active slice, and next actions");
     expect(output).toContain("install-git-hook writes a repo-local hook that runs wiki commit-check before commit");
     expect(output).toContain("dependency-graph generates a derived JSON Canvas dependency graph");
     expect(output).toContain("qmd retrieval and maintenance commands now prefer the in-process SDK/Bun wrapper path instead of depending on a separately working global qmd CLI");

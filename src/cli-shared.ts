@@ -20,11 +20,11 @@ Usage:
   wiki lint-vault [--json]
 
   wiki scaffold-project <project>
-  wiki backlog <project> [--json]
+  wiki backlog <project> [--assignee <agent>] [--json]
   wiki add-task <project> <title...> [--section <name>] [--priority <p>] [--tag <t>] [--json]
   wiki move-task <project> <task-id> --to <section>
   wiki complete-task <project> <task-id>
-  wiki create-issue-slice <project> <title...> [--section <name>] [--priority <p>] [--tag <t>] [--prd <PRD-ID>] [--json]
+  wiki create-issue-slice <project> <title...> [--section <name>] [--priority <p>] [--tag <t>] [--prd <PRD-ID>] [--assignee <agent>] [--source <path...>] [--json]
   wiki create-feature <project> <name...>
   wiki create-prd <project> --feature <FEAT-ID> <name...> [--supersedes <PRD-ID>] [--split-from <PRD-ID>]
   wiki create-plan <project> <name...>
@@ -52,8 +52,10 @@ Usage:
   wiki next <project> [--json]
   wiki verify-slice <project> <slice-id> [--repo <path>] [--json]
   wiki close-slice <project> <slice-id> [--repo <path>] [--base <rev>] [--json]
+  wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]
+  wiki resume <project> [--repo <path>] [--base <rev>] [--json]
   wiki doctor <project> [--repo <path>] [--base <rev>] [--json]
-  wiki gate <project> [--repo <path>] [--base <rev>] [--json]
+  wiki gate <project> [--repo <path>] [--base <rev>] [--structural-refactor] [--json]
   wiki maintain <project> [--repo <path>] [--base <rev>] [--json]
   wiki refresh <project> [--repo <path>] [--json]
   wiki refresh-from-git <project> [--repo <path>] [--base <rev>] [--json]
@@ -89,10 +91,11 @@ Notes:
   - search uses qmd full-text search by default
   - search --hybrid is supported, but query is the preferred hybrid retrieval command
   - query is SDK-first: location/general queries use BM25, rationale queries use pre-expanded lex+vec hybrid in-process, and --expand keeps the raw qmd expansion path
-  - backlog reads project tasks by section
+  - backlog reads project tasks by section, can filter by assignee, and shows blocked slices via depends_on
   - add-task appends a tracked task to backlog.md with a generated project task ID
   - move-task / complete-task update task state in backlog.md
-  - create-issue-slice adds a backlog item and creates a task folder under projects/<project>/specs/slices/<TASK-ID>/ with index.md, plan.md, and test-plan.md; when --prd is provided and the parent PRD already has source_paths, the new slice docs inherit those bindings
+  - create-issue-slice adds a backlog item and creates a task folder under projects/<project>/specs/slices/<TASK-ID>/ with index.md, plan.md, and test-plan.md; --assignee writes assignee frontmatter, and --source overrides inherited parent-PRD source_paths when provided
+  - if projects/<project>/_summary.md defines frontmatter agents: [...], assignee values are validated against that registry
   - create-feature allocates an immutable feature ID (FEAT-001) and scaffolds a canonical feature page under projects/<project>/specs/features/
   - create-prd requires --feature, allocates an immutable project-scoped PRD ID (PRD-001), and scaffolds a canonical PRD under projects/<project>/specs/prds/
   - create-plan / create-test-plan scaffold standalone planning docs under projects/<project>/specs/ and keep them visible in specs/index.md
@@ -109,9 +112,11 @@ Notes:
   - note appends a durable agent-to-agent message to the global wiki log with project/slice metadata
   - next recommends the highest-priority active or ready slice, skipping slices blocked by depends_on
   - verify-slice runs shell command blocks from a slice test-plan and promotes the test-plan to test-verified on success
-  - close-slice runs the project gate and moves the slice to Done only when the gate passes
+  - close-slice runs the project gate, marks slice docs done, records completed_at, and moves the slice to Done when the gate passes
+  - export-prompt prints a self-contained execution prompt for codex, claude, or pi without writing into the project repo
+  - resume prints a quick session pickup view: recent commits, dirty files, stale pages, active slice, and next actions
   - doctor emits a comprehensive health report and score for a project
-  - gate is a pass/fail completion check for missing tests, lint, and uncovered changed files
+  - gate is a pass/fail completion check for missing tests, lint, uncovered changed files, and backlog/slice consistency warnings; --structural-refactor relaxes direct changed-test matching only when typecheck/build/test parity still holds
   - maintain composes refresh-from-git, discover, lint, and semantic lint into a task queue
   - refresh-from-git maps recent code changes to impacted wiki pages and uncovered files
   - ingest-diff applies a first-pass sync: appends change digests to impacted pages and scaffolds missing module pages for uncovered changed files

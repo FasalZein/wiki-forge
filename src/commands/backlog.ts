@@ -5,7 +5,8 @@ import { assertExists, mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, re
 import { readText, writeText } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
 import { isCanonicalPrdId, projectPrdsDir, projectTaskDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath, toVaultMarkdownPath, toVaultWikilinkPath } from "../lib/structure";
-import { readSliceDependencies } from "../lib/slices";
+import { readSliceAssignee, readSliceCompletedAt, readSliceDependencies, readSliceStatus } from "../lib/slices";
+import { agentNamesEqual, assertKnownAgent, readProjectAgents } from "../lib/agents";
 import { writeProjectIndex } from "./index-log";
 
 export type BacklogItem = { raw: string; id: string; title: string };
@@ -15,6 +16,9 @@ export type BacklogTaskContext = {
   id: string;
   title: string;
   section: string;
+  assignee: string | null;
+  sliceStatus: string | null;
+  completedAt: string | null;
   taskHubPath?: string;
   planPath?: string;
   testPlanPath?: string;
@@ -35,6 +39,7 @@ export type BacklogFocus = {
 };
 type PrdRecord = { prdId: string; title: string; parentFeature?: string; linkPath: string; sourcePaths: string[] };
 type SliceSpecKind = "task-hub" | "plan" | "test-plan";
+const BACKLOG_SECTIONS = ["In Progress", "Todo", "Backlog", "Done", "Cancelled"] as const;
 type SlicePaths = { taskSpecsDir: string; indexPath: string; planPath: string; testPlanPath: string };
 type AppendedTask = { backlogPath: string; taskId: string };
 
@@ -45,6 +50,8 @@ type TaskOptions = {
   priority?: string;
   tags: string[];
   parentPrd?: string;
+  assignee?: string;
+  sourcePaths: string[];
   json: boolean;
 };
 
@@ -52,9 +59,12 @@ export async function backlogCommand(args: string[]) {
   const project = args[0];
   requireValue(project, "project");
   const json = args.includes("--json");
-  const result = await collectBacklog(project);
+  const assigneeIndex = args.indexOf("--assignee");
+  const assignee = assigneeIndex >= 0 ? args[assigneeIndex + 1] : undefined;
+  if (assigneeIndex >= 0) requireValue(assignee, "assignee");
+  const result = await collectBacklogView(project, assignee);
   if (json) console.log(JSON.stringify(result, null, 2));
-  else printBacklogSummary(result.sections);
+  else printBacklogSummary(result.sections, assignee);
 }
 
 export async function addTask(args: string[]) {
@@ -74,26 +84,31 @@ export async function addTask(args: string[]) {
 
 export async function createIssueSlice(args: string[]) {
   const options = parseTaskArgs(args);
+  if (options.assignee) await assertKnownAgent(options.project, options.assignee);
   const prd = options.parentPrd ? await resolvePrdRecord(options.project, options.parentPrd) : null;
   const appended = await appendTaskToBacklog(options);
   const title = `${appended.taskId.toLowerCase()} ${options.title}`;
   const slicePaths = createSlicePaths(options.project, appended.taskId);
   ensureSliceDocsMissing(appended.taskId, slicePaths);
+  const sourcePaths = options.sourcePaths.length ? options.sourcePaths : (prd?.sourcePaths ?? []);
+  if (!options.sourcePaths.length && prd && prd.sourcePaths.length > 3) {
+    console.warn(`warning: ${prd.prdId} has ${prd.sourcePaths.length} inherited source_paths; consider --source for a narrower slice binding`);
+  }
 
   writeSliceSpec(
     slicePaths.indexPath,
     buildSliceIndexContent(options.project, appended.taskId, options.title, prd, slicePaths),
-    buildSliceFrontmatter(`${appended.taskId} ${options.title}`, "task-hub", options.project, appended.taskId, prd),
+    buildSliceFrontmatter(`${appended.taskId} ${options.title}`, "task-hub", options.project, appended.taskId, prd, sourcePaths, options.assignee),
   );
   writeSliceSpec(
     slicePaths.planPath,
     buildSlicePlanContent(options.project, appended.taskId, title, prd, slicePaths),
-    buildSliceFrontmatter(title, "plan", options.project, appended.taskId, prd),
+    buildSliceFrontmatter(title, "plan", options.project, appended.taskId, prd, sourcePaths, options.assignee),
   );
   writeSliceSpec(
     slicePaths.testPlanPath,
     buildSliceTestPlanContent(options.project, appended.taskId, title, prd, slicePaths),
-    buildSliceFrontmatter(title, "test-plan", options.project, appended.taskId, prd),
+    buildSliceFrontmatter(title, "test-plan", options.project, appended.taskId, prd, sourcePaths, options.assignee),
   );
 
   await writeProjectIndex(options.project);
@@ -153,6 +168,18 @@ export async function collectBacklog(project: string) {
   return { project, backlogPath: relative(VAULT_ROOT, backlogPath), sections: parsed.sections };
 }
 
+export async function collectBacklogView(project: string, assignee?: string) {
+  const backlog = await collectBacklog(project);
+  const doneIds = new Set((backlog.sections["Done"] ?? []).map((task) => task.id));
+  const sections = Object.fromEntries(await Promise.all(Object.entries(backlog.sections).map(async ([section, items]) => {
+    const contexts = await Promise.all(items.map((item) => collectTaskContext(project, item, section, doneIds)));
+    const filtered = assignee ? contexts.filter((context) => agentNamesEqual(context.assignee ?? undefined, assignee)) : contexts;
+    return [section, filtered];
+  })));
+  const blocked = Object.values(sections).flat().filter((item): item is BacklogTaskContext => Boolean(item) && typeof item === "object" && Array.isArray((item as BacklogTaskContext).blockedBy) && (item as BacklogTaskContext).blockedBy.length > 0);
+  return { project, assignee: assignee ?? null, knownAgents: await readProjectAgents(project), sections, blocked };
+}
+
 export async function collectBacklogFocus(project: string): Promise<BacklogFocus> {
   const backlog = await collectBacklog(project);
   const inProgress = backlog.sections["In Progress"] ?? [];
@@ -174,10 +201,14 @@ export async function collectBacklogFocus(project: string): Promise<BacklogFocus
   return { project, activeTask, recommendedTask, inProgress, todo, warnings, blocked };
 }
 
-function printBacklogSummary(sections: Record<string, BacklogItem[]>) {
+function printBacklogSummary(sections: Record<string, BacklogTaskContext[]>, assignee?: string) {
+  if (assignee) console.log(`assignee filter: ${assignee}`);
   for (const [section, items] of Object.entries(sections)) {
     console.log(`${section}: ${items.length}`);
-    for (const item of items.slice(0, 20)) console.log(`- ${item.id} ${item.title}`);
+    for (const item of items.slice(0, 20)) {
+      const suffix = [item.assignee ? `assignee=${item.assignee}` : null, item.blockedBy.length ? `blocked by ${item.blockedBy.join(", ")}` : null, item.sliceStatus ? `status=${item.sliceStatus}` : null].filter(Boolean).join(" | ");
+      console.log(`- ${item.id} ${item.title}${suffix ? ` | ${suffix}` : ""}`);
+    }
   }
 }
 
@@ -194,6 +225,9 @@ async function collectTaskContext(project: string, item: BacklogItem, section: s
     id: item.id,
     title: item.title,
     section,
+    assignee: await readSliceAssignee(project, item.id),
+    sliceStatus: await readSliceStatus(project, item.id),
+    completedAt: await readSliceCompletedAt(project, item.id),
     ...(hasTaskHub ? { taskHubPath: toVaultMarkdownPath(taskHubPath) } : {}),
     ...(hasPlan ? { planPath: toVaultMarkdownPath(planPath) } : {}),
     ...(hasTestPlan ? { testPlanPath: toVaultMarkdownPath(testPlanPath) } : {}),
@@ -268,6 +302,8 @@ function parseTaskArgs(args: string[]): TaskOptions {
   let section = "Todo";
   let priority: string | undefined;
   let parentPrd: string | undefined;
+  let assignee: string | undefined;
+  const sourcePaths: string[] = [];
   const tags: string[] = [];
   const titleParts: string[] = [];
 
@@ -292,6 +328,16 @@ function parseTaskArgs(args: string[]): TaskOptions {
         parentPrd = args[index + 1] || undefined;
         index += 1;
         break;
+      case "--assignee":
+        assignee = args[index + 1] || undefined;
+        index += 1;
+        break;
+      case "--source":
+        while (args[index + 1] && !args[index + 1]?.startsWith("--")) {
+          sourcePaths.push(String(args[index + 1]).replaceAll("\\", "/"));
+          index += 1;
+        }
+        break;
       case "--json":
         break;
       default:
@@ -302,7 +348,7 @@ function parseTaskArgs(args: string[]): TaskOptions {
 
   const title = titleParts.join(" ").trim();
   requireValue(title || undefined, "title");
-  return { project, title, section, priority, tags, parentPrd, json: args.includes("--json") };
+  return { project, title, section, priority, tags, parentPrd, assignee, sourcePaths, json: args.includes("--json") };
 }
 
 function renderTaskLine(taskId: string, title: string, priority?: string, tags: string[] = []) {
@@ -354,20 +400,21 @@ function parentPrdSection(prd: PrdRecord | null) {
   return prd ? ["## Parent PRD", "", `- [[${prd.linkPath}|${prd.title}]]`, ""] : [];
 }
 
-function buildSliceFrontmatter(title: string, specKind: SliceSpecKind, project: string, taskId: string, prd: PrdRecord | null) {
+function buildSliceFrontmatter(title: string, specKind: SliceSpecKind, project: string, taskId: string, prd: PrdRecord | null, sourcePaths: string[], assignee?: string) {
   return orderFrontmatter({
     title,
     type: "spec",
     spec_kind: specKind,
     project,
-    ...(prd?.sourcePaths.length ? { source_paths: prd.sourcePaths } : {}),
+    ...(sourcePaths.length ? { source_paths: sourcePaths } : {}),
+    ...(assignee ? { assignee } : {}),
     task_id: taskId,
     ...(prd?.prdId ? { parent_prd: prd.prdId } : {}),
     ...(prd?.parentFeature ? { parent_feature: prd.parentFeature } : {}),
     created_at: nowIso(),
     updated: nowIso(),
     status: "draft",
-  }, ["title", "type", "spec_kind", "project", "source_paths", "task_id", "depends_on", "parent_prd", "parent_feature", "created_at", "updated", "status"]);
+  }, ["title", "type", "spec_kind", "project", "source_paths", "assignee", "task_id", "depends_on", "parent_prd", "parent_feature", "created_at", "updated", "status"]);
 }
 
 function writeSliceSpec(path: string, content: string, frontmatter: Record<string, unknown>) {
@@ -486,8 +533,9 @@ function parseBacklog(backlog: string): ParsedBacklog {
   for (const line of lines) {
     const heading = line.match(/^##\s+(.+)$/);
     if (heading) {
-      currentSection = heading[1].trim();
-      if (!sections[currentSection]) {
+      const nextSection = heading[1].trim();
+      currentSection = (BACKLOG_SECTIONS as readonly string[]).includes(nextSection) ? nextSection : null;
+      if (currentSection && !sections[currentSection]) {
         sections[currentSection] = [];
         extras[currentSection] = [];
         order.push(currentSection);

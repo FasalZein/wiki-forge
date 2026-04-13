@@ -76,6 +76,7 @@ wiki lint my-app                                           # structural: frontma
 wiki lint-semantic my-app                                  # semantic: orphans, dead-ends, placeholders
 wiki doctor my-app                                         # health score (0-100) + prioritized actions
 wiki gate my-app --repo ~/Dev/my-app --base main           # pass/fail — blocks on missing tests
+wiki gate my-app --repo ~/Dev/my-app --base main --structural-refactor  # allow zero-behavior-change refactors with parity checks
 ```
 
 ### Retrieval and Search
@@ -113,10 +114,13 @@ wiki create-feature my-app "user onboarding"               # -> specs/features/F
 wiki create-prd my-app --feature FEAT-001 "email signup"   # -> specs/prds/PRD-001-email-signup.md
 wiki create-plan my-app "rollout checklist"                # -> specs/plan-rollout-checklist.md
 wiki create-test-plan my-app "rollout checklist"           # -> specs/test-plan-rollout-checklist.md
-wiki create-issue-slice my-app "email verification" --prd PRD-001  # inherits parent PRD source_paths when present
-wiki backlog my-app                                        # list tracked tasks
-wiki next my-app                                           # pick the active or next ready slice
-wiki verify-slice my-app MY-APP-001 --repo ~/Dev/my-app   # run bash/sh code fences from slice test-plan.md
+wiki create-issue-slice my-app "email verification" --prd PRD-001 --assignee Codex --source src/auth.ts  # owner + explicit slice bindings
+# optional: add agents: [Codex, Claude, pi] to _summary.md frontmatter to validate assignees
+wiki backlog my-app --assignee Codex                      # list tracked tasks for one agent
+wiki next my-app                                          # pick the active or next ready slice
+wiki verify-slice my-app MY-APP-001 --repo ~/Dev/my-app  # run bash/sh code fences from slice test-plan.md
+wiki export-prompt my-app MY-APP-001 --agent pi          # print a self-contained execution prompt
+wiki resume my-app --repo ~/Dev/my-app --base main       # pick up an interrupted session fast
 wiki close-slice my-app MY-APP-001 --repo ~/Dev/my-app --base main
 ```
 
@@ -274,7 +278,7 @@ These phrases route to the closeout sequence above:
 
 Propagation rule:
 - planning lineage (`feature -> PRD -> slice`) comes from metadata (`feature_id`, `prd_id`, `parent_feature`, `parent_prd`)
-- `create-issue-slice --prd <PRD-ID>` also auto-binds the new slice hub/plan/test-plan to the parent PRD's `source_paths` when they already exist
+- `create-issue-slice --prd <PRD-ID>` also auto-binds the new slice hub/plan/test-plan to the parent PRD's `source_paths` when they already exist, unless `--source <path...>` overrides them explicitly
 - module/freeform-zone linkage comes from `source_paths` overlap
 - standalone `create-plan` / `create-test-plan` docs stay listed under `specs/index.md`
 - `wiki update-index <project> --write` regenerates those derived sections across spec pages, modules, and freeform project zones
@@ -416,6 +420,7 @@ The CLI uses [qmd](https://github.com/nicholasgriffintn/qmd) for indexing and re
 - **BM25 SDK path** for location and general queries (fast, ~40ms warm)
 - **Hybrid SDK path** (BM25 + vector, pre-expanded, no rerank) for rationale queries (~45ms warm)
 - **qmd SDK + Bun wrapper** now back the admin/indexing flow too (`qmd-setup`, `qmd-update`, `qmd-embed`, `qmd-status`), so wiki-forge no longer depends on a separately working global qmd CLI for maintenance
+- **slice workflow** now supports assignees, prompt export, resume views, backlog filtering, and structural-refactor gate exceptions for clean handoffs across Codex, Claude, and pi
 
 ```bash
 wiki qmd-update          # re-index vault

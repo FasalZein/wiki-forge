@@ -117,6 +117,7 @@ Auto-detection: if `KNOWLEDGE_VAULT_ROOT` is unset, the CLI walks up from `cwd` 
 | Stale + unbound pages | `wiki drift-check <project> --show-unbound` |
 | Re-verify updated pages | `wiki verify-page <project> <page> <level>` |
 | Pass/fail completion gate | `wiki gate <project> --base <rev>` |
+| Structural refactor gate | `wiki gate <project> --base <rev> --structural-refactor` |
 | Compact closeout review | `wiki closeout <project> --base <rev>` |
 | Broad health check | `wiki doctor <project> --base <rev>` |
 | Find pages by topic | `wiki search "<query>"` or `wiki query "<query>"` |
@@ -131,16 +132,18 @@ Auto-detection: if `KNOWLEDGE_VAULT_ROOT` is unset, the CLI walks up from `cwd` 
 | Ingest raw source + summary | `wiki source ingest <path-or-url> [--topic <topic>]` |
 | Lint filed research evidence | `wiki research lint [topic]` |
 | Save answer brief | `wiki file-answer <project> [--verbose] "<question>"` |
+| Export slice prompt | `wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]` |
+| Resume interrupted session | `wiki resume <project> --base <rev>` |
 
 Planning scaffolds:
 
 ```bash
 wiki create-feature <project> <name>          # creates specs/features/FEAT-<nnn>-<slug>.md
 wiki create-prd <project> --feature <FEAT-ID> <name>
-wiki create-issue-slice <project> <title> [--prd <PRD-ID>]   # creates specs/slices/<TASK-ID>/{index,plan,test-plan}.md + backlog task; inherits parent PRD source_paths when available
+wiki create-issue-slice <project> <title> [--prd <PRD-ID>] [--assignee <agent>] [--source <path...>]   # creates specs/slices/<TASK-ID>/{index,plan,test-plan}.md + backlog task; --source overrides inherited parent PRD bindings
 wiki create-plan <project> <name>             # creates specs/plan-<slug>.md and keeps it listed in specs/index.md
 wiki create-test-plan <project> <name>        # creates specs/test-plan-<slug>.md and keeps it listed in specs/index.md
-wiki backlog <project> [--json]
+wiki backlog <project> [--assignee <agent>] [--json]
 ```
 
 Current rule:
@@ -149,6 +152,8 @@ Current rule:
 - slice docs = task-scoped docs under `specs/slices/<TASK-ID>/`, optionally linked to one parent PRD
 - standalone plan/test-plan docs live directly under `specs/` and appear in `specs/index.md` under Planning Docs
 - `create-issue-slice --prd <PRD-ID>` can inherit the parent PRD's `source_paths` when that PRD is already bound
+- `create-issue-slice --assignee <agent>` writes assignee frontmatter into all generated slice docs
+- `backlog --assignee <agent>` filters the queue and still surfaces blocked slices via `depends_on`
 
 Full command list: `wiki help`
 
@@ -188,7 +193,7 @@ How to identify modules: look for directories that own a distinct concern — a 
 5. After each slice, run the closeout sequence:
    update impacted wiki pages from code
    wiki verify-page <project> <page> code-verified
-   wiki closeout <project> --repo <path> --base <rev>
+   wiki close-slice <project> <slice-id> --repo <path> --base <rev>
 ```
 
 ### 2. Refresh Docs After Code Changes
@@ -213,6 +218,8 @@ Hybrid semantic     → wiki query "how does approval work"
 Project Q&A         → wiki ask <project> "where is approval implemented"
 Verbose Q&A         → wiki ask <project> --verbose "where is approval implemented"
 Save answer brief   → wiki file-answer <project> "question"
+Export handoff      → wiki export-prompt <project> <slice-id> --agent pi
+Resume session      → wiki resume <project> --base <rev>
 ```
 
 ### 4. File Research

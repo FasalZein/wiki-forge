@@ -1,15 +1,16 @@
 import { existsSync, readdirSync } from "node:fs";
-import { relative } from "node:path";
+import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { assertExists, nowIso, orderFrontmatter, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { readText } from "../lib/fs";
 import { appendLogEntry, tailLog } from "../lib/log";
-import { extractShellCommandBlocks, readSliceDependencies, readSliceSourcePaths, readSliceTestPlan } from "../lib/slices";
+import { extractShellCommandBlocks, readSliceDependencies, readSliceHub, readSlicePlan, readSliceSourcePaths, readSliceTestPlan } from "../lib/slices";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
 import { projectSlicesDir, projectTaskHubPath } from "../lib/structure";
 import { collectBacklog, collectBacklogFocus, collectTaskContextForId, moveTaskToSection } from "./backlog";
 import { collectGate } from "./diagnostics";
 import { collectMaintenancePlan, resolveDefaultBase } from "./maintenance";
+import { collectDriftSummary } from "./verification";
 import { applyVerificationLevel } from "./verification-shared";
 
 type DirtyRepoStatus = {
@@ -244,12 +245,75 @@ export async function closeSlice(args: string[]) {
     if (json) console.log(JSON.stringify(failed, null, 2));
     throw new Error(`gate failed for ${project}`);
   }
+  const completedAt = nowIso();
   await moveTaskToSection(project, sliceId, "Done");
+  await markSliceClosed(project, sliceId, completedAt);
   await clearClaimMetadata(project, sliceId);
-  appendLogEntry("close-slice", sliceId, { project, details: [`base=${base}`] });
-  const result = { project, sliceId, closed: true, gate, previousSection: context.section };
+  appendLogEntry("close-slice", sliceId, { project, details: [`base=${base}`, `completed_at=${completedAt}`] });
+  const result = { project, sliceId, closed: true, gate, previousSection: context.section, completedAt };
   if (json) console.log(JSON.stringify(result, null, 2));
   else console.log(`closed ${sliceId}`);
+}
+
+export async function exportPrompt(args: string[]) {
+  const project = args[0];
+  const sliceId = args[1];
+  requireValue(project, "project");
+  requireValue(sliceId, "slice-id");
+  const agentIndex = args.indexOf("--agent");
+  const agent = (agentIndex >= 0 ? args[agentIndex + 1] : "codex") || "codex";
+  if (!["codex", "claude", "pi"].includes(agent)) throw new Error(`unsupported agent: ${agent}`);
+  const hub = await readSliceHub(project, sliceId);
+  const plan = await readSlicePlan(project, sliceId);
+  const testPlan = await readSliceTestPlan(project, sliceId);
+  const summaryPath = join(VAULT_ROOT, "projects", project, "_summary.md");
+  const summary = existsSync(summaryPath) ? await readText(summaryPath) : "";
+  const sourcePaths = await readSliceSourcePaths(project, sliceId);
+  const commands = extractShellCommandBlocks(testPlan.content);
+  const context = await collectTaskContextForId(project, sliceId);
+  const prompt = renderExecutionPrompt({ project, sliceId, agent, hub, plan, testPlan, summary, sourcePaths, commands, context });
+  console.log(prompt);
+}
+
+export async function resumeProject(args: string[]) {
+  const options = parseProjectRepoBaseArgs(args);
+  const json = args.includes("--json");
+  const repo = resolveRepoPath(options.project, options.repo);
+  assertGitRepo(repo);
+  const maintain = await collectMaintenancePlan(options.project, options.base, repo);
+  const dirty = collectDirtyRepoStatus(repo);
+  const recentCommits = collectRecentCommits(repo, 5);
+  const drift = await collectDriftSummary(options.project, repo);
+  const stalePages = drift.results.filter((row) => row.status !== "fresh").slice(0, 10).map((row) => row.wikiPage);
+  const recentNotes = projectLogEntries(options.project, "note").slice(0, 5);
+  const payload = {
+    project: options.project,
+    repo,
+    base: options.base,
+    activeTask: maintain.focus.activeTask,
+    nextTask: maintain.focus.recommendedTask,
+    dirty,
+    recentCommits,
+    stalePages,
+    recentNotes,
+    actions: maintain.actions.slice(0, 8),
+  };
+  if (json) {
+    console.log(JSON.stringify(payload, null, 2));
+    return;
+  }
+  console.log(`resume for ${options.project}:`);
+  if (payload.activeTask) console.log(`- active: ${payload.activeTask.id} ${payload.activeTask.title}`);
+  else if (payload.nextTask) console.log(`- next: ${payload.nextTask.id} ${payload.nextTask.title}`);
+  console.log(`- recent commits:`);
+  for (const commit of recentCommits) console.log(`  - ${commit}`);
+  console.log(`- dirty: modified=${dirty.modifiedFiles.length} staged=${dirty.stagedFiles.length} untracked=${dirty.untrackedFiles.length}`);
+  for (const page of stalePages) console.log(`- stale: ${page}`);
+  for (const note of recentNotes) console.log(`- note: ${compactLogEntry(note)}`);
+  if (payload.actions.length) {
+    console.log(`- next actions:`);
+    for (const action of payload.actions) console.log(`  - [${action.kind}] ${action.message}`);
+  }
 }
 
 function parseProjectRepoBaseArgs(args: string[]) {
@@ -373,6 +437,111 @@ async function clearClaimMetadata(project: string, sliceId: string) {
   delete data.claim_paths;
   data.updated = nowIso();
   writeNormalizedPage(indexPath, parsed.content, orderFrontmatter(data, ["title", "type", "spec_kind", "project", "source_paths", "task_id", "depends_on", "parent_prd", "parent_feature", "created_at", "updated", "status"]));
+}
+
+async function markSliceClosed(project: string, sliceId: string, completedAt: string) {
+  const docs = [await readSliceHub(project, sliceId), await readSlicePlan(project, sliceId), await readSliceTestPlan(project, sliceId)];
+  for (const doc of docs) {
+    const nextLevel = doc.data.spec_kind === "test-plan" ? "test-verified" : "code-verified";
+    const data = orderFrontmatter({
+      ...doc.data,
+      status: "done",
+      completed_at: completedAt,
+      updated: completedAt,
+    }, ["title", "type", "spec_kind", "project", "source_paths", "assignee", "task_id", "depends_on", "parent_prd", "parent_feature", "claimed_by", "claimed_at", "claim_paths", "created_at", "updated", "completed_at", "status", "verification_level"]);
+    writeNormalizedPage(doc.path, doc.content, data);
+    await applyVerificationLevel(doc.path, nextLevel, false, relative(VAULT_ROOT, doc.path), true);
+  }
+}
+
+function renderExecutionPrompt(input: {
+  project: string;
+  sliceId: string;
+  agent: string;
+  hub: Awaited<ReturnType<typeof readSliceHub>>;
+  plan: Awaited<ReturnType<typeof readSlicePlan>>;
+  testPlan: Awaited<ReturnType<typeof readSliceTestPlan>>;
+  summary: string;
+  sourcePaths: string[];
+  commands: string[];
+  context: Awaited<ReturnType<typeof collectTaskContextForId>>;
+}) {
+  const title = typeof input.hub.data.title === "string" ? input.hub.data.title : input.sliceId;
+  const assignee = typeof input.hub.data.assignee === "string" ? input.hub.data.assignee : null;
+  const summaryBody = input.summary.replace(/^---[\s\S]*?---\s*/u, "").trim();
+  const baseSections = [
+    `Task: ${title}`,
+    `Project: ${input.project}`,
+    assignee ? `Intended assignee: ${assignee}` : null,
+    "",
+    "Context:",
+    summaryBody ? summaryBody.slice(0, 1200) : "- Read projects/_summary first.",
+    "",
+    "Slice Hub:",
+    input.hub.content.trim(),
+    "",
+    "Execution Plan:",
+    input.plan.content.trim(),
+    "",
+    "Test Plan:",
+    input.testPlan.content.trim(),
+    "",
+    "Source Paths:",
+    ...(input.sourcePaths.length ? input.sourcePaths.map((path) => `- ${path}`) : ["- none bound yet"]),
+    "",
+    "Verification:",
+    ...(input.commands.length ? input.commands.map((command) => `- ${command}`) : ["- Fill verification commands before implementation ends."]),
+    "",
+    "Rules:",
+    "- Do not write ad hoc markdown into the project repo.",
+    "- Keep changes scoped to this slice.",
+    "- Update tests with code unless this is an explicit structural refactor.",
+    "- Run the listed verification commands before handing back.",
+  ].filter((line): line is string => line !== null);
+
+  if (input.agent === "claude") {
+    return [
+      "You are continuing an in-flight wiki-forge slice.",
+      "Stay within the described slice boundary and finish implementation plus verification.",
+      "",
+      ...baseSections,
+      "",
+      "Deliverable:",
+      "- Return a concise summary of code changes, tests run, and any wiki follow-up required.",
+    ].join("\n");
+  }
+
+  if (input.agent === "pi") {
+    return [
+      "You are pi continuing a tracked wiki-forge slice.",
+      "Operate directly in the repo, keep changes inside the slice boundary, and finish with verification.",
+      "",
+      ...baseSections,
+      "",
+      "Pi-specific expectations:",
+      "- Read the referenced files before editing them.",
+      "- Keep the repo clean and avoid ad hoc markdown in the project repo.",
+      "- Report the exact verification commands you ran.",
+    ].join("\n");
+  }
+
+  return [
+    "Implement this slice in the repo and stop only after tests/verification are done.",
+    "Use the provided plan/test-plan as the contract.",
+    "",
+    ...baseSections,
+    "",
+    "Output format:",
+    "- summary of files changed",
+    "- verification commands run + results",
+    "- follow-up blockers, if any",
+  ].join("\n");
+}
+
+function collectRecentCommits(repo: string, limit: number) {
+  const proc = Bun.spawnSync(["git", "log", `-n${limit}`, "--oneline"], { cwd: repo, stdout: "pipe", stderr: "pipe" });
+  if (proc.exitCode !== 0) return [] as string[];
+  return proc.stdout.toString().replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean);
 }
 
 function projectLogEntries(project: string, kind?: string) {
