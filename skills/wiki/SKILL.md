@@ -12,6 +12,22 @@ Code is the source of truth. The wiki is compiled memory maintained by agents �
 
 When code changes, the wiki updates. When the wiki drifts, the CLI catches it.
 
+## Harness Compatibility
+
+`/wiki` works in any harness that can:
+- run the `wiki` CLI
+- read repo files and vault files
+- edit markdown safely
+
+It does not require subagents, background jobs, or rich UI. That makes it the more portable skill across harnesses.
+
+Across skill-capable harnesses, the main remaining gaps are:
+- uneven slash-command support
+- weak session continuity for long wiki maintenance threads
+- inconsistent support for opening/inspecting derived artifacts like `.canvas`
+
+When a harness lacks slash commands, load the equivalent instructions manually and keep using the `wiki` CLI.
+
 Trigger this skill for requests like:
 - "wiki refresh" / "wiki closeout"
 - "update project wiki"
@@ -38,6 +54,24 @@ Treat those as contextual maintenance requests, not blind keyword matches. The c
 
 For the full build workflow (research → grill → PRD → slices → TDD → verify), use `/forge`. The wiki skill is the knowledge/verification layer; forge is the workflow layer that composes it with research and TDD.
 Use `/forge` only for non-trivial pipeline work; do not trigger it for small fixes, note cleanup, or simple maintenance.
+
+## Use Wiki vs Wiki-Forge
+
+Use `/wiki` when the work is about memory, verification, retrieval, filing, drift, bindings, or closeout.
+Use `/forge` when the work is about planning and shipping non-trivial code changes.
+
+Stay in `/wiki` for:
+- `refresh-from-git`, `drift-check`, `verify-page`, `lint`, `gate`
+- `research file`, `research lint`, `research audit`, `source ingest`
+- `ask`, `query`, `search`, `file-answer`
+- wiki formatting, vault cleanup, and project onboarding
+
+Escalate to `/forge` for:
+- new features
+- behavior changes across modules
+- backlog slice selection or continuation
+- refactors/perf work with design tradeoffs
+- any task where code changes are still being planned, implemented, or decomposed
 
 Escalate from `/wiki` to `/forge` immediately when the task involves:
 - creating or continuing a backlog slice

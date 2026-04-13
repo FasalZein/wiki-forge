@@ -18,6 +18,27 @@ Every non-trivial change follows this order. No exceptions.
 research → grill-me → PRD → slices → TDD → wiki verify
 ```
 
+## Harness Compatibility
+
+`/forge` works best in harnesses that support:
+- slash-triggered skills or equivalent skill loading
+- shell access to run `wiki`, tests, and git commands
+- file read/write access for repo code and the wiki vault
+- enough session continuity to carry a PRD/slice thread across turns
+
+Nice to have, but not required:
+- subagents / parallel workers
+- structured questions / forms
+- background jobs or overlays
+
+If a harness supports skills but not slash commands, load the same companion skills manually and follow the same sequence. Do not downgrade the workflow just because the invocation syntax differs.
+
+Current gaps across harnesses:
+- some harnesses cannot persist long-running slice context well, so handoff still needs stronger first-class support
+- some harnesses cannot launch subagents, so research and validation can be slower and more token-heavy
+- some harnesses do not expose structured UI for PRD/slice review, so the grill/approval loop is more manual
+- some harnesses do not expose lightweight background automation, so commit/CI checks must stay CLI-first
+
 ## Companion Skills
 
 Install these before relying on `/forge`:
@@ -46,6 +67,29 @@ Load these in order before writing production code:
 If a skill is unavailable, stop and tell the user. Do not silently skip steps.
 
 **Note:** `/prd-to-issues` (GitHub variant) exists for projects needing external issue tracking. For solo or agent-driven work, `/prd-to-slices` is faster and token-free.
+
+## Use Forge vs Wiki
+
+Use `/forge` when the task is implementation workflow.
+Use `/wiki` when the task is wiki maintenance or retrieval.
+
+Choose `/forge` for:
+- new features or workflows
+- cross-module behavior changes
+- performance or refactor work with tradeoffs
+- any task that should leave PRD + slice history
+- continuing an existing PRD/slice thread
+- selecting, claiming, implementing, or closing backlog slices
+
+Choose `/wiki` only for:
+- refresh/verify/gate work after implementation choices are already made
+- wiki maintenance, drift cleanup, binding, retrieval, or filing research
+- docs/wiki formatting and navigation work
+- repo exploration or onboarding
+
+Rule of thumb:
+- if you are changing product/runtime behavior, use `/forge`
+- if you are maintaining the memory/verification layer around already-chosen work, use `/wiki`
 
 ## What Counts as Non-Trivial
 

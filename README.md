@@ -180,7 +180,7 @@ Enable the CLI: Obsidian 1.8+ -> Settings -> General -> CLI. See [SETUP.md](SETU
 | **Research** | Filed evidence and source-backed notes under `research/` and `raw/` | `/research` skill + `wiki research` commands |
 | **Forge** | Optional workflow layer: research -> grill -> PRD -> slices -> TDD -> verify | `/forge` skill |
 
-These are separate concerns. The wiki is the knowledge store. Research is evidence. Forge is optional process.
+These are separate concerns. The wiki is the knowledge store. Research is evidence. Forge is the software-development workflow layer over that memory.
 
 ### Verification Levels
 
@@ -316,8 +316,8 @@ npx skills@latest add mattpocock/skills/tdd -g
 
 | Skill | Invoke | What it does | When to use |
 |-------|--------|-------------|-------------|
-| **wiki** | `/wiki` | CLI operations: maintenance, drift, verification, gates | Always — the operational surface |
-| **forge** | `/forge` | Orchestrates research -> grill -> PRD -> slices -> TDD -> verify | Non-trivial features crossing module boundaries |
+| **wiki** | `/wiki` | Memory + verification operations: maintenance, drift, retrieval, filing, gates | When implementation choices are already known or no product behavior is changing |
+| **forge** | `/forge` | Software-development workflow: research -> grill -> PRD -> slices -> TDD -> verify | Non-trivial implementation work, new features, cross-module changes, or existing slice continuation |
 | **prd-to-slices** | `/prd-to-slices` | Breaks a PRD into tracked vertical slices in the wiki backlog | After writing a PRD, before implementation |
 | **grill-me** | `/grill-me` | Stress-tests a plan before committing to it | Before writing a PRD |
 | **write-a-prd** | `/write-a-prd` | Captures problem, scope, modules, acceptance criteria | When you need formal project intent |
@@ -327,14 +327,33 @@ npx skills@latest add mattpocock/skills/tdd -g
 
 | Task | Workflow |
 |------|----------|
-| Knowledge maintenance | `/wiki` |
+| Knowledge maintenance / verification / retrieval | `/wiki` |
 | Research capture | `/research` + `wiki research file` |
 | Small code fix (< 50 lines) | `/tdd` + `/wiki` |
 | Wiki / note cleanup | `/wiki` + `/obsidian-markdown` |
 | Repo exploration | `wiki maintain` |
-| New feature or cross-module change | `/forge` (full pipeline) |
+| New feature, workflow, or cross-module change | `/forge` (full pipeline) |
+| Continue an existing PRD/slice thread | `/forge` |
 
 ---
+
+## Harness Portability and Gaps
+
+Works best across skill-capable harnesses when they support:
+- skill loading or slash-command equivalents
+- shell access for `wiki`, tests, and git
+- file read/write access for repo + vault
+- enough session continuity to carry PRD/slice threads
+
+Current cross-harness gaps:
+- uneven slash-command support; some harnesses need manual skill loading
+- weak session continuity for long forge threads
+- inconsistent subagent/background support, which makes research and validation more expensive
+- inconsistent artifact UX for derived files like `.canvas`
+
+Practical rule:
+- `wiki` is the more portable skill across harnesses
+- `forge` needs stronger multi-step workflow discipline and companion-skill availability
 
 ## Forge Workflow
 
