@@ -134,7 +134,7 @@ Notes:
   - scaffold-layer/create-layer-page are the plugin-generated extension path for custom top-level layers such as books
   - lint-vault hard-fails unknown top-level layers or invalid custom-layer paths
   - query --expand uses qmd's raw natural-language expansion path
-  - qmd CLI is still used for maintenance/admin commands; retrieval commands prefer the in-process SDK path
+  - qmd retrieval and maintenance commands now prefer the in-process SDK/Bun wrapper path instead of depending on a separately working global qmd CLI
   - set QMD_INDEX_NAME to route wiki/qmd commands to a named qmd index (useful for isolated benchmarks)
   - set ${VAULT_ROOT_ENV} when the CLI is installed outside the vault repo
   - bind manages source_paths (repo-relative code paths) on a wiki page's frontmatter; default mode is replace, and --mode merge appends normalized unique paths without dropping existing bindings

@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import type { ExpandedQuery, HybridQueryResult, QMDStore, SearchResult } from "@tobilu/qmd";
+import type { ExpandedQuery, HybridQueryResult, QMDStore, SearchResult, StoreOptions } from "@tobilu/qmd";
 import { QMD_INDEX_PATH } from "../constants";
 import { normalizeSemanticQueryText } from "./qmd";
 import type { QmdResult } from "../types";
@@ -80,12 +80,20 @@ export function sdkHybridAvailable() {
   return existsSync(HOMEBREW_SQLITE);
 }
 
-async function getStore(): Promise<QMDStore> {
+export async function getQmdStore(options?: StoreOptions & { forceNew?: boolean }): Promise<QMDStore> {
   ensureCustomSqlite();
+  if (options?.forceNew) {
+    const mod = await import("@tobilu/qmd");
+    return mod.createStore({ dbPath: options.dbPath, config: options.config, configPath: options.configPath });
+  }
   if (!storePromise) {
     storePromise = import("@tobilu/qmd").then((mod) => mod.createStore({ dbPath: QMD_INDEX_PATH }));
   }
   return storePromise;
+}
+
+async function getStore(): Promise<QMDStore> {
+  return getQmdStore({ dbPath: QMD_INDEX_PATH });
 }
 
 function lexResultToQmdResult(query: string, result: SearchResult): QmdResult {

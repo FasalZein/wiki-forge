@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { QMD_INDEX_NAME, QMD_INDEX_PATH, QMD_NODE_CLI, VAULT_ROOT } from "../constants";
 import type { QmdResult } from "../types";
 import { fileFingerprint, readCache, writeCache } from "./cache";
-import { resolveCommandOnPath } from "./runtime";
+import { resolveCommandsOnPath } from "./runtime";
 
 const QMD_CACHE_VERSION = "1";
 
@@ -215,21 +215,30 @@ export async function ensureKnowledgeCollection() {
   }
 }
 
-function qmdInvocation(args: string[]) {
+function isNodeModulesBin(path: string) {
+  return path.replaceAll("\\", "/").includes("/node_modules/.bin/");
+}
+
+export function resolveQmdInvocation(args: string[], options?: { qmdPath?: string | null; qmdPaths?: string[]; nodeCliPath?: string | undefined }) {
   const indexArgs = QMD_INDEX_NAME === "index" ? [] : ["--index", QMD_INDEX_NAME];
-  if (existsSync(QMD_NODE_CLI)) {
-    return ["node", QMD_NODE_CLI, ...indexArgs, ...args];
-  }
-  return ["qmd", ...indexArgs, ...args];
+  const qmdPaths = options?.qmdPaths
+    ?? (options && "qmdPath" in options ? (options.qmdPath ? [options.qmdPath] : []) : resolveCommandsOnPath("qmd"));
+  const qmdPath = qmdPaths.find((candidate) => !isNodeModulesBin(candidate)) ?? qmdPaths[0];
+  if (qmdPath) return [qmdPath, ...indexArgs, ...args];
+  const nodeCliPath = options && "nodeCliPath" in options ? options.nodeCliPath : QMD_NODE_CLI;
+  if (nodeCliPath && existsSync(nodeCliPath)) return ["node", nodeCliPath, ...indexArgs, ...args];
+  return null;
+}
+
+function qmdInvocation(args: string[]) {
+  const invocation = resolveQmdInvocation(args);
+  if (invocation) return invocation;
+  return ["qmd", ...args];
 }
 
 export function assertQmdAvailable() {
   if (qmdAvailable === true) return;
-  if (existsSync(QMD_NODE_CLI)) {
-    qmdAvailable = true;
-    return;
-  }
-  if (resolveCommandOnPath("qmd")) {
+  if (resolveQmdInvocation([])) {
     qmdAvailable = true;
     return;
   }

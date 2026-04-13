@@ -164,7 +164,7 @@ function runWiki(benchEnv: NodeJS.ProcessEnv, args: string[]) {
 }
 
 function runQmd(options: Options, args: string[]) {
-  runCommand(["qmd", "--index", options.indexName, ...args], { cwd: repoRoot, env: process.env });
+  runCommand(["bun", "scripts/qmd-cli.ts", "--index", options.indexName, ...args], { cwd: repoRoot, env: process.env });
 }
 
 function runCommand(cmd: string[], options: { cwd: string; env?: NodeJS.ProcessEnv }) {

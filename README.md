@@ -415,7 +415,7 @@ The CLI uses [qmd](https://github.com/nicholasgriffintn/qmd) for indexing and re
 
 - **BM25 SDK path** for location and general queries (fast, ~40ms warm)
 - **Hybrid SDK path** (BM25 + vector, pre-expanded, no rerank) for rationale queries (~45ms warm)
-- **qmd CLI** retained only for admin commands (`qmd-update`, `qmd-embed`, `qmd-status`)
+- **qmd SDK + Bun wrapper** now back the admin/indexing flow too (`qmd-setup`, `qmd-update`, `qmd-embed`, `qmd-status`), so wiki-forge no longer depends on a separately working global qmd CLI for maintenance
 
 ```bash
 wiki qmd-update          # re-index vault
@@ -431,6 +431,7 @@ Use an isolated index to avoid polluting your main state:
 ```bash
 QMD_INDEX_NAME=wiki-forge-bench bun src/index.ts qmd-setup
 bun run bench:qmd
+# bench:qmd uses scripts/qmd-cli.ts so Bun loads Homebrew SQLite before qmd CLI startup
 ```
 
 The harness measures BM25, vector, expand-query, and structured variants plus cold/warm latency for `wiki query` and `wiki ask`.

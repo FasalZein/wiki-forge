@@ -3,7 +3,7 @@ import { DEFAULT_CANDIDATE_LIMITS, parseCandidateLimitsArg } from "../scripts/qm
 import { DEFAULT_BENCH_COMMANDS, parseCommandList } from "../scripts/wiki-maintenance-bench";
 import { resolveQmdIndexPath } from "../src/constants";
 import { DEFAULT_ASK_MAX_RESULTS, classifyAnswerScope, renderAnswerBrief, resolveAskCandidateLimit, scoreAnswerSource } from "../src/commands/answers";
-import { buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText, resolveRetrievalMode } from "../src/lib/qmd";
+import { buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText, resolveQmdInvocation, resolveRetrievalMode } from "../src/lib/qmd";
 
 describe("qmd query shaping", () => {
   test("normalizes hyphenated project names for semantic queries", () => {
@@ -94,6 +94,16 @@ describe("retrieval mode resolution", () => {
     expect(resolveRetrievalMode("where do PRDs live", { expand: true })).toBe("expand");
     expect(resolveRetrievalMode("why did we choose qmd", { expand: true })).toBe("expand");
     expect(resolveRetrievalMode("why did we choose qmd", { expand: true, sdkHybridAvailable: true })).toBe("expand");
+  });
+});
+
+describe("qmd invocation", () => {
+  test("prefers a non-node_modules qmd binary on PATH", () => {
+    expect(resolveQmdInvocation(["status"], { qmdPaths: ["/repo/node_modules/.bin/qmd", "/opt/homebrew/bin/qmd"], nodeCliPath: "/tmp/qmd.js" })).toEqual(["/opt/homebrew/bin/qmd", "status"]);
+  });
+
+  test("falls back to the explicit node cli path when qmd is not on PATH", () => {
+    expect(resolveQmdInvocation(["status"], { qmdPath: null, nodeCliPath: import.meta.path })).toEqual(["node", import.meta.path, "status"]);
   });
 });
 
