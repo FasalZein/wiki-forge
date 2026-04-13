@@ -586,6 +586,8 @@ function codeMatchKeys(file: string) {
   // Avoid bare "index" key — too ambiguous, matches any index.test file
   if (norm !== "index") keys.add(norm);
   if (basename.toLowerCase() !== norm && basename.toLowerCase() !== "index") keys.add(basename.toLowerCase());
+  const firstSegment = norm.split("-")[0];
+  if (firstSegment && firstSegment !== norm && firstSegment !== "index") keys.add(firstSegment);
   if (parent) {
     keys.add(`${parent.toLowerCase()}/${norm}`);
     if (basename.toLowerCase() !== norm) keys.add(`${parent.toLowerCase()}/${basename.toLowerCase()}`);
