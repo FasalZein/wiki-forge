@@ -112,9 +112,27 @@ wiki create-plan my-app "rollout checklist"                # -> specs/plan-rollo
 wiki create-test-plan my-app "rollout checklist"           # -> specs/test-plan-rollout-checklist.md
 wiki create-issue-slice my-app "email verification" --prd PRD-001  # inherits parent PRD source_paths when present
 wiki backlog my-app                                        # list tracked tasks
+wiki next my-app                                           # pick the active or next ready slice
+wiki verify-slice my-app MY-APP-001 --repo ~/Dev/my-app   # run bash/sh code fences from slice test-plan.md
+wiki close-slice my-app MY-APP-001 --repo ~/Dev/my-app --base main
 ```
 
 `create-plan` and `create-test-plan` stay visible under `specs/index.md` as planning docs.
+
+Use `depends_on` in slice frontmatter to block a slice until prerequisite slices move to `Done`:
+
+```yaml
+depends_on:
+  - MY-APP-001
+```
+
+### Agent Coordination
+
+```bash
+wiki handover my-app --repo ~/Dev/my-app --base main      # backlog + git + dirty state handoff
+wiki claim my-app MY-APP-001 --agent worker-1             # detect overlapping source_paths before claiming
+wiki note my-app "left off at parser" --slice MY-APP-001 # durable agent-to-agent note in log.md
+```
 
 ### Navigation and Index
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import type { CommandHandler } from "./types";
-import { printHelp, scaffoldProject, addTask, backlogCommand, moveTask, completeTask, createIssueSlice, createFeature, createPrd, createPlan, createTestPlan, createModule, onboardProject, onboardPlan, normalizeModule, dashboardProject, maintainProject, refreshProject, refreshFromGit, discoverProject, ingestDiff, updateIndex, logCommand, statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch } from "./commands/system";
+import { printHelp, scaffoldProject, addTask, backlogCommand, moveTask, completeTask, createIssueSlice, createFeature, createPrd, createPlan, createTestPlan, createModule, onboardProject, onboardPlan, normalizeModule, dashboardProject, maintainProject, refreshProject, refreshFromGit, discoverProject, ingestDiff, handoverProject, claimSlice, noteProject, nextProject, verifySlice, closeSlice, updateIndex, logCommand, statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch } from "./commands/system";
 import { doctorProject, gateProject } from "./commands/diagnostics";
 import { askProject, fileAnswer, fileResearch } from "./commands/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "./commands/qmd-commands";
@@ -28,6 +28,12 @@ const commands: Record<string, CommandHandler> = {
   "onboard-plan": (args) => onboardPlan(args),
   "normalize-module": (args) => normalizeModule(args),
   dashboard: (args) => dashboardProject(args),
+  handover: (args) => handoverProject(args),
+  claim: (args) => claimSlice(args),
+  note: (args) => noteProject(args),
+  next: (args) => nextProject(args),
+  "verify-slice": (args) => verifySlice(args),
+  "close-slice": (args) => closeSlice(args),
   doctor: (args) => doctorProject(args),
   gate: (args) => gateProject(args),
   maintain: (args) => maintainProject(args),

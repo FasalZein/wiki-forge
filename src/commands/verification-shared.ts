@@ -19,14 +19,14 @@ export function isValidVerificationLevel(value: string): value is VerificationLe
   return value === "stale" || VERIFICATION_LEVELS.includes(value as (typeof VERIFICATION_LEVELS)[number]);
 }
 
-export async function applyVerificationLevel(wikiFilePath: string, level: VerificationLevel, dryRun: boolean, label = relative(VAULT_ROOT, wikiFilePath)) {
+export async function applyVerificationLevel(wikiFilePath: string, level: VerificationLevel, dryRun: boolean, label = relative(VAULT_ROOT, wikiFilePath), silent = false) {
   const raw = await readText(wikiFilePath);
   const parsed = safeMatter(relative(VAULT_ROOT, wikiFilePath), raw);
   if (!parsed) throw new Error(`unable to parse frontmatter for ${relative(VAULT_ROOT, wikiFilePath)}`);
   const currentLevel = readVerificationLevel(parsed.data);
-  if (currentLevel && currentLevel !== "stale" && levelIndex(level) < levelIndex(currentLevel)) console.warn(`warning: lowering verification level from ${currentLevel} to ${level}`);
+  if (!silent && currentLevel && currentLevel !== "stale" && levelIndex(level) < levelIndex(currentLevel)) console.warn(`warning: lowering verification level from ${currentLevel} to ${level}`);
   if (dryRun) {
-    console.log(`would update ${label} -> verification_level: ${level}`);
+    if (!silent) console.log(`would update ${label} -> verification_level: ${level}`);
     return true;
   }
   const data = { ...parsed.data, verification_level: level, updated: nowIso() } as Record<string, unknown>;
@@ -35,7 +35,7 @@ export async function applyVerificationLevel(wikiFilePath: string, level: Verifi
     delete data.stale_since;
   }
   writeNormalizedPage(wikiFilePath, parsed.content, data);
-  console.log(`updated ${label} -> verification_level: ${level}`);
+  if (!silent) console.log(`updated ${label} -> verification_level: ${level}`);
   return true;
 }
 

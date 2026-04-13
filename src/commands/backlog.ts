@@ -5,6 +5,7 @@ import { assertExists, mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, re
 import { readText, writeText } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
 import { isCanonicalPrdId, projectPrdsDir, projectTaskDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath, toVaultMarkdownPath, toVaultWikilinkPath } from "../lib/structure";
+import { readSliceDependencies } from "../lib/slices";
 import { writeProjectIndex } from "./index-log";
 
 export type BacklogItem = { raw: string; id: string; title: string };
@@ -20,6 +21,8 @@ export type BacklogTaskContext = {
   hasSliceDocs: boolean;
   planStatus: TaskDocState;
   testPlanStatus: TaskDocState;
+  dependencies: string[];
+  blockedBy: string[];
 };
 export type BacklogFocus = {
   project: string;
@@ -28,6 +31,7 @@ export type BacklogFocus = {
   inProgress: BacklogItem[];
   todo: BacklogItem[];
   warnings: string[];
+  blocked: Array<{ id: string; blockedBy: string[] }>;
 };
 type PrdRecord = { prdId: string; title: string; parentFeature?: string; linkPath: string; sourcePaths: string[] };
 type SliceSpecKind = "task-hub" | "plan" | "test-plan";
@@ -130,15 +134,7 @@ export async function moveTask(args: string[]) {
   requireValue(project, "project");
   requireValue(taskId, "task-id");
   requireValue(to, "to");
-  const backlogPath = backlogPathFor(project);
-  const parsed = parseBacklog(await readNormalizedText(backlogPath));
-  const found = removeTask(parsed, taskId);
-  if (!found) throw new Error(`task not found: ${taskId}`);
-  parsed.sections[to] = parsed.sections[to] ?? [];
-  if (!parsed.order.includes(to)) parsed.order.push(to);
-  parsed.sections[to].unshift(found);
-  await writeText(backlogPath, serializeBacklog(parsed));
-  appendLogEntry("move-task", taskId, { project, details: [`to=${to}`] });
+  await moveTaskToSection(project, taskId, to);
   console.log(`moved ${taskId} -> ${to}`);
 }
 
@@ -147,7 +143,8 @@ export async function completeTask(args: string[]) {
   const taskId = args[1];
   requireValue(project, "project");
   requireValue(taskId, "task-id");
-  await moveTask([project, taskId, "--to", "Done"]);
+  await moveTaskToSection(project, taskId, "Done");
+  console.log(`moved ${taskId} -> Done`);
 }
 
 export async function collectBacklog(project: string) {
@@ -160,16 +157,21 @@ export async function collectBacklogFocus(project: string): Promise<BacklogFocus
   const backlog = await collectBacklog(project);
   const inProgress = backlog.sections["In Progress"] ?? [];
   const todo = backlog.sections["Todo"] ?? [];
-  const activeTask = inProgress[0] ? await collectTaskContext(project, inProgress[0], "In Progress") : null;
-  const recommendedTask = activeTask ?? (todo[0] ? await collectTaskContext(project, todo[0], "Todo") : null);
+  const doneIds = new Set((backlog.sections["Done"] ?? []).map((task) => task.id));
+  const activeTask = inProgress[0] ? await collectTaskContext(project, inProgress[0], "In Progress", doneIds) : null;
+  const todoContexts = await Promise.all(todo.map((item) => collectTaskContext(project, item, "Todo", doneIds)));
+  const recommendedTask = activeTask ?? todoContexts.find((task) => task.blockedBy.length === 0) ?? null;
+  const blocked = todoContexts.filter((task) => task.blockedBy.length > 0).map((task) => ({ id: task.id, blockedBy: task.blockedBy }));
   const warnings: string[] = [];
   if (inProgress.length > 1) warnings.push(`multiple tasks are in progress: ${inProgress.map((task) => task.id).join(", ")}`);
   if (activeTask?.hasSliceDocs) {
     if (activeTask.planStatus !== "ready") warnings.push(`${activeTask.id} plan is ${activeTask.planStatus}`);
     if (activeTask.testPlanStatus !== "ready") warnings.push(`${activeTask.id} test-plan is ${activeTask.testPlanStatus}`);
+    if (activeTask.blockedBy.length) warnings.push(`${activeTask.id} is blocked by ${activeTask.blockedBy.join(", ")}`);
   }
+  for (const task of todoContexts.filter((entry) => entry.blockedBy.length > 0)) warnings.push(`${task.id} blocked by ${task.blockedBy.join(", ")}`);
   if (!activeTask && recommendedTask?.hasSliceDocs) warnings.push(`no task is marked In Progress; next ready slice is ${recommendedTask.id}`);
-  return { project, activeTask, recommendedTask, inProgress, todo, warnings };
+  return { project, activeTask, recommendedTask, inProgress, todo, warnings, blocked };
 }
 
 function printBacklogSummary(sections: Record<string, BacklogItem[]>) {
@@ -179,13 +181,15 @@ function printBacklogSummary(sections: Record<string, BacklogItem[]>) {
   }
 }
 
-async function collectTaskContext(project: string, item: BacklogItem, section: string): Promise<BacklogTaskContext> {
+async function collectTaskContext(project: string, item: BacklogItem, section: string, doneIds?: Set<string>): Promise<BacklogTaskContext> {
   const taskHubPath = projectTaskHubPath(project, item.id);
   const planPath = projectTaskPlanPath(project, item.id);
   const testPlanPath = projectTaskTestPlanPath(project, item.id);
   const hasTaskHub = existsSync(taskHubPath);
   const hasPlan = existsSync(planPath);
   const hasTestPlan = existsSync(testPlanPath);
+  const dependencies = await readSliceDependencies(project, item.id);
+  const blockedBy = doneIds ? dependencies.filter((dependency) => !doneIds.has(dependency)) : [];
   return {
     id: item.id,
     title: item.title,
@@ -196,6 +200,8 @@ async function collectTaskContext(project: string, item: BacklogItem, section: s
     hasSliceDocs: hasTaskHub || hasPlan || hasTestPlan,
     planStatus: await detectTaskDocState(planPath),
     testPlanStatus: await detectTaskDocState(testPlanPath),
+    dependencies,
+    blockedBy,
   };
 }
 
@@ -205,6 +211,34 @@ async function detectTaskDocState(path: string): Promise<TaskDocState> {
   const body = raw.replace(/^---\n[\s\S]*?\n---\n?/u, "");
   if (/^\s*(?:-\s*(?:\[ \])?\s*|\d+\.\s*)$/mu.test(body)) return "incomplete";
   return "ready";
+}
+
+export async function collectTaskContextForId(project: string, taskId: string): Promise<BacklogTaskContext | null> {
+  const backlog = await collectBacklog(project);
+  const doneIds = new Set((backlog.sections["Done"] ?? []).map((task) => task.id));
+  for (const [section, items] of Object.entries(backlog.sections)) {
+    const item = items.find((entry) => entry.id === taskId);
+    if (item) return collectTaskContext(project, item, section, doneIds);
+  }
+  return null;
+}
+
+export async function moveTaskToSection(project: string, taskId: string, to: string) {
+  const backlogPath = backlogPathFor(project);
+  const parsed = parseBacklog(await readNormalizedText(backlogPath));
+  const found = removeTask(parsed, taskId);
+  if (!found) throw new Error(`task not found: ${taskId}`);
+  if (to === "In Progress") {
+    const doneIds = new Set((parsed.sections["Done"] ?? []).map((task) => task.id));
+    const dependencies = await readSliceDependencies(project, taskId);
+    const blockedBy = dependencies.filter((dependency) => !doneIds.has(dependency));
+    if (blockedBy.length) throw new Error(`${taskId} is blocked by unfinished dependencies: ${blockedBy.join(", ")}`);
+  }
+  parsed.sections[to] = parsed.sections[to] ?? [];
+  if (!parsed.order.includes(to)) parsed.order.push(to);
+  parsed.sections[to].unshift(found);
+  await writeText(backlogPath, serializeBacklog(parsed));
+  appendLogEntry("move-task", taskId, { project, details: [`to=${to}`] });
 }
 
 function backlogPathFor(project: string) {
@@ -333,7 +367,7 @@ function buildSliceFrontmatter(title: string, specKind: SliceSpecKind, project: 
     created_at: nowIso(),
     updated: nowIso(),
     status: "draft",
-  }, ["title", "type", "spec_kind", "project", "source_paths", "task_id", "parent_prd", "parent_feature", "created_at", "updated", "status"]);
+  }, ["title", "type", "spec_kind", "project", "source_paths", "task_id", "depends_on", "parent_prd", "parent_feature", "created_at", "updated", "status"]);
 }
 
 function writeSliceSpec(path: string, content: string, frontmatter: Record<string, unknown>) {
@@ -346,6 +380,8 @@ function buildSliceIndexContent(project: string, taskId: string, title: string, 
     "",
     "> [!summary]",
     `> Canonical hub for slice ${taskId}. Keep plan and test plan linked here so agents stay inside one bounded workspace.`,
+    "> [!tip]",
+    "> Add `depends_on` in frontmatter when this slice must wait for another slice to finish.",
     "",
     ...parentPrdSection(prd),
     "## Documents",
@@ -422,6 +458,12 @@ function buildSliceTestPlanContent(project: string, taskId: string, title: strin
     "## Refactor Checks",
     "",
     "- [ ] ",
+    "",
+    "## Verification Commands",
+    "",
+    "```bash",
+    "# add one or more repo-root commands that prove this slice is done",
+    "```",
     "",
     "## Cross Links",
     "",

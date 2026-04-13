@@ -1,69 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
-
-const repoRoot = process.cwd();
-const tempPaths: string[] = [];
-
-function tempDir(prefix: string) {
-  const path = mkdtempSync(join(tmpdir(), `${prefix}-`));
-  tempPaths.push(path);
-  return path;
-}
-
-function runWiki(args: string[], env: Record<string, string> = {}) {
-  return Bun.spawnSync([process.execPath, "src/index.ts", ...args], {
-    cwd: repoRoot,
-    env: { ...process.env, ...env },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-}
-
-function runGit(repo: string, args: string[]) {
-  const result = Bun.spawnSync(["git", ...args], {
-    cwd: repo,
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  if (result.exitCode !== 0) {
-    throw new Error(result.stderr.toString() || `git ${args.join(" ")} failed`);
-  }
-  return result;
-}
-
-function setupVaultAndRepo() {
-  const vault = tempDir("wiki-vault");
-  const repo = tempDir("wiki-repo");
-  mkdirSync(join(vault, "projects"), { recursive: true });
-  writeFileSync(join(vault, "AGENTS.md"), "# Agents\n", "utf8");
-  writeFileSync(join(vault, "index.md"), "# Index\n", "utf8");
-  mkdirSync(join(repo, "src"), { recursive: true });
-  writeFileSync(join(repo, "src", "auth.ts"), "export const a = 1\n", "utf8");
-  mkdirSync(join(repo, "tests"), { recursive: true });
-  writeFileSync(join(repo, "tests", "other.test.ts"), "import { test, expect } from 'bun:test'\ntest('other', () => expect(1).toBe(1))\n", "utf8");
-  runGit(repo, ["init", "-q"]);
-  runGit(repo, ["add", "."]);
-  runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
-  writeFileSync(join(repo, "src", "auth.ts"), "export const a = 2\n", "utf8");
-  writeFileSync(join(repo, "tests", "other.test.ts"), "import { test, expect } from 'bun:test'\ntest('other changed', () => expect(2 - 1).toBe(1))\n", "utf8");
-  runGit(repo, ["add", "."]);
-  runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "second"]);
-  return { vault, repo };
-}
-
-function setRepoFrontmatter(vault: string, repo: string) {
-  const summaryPath = join(vault, "projects", "demo", "_summary.md");
-  const current = readFileSync(summaryPath, "utf8");
-  writeFileSync(summaryPath, current.replace("status: scaffold", `status: current\nrepo: ${repo}`), "utf8");
-}
+import { cleanupTempPaths, runGit, runWiki, setRepoFrontmatter, setupVaultAndRepo, tempDir } from "./test-helpers";
 
 afterEach(() => {
-  while (tempPaths.length) {
-    const path = tempPaths.pop();
-    if (path) rmSync(path, { recursive: true, force: true });
-  }
+  cleanupTempPaths();
 });
 
 describe("wiki CLI smoke", () => {

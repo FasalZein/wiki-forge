@@ -40,6 +40,12 @@ Usage:
   wiki qmd-update
   wiki qmd-embed
   wiki dashboard <project> [--repo <path>] [--base <rev>] [--json]
+  wiki handover <project> [--repo <path>] [--base <rev>] [--json]
+  wiki claim <project> <slice-id> [--agent <name>] [--repo <path>] [--json]
+  wiki note <project> <message...> [--agent <name>] [--slice <slice-id>] [--json]
+  wiki next <project> [--json]
+  wiki verify-slice <project> <slice-id> [--repo <path>] [--json]
+  wiki close-slice <project> <slice-id> [--repo <path>] [--base <rev>] [--json]
   wiki doctor <project> [--repo <path>] [--base <rev>] [--json]
   wiki gate <project> [--repo <path>] [--base <rev>] [--json]
   wiki maintain <project> [--repo <path>] [--base <rev>] [--json]
@@ -87,6 +93,12 @@ Notes:
   - onboard writes the scaffold and can also write a project-specific onboarding plan when --repo is provided
   - onboard-plan renders the canonical onboarding slices and can write a project-specific plan file
   - dashboard emits a single JSON overview for apps and agents
+  - handover summarizes backlog focus, dirty git state, and top maintenance actions for the next agent
+  - claim records slice ownership and blocks overlapping file-level claims across active/claimed slices when source_paths overlap
+  - note appends a durable agent-to-agent message to the global wiki log with project/slice metadata
+  - next recommends the highest-priority active or ready slice, skipping slices blocked by depends_on
+  - verify-slice runs shell command blocks from a slice test-plan and promotes the test-plan to test-verified on success
+  - close-slice runs the project gate and moves the slice to Done only when the gate passes
   - doctor emits a comprehensive health report and score for a project
   - gate is a pass/fail completion check for missing tests, lint, and uncovered changed files
   - maintain composes refresh-from-git, discover, lint, and semantic lint into a task queue
