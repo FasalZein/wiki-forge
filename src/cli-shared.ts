@@ -41,6 +41,9 @@ Usage:
   wiki qmd-update
   wiki qmd-embed
   wiki dashboard <project> [--repo <path>] [--base <rev>] [--json]
+  wiki commit-check <project> [--repo <path>] [--json] [--verbose]
+  wiki install-git-hook <project> [--repo <path>] [--hook <name>] [--force] [--json]
+  wiki refresh-on-merge <project> [--repo <path>] [--base <rev>] [--json] [--verbose]
   wiki handover <project> [--repo <path>] [--base <rev>] [--json]
   wiki claim <project> <slice-id> [--agent <name>] [--repo <path>] [--json]
   wiki note <project> <message...> [--agent <name>] [--slice <slice-id>] [--json]
@@ -94,6 +97,9 @@ Notes:
   - onboard writes the scaffold and can also write a project-specific onboarding plan when --repo is provided
   - onboard-plan renders the canonical onboarding slices and can write a project-specific plan file
   - dashboard emits a single JSON overview for apps and agents
+  - commit-check inspects staged repo files against bound wiki pages and fails when staged code would leave pages stale
+  - install-git-hook writes a repo-local hook that runs wiki commit-check before commit
+  - refresh-on-merge is a CI-friendly merge check that wraps refresh-from-git, drift status, and gate output
   - handover summarizes backlog focus, dirty git state, and top maintenance actions for the next agent
   - claim records slice ownership and blocks overlapping file-level claims across active/claimed slices when source_paths overlap
   - note appends a durable agent-to-agent message to the global wiki log with project/slice metadata

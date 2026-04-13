@@ -135,6 +135,16 @@ wiki claim my-app MY-APP-001 --agent worker-1             # detect overlapping s
 wiki note my-app "left off at parser" --slice MY-APP-001 # durable agent-to-agent note in log.md
 ```
 
+### Automation and CI
+
+```bash
+wiki commit-check my-app --repo ~/Dev/my-app              # staged-file freshness check for local commits
+wiki install-git-hook my-app --repo ~/Dev/my-app          # writes a pre-commit hook that runs commit-check
+wiki refresh-on-merge my-app --repo ~/Dev/my-app --base main --verbose
+```
+
+Use `--verbose` when you want expanded human-readable detail. Keep default text output compact, and prefer `--json` for CI or agent chaining.
+
 ### Navigation and Index
 
 ```bash

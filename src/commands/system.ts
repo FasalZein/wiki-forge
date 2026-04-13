@@ -3,6 +3,7 @@ export { backlogCommand, addTask, moveTask, completeTask, createIssueSlice } fro
 export { createFeature, createPrd, createPlan, createTestPlan } from "./planning";
 export { dashboardProject, maintainProject, refreshProject, refreshFromGit, discoverProject, ingestDiff } from "./maintenance";
 export { handoverProject, claimSlice, noteProject, nextProject, verifySlice, closeSlice } from "./coordination";
+export { commitCheck, installGitHook, refreshOnMerge } from "./automation";
 export { updateIndex, logCommand } from "./index-log";
 export { statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear } from "./linting";
 export { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch } from "./research";
