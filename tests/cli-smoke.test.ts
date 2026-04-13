@@ -603,8 +603,10 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("wiki commit-check <project> [--repo <path>] [--json] [--verbose]");
     expect(output).toContain("wiki install-git-hook <project> [--repo <path>] [--hook <name>] [--force] [--json]");
     expect(output).toContain("wiki refresh-on-merge <project> [--repo <path>] [--base <rev>] [--json] [--verbose]");
+    expect(output).toContain("wiki dependency-graph <project> [--write] [--json]");
     expect(output).toContain("research audit layers dead-link checks and influenced_by coverage");
     expect(output).toContain("install-git-hook writes a repo-local hook that runs wiki commit-check before commit");
+    expect(output).toContain("dependency-graph generates a derived JSON Canvas dependency graph");
     expect(output).toContain("research file scaffolds a project research note");
     expect(output).toContain("it does not perform the research step");
   });
