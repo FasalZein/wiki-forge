@@ -144,7 +144,7 @@ Do not silently downgrade a slice continuation into `/wiki` maintenance mode jus
 7. **No unmaintainable code.** If a slice passes tests but worsens maintainability, refactor before closing.
 8. **Never create `.md` documentation inside project repos** except `README.md`, `CHANGELOG.md`, `AGENTS.md`, `CLAUDE.md`, `SETUP.md`, and `skills/*/SKILL.md`. Specs, research, architecture notes, and maintained docs belong in the wiki vault.
 9. **Use protocol sync for repo agent instructions.** Install/update repo `AGENTS.md` / `CLAUDE.md` via `wiki protocol sync <project> --repo <path>` instead of hand-editing the managed protocol block.
-9. **Use the wiki vault or session artifacts for planning/handoffs.** Do not create ad hoc repo markdown handoff files.
+10. **Use the wiki vault or session artifacts for planning/handoffs.** Do not create ad hoc repo markdown handoff files.
 
 ## Definition of Done
 
@@ -164,7 +164,7 @@ A slice is complete only when all of these are true:
 3. /write-a-prd — capture scope, link to research in Prior Research section
 4. /prd-to-slices — break into vertical slices (wiki create-issue-slice per slice)
 5. Fill the selected slice docs before coding:
-   a. move the slice to In Progress
+   a. run `wiki start-slice <project> <slice-id> --agent <name> --repo <path>`
    b. fill plan.md
    c. fill test-plan.md
 6. /tdd — for each slice:
@@ -173,9 +173,12 @@ A slice is complete only when all of these are true:
    c. Refactor
    d. Run tests
 7. /wiki — after each slice:
-   a. Update impacted wiki pages from code
-   b. wiki verify-page <project> <page> code-verified
-   c. wiki closeout <project> --repo <path> --base <rev>
+   a. `wiki checkpoint <project> --repo <path>`
+   b. `wiki lint-repo <project> --repo <path>`
+   c. Update impacted wiki pages from code
+   d. `wiki verify-page <project> <page> code-verified`
+   e. `wiki closeout <project> --repo <path> --base <rev>`
+   f. `wiki close-slice <project> <slice-id> --repo <path> --base <rev>`
 ```
 
 ## Workflow: Continue an Existing PRD / Slice Thread
@@ -185,9 +188,9 @@ A slice is complete only when all of these are true:
 2. File any new evidence with /research + wiki research file
 3. Re-check unresolved decisions with /grill-me when needed
 4. Select or create the next slice under the existing PRD
-5. Move it to In Progress and fill plan.md + test-plan.md
+5. Run `wiki start-slice <project> <slice-id> --agent <name> --repo <path>` and fill plan.md + test-plan.md
 6. /tdd for the slice
-7. /wiki closeout sequence
+7. /wiki closeout sequence (`checkpoint` -> `lint-repo` -> page updates -> `verify-page` -> `closeout` -> `close-slice`)
 ```
 
 ## Workflow: Small Task / Bug Fix (< 50 lines)
