@@ -41,6 +41,69 @@ describe("wiki coordination commands", () => {
     expect(json.recommendation.reason).toContain("active");
   });
 
+  test("start-slice moves the slice to in-progress, stamps claim metadata, and returns a plan summary", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+    writeFileSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "plan.md"), "---\ntitle: DEMO-001 auth slice\ntype: spec\nspec_kind: plan\nproject: demo\ntask_id: DEMO-001\nsource_paths:\n  - src/auth.ts\nupdated: 2026-04-13\nstatus: current\n---\n\n# DEMO-001 auth slice\n\n## Scope\n\n- Split auth work into a smaller slice\n\n## Target Structure\n\n- src/auth.ts\n\n## Acceptance Criteria\n\n- start-slice returns a compact summary\n", "utf8");
+
+    const result = runWiki(["start-slice", "demo", "DEMO-001", "--agent", "codex", "--repo", repo, "--json"], env);
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.sliceId).toBe("DEMO-001");
+    expect(json.status).toBe("in-progress");
+    expect(json.agent).toBe("codex");
+    expect(json.claimedPaths).toContain("src/auth.ts");
+    expect(json.planSummary).toContain("Split auth work into a smaller slice");
+
+    const backlog = JSON.parse(runWiki(["backlog", "demo", "--json"], env).stdout.toString());
+    expect(backlog.sections["In Progress"][0].id).toBe("DEMO-001");
+
+    const hub = readFileSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "index.md"), "utf8");
+    expect(hub).toContain("status: in-progress");
+    expect(hub).toContain("started_at:");
+    expect(hub).toContain("claimed_by: codex");
+  });
+
+  test("start-slice blocks unmet dependencies with exit code 1", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "first slice", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "second slice", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+    const secondHubPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-002", "index.md");
+    writeFileSync(secondHubPath, readFileSync(secondHubPath, "utf8").replace("task_id: DEMO-002\n", "task_id: DEMO-002\ndepends_on:\n  - DEMO-001\n"), "utf8");
+
+    const result = runWiki(["start-slice", "demo", "DEMO-002", "--agent", "codex", "--repo", repo, "--json"], env);
+    expect(result.exitCode).toBe(1);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.dependencies[0].id).toBe("DEMO-001");
+    expect(json.dependencies[0].status).toBe("todo");
+    expect(result.stderr.toString()).toContain("blocked by unfinished dependencies");
+  });
+
+  test("start-slice reports claim conflicts with exit code 2", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "first slice", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "second slice", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["start-slice", "demo", "DEMO-001", "--agent", "claude", "--repo", repo], env).exitCode).toBe(0);
+
+    const result = runWiki(["start-slice", "demo", "DEMO-002", "--agent", "codex", "--repo", repo, "--json"], env);
+    expect(result.exitCode).toBe(2);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.conflicts[0].taskId).toBe("DEMO-001");
+    expect(result.stderr.toString()).toContain("claim conflict");
+  });
+
   test("note records agent messages in the durable log", () => {
     const { vault } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };

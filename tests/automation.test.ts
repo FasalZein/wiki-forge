@@ -50,6 +50,53 @@ describe("wiki automation commands", () => {
     expect(JSON.parse(passing.stdout.toString()).stalePages).toEqual([]);
   });
 
+  test("checkpoint reports stale pages and unbound files without mutating the wiki", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-module", "demo", "auth", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["verify-page", "demo", "modules/auth/spec", "code-verified"], env).exitCode).toBe(0);
+
+    writeFileSync(join(repo, "src", "auth.ts"), "export const a = 3\n", "utf8");
+    writeFileSync(join(repo, "src", "fusion.ts"), "export const fusion = true\n", "utf8");
+
+    const failing = runWiki(["checkpoint", "demo", "--repo", repo, "--json"], env);
+    expect(failing.exitCode).toBe(1);
+    const failingJson = JSON.parse(failing.stdout.toString());
+    expect(failingJson.clean).toBe(false);
+    expect(failingJson.stalePages[0].page).toBe("modules/auth/spec.md");
+    expect(failingJson.unboundFiles).toContain("src/fusion.ts");
+
+    expect(runWiki(["verify-page", "demo", "modules/auth/spec", "code-verified"], env).exitCode).toBe(0);
+    const passing = runWiki(["checkpoint", "demo", "--repo", repo, "--json"], env);
+    expect(passing.exitCode).toBe(0);
+    const passingJson = JSON.parse(passing.stdout.toString());
+    expect(passingJson.clean).toBe(true);
+    expect(passingJson.unboundFiles).toContain("src/fusion.ts");
+  });
+
+  test("lint-repo flags disallowed repo markdown files", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    mkdirSync(join(repo, "docs"), { recursive: true });
+    mkdirSync(join(repo, "skills", "custom"), { recursive: true });
+    writeFileSync(join(repo, "docs", "ad-hoc.md"), "# nope\n", "utf8");
+    writeFileSync(join(repo, ".codex-prompt-test.md"), "# nope\n", "utf8");
+    writeFileSync(join(repo, "skills", "custom", "SKILL.md"), "# ok\n", "utf8");
+
+    const result = runWiki(["lint-repo", "demo", "--repo", repo, "--json"], env);
+    expect(result.exitCode).toBe(1);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.violations).toContain("docs/ad-hoc.md");
+    expect(json.violations).toContain(".codex-prompt-test.md");
+    expect(json.violations).not.toContain("skills/custom/SKILL.md");
+  });
+
   test("install-git-hook writes a pre-commit hook that calls commit-check", () => {
     const { vault, repo } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };

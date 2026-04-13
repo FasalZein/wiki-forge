@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import type { CommandHandler } from "./types";
-import { printHelp, scaffoldProject, addTask, backlogCommand, moveTask, completeTask, createIssueSlice, createFeature, createPrd, createPlan, createTestPlan, createModule, onboardProject, onboardPlan, normalizeModule, dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, discoverProject, ingestDiff, handoverProject, claimSlice, noteProject, nextProject, verifySlice, closeSlice, exportPrompt, resumeProject, commitCheck, installGitHook, refreshOnMerge, dependencyGraph, updateIndex, logCommand, statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch } from "./commands/system";
+import { printHelp, scaffoldProject, addTask, backlogCommand, moveTask, completeTask, createIssueSlice, createFeature, createPrd, createPlan, createTestPlan, createModule, onboardProject, onboardPlan, normalizeModule, dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, discoverProject, ingestDiff, handoverProject, claimSlice, noteProject, nextProject, startSlice, verifySlice, closeSlice, exportPrompt, resumeProject, commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo, dependencyGraph, updateIndex, logCommand, statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch } from "./commands/system";
 import { doctorProject, gateProject } from "./commands/diagnostics";
 import { askProject, fileAnswer, fileResearch } from "./commands/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "./commands/qmd-commands";
@@ -32,11 +32,14 @@ const commands: Record<string, CommandHandler> = {
   "commit-check": (args) => commitCheck(args),
   "install-git-hook": (args) => installGitHook(args),
   "refresh-on-merge": (args) => refreshOnMerge(args),
+  checkpoint: (args) => checkpoint(args),
+  "lint-repo": (args) => lintRepo(args),
   "dependency-graph": (args) => dependencyGraph(args),
   handover: (args) => handoverProject(args),
   claim: (args) => claimSlice(args),
   note: (args) => noteProject(args),
   next: (args) => nextProject(args),
+  "start-slice": (args) => startSlice(args),
   "verify-slice": (args) => verifySlice(args),
   "close-slice": (args) => closeSlice(args),
   "export-prompt": (args) => exportPrompt(args),
@@ -97,8 +100,11 @@ try {
   await handler(args);
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
+  const exitCode = typeof error === "object" && error !== null && "exitCode" in error && typeof (error as { exitCode?: unknown }).exitCode === "number"
+    ? (error as { exitCode: number }).exitCode
+    : 1;
   console.error(`error: ${message}`);
-  process.exit(1);
+  process.exit(exitCode);
 }
 
 function resolveCommand(rawArgs: string[]) {

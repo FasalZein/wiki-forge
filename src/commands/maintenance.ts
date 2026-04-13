@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { CODE_FILE_PATTERN, VAULT_ROOT } from "../constants";
 import { assertExists, mkdirIfMissing, projectRoot, requireValue } from "../cli-shared";
@@ -473,12 +473,23 @@ async function listRepoMarkdownDocs(repo: string) {
   if (cached) return cached;
 
   const files = new Set<string>();
-  for (const absolute of new Bun.Glob("**/*.md").scanSync({ cwd: repo, absolute: true, onlyFiles: true })) {
-    const rel = relative(repo, absolute).replaceAll("\\", "/");
-    if (/\/(node_modules|dist|build|coverage|\.next|\.git)\//u.test(`/${rel}`)) continue;
-    if (isAllowedRepoMarkdownDoc(rel)) continue;
-    files.add(rel);
-  }
+  const visit = (dir: string, prefix = "") => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === ".git" || entry.name === "node_modules" || entry.name === "dist" || entry.name === "build" || entry.name === "coverage" || entry.name === ".next") continue;
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+      const absolute = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        visit(absolute, rel);
+        continue;
+      }
+      if (!entry.isFile() || !entry.name.toLowerCase().endsWith(".md")) continue;
+      const normalized = rel.replaceAll("\\", "/");
+      if (isAllowedRepoMarkdownDoc(normalized)) continue;
+      files.add(normalized);
+    }
+  };
+  visit(repo);
+
   const result = [...files].sort();
   void writeCache("repo-scan", cacheKey, "2", fingerprint, result);
   return result;
@@ -486,7 +497,7 @@ async function listRepoMarkdownDocs(repo: string) {
 
 function isAllowedRepoMarkdownDoc(rel: string) {
   const base = rel.split("/").pop() ?? rel;
-  if (/^(README|CHANGELOG|AGENTS|SETUP)\.md$/iu.test(base)) return true;
+  if (/^(README|CHANGELOG|AGENTS|CLAUDE|SETUP)\.md$/iu.test(base)) return true;
   if (/^skills\/[^/]+\/SKILL\.md$/u.test(rel)) return true;
   return false;
 }

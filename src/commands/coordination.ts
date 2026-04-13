@@ -1,10 +1,11 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
-import { assertExists, nowIso, orderFrontmatter, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
+import { assertExists, fail, nowIso, orderFrontmatter, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { readText } from "../lib/fs";
+import { agentNamesEqual } from "../lib/agents";
 import { appendLogEntry, tailLog } from "../lib/log";
-import { extractShellCommandBlocks, readSliceDependencies, readSliceHub, readSlicePlan, readSliceSourcePaths, readSliceTestPlan } from "../lib/slices";
+import { extractShellCommandBlocks, readSliceDependencies, readSliceHub, readSlicePlan, readSliceSourcePaths, readSliceStatus, readSliceTestPlan } from "../lib/slices";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
 import { projectSlicesDir, projectTaskHubPath } from "../lib/structure";
 import { collectBacklog, collectBacklogFocus, collectTaskContextForId, moveTaskToSection } from "./backlog";
@@ -22,8 +23,14 @@ type DirtyRepoStatus = {
 type ClaimConflict = {
   taskId: string;
   overlap: string[];
-  reason: "in-progress" | "claimed";
+  reason: "in-progress" | "claimed" | "existing-claim";
   claimedBy?: string;
+};
+
+type StartSliceDependency = {
+  id: string;
+  status: string;
+  done: boolean;
 };
 
 export async function nextProject(args: string[]) {
@@ -160,38 +167,109 @@ export async function claimSlice(args: string[]) {
     }
   }
 
-  const context = await collectTaskContextForId(project, sliceId);
-  if (!context) throw new Error(`slice not found in backlog: ${sliceId}`);
-  const sourcePaths = await readSliceSourcePaths(project, sliceId);
-  const blockedBy = await readBlockedDependencies(project, sliceId);
-  const conflicts = blockedBy.length ? [] : await collectClaimConflicts(project, sliceId, sourcePaths);
-  const dirtyOverlap = resolveDirtyOverlap(project, repo, sourcePaths);
-  const claimedAt = conflicts.length === 0 ? nowIso() : null;
-  const result = {
-    project,
-    sliceId,
-    agent,
-    section: context.section,
-    sourcePaths,
-    ok: conflicts.length === 0 && blockedBy.length === 0,
-    conflicts,
-    blockedBy,
-    dirtyOverlap,
-    claimedAt,
-    warning: sourcePaths.length === 0 ? "slice has no source_paths; conflict detection is limited" : null,
-  };
-  if (blockedBy.length > 0) {
+  const result = await collectClaimResult(project, sliceId, agent, repo);
+  if (result.blockedBy.length > 0) {
     if (args.includes("--json")) console.log(JSON.stringify(result, null, 2));
-    throw new Error(`${sliceId} is blocked by unfinished dependencies: ${blockedBy.join(", ")}`);
+    fail(`${sliceId} is blocked by unfinished dependencies: ${result.blockedBy.join(", ")}`);
   }
-  if (conflicts.length > 0) {
+  if (result.conflicts.length > 0) {
     if (args.includes("--json")) console.log(JSON.stringify(result, null, 2));
-    throw new Error(`claim conflict for ${sliceId}`);
+    fail(`claim conflict for ${sliceId}`);
   }
-  await writeClaimMetadata(project, sliceId, agent, claimedAt!, sourcePaths);
-  appendLogEntry("claim", sliceId, { project, details: [`agent=${agent}`, `paths=${sourcePaths.length}`] });
+  await writeClaimMetadata(project, sliceId, agent, result.claimedAt!, result.sourcePaths);
+  appendLogEntry("claim", sliceId, { project, details: [`agent=${agent}`, `paths=${result.sourcePaths.length}`] });
   if (args.includes("--json")) console.log(JSON.stringify(result, null, 2));
   else console.log(`claimed ${sliceId} for ${agent}`);
+}
+
+export async function startSlice(args: string[]) {
+  const project = args[0];
+  const sliceId = args[1];
+  requireValue(project, "project");
+  requireValue(sliceId, "slice-id");
+  const json = args.includes("--json");
+  let agent = defaultAgentName();
+  let repo: string | undefined;
+  for (let index = 2; index < args.length; index += 1) {
+    const arg = args[index];
+    switch (arg) {
+      case "--agent":
+        agent = args[index + 1] || agent;
+        index += 1;
+        break;
+      case "--repo":
+        repo = args[index + 1] || undefined;
+        index += 1;
+        break;
+      case "--json":
+        break;
+    }
+  }
+
+  let hub;
+  let plan;
+  try {
+    hub = await readSliceHub(project, sliceId);
+    plan = await readSlicePlan(project, sliceId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (json) console.log(JSON.stringify({ project, sliceId, status: "missing", agent }, null, 2));
+    fail(message.includes("not found") ? `slice not found: ${sliceId}` : message, 3);
+  }
+
+  const context = await collectTaskContextForId(project, sliceId);
+  if (!context) {
+    if (json) console.log(JSON.stringify({ project, sliceId, status: "missing", agent }, null, 2));
+    fail(`slice not found in backlog: ${sliceId}`, 3);
+  }
+  if (context.section === "Done" || hub.data.status === "done") {
+    fail(`${sliceId} is already done`, 1);
+  }
+
+  const dependencies = await collectDependencyStatuses(project, sliceId);
+  const blocking = dependencies.filter((dependency) => !dependency.done);
+  const sourcePaths = await readSliceSourcePaths(project, sliceId);
+  const claim = await collectClaimResult(project, sliceId, agent, repo, context, sourcePaths);
+  const startedAt = nowIso();
+  const planSummary = summarizePlan(hub.content, plan.content, sourcePaths);
+  const result = {
+    sliceId,
+    status: "in-progress",
+    agent,
+    startedAt,
+    dependencies: dependencies.map((dependency) => ({ id: dependency.id, status: dependency.status })),
+    claimedPaths: sourcePaths,
+    planSummary,
+    conflicts: claim.conflicts,
+  };
+
+  if (blocking.length > 0) {
+    if (json) console.log(JSON.stringify(result, null, 2));
+    fail(`${sliceId} is blocked by unfinished dependencies: ${blocking.map((dependency) => dependency.id).join(", ")}`, 1);
+  }
+  if (claim.conflicts.length > 0) {
+    if (json) console.log(JSON.stringify(result, null, 2));
+    fail(`claim conflict for ${sliceId}`, 2);
+  }
+
+  await moveTaskToSection(project, sliceId, "In Progress");
+  await writeClaimMetadata(project, sliceId, agent, startedAt, sourcePaths);
+  await markSliceStarted(project, sliceId, startedAt);
+  appendLogEntry("start-slice", sliceId, { project, details: [`agent=${agent}`, `started_at=${startedAt}`] });
+
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  const dependencySummary = dependencies.length
+    ? dependencies.map((dependency) => `${dependency.id} ${dependency.done ? "✓" : `(${dependency.status})`}`).join(", ")
+    : "none";
+  console.log(`Started ${sliceId} (assignee: ${agent})`);
+  console.log(`Dependencies: ${dependencySummary}`);
+  console.log(`Claim registered: ${sourcePaths.length ? sourcePaths.join(", ") : "none"}`);
+  console.log("---");
+  console.log(planSummary);
 }
 
 export async function verifySlice(args: string[]) {
@@ -379,9 +457,64 @@ async function readBlockedDependencies(project: string, sliceId: string) {
   return dependencies.filter((dependency) => !doneIds.has(dependency));
 }
 
-async function collectClaimConflicts(project: string, targetSliceId: string, targetSourcePaths: string[]): Promise<ClaimConflict[]> {
-  if (!targetSourcePaths.length) return [];
+async function collectDependencyStatuses(project: string, sliceId: string): Promise<StartSliceDependency[]> {
+  const dependencies = await readSliceDependencies(project, sliceId);
+  const results: StartSliceDependency[] = [];
+  for (const dependency of dependencies) {
+    const context = await collectTaskContextForId(project, dependency);
+    const docStatus = await readSliceStatus(project, dependency);
+    const done = context?.section === "Done" || docStatus === "done";
+    const status = done
+      ? "done"
+      : context?.section === "In Progress"
+        ? "in-progress"
+        : context?.section === "Todo"
+          ? "todo"
+          : docStatus ?? "missing";
+    results.push({ id: dependency, status, done: Boolean(done) });
+  }
+  return results;
+}
+
+async function collectClaimResult(
+  project: string,
+  sliceId: string,
+  agent: string,
+  repo: string | undefined,
+  context?: Awaited<ReturnType<typeof collectTaskContextForId>> | null,
+  sourcePaths?: string[],
+) {
+  const resolvedContext = context ?? await collectTaskContextForId(project, sliceId);
+  if (!resolvedContext) fail(`slice not found in backlog: ${sliceId}`, 3);
+  const resolvedSourcePaths = sourcePaths ?? await readSliceSourcePaths(project, sliceId);
+  const blockedBy = await readBlockedDependencies(project, sliceId);
+  const conflicts = blockedBy.length ? [] : await collectClaimConflicts(project, sliceId, agent, resolvedSourcePaths);
+  const dirtyOverlap = resolveDirtyOverlap(project, repo, resolvedSourcePaths);
+  const claimedAt = conflicts.length === 0 ? nowIso() : null;
+  return {
+    project,
+    sliceId,
+    agent,
+    section: resolvedContext.section,
+    sourcePaths: resolvedSourcePaths,
+    ok: conflicts.length === 0 && blockedBy.length === 0,
+    conflicts,
+    blockedBy,
+    dirtyOverlap,
+    claimedAt,
+    warning: resolvedSourcePaths.length === 0 ? "slice has no source_paths; conflict detection is limited" : null,
+  };
+}
+
+async function collectClaimConflicts(project: string, targetSliceId: string, agent: string, targetSourcePaths: string[]): Promise<ClaimConflict[]> {
   const overlaps = new Map<string, ClaimConflict>();
+  const targetHub = await readSliceHub(project, targetSliceId);
+  const existingClaimedBy = typeof targetHub.data.claimed_by === "string" ? targetHub.data.claimed_by.trim() : "";
+  if (existingClaimedBy && !agentNamesEqual(existingClaimedBy, agent)) {
+    overlaps.set(targetSliceId, { taskId: targetSliceId, overlap: targetSourcePaths, reason: "existing-claim", claimedBy: existingClaimedBy });
+  }
+  if (!targetSourcePaths.length) return [...overlaps.values()].sort((a, b) => a.taskId.localeCompare(b.taskId));
+
   const focus = await collectBacklog(project);
   for (const item of focus.sections["In Progress"] ?? []) {
     if (item.id === targetSliceId) continue;
@@ -439,6 +572,19 @@ async function clearClaimMetadata(project: string, sliceId: string) {
   writeNormalizedPage(indexPath, parsed.content, orderFrontmatter(data, ["title", "type", "spec_kind", "project", "source_paths", "task_id", "depends_on", "parent_prd", "parent_feature", "created_at", "updated", "status"]));
 }
 
+async function markSliceStarted(project: string, sliceId: string, startedAt: string) {
+  const indexPath = projectTaskHubPath(project, sliceId);
+  assertExists(indexPath, `slice index not found: ${relative(VAULT_ROOT, indexPath)}`);
+  const parsed = safeMatter(relative(VAULT_ROOT, indexPath), await readText(indexPath));
+  if (!parsed) throw new Error(`could not parse slice index: ${sliceId}`);
+  writeNormalizedPage(indexPath, parsed.content, orderFrontmatter({
+    ...parsed.data,
+    status: "in-progress",
+    started_at: startedAt,
+    updated: startedAt,
+  }, ["title", "type", "spec_kind", "project", "source_paths", "assignee", "task_id", "depends_on", "parent_prd", "parent_feature", "claimed_by", "claimed_at", "claim_paths", "created_at", "updated", "started_at", "completed_at", "status", "verification_level"]));
+}
+
 async function markSliceClosed(project: string, sliceId: string, completedAt: string) {
   const docs = [await readSliceHub(project, sliceId), await readSlicePlan(project, sliceId), await readSliceTestPlan(project, sliceId)];
   for (const doc of docs) {
@@ -452,6 +598,51 @@ async function markSliceClosed(project: string, sliceId: string, completedAt: st
     writeNormalizedPage(doc.path, doc.content, data);
     await applyVerificationLevel(doc.path, nextLevel, false, relative(VAULT_ROOT, doc.path), true);
   }
+}
+
+function summarizePlan(hubContent: string, planContent: string, sourcePaths: string[]) {
+  const title = firstMeaningfulLine(hubContent, /^#\s+/u) ?? firstMeaningfulLine(planContent, /^#\s+/u) ?? "Untitled slice";
+  const scope = firstSectionLine(planContent, ["Scope", "Task", "Vertical Slice"]);
+  const target = firstSectionLine(planContent, ["Target Structure", "Target", "Vertical Slice"]) ?? (sourcePaths.length ? sourcePaths.join(", ") : null);
+  const acceptance = firstSectionLine(planContent, ["Acceptance Criteria", "Green Criteria", "Verification Commands"]);
+  return [title, scope ? `Scope: ${scope}` : null, target ? `Target: ${target}` : null, acceptance ? `Acceptance: ${acceptance}` : null]
+    .filter((line): line is string => Boolean(line))
+    .join("\n");
+}
+
+function firstMeaningfulLine(markdown: string, prefix?: RegExp) {
+  for (const rawLine of markdown.split("\n")) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("> [!")) continue;
+    if (prefix) {
+      if (!prefix.test(line)) continue;
+      return line.replace(prefix, "").trim();
+    }
+    if (/^[-*]\s+/u.test(line)) return line.replace(/^[-*]\s+/u, "").trim();
+    if (/^\d+\.\s+/u.test(line)) return line.replace(/^\d+\.\s+/u, "").trim();
+    if (!line.startsWith("#")) return line;
+  }
+  return null;
+}
+
+function firstSectionLine(markdown: string, headings: string[]) {
+  for (const heading of headings) {
+    const lines = markdown.split("\n");
+    let inSection = false;
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!inSection) {
+        if (line.toLowerCase() === `## ${heading}`.toLowerCase()) inSection = true;
+        continue;
+      }
+      if (/^##\s+/u.test(line)) break;
+      if (!line || line.startsWith("> [!")) continue;
+      if (/^[-*]\s+/u.test(line)) return line.replace(/^[-*]\s+/u, "").trim();
+      if (/^\d+\.\s+/u.test(line)) return line.replace(/^\d+\.\s+/u, "").trim();
+      return line;
+    }
+  }
+  return null;
 }
 
 function renderExecutionPrompt(input: {

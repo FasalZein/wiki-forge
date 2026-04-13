@@ -604,6 +604,8 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("wiki backlog <project> [--assignee <agent>] [--json]");
     expect(output).toContain("wiki create-issue-slice <project> <title...> [--section <name>] [--priority <p>] [--tag <t>] [--prd <PRD-ID>] [--assignee <agent>] [--source <path...>] [--json]");
     expect(output).toContain("wiki commit-check <project> [--repo <path>] [--json] [--verbose]");
+    expect(output).toContain("wiki checkpoint <project> [--repo <path>] [--json]");
+    expect(output).toContain("wiki lint-repo <project> [--repo <path>] [--json]");
     expect(output).toContain("wiki install-git-hook <project> [--repo <path>] [--hook <name>] [--force] [--json]");
     expect(output).toContain("wiki refresh-on-merge <project> [--repo <path>] [--base <rev>] [--json] [--verbose]");
     expect(output).toContain("wiki ask <project> [--expand] [--verbose] [-n <num>] <question...>");
@@ -611,11 +613,15 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("wiki qmd-setup");
     expect(output).toContain("wiki qmd-status");
     expect(output).toContain("wiki gate <project> [--repo <path>] [--base <rev>] [--structural-refactor] [--json]");
+    expect(output).toContain("wiki start-slice <project> <slice-id> [--agent <name>] [--repo <path>] [--json]");
     expect(output).toContain("wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]");
     expect(output).toContain("wiki resume <project> [--repo <path>] [--base <rev>] [--json]");
     expect(output).toContain("wiki dependency-graph <project> [--write] [--json]");
     expect(output).toContain("research audit layers dead-link checks and influenced_by coverage");
     expect(output).toContain("closeout composes refresh-from-git, drift, lint, semantic lint, and gate into one compact review surface");
+    expect(output).toContain("checkpoint is the git-independent freshness check: it compares worktree mtimes against bound wiki pages and reports stale pages plus unbound changed files");
+    expect(output).toContain("lint-repo flags repo-owned markdown files outside the allowed set");
+    expect(output).toContain("start-slice is the lifecycle entry point: it checks dependencies, registers the claim, moves the backlog item to In Progress, stamps started_at, and prints a compact plan summary");
     expect(output).toContain("export-prompt prints a self-contained execution prompt for codex, claude, or pi without writing into the project repo");
     expect(output).toContain("resume prints a quick session pickup view: recent commits, dirty files, stale pages, active slice, and next actions");
     expect(output).toContain("install-git-hook writes a repo-local hook that runs wiki commit-check before commit");

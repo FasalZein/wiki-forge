@@ -114,6 +114,7 @@ Auto-detection: if `KNOWLEDGE_VAULT_ROOT` is unset, the CLI walks up from `cwd` 
 | Read a known page | direct file read |
 | Default maintenance entry point | `wiki maintain <project> --base <rev>` |
 | Changed files → impacted pages | `wiki refresh-from-git <project> --base <rev>` |
+| Git-independent worktree freshness check | `wiki checkpoint <project>` |
 | Stale + unbound pages | `wiki drift-check <project> --show-unbound` |
 | Re-verify updated pages | `wiki verify-page <project> <page> <level>` |
 | Pass/fail completion gate | `wiki gate <project> --base <rev>` |
@@ -132,8 +133,10 @@ Auto-detection: if `KNOWLEDGE_VAULT_ROOT` is unset, the CLI walks up from `cwd` 
 | Ingest raw source + summary | `wiki source ingest <path-or-url> [--topic <topic>]` |
 | Lint filed research evidence | `wiki research lint [topic]` |
 | Save answer brief | `wiki file-answer <project> [--verbose] "<question>"` |
+| Start a slice safely | `wiki start-slice <project> <slice-id> [--agent <name>]` |
 | Export slice prompt | `wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]` |
 | Resume interrupted session | `wiki resume <project> --base <rev>` |
+| Flag ad hoc repo markdown | `wiki lint-repo <project> --repo <path>` |
 
 Planning scaffolds:
 
@@ -144,6 +147,7 @@ wiki create-issue-slice <project> <title> [--prd <PRD-ID>] [--assignee <agent>] 
 wiki create-plan <project> <name>             # creates specs/plan-<slug>.md and keeps it listed in specs/index.md
 wiki create-test-plan <project> <name>        # creates specs/test-plan-<slug>.md and keeps it listed in specs/index.md
 wiki backlog <project> [--assignee <agent>] [--json]
+wiki start-slice <project> <slice-id> [--agent <name>] [--repo <path>] [--json]
 ```
 
 Current rule:
@@ -154,6 +158,7 @@ Current rule:
 - `create-issue-slice --prd <PRD-ID>` can inherit the parent PRD's `source_paths` when that PRD is already bound
 - `create-issue-slice --assignee <agent>` writes assignee frontmatter into all generated slice docs
 - `backlog --assignee <agent>` filters the queue and still surfaces blocked slices via `depends_on`
+- `start-slice` is the lifecycle entry point: it enforces `depends_on`, detects claim conflicts, moves the backlog item to In Progress, records `started_at`, and prints a compact plan summary
 
 Full command list: `wiki help`
 
@@ -190,7 +195,9 @@ How to identify modules: look for directories that own a distinct concern — a 
 3. Use /forge workflow: research → grill → PRD → slices → TDD
 4. As code emerges, create modules:
    wiki create-module <project> <module-name> --source <paths...>
-5. After each slice, run the closeout sequence:
+5. Before implementation begins, register the slice:
+   wiki start-slice <project> <slice-id> --agent <name> --repo <path>
+6. After each slice, run the closeout sequence:
    update impacted wiki pages from code
    wiki verify-page <project> <page> code-verified
    wiki close-slice <project> <slice-id> --repo <path> --base <rev>
@@ -204,9 +211,10 @@ If the user is really asking to start or continue non-trivial implementation wor
 
 ```text
 1. wiki maintain <project> --base <rev>
-2. For each impacted/stale page: read source, update wiki, verify-page.
-3. If navigation changed: wiki update-index <project> --write
-4. wiki closeout <project> --repo <path> --base <rev>
+2. wiki checkpoint <project> --repo <path>
+3. For each impacted/stale page: read source, update wiki, verify-page.
+4. If navigation changed: wiki update-index <project> --write
+5. wiki closeout <project> --repo <path> --base <rev>
 ```
 
 ### 3. Retrieval
@@ -218,6 +226,7 @@ Hybrid semantic     → wiki query "how does approval work"
 Project Q&A         → wiki ask <project> "where is approval implemented"
 Verbose Q&A         → wiki ask <project> --verbose "where is approval implemented"
 Save answer brief   → wiki file-answer <project> "question"
+Start work safely   → wiki start-slice <project> <slice-id> --agent pi
 Export handoff      → wiki export-prompt <project> <slice-id> --agent pi
 Resume session      → wiki resume <project> --base <rev>
 ```

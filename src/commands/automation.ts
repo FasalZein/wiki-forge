@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { CODE_FILE_PATTERN } from "../constants";
-import { requireValue } from "../cli-shared";
+import { fail, requireValue } from "../cli-shared";
 import { parseUpdatedDate, resolveRepoPath, assertGitRepo } from "../lib/verification";
 import { collectGate } from "./diagnostics";
 import { collectRefreshFromGit, loadProjectSnapshot, resolveDefaultBase } from "./maintenance";
@@ -58,6 +58,30 @@ export async function refreshOnMerge(args: string[]) {
   if (!result.ok) throw new Error(`refresh-on-merge failed for ${options.project}`);
 }
 
+export async function checkpoint(args: string[]) {
+  const options = parseProjectRepoArgs(args);
+  const json = args.includes("--json");
+  const result = await collectCheckpoint(options.project, options.repo);
+  if (json) console.log(JSON.stringify(result, null, 2));
+  else renderCheckpoint(result);
+  if (!result.clean) fail(`checkpoint found ${result.stalePages.length} stale page(s) for ${options.project}`);
+}
+
+export async function lintRepo(args: string[]) {
+  const options = parseProjectRepoArgs(args);
+  const json = args.includes("--json");
+  const snapshot = await loadProjectSnapshot(options.project, options.repo, { includeRepoInventory: true });
+  const violations = snapshot.repoDocFiles ?? [];
+  const result = { project: options.project, repo: snapshot.repo, ok: violations.length === 0, violations };
+  if (json) console.log(JSON.stringify(result, null, 2));
+  else {
+    console.log(`lint-repo for ${options.project}: ${result.ok ? "PASS" : "FAIL"}`);
+    console.log(`- violations: ${violations.length}`);
+    for (const violation of violations.slice(0, 50)) console.log(`  - ${violation}`);
+  }
+  if (!result.ok) fail(`lint-repo found ${violations.length} disallowed repo markdown file(s) for ${options.project}`);
+}
+
 export async function collectCommitCheck(project: string, explicitRepo?: string) {
   const repo = resolveRepoPath(project, explicitRepo);
   assertGitRepo(repo);
@@ -97,6 +121,82 @@ function renderCommitCheck(result: Awaited<ReturnType<typeof collectCommitCheck>
     for (const page of result.stalePages) console.log(`  - stale: ${page.page} <= ${page.staleSources.join(", ")}`);
     for (const file of result.uncoveredFiles.slice(0, 20)) console.log(`  - uncovered: ${file}`);
   }
+}
+
+export async function collectCheckpoint(project: string, explicitRepo?: string) {
+  const snapshot = await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
+  const summaryEntry = snapshot.pageEntries.find((entry) => entry.relPath === "_summary.md");
+  const projectUpdated = parseUpdatedDate(summaryEntry?.rawUpdated) ?? new Date(0);
+  const modifiedFiles = new Set<string>();
+  const unboundFiles = new Set<string>();
+  const pageStatuses = new Map<string, { page: string; matchedSourcePaths: Set<string>; lastSourceChangeMs: number; pageUpdatedMs: number | null; pageUpdated: string }>();
+
+  for (const file of snapshot.repoFiles ?? []) {
+    const absolutePath = join(snapshot.repo, file);
+    let mtimeMs = 0;
+    try {
+      mtimeMs = statSync(absolutePath).mtimeMs;
+    } catch {
+      continue;
+    }
+    const matchedEntries = snapshot.pageEntries.filter((entry) => entry.parsed && entry.sourcePaths.some((sourcePath) => bindingMatchesFile(sourcePath, file)));
+    if (mtimeMs > projectUpdated.getTime()) modifiedFiles.add(file);
+    if (!matchedEntries.length) {
+      if (mtimeMs > projectUpdated.getTime()) unboundFiles.add(file);
+      continue;
+    }
+    for (const entry of matchedEntries) {
+      const existing = pageStatuses.get(entry.page) ?? {
+        page: entry.page,
+        matchedSourcePaths: new Set<string>(),
+        lastSourceChangeMs: 0,
+        pageUpdatedMs: parseUpdatedDate(entry.rawUpdated)?.getTime() ?? null,
+        pageUpdated: String(entry.rawUpdated ?? "missing"),
+      };
+      existing.matchedSourcePaths.add(file);
+      existing.lastSourceChangeMs = Math.max(existing.lastSourceChangeMs, mtimeMs);
+      pageStatuses.set(entry.page, existing);
+    }
+  }
+
+  const orderedPages = [...pageStatuses.values()]
+    .map((entry) => ({
+      page: entry.page,
+      matchedSourcePaths: [...entry.matchedSourcePaths].sort(),
+      lastSourceChange: new Date(entry.lastSourceChangeMs).toISOString(),
+      pageUpdated: entry.pageUpdated,
+      stale: entry.pageUpdatedMs === null || entry.lastSourceChangeMs > entry.pageUpdatedMs,
+      modified: entry.lastSourceChangeMs > projectUpdated.getTime(),
+    }))
+    .filter((entry) => entry.modified || entry.stale)
+    .sort((left, right) => left.page.localeCompare(right.page));
+
+  return {
+    project,
+    repo: snapshot.repo,
+    modifiedFiles: modifiedFiles.size,
+    boundPages: orderedPages.length,
+    pageStatuses: orderedPages,
+    stalePages: orderedPages.filter((entry) => entry.stale).map((entry) => ({ page: entry.page, lastSourceChange: entry.lastSourceChange, pageUpdated: entry.pageUpdated })),
+    unboundFiles: [...unboundFiles].sort(),
+    clean: orderedPages.every((entry) => !entry.stale),
+  };
+}
+
+function renderCheckpoint(result: Awaited<ReturnType<typeof collectCheckpoint>>) {
+  console.log(`Checkpoint: ${result.project}`);
+  console.log("");
+  console.log(`Modified files: ${result.modifiedFiles}`);
+  console.log(`Bound wiki pages: ${result.boundPages}`);
+  for (const page of result.pageStatuses) {
+    if (page.stale) console.log(`  ✗ ${page.page} — stale (source ${page.lastSourceChange}, page ${page.pageUpdated})`);
+    else console.log(`  ✓ ${page.page} — up to date`);
+  }
+  console.log("");
+  console.log(`Unbound files: ${result.unboundFiles.length}`);
+  for (const file of result.unboundFiles.slice(0, 50)) console.log(`  ${file}`);
+  console.log("");
+  console.log(`Result: ${result.clean ? "CLEAN" : `STALE (${result.stalePages.length} page${result.stalePages.length === 1 ? "" : "s"} need update)`}`);
 }
 
 type RefreshOnMergeResult = Awaited<ReturnType<typeof collectRefreshOnMerge>>;
@@ -151,6 +251,12 @@ function gitLines(repo: string, command: string[]) {
 
 function normalizeRelPath(value: string) {
   return value.replaceAll("\\", "/");
+}
+
+function bindingMatchesFile(binding: string, file: string) {
+  const normalizedBinding = normalizeRelPath(binding).replace(/\/+$/u, "");
+  const normalizedFile = normalizeRelPath(file);
+  return normalizedFile === normalizedBinding || normalizedFile.startsWith(`${normalizedBinding}/`);
 }
 
 function isWorktreeSourceNewer(repo: string, sourcePath: string, updated: Date | null) {

@@ -2,8 +2,8 @@ export { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeMo
 export { backlogCommand, addTask, moveTask, completeTask, createIssueSlice } from "./backlog";
 export { createFeature, createPrd, createPlan, createTestPlan } from "./planning";
 export { dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, discoverProject, ingestDiff } from "./maintenance";
-export { handoverProject, claimSlice, noteProject, nextProject, verifySlice, closeSlice, exportPrompt, resumeProject } from "./coordination";
-export { commitCheck, installGitHook, refreshOnMerge } from "./automation";
+export { handoverProject, claimSlice, noteProject, nextProject, startSlice, verifySlice, closeSlice, exportPrompt, resumeProject } from "./coordination";
+export { commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo } from "./automation";
 export { dependencyGraph } from "./dependency-graph";
 export { updateIndex, logCommand } from "./index-log";
 export { statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear } from "./linting";

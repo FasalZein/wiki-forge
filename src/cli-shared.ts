@@ -43,6 +43,8 @@ Usage:
   wiki dashboard <project> [--repo <path>] [--base <rev>] [--json]
   wiki closeout <project> [--repo <path>] [--base <rev>] [--json] [--verbose]
   wiki commit-check <project> [--repo <path>] [--json] [--verbose]
+  wiki checkpoint <project> [--repo <path>] [--json]
+  wiki lint-repo <project> [--repo <path>] [--json]
   wiki install-git-hook <project> [--repo <path>] [--hook <name>] [--force] [--json]
   wiki refresh-on-merge <project> [--repo <path>] [--base <rev>] [--json] [--verbose]
   wiki dependency-graph <project> [--write] [--json]
@@ -50,6 +52,7 @@ Usage:
   wiki claim <project> <slice-id> [--agent <name>] [--repo <path>] [--json]
   wiki note <project> <message...> [--agent <name>] [--slice <slice-id>] [--json]
   wiki next <project> [--json]
+  wiki start-slice <project> <slice-id> [--agent <name>] [--repo <path>] [--json]
   wiki verify-slice <project> <slice-id> [--repo <path>] [--json]
   wiki close-slice <project> <slice-id> [--repo <path>] [--base <rev>] [--json]
   wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]
@@ -104,6 +107,8 @@ Notes:
   - dashboard emits a single JSON overview for apps and agents
   - closeout composes refresh-from-git, drift, lint, semantic lint, and gate into one compact review surface
   - commit-check inspects staged repo files against bound wiki pages and fails when staged code would leave pages stale
+  - checkpoint is the git-independent freshness check: it compares worktree mtimes against bound wiki pages and reports stale pages plus unbound changed files
+  - lint-repo flags repo-owned markdown files outside the allowed set (README.md, CHANGELOG.md, AGENTS.md, CLAUDE.md, SETUP.md, skills/*/SKILL.md)
   - install-git-hook writes a repo-local hook that runs wiki commit-check before commit
   - refresh-on-merge is a CI-friendly merge check that wraps refresh-from-git, drift status, and gate output
   - dependency-graph generates a derived JSON Canvas dependency graph from feature/PRD/slice metadata and checks for missing refs/cycles
@@ -111,6 +116,7 @@ Notes:
   - claim records slice ownership and blocks overlapping file-level claims across active/claimed slices when source_paths overlap
   - note appends a durable agent-to-agent message to the global wiki log with project/slice metadata
   - next recommends the highest-priority active or ready slice, skipping slices blocked by depends_on
+  - start-slice is the lifecycle entry point: it checks dependencies, registers the claim, moves the backlog item to In Progress, stamps started_at, and prints a compact plan summary
   - verify-slice runs shell command blocks from a slice test-plan and promotes the test-plan to test-verified on success
   - close-slice runs the project gate, marks slice docs done, records completed_at, and moves the slice to Done when the gate passes
   - export-prompt prints a self-contained execution prompt for codex, claude, or pi without writing into the project repo
@@ -286,8 +292,10 @@ export function assertExists(path: string, message: string) {
   }
 }
 
-export function fail(message: string): never {
-  throw new Error(message);
+export function fail(message: string, exitCode = 1): never {
+  const error = new Error(message) as Error & { exitCode: number };
+  error.exitCode = exitCode;
+  throw error;
 }
 
 export function today() {

@@ -118,6 +118,7 @@ wiki create-issue-slice my-app "email verification" --prd PRD-001 --assignee Cod
 # optional: add agents: [Codex, Claude, pi] to _summary.md frontmatter to validate assignees
 wiki backlog my-app --assignee Codex                      # list tracked tasks for one agent
 wiki next my-app                                          # pick the active or next ready slice
+wiki start-slice my-app MY-APP-001 --agent Codex --repo ~/Dev/my-app  # dependency check + claim + backlog move + started_at
 wiki verify-slice my-app MY-APP-001 --repo ~/Dev/my-app  # run bash/sh code fences from slice test-plan.md
 wiki export-prompt my-app MY-APP-001 --agent pi          # print a self-contained execution prompt
 wiki resume my-app --repo ~/Dev/my-app --base main       # pick up an interrupted session fast
@@ -145,6 +146,8 @@ wiki note my-app "left off at parser" --slice MY-APP-001 # durable agent-to-agen
 
 ```bash
 wiki commit-check my-app --repo ~/Dev/my-app              # staged-file freshness check for local commits
+wiki checkpoint my-app --repo ~/Dev/my-app                # git-independent freshness check against current worktree mtimes
+wiki lint-repo my-app --repo ~/Dev/my-app                 # flag ad hoc repo markdown outside the allowed set
 wiki install-git-hook my-app --repo ~/Dev/my-app          # writes a pre-commit hook that runs commit-check
 wiki refresh-on-merge my-app --repo ~/Dev/my-app --base main --verbose
 wiki dependency-graph my-app --write                       # writes verification/dependency-graph.canvas
