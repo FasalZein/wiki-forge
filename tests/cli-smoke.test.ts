@@ -599,6 +599,8 @@ describe("wiki CLI smoke", () => {
     expect(result.exitCode).toBe(0);
     const output = result.stdout.toString();
     expect(output).toContain("Use the /research skill for actual investigation");
+    expect(output).toContain("wiki research audit [topic] [--json]");
+    expect(output).toContain("research audit layers dead-link checks and influenced_by coverage");
     expect(output).toContain("research file scaffolds a project research note");
     expect(output).toContain("it does not perform the research step");
   });

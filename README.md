@@ -90,7 +90,7 @@ wiki file-answer my-app "how does caching work"            # save answer brief f
 
 ### Research Layer
 
-File evidence, scaffold topics, ingest sources — all traceable in the vault.
+File evidence, scaffold topics, ingest sources, and audit quality — all traceable in the vault.
 
 ```bash
 wiki research file my-app "auth provider comparison"       # file a research note
@@ -98,6 +98,7 @@ wiki research scaffold "state management"                  # create topic contai
 wiki research ingest "state management" ./notes.md         # seed from existing findings
 wiki research status                                       # coverage + health summary
 wiki research lint                                         # check evidence freshness
+wiki research audit                                        # dead links + influenced_by coverage
 wiki source ingest https://example.com/article             # raw source -> raw/ + linked summary
 ```
 

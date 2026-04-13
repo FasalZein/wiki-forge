@@ -12,6 +12,7 @@ Usage:
   wiki research status [topic] [--json]
   wiki research ingest <topic> <source-url-or-path...> [--title <title>]
   wiki research lint [topic] [--json]
+  wiki research audit [topic] [--json]
   wiki research file <project> [--topic <topic>] <title...>
   wiki source ingest <path-or-url...> [--topic <topic>] [--title <title>] [--bucket <name>]
   wiki scaffold-layer <name>
@@ -115,6 +116,7 @@ Notes:
   - research file scaffolds a project research note into research/projects/<project>/ by default; it does not perform the research step
   - research scaffold creates a topic container with research/<topic>/_overview.md
   - research status reports research counts by status and verification level
+  - research audit layers dead-link checks and influenced_by coverage on top of research lint/status
   - research ingest scaffolds a source-backed research page inside a topic for findings you already gathered
   - source ingest copies a local file into raw/ or creates a raw URL pointer note, then scaffolds a linked research summary
   - research/source paths are mechanical: research expects research/<topic>/{_overview,<slug>}.md and raw expects bucketed paths under raw/

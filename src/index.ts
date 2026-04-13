@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import type { CommandHandler } from "./types";
-import { printHelp, scaffoldProject, addTask, backlogCommand, moveTask, completeTask, createIssueSlice, createFeature, createPrd, createPlan, createTestPlan, createModule, onboardProject, onboardPlan, normalizeModule, dashboardProject, maintainProject, refreshProject, refreshFromGit, discoverProject, ingestDiff, handoverProject, claimSlice, noteProject, nextProject, verifySlice, closeSlice, updateIndex, logCommand, statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch } from "./commands/system";
+import { printHelp, scaffoldProject, addTask, backlogCommand, moveTask, completeTask, createIssueSlice, createFeature, createPrd, createPlan, createTestPlan, createModule, onboardProject, onboardPlan, normalizeModule, dashboardProject, maintainProject, refreshProject, refreshFromGit, discoverProject, ingestDiff, handoverProject, claimSlice, noteProject, nextProject, verifySlice, closeSlice, updateIndex, logCommand, statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch } from "./commands/system";
 import { doctorProject, gateProject } from "./commands/diagnostics";
 import { askProject, fileAnswer, fileResearch } from "./commands/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "./commands/qmd-commands";
@@ -57,6 +57,7 @@ const commands: Record<string, CommandHandler> = {
   "research:ingest": (args) => ingestResearch(args),
   "research:file": (args) => fileResearch(args),
   "research:lint": (args) => lintResearch(args),
+  "research:audit": (args) => auditResearch(args),
   "source:ingest": (args) => ingestSource(args),
   "qmd-status": () => qmdStatus(),
   "qmd-update": () => qmdUpdate(),
@@ -104,8 +105,9 @@ function resolveCommand(rawArgs: string[]) {
       status: "research:status",
       ingest: "research:ingest",
       lint: "research:lint",
+      audit: "research:audit",
       file: "research:file",
-    }[subcommand as "scaffold" | "status" | "ingest" | "lint" | "file"];
+    }[subcommand as "scaffold" | "status" | "ingest" | "lint" | "audit" | "file"];
     if (!mapped) throw new Error(`unknown research subcommand: ${subcommand}. Run 'wiki help' for usage.`);
     return { command: mapped, args: subArgs };
   }

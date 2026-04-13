@@ -7,6 +7,7 @@ import { appendLogEntry } from "../lib/log";
 import { readText, writeText } from "../lib/fs";
 import { classifyRawPath, classifyResearchPath, describeAllowedRawPaths, describeAllowedResearchPaths, deriveSourceSlug, deriveSourceTitle, detectResearchSourceType, inferRawBucket, isAllowedRawBucket, normalizeTopicPath, rawBucketDir, rawPathForSource, rawRoot, rawVaultPath, researchOverviewPath, researchPagePath, researchRoot, researchTopicDir, slugifyResearchPage, topicCrossLinks, topicLabel } from "../lib/research";
 import { normalizePath, stripMarkdownExtension, walkMarkdown } from "../lib/vault";
+import { collectResearchAudit } from "../lib/research-audit";
 
 const RESEARCH_STATUSES = ["draft", "reviewed", "verified", "applied"] as const;
 const RESEARCH_VERIFICATION_LEVELS = ["unverified", "cross-referenced", "source-checked"] as const;
@@ -53,10 +54,11 @@ export async function ingestResearch(args: string[]) {
       status: "draft",
       source_type: sourceType,
       sources: [{ ...sourceField, accessed: today(), claim: "TODO: capture the specific claim supported by this source." }],
+      influenced_by: [],
       created_at: nowIso(),
       updated: nowIso(),
       verification_level: "unverified",
-    }, ["title", "type", "topic", "project", "status", "source_type", "sources", "created_at", "updated", "verification_level"]);
+    }, ["title", "type", "topic", "project", "status", "source_type", "sources", "influenced_by", "created_at", "updated", "verification_level"]);
     const body = [
       `# ${data.title}`,
       "",
@@ -147,10 +149,11 @@ export async function ingestSource(args: string[]) {
       status: "draft",
       source_type: sourceType,
       sources: [{ raw: rawVaultPath(rawPath), accessed: today(), claim: "TODO: capture the specific claim supported by this source." }],
+      influenced_by: [],
       created_at: nowIso(),
       updated: nowIso(),
       verification_level: "unverified",
-    }, ["title", "type", "topic", "project", "status", "source_type", "sources", "created_at", "updated", "verification_level"]);
+    }, ["title", "type", "topic", "project", "status", "source_type", "sources", "influenced_by", "created_at", "updated", "verification_level"]);
     const body = [
       `# ${data.title}`,
       "",
@@ -200,6 +203,31 @@ export async function lintResearch(args: string[]) {
     for (const issue of result.issues) console.log(`- ${issue}`);
   } else console.log(`research lint passed${result.topic ? ` for ${result.topic}` : ""}`);
   if (result.issues.length) throw new Error(`research lint failed${result.topic ? ` for ${result.topic}` : ""}`);
+}
+
+export async function auditResearch(args: string[]) {
+  const topic = args.find((arg) => !arg.startsWith("--"));
+  const json = args.includes("--json");
+  const [audit, lint] = await Promise.all([collectResearchAudit(topic), collectResearchLintResult(topic)]);
+  const result = { ...audit, lintIssues: lint.issues };
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    if (result.deadLinks.length || result.invalidInfluence.length || result.missingInfluence.length || lint.issues.length) throw new Error(`research audit failed${topic ? ` for ${topic}` : ""}`);
+    return;
+  }
+  console.log(`research audit${result.topic ? ` for ${result.topic}` : ""}:`);
+  console.log(`- root: ${result.root}`);
+  console.log(`- pages: ${result.counts.pages}`);
+  console.log(`- dead links: ${result.counts.deadLinks}`);
+  console.log(`- missing influence: ${result.counts.missingInfluence}`);
+  console.log(`- invalid influence: ${result.counts.invalidInfluence}`);
+  console.log(`- stale unverified: ${result.counts.staleUnverified}`);
+  console.log(`- lint issues: ${lint.issues.length}`);
+  for (const link of result.deadLinks.slice(0, 10)) console.log(`  - dead link: ${link.page} -> ${link.url} (${link.message})`);
+  for (const page of result.missingInfluence.slice(0, 10)) console.log(`  - missing influence: ${page}`);
+  for (const issue of result.invalidInfluence.slice(0, 10)) console.log(`  - invalid influence: ${issue.page} -> ${issue.target}`);
+  for (const issue of lint.issues.slice(0, 10)) console.log(`  - lint: ${issue}`);
+  if (result.deadLinks.length || result.invalidInfluence.length || result.missingInfluence.length || lint.issues.length) throw new Error(`research audit failed${topic ? ` for ${topic}` : ""}`);
 }
 
 export async function ensureResearchTopic(topic: string) {
@@ -418,10 +446,11 @@ export async function createResearchPage(project: string, title: string, topic?:
     status: "draft",
     source_type: "synthesis",
     sources: [],
+    influenced_by: [],
     created_at: nowIso(),
     updated: nowIso(),
     verification_level: "unverified",
-  }, ["title", "type", "topic", "project", "status", "source_type", "sources", "created_at", "updated", "verification_level"]);
+  }, ["title", "type", "topic", "project", "status", "source_type", "sources", "influenced_by", "created_at", "updated", "verification_level"]);
   const body = [
     `# ${title}`,
     "",
