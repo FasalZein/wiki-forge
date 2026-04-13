@@ -12,11 +12,15 @@ import { questionTokens } from "../lib/research";
 import { createResearchPage } from "./research";
 import type { AnswerBrief, AnswerSource, AskOptions, NoteIndex, QmdResult } from "../types";
 
+export const DEFAULT_ASK_MAX_RESULTS = 4;
+const DEFAULT_ASK_CANDIDATES = 8;
+const DEFAULT_COMPACT_SOURCE_REFS = 3;
+
 export async function askProject(args: string[]) {
   assertQmdAvailable();
   const options = parseAskOptions(args);
   const brief = await buildAnswerBrief(options);
-  console.log(renderAnswerBrief(brief));
+  console.log(renderAnswerBrief(brief, { verbose: options.verbose }));
 }
 
 export async function fileAnswer(args: string[]) {
@@ -30,12 +34,13 @@ export async function fileAnswer(args: string[]) {
   await writeText(outputPath, contents);
   appendLogEntry("file-answer", options.question, { project: options.project, details: [`path=${relative(VAULT_ROOT, outputPath)}`] });
   console.log(`${existed ? "updated" : "created"} ${relative(VAULT_ROOT, outputPath)}`);
-  console.log(renderAnswerBrief(brief));
+  console.log(renderAnswerBrief(brief, { verbose: options.verbose }));
 }
 
 function parseAskOptions(args: string[]): AskOptions {
   let expand = false;
-  let maxResults = 6;
+  let verbose = false;
+  let maxResults = DEFAULT_ASK_MAX_RESULTS;
   let slug: string | undefined;
   let project: string | undefined;
   const questionParts: string[] = [];
@@ -44,6 +49,10 @@ function parseAskOptions(args: string[]): AskOptions {
     const arg = args[index];
     if (arg === "--expand") {
       expand = true;
+      continue;
+    }
+    if (arg === "--verbose") {
+      verbose = true;
       continue;
     }
     if (arg === "-n" || arg === "--max-results") {
@@ -70,14 +79,14 @@ function parseAskOptions(args: string[]): AskOptions {
   if (!project) throw new Error("missing project");
   const question = questionParts.join(" ").trim().replace(/\s+/g, " ");
   if (!question) throw new Error("missing question");
-  return { project, question, expand, maxResults, slug };
+  return { project, question, expand, verbose, maxResults, slug };
 }
 
 async function buildAnswerBrief(options: AskOptions): Promise<AnswerBrief> {
   const root = projectRoot(options.project);
   if (!existsSync(root)) throw new Error(`project not found: ${options.project}`);
 
-  const maxCandidates = Math.max(10, options.maxResults * 3);
+  const maxCandidates = resolveAskCandidateLimit(options.maxResults);
   const retrievalMode = resolveRetrievalMode(options.question, { expand: options.expand, sdkHybridAvailable: sdkHybridAvailable() });
   const retrievalQuery = options.expand
     ? options.question
@@ -204,15 +213,28 @@ export function scoreAnswerSource(project: string, question: string, markdownPat
   return adjusted + evidenceScore * 0.35 + Math.min(topicBoost, 0.4);
 }
 
-function renderAnswerBrief(brief: AnswerBrief) {
-  const lines = [`Question: ${brief.question}`, `Project: ${brief.projectTitle} (${brief.project})`, `Mode: ${brief.retrievalMode}`, "", "Routing:", "- [[index]]", `- [[projects/${brief.project}/_summary|${brief.project} summary]]`, "", "Answer Brief:"];
-  for (const source of brief.answerSources) lines.push(`- ${renderAnswerBullet(source, brief.question)}`);
-  lines.push("", "Primary Sources:");
-  for (const [index, source] of brief.primarySources.entries()) lines.push(`${index + 1}. ${renderSourceReference(source)}`);
-  if (brief.supportingSources.length) {
-    lines.push("", "Supporting Sources:");
-    for (const [index, source] of brief.supportingSources.entries()) lines.push(`${index + 1}. ${renderSourceReference(source)}`);
+export function resolveAskCandidateLimit(maxResults: number) {
+  return Math.max(DEFAULT_ASK_CANDIDATES, maxResults * 2);
+}
+
+export function renderAnswerBrief(brief: AnswerBrief, options?: { verbose?: boolean }) {
+  if (options?.verbose) {
+    const lines = [`Question: ${brief.question}`, `Project: ${brief.projectTitle} (${brief.project})`, `Mode: ${brief.retrievalMode}`, "", "Routing:", "- [[index]]", `- [[projects/${brief.project}/_summary|${brief.project} summary]]`, "", "Answer Brief:"];
+    for (const source of brief.answerSources) lines.push(`- ${renderAnswerBullet(source, brief.question)}`);
+    lines.push("", "Primary Sources:");
+    for (const [index, source] of brief.primarySources.entries()) lines.push(`${index + 1}. ${renderSourceReference(source)}`);
+    if (brief.supportingSources.length) {
+      lines.push("", "Supporting Sources:");
+      for (const [index, source] of brief.supportingSources.entries()) lines.push(`${index + 1}. ${renderSourceReference(source)}`);
+    }
+    return lines.join("\n");
   }
+
+  const sources = brief.answerSources.length ? brief.answerSources : [...brief.primarySources, ...brief.supportingSources];
+  if (!sources.length) return `No answer sources found for: ${brief.question}`;
+  const lines = sources.map((source) => `- ${renderAnswerBullet(source, brief.question)}`);
+  const refs = sources.map((source) => renderSourceLink(source)).filter((value, index, values) => values.indexOf(value) === index).slice(0, DEFAULT_COMPACT_SOURCE_REFS);
+  if (refs.length) lines.push("", `Sources: ${refs.join(" | ")}`);
   return lines.join("\n");
 }
 

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { DEFAULT_CANDIDATE_LIMITS, parseCandidateLimitsArg } from "../scripts/qmd-bench";
 import { DEFAULT_BENCH_COMMANDS, parseCommandList } from "../scripts/wiki-maintenance-bench";
 import { resolveQmdIndexPath } from "../src/constants";
-import { classifyAnswerScope, scoreAnswerSource } from "../src/commands/answers";
+import { DEFAULT_ASK_MAX_RESULTS, classifyAnswerScope, renderAnswerBrief, resolveAskCandidateLimit, scoreAnswerSource } from "../src/commands/answers";
 import { buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText, resolveRetrievalMode } from "../src/lib/qmd";
 
 describe("qmd query shaping", () => {
@@ -122,6 +122,46 @@ describe("benchmark harness config", () => {
 
   test("parses and normalizes maintenance benchmark commands", () => {
     expect(parseCommandList("gate,update-index,gate,bind")).toEqual(["gate", "update-index", "bind"]);
+  });
+});
+
+describe("ask defaults", () => {
+  test("uses compact default limits for answer retrieval", () => {
+    expect(DEFAULT_ASK_MAX_RESULTS).toBe(4);
+    expect(resolveAskCandidateLimit(DEFAULT_ASK_MAX_RESULTS)).toBe(8);
+    expect(resolveAskCandidateLimit(7)).toBe(14);
+  });
+
+  test("renders compact briefs by default and richer output in verbose mode", () => {
+    const source = {
+      result: { docid: "1", score: 0.87, file: "projects/wiki-forge/specs/index.md", title: "specs index", snippet: "PRDs live under specs/prds" },
+      adjustedScore: 2.1,
+      markdownPath: "projects/wiki-forge/specs/index.md",
+      vaultPath: "projects/wiki-forge/specs/index",
+      scope: "project" as const,
+      note: { absolutePath: "/tmp/projects/wiki-forge/specs/index.md", vaultPath: "projects/wiki-forge/specs/index", basename: "index", aliases: [], headings: new Set() },
+      evidence: { text: "PRDs live under specs/prds.", lineNumber: 12, score: 3 },
+    };
+    const brief = {
+      project: "wiki-forge",
+      question: "where do PRDs live",
+      projectTitle: "Wiki Forge",
+      retrievalMode: "bm25" as const,
+      retrievalQuery: "PRDs prd spec specs wiki forge",
+      answerSources: [source],
+      primarySources: [source],
+      supportingSources: [],
+    };
+
+    const compact = renderAnswerBrief(brief);
+    const verbose = renderAnswerBrief(brief, { verbose: true });
+
+    expect(compact).toContain("Sources: [[projects/wiki-forge/specs/index|specs index]]");
+    expect(compact).not.toContain("Question:");
+    expect(compact).not.toContain("Routing:");
+    expect(verbose).toContain("Question: where do PRDs live");
+    expect(verbose).toContain("Routing:");
+    expect(compact.length).toBeLessThan(verbose.length);
   });
 });
 

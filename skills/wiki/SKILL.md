@@ -120,7 +120,7 @@ Auto-detection: if `KNOWLEDGE_VAULT_ROOT` is unset, the CLI walks up from `cwd` 
 | Compact closeout review | `wiki closeout <project> --base <rev>` |
 | Broad health check | `wiki doctor <project> --base <rev>` |
 | Find pages by topic | `wiki search "<query>"` or `wiki query "<query>"` |
-| Project-scoped Q&A | `wiki ask <project> "<question>"` |
+| Project-scoped Q&A | `wiki ask <project> [--verbose] "<question>"` |
 | Structural health | `wiki lint <project>` / `wiki lint-semantic <project>` |
 | Discover repo structure for onboarding | `wiki discover <project> --tree` |
 | File project research output | `wiki research file <project> <title>` |
@@ -130,7 +130,7 @@ Auto-detection: if `KNOWLEDGE_VAULT_ROOT` is unset, the CLI walks up from `cwd` 
 | Scaffold source-backed research notes | `wiki research ingest <topic> <source>` |
 | Ingest raw source + summary | `wiki source ingest <path-or-url> [--topic <topic>]` |
 | Lint filed research evidence | `wiki research lint [topic]` |
-| Save answer brief | `wiki file-answer <project> "<question>"` |
+| Save answer brief | `wiki file-answer <project> [--verbose] "<question>"` |
 
 Planning scaffolds:
 
@@ -211,6 +211,7 @@ Quick lookup        → read the file directly
 Broad search        → wiki search "auth middleware"
 Hybrid semantic     → wiki query "how does approval work"
 Project Q&A         → wiki ask <project> "where is approval implemented"
+Verbose Q&A         → wiki ask <project> --verbose "where is approval implemented"
 Save answer brief   → wiki file-answer <project> "question"
 ```
 

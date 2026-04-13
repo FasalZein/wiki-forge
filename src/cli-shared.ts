@@ -33,8 +33,8 @@ Usage:
   wiki normalize-module <project> <module> [--write]
   wiki onboard <project> [--repo <path>]
   wiki onboard-plan <project> [--repo <path>] [--write]
-  wiki ask <project> [--expand] [-n <num>] <question...>
-  wiki file-answer <project> [--expand] [--slug <slug>] [-n <num>] <question...>
+  wiki ask <project> [--expand] [--verbose] [-n <num>] <question...>
+  wiki file-answer <project> [--expand] [--verbose] [--slug <slug>] [-n <num>] <question...>
   wiki query [--expand] <query...>
   wiki qmd-setup
   wiki qmd-status
@@ -119,9 +119,9 @@ Notes:
   - update-index maintains generated index pages and refreshes code-driven relationship sections across planning docs, modules, and freeform project zones (dry-run by default)
   - log appends/tails chronological wiki operations in log.md
   - wiki obsidian ... wraps a small app-dependent Obsidian CLI surface for vault-aware UI actions
-  - ask reranks qmd results toward projects/<project>/ and prints a citation-ready brief
+  - ask reranks qmd results toward projects/<project>/ and prints a compact citation-ready brief by default; use --verbose for routing/source sections
   - ask is SDK-first: location/general questions use a faster project-aware BM25 path, rationale questions use in-process pre-expanded hybrid retrieval
-  - file-answer saves an ask brief into wiki/syntheses/
+  - file-answer saves an ask brief into wiki/syntheses/ and keeps CLI output compact unless --verbose is set
   - use grouped commands: wiki research ..., wiki source ...
   - research file scaffolds a project research note into research/projects/<project>/ by default; it does not perform the research step
   - research scaffold creates a topic container with research/<topic>/_overview.md

@@ -85,7 +85,8 @@ Intent-aware retrieval — BM25 for location queries, hybrid BM25+vector for rat
 ```bash
 wiki search "auth middleware"                              # full-text search
 wiki query "how does token refresh work"                   # intent-routed retrieval
-wiki ask my-app "where is the rate limiter"                # project-scoped Q&A with citations
+wiki ask my-app "where is the rate limiter"                # compact project-scoped Q&A with citations
+wiki ask my-app --verbose "where is the rate limiter"      # include routing + source sections
 wiki file-answer my-app "how does caching work"            # save answer brief for compounding
 ```
 
