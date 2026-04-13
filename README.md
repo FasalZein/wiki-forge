@@ -47,7 +47,9 @@ Scaffold a project, discover its structure, and create module specs — all wire
 
 ```bash
 wiki scaffold-project my-app                              # create vault structure
+wiki onboard my-app --repo ~/Dev/my-app                    # scaffold + onboarding plan + root protocol sync
 wiki onboard-plan my-app --repo ~/Dev/my-app --write      # generate onboarding plan
+wiki protocol sync my-app --repo ~/Dev/my-app              # sync AGENTS.md / CLAUDE.md (and nested scopes)
 wiki discover my-app --tree                                # find module candidates
 wiki create-module my-app auth --source src/auth/          # create bound module spec
 ```
@@ -148,6 +150,7 @@ wiki note my-app "left off at parser" --slice MY-APP-001 # durable agent-to-agen
 wiki commit-check my-app --repo ~/Dev/my-app              # staged-file freshness check for local commits
 wiki checkpoint my-app --repo ~/Dev/my-app                # git-independent freshness check against current worktree mtimes
 wiki lint-repo my-app --repo ~/Dev/my-app                 # flag ad hoc repo markdown outside the allowed set
+wiki protocol audit my-app --repo ~/Dev/my-app            # detect missing/stale managed AGENTS.md / CLAUDE.md files
 wiki install-git-hook my-app --repo ~/Dev/my-app          # writes a pre-commit hook that runs commit-check
 wiki refresh-on-merge my-app --repo ~/Dev/my-app --base main --verbose
 wiki dependency-graph my-app --write                       # writes verification/dependency-graph.canvas
@@ -396,7 +399,7 @@ wiki closeout my-app --repo ~/Dev/my-app --base main
 
 - **Wiki vault is the knowledge store.** Agents write documentation to `~/Knowledge`, not to project repos.
 - **Code is the source of truth.** Wiki pages compile from code, never the other way around.
-- **No wiki-style docs in project repos.** Architecture docs, module specs, research — all go to the vault. Allowed repo markdown: `README.md`, `CHANGELOG.md`, `AGENTS.md`, `SETUP.md`, and `skills/*/SKILL.md`.
+- **No wiki-style docs in project repos.** Architecture docs, module specs, research — all go to the vault. Allowed repo markdown: `README.md`, `CHANGELOG.md`, `AGENTS.md`, `CLAUDE.md`, `SETUP.md`, and `skills/*/SKILL.md`.
 - **Verification prevents drift.** Every page has a verification level. `drift-check` demotes stale pages when source code changes.
 
 ---

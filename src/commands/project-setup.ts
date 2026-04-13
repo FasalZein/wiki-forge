@@ -20,6 +20,7 @@ import {
   normalizeModuleFrontmatter,
   normalizeTableSpacing,
 } from "../module-format";
+import { syncProtocolForProject } from "./protocol";
 
 export function scaffoldProject(project: string | undefined) {
   requireValue(project, "project");
@@ -46,6 +47,7 @@ export async function onboardProject(args: string[]) {
     mkdirIfMissing(projectSpecsDir(options.project));
     await writeText(outputPath, renderOnboardingPlan(options.project, options.repo));
     console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
+    await syncProtocolForProject(options.project, options.repo);
   }
   console.log(`onboarded ${options.project} scaffold in ${relative(VAULT_ROOT, projectRoot(options.project))}`);
 }

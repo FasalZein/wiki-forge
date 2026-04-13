@@ -606,6 +606,8 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("wiki commit-check <project> [--repo <path>] [--json] [--verbose]");
     expect(output).toContain("wiki checkpoint <project> [--repo <path>] [--json]");
     expect(output).toContain("wiki lint-repo <project> [--repo <path>] [--json]");
+    expect(output).toContain("wiki protocol sync <project> [--repo <path>] [--json]");
+    expect(output).toContain("wiki protocol audit <project> [--repo <path>] [--json]");
     expect(output).toContain("wiki install-git-hook <project> [--repo <path>] [--hook <name>] [--force] [--json]");
     expect(output).toContain("wiki refresh-on-merge <project> [--repo <path>] [--base <rev>] [--json] [--verbose]");
     expect(output).toContain("wiki ask <project> [--expand] [--verbose] [-n <num>] <question...>");
@@ -618,9 +620,12 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("wiki resume <project> [--repo <path>] [--base <rev>] [--json]");
     expect(output).toContain("wiki dependency-graph <project> [--write] [--json]");
     expect(output).toContain("research audit layers dead-link checks and influenced_by coverage");
+    expect(output).toContain("protocol sync/audit manage repo-root (and optional nested) AGENTS.md / CLAUDE.md files from a short wiki-forge-managed agent protocol block");
     expect(output).toContain("closeout composes refresh-from-git, drift, lint, semantic lint, and gate into one compact review surface");
     expect(output).toContain("checkpoint is the git-independent freshness check: it compares worktree mtimes against bound wiki pages and reports stale pages plus unbound changed files");
     expect(output).toContain("lint-repo flags repo-owned markdown files outside the allowed set");
+    expect(output).toContain("protocol sync prepends a managed agent protocol block to AGENTS.md / CLAUDE.md and preserves local notes below it; declare nested scopes in projects/<project>/_summary.md frontmatter protocol_scopes: [...]");
+    expect(output).toContain("protocol audit reports missing or stale managed protocol files for the expected scopes");
     expect(output).toContain("start-slice is the lifecycle entry point: it checks dependencies, registers the claim, moves the backlog item to In Progress, stamps started_at, and prints a compact plan summary");
     expect(output).toContain("export-prompt prints a self-contained execution prompt for codex, claude, or pi without writing into the project repo");
     expect(output).toContain("resume prints a quick session pickup view: recent commits, dirty files, stale pages, active slice, and next actions");

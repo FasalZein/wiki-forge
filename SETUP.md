@@ -163,15 +163,17 @@ Paste this into any agent session to get started on a project:
 I need to onboard a project into the wiki. Here's what to do:
 
 1. Run: wiki scaffold-project <project-name>
-2. Run: wiki onboard-plan <project-name> --repo <path-to-repo> --write
+2. Run: wiki onboard <project-name> --repo <path-to-repo>
 3. Read the generated onboarding plan at projects/<project-name>/specs/onboarding-plan.md
 4. Set repo: and code_paths: in projects/<project-name>/_summary.md
-5. Run: wiki discover <project-name> --tree
-6. For each module candidate, read the code and run:
+5. Optional: add protocol_scopes: [...] in projects/<project-name>/_summary.md for nested package/app instructions
+6. Run: wiki discover <project-name> --tree
+7. For each module candidate, read the code and run:
    wiki create-module <project-name> <module> --source <paths...>
-7. Fill in each module spec from the code
-8. Run: wiki lint <project-name>
-9. Run: wiki update-index <project-name> --write
+8. Fill in each module spec from the code
+9. Run: wiki protocol audit <project-name> --repo <path-to-repo>
+10. Run: wiki lint <project-name>
+11. Run: wiki update-index <project-name> --write
 
 Use /forge for the full SDLC workflow when building features.
 Use /wiki for CLI reference.
@@ -184,7 +186,8 @@ If you prefer to drive the process yourself:
 ```bash
 # 1. Scaffold
 wiki scaffold-project my-app
-wiki onboard-plan my-app --repo ~/Dev/my-app --write
+wiki onboard my-app --repo ~/Dev/my-app
+wiki protocol audit my-app --repo ~/Dev/my-app
 
 # 2. Explore
 wiki discover my-app --tree

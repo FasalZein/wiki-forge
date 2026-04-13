@@ -125,6 +125,8 @@ Auto-detection: if `KNOWLEDGE_VAULT_ROOT` is unset, the CLI walks up from `cwd` 
 | Project-scoped Q&A | `wiki ask <project> [--verbose] "<question>"` |
 | Structural health | `wiki lint <project>` / `wiki lint-semantic <project>` |
 | Discover repo structure for onboarding | `wiki discover <project> --tree` |
+| Sync managed repo protocol files | `wiki protocol sync <project> --repo <path>` |
+| Audit managed repo protocol files | `wiki protocol audit <project> --repo <path>` |
 | File project research output | `wiki research file <project> <title>` |
 | Create a research topic | `wiki research scaffold <topic>` |
 | Check research repository health | `wiki research status [topic]` |
@@ -171,10 +173,11 @@ Demotion state: `stale` (set by `drift-check --fix` when source code changes aft
 
 ```text
 1. wiki scaffold-project <project>
-2. wiki onboard-plan <project> --repo <path> --write
+2. wiki onboard <project> --repo <path>
 3. Read specs/onboarding-plan.md
 4. Set repo: and code_paths: in _summary.md frontmatter
-5. wiki discover <project> --repo <path> --tree
+5. optionally declare nested protocol scopes in `_summary.md` frontmatter: `protocol_scopes: [apps/api, packages/db]`
+6. wiki discover <project> --repo <path> --tree
    → shows repo directories grouped by file count
    → directories with 3+ files are module candidates
 6. Read the code in each candidate directory to understand its purpose
@@ -267,7 +270,8 @@ Propagation rules:
 
 ## Operating Guidelines
 
-- **Never create wiki-style `.md` documentation inside project repos** except `README.md`, `CHANGELOG.md`, `AGENTS.md`, `SETUP.md`, and `skills/*/SKILL.md`. Specs, research, architecture notes, and maintained docs belong in the wiki vault.
+- **Never create wiki-style `.md` documentation inside project repos** except `README.md`, `CHANGELOG.md`, `AGENTS.md`, `CLAUDE.md`, `SETUP.md`, and `skills/*/SKILL.md`. Specs, research, architecture notes, and maintained docs belong in the wiki vault.
+- Use `wiki protocol sync <project> --repo <path>` to install/update the managed agent protocol block in repo `AGENTS.md` / `CLAUDE.md`; do not hand-maintain that top block.
 - **When editing wiki pages, write Obsidian-flavored markdown.** Prefer properties, wikilinks, embeds, callouts, and stable section headings over plain markdown walls of text.
 - **Use the lightest Obsidian companion skill that fits.** `obsidian-markdown` should be common; `obsidian-cli`, `json-canvas`, and `obsidian-bases` are situational.
 - **Use `wiki maintain` as the default maintenance/closeout entry point.** It composes refresh, discovery, and lint, but it does not replace `/forge` for non-trivial implementation work.

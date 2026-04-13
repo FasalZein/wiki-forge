@@ -142,7 +142,8 @@ Do not silently downgrade a slice continuation into `/wiki` maintenance mode jus
 5. **Grill before PRD.** Stress-test assumptions — don't commit to a spec you haven't defended.
 6. **Read code before updating wiki.** Never write docs from memory alone.
 7. **No unmaintainable code.** If a slice passes tests but worsens maintainability, refactor before closing.
-8. **Never create `.md` documentation inside project repos** except `README.md`, `CHANGELOG.md`, `AGENTS.md`, `SETUP.md`, and `skills/*/SKILL.md`. Specs, research, architecture notes, and maintained docs belong in the wiki vault.
+8. **Never create `.md` documentation inside project repos** except `README.md`, `CHANGELOG.md`, `AGENTS.md`, `CLAUDE.md`, `SETUP.md`, and `skills/*/SKILL.md`. Specs, research, architecture notes, and maintained docs belong in the wiki vault.
+9. **Use protocol sync for repo agent instructions.** Install/update repo `AGENTS.md` / `CLAUDE.md` via `wiki protocol sync <project> --repo <path>` instead of hand-editing the managed protocol block.
 9. **Use the wiki vault or session artifacts for planning/handoffs.** Do not create ad hoc repo markdown handoff files.
 
 ## Definition of Done

@@ -15,6 +15,8 @@ Usage:
   wiki research audit [topic] [--json]
   wiki research file <project> [--topic <topic>] <title...>
   wiki source ingest <path-or-url...> [--topic <topic>] [--title <title>] [--bucket <name>]
+  wiki protocol sync <project> [--repo <path>] [--json]
+  wiki protocol audit <project> [--repo <path>] [--json]
   wiki scaffold-layer <name>
   wiki create-layer-page <layer> <title...>
   wiki lint-vault [--json]
@@ -90,6 +92,7 @@ Usage:
 Notes:
   - Maintained docs live in ~/Knowledge
   - Project repos are source inputs only
+  - protocol sync/audit manage repo-root (and optional nested) AGENTS.md / CLAUDE.md files from a short wiki-forge-managed agent protocol block
   - Use the /research skill for actual investigation; wiki research/source commands only file, scaffold, ingest, and lint research artifacts in the vault
   - search uses qmd full-text search by default
   - search --hybrid is supported, but query is the preferred hybrid retrieval command
@@ -140,6 +143,8 @@ Notes:
   - research audit layers dead-link checks and influenced_by coverage on top of research lint/status
   - research ingest scaffolds a source-backed research page inside a topic for findings you already gathered
   - source ingest copies a local file into raw/ or creates a raw URL pointer note, then scaffolds a linked research summary
+  - protocol sync prepends a managed agent protocol block to AGENTS.md / CLAUDE.md and preserves local notes below it; declare nested scopes in projects/<project>/_summary.md frontmatter protocol_scopes: [...]
+  - protocol audit reports missing or stale managed protocol files for the expected scopes
   - research/source paths are mechanical: research expects research/<topic>/{_overview,<slug>}.md and raw expects bucketed paths under raw/
   - research lint flags missing sources, stale unverified notes, unattributed claims, unlinked research pages, and misplaced research/raw files
   - scaffold-layer/create-layer-page are the plugin-generated extension path for custom top-level layers such as books
