@@ -39,6 +39,7 @@ This repo uses a skill-driven workflow. Load `/forge` for the full policy.
 
 Use `/forge` for non-trivial implementation workflow: research → PRD → slices → TDD → wiki verification.
 Use `/wiki` for knowledge-layer work: research filing/audit, retrieval, refresh, drift, verification, and closeout once implementation choices are already made.
+Both skills drive the same `wiki` CLI; `/forge` is the workflow layer, `/wiki` is the knowledge/verification layer.
 
 For non-trivial work:
 1. use `research`

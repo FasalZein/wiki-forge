@@ -184,6 +184,28 @@ Enable the CLI: Obsidian 1.8+ -> Settings -> General -> CLI. See [SETUP.md](SETU
 
 ## How It Works
 
+### Command Taxonomy
+
+Use this mental model:
+
+- **`/wiki` skill** = knowledge/verification layer
+- **`/forge` skill** = delivery workflow layer
+- **`wiki` CLI** = shared command surface both skills rely on
+- **Agent Protocol** = managed repo instruction block in `AGENTS.md` / `CLAUDE.md`
+- **Wiki Protocol** = mandatory `wiki ...` command sequence inside that agent protocol
+
+Compact map:
+
+| Area | Main commands |
+|------|---------------|
+| Protocol | `wiki protocol sync`, `wiki protocol audit` |
+| Planning | `wiki create-feature`, `wiki create-prd`, `wiki create-issue-slice`, `wiki backlog`, `wiki next` |
+| Lifecycle | `wiki start-slice`, `wiki verify-slice`, `wiki close-slice` |
+| Active work checks | `wiki checkpoint`, `wiki lint-repo`, `wiki commit-check` |
+| Closeout | `wiki verify-page`, `wiki closeout`, `wiki gate` |
+| Handoff | `wiki export-prompt`, `wiki resume`, `wiki handover`, `wiki note`, `wiki claim` |
+| Maintenance / retrieval | `wiki maintain`, `wiki refresh-from-git`, `wiki drift-check`, `wiki ask`, `wiki query`, `wiki search` |
+
 ### The Three Layers
 
 | Layer | What it is | Who owns it |

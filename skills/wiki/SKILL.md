@@ -42,7 +42,7 @@ Treat those as contextual maintenance requests, not blind keyword matches. The c
 3. `wiki verify-page <project> <page> code-verified`
 4. `wiki closeout <project> --repo <path> --base <rev>`
 
-For the full build workflow (research → grill → PRD → slices → TDD → verify), use `/forge`. The wiki skill is the knowledge/verification layer; forge is the workflow layer that composes it with research and TDD.
+For the full build workflow (research → grill → PRD → slices → TDD → verify), use `/forge`. The wiki skill is the knowledge/verification layer; forge is a sibling workflow layer that composes the same `wiki` CLI with research and TDD.
 Use `/forge` only for non-trivial pipeline work; do not trigger it for small fixes, note cleanup, or simple maintenance.
 
 ## Use Wiki vs Wiki-Forge
