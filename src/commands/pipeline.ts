@@ -1,0 +1,45 @@
+import { requireValue } from "../cli-shared";
+import { resolveDefaultBase } from "./maintenance";
+import { runPipeline, type PipelinePhase } from "../lib/pipeline";
+
+export async function pipelineCommand(args: string[]) {
+  const project = args[0];
+  const sliceId = args[1];
+  requireValue(project, "project");
+  requireValue(sliceId, "slice-id");
+
+  const phaseIndex = args.indexOf("--phase");
+  const phaseRaw = phaseIndex >= 0 ? args[phaseIndex + 1] : undefined;
+  requireValue(phaseRaw, "phase (--phase close|verify)");
+  if (phaseRaw !== "close" && phaseRaw !== "verify") {
+    throw new Error(`invalid phase: ${phaseRaw}. Must be 'close' or 'verify'.`);
+  }
+  const phase: PipelinePhase = phaseRaw;
+
+  const repoIndex = args.indexOf("--repo");
+  const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
+  const baseIndex = args.indexOf("--base");
+  const base = baseIndex >= 0 ? args[baseIndex + 1] : resolveDefaultBase(project, repo);
+  if (baseIndex >= 0) requireValue(base, "base");
+
+  const json = args.includes("--json");
+  const dryRun = args.includes("--dry-run");
+  const worktree = args.includes("--worktree");
+
+  const result = await runPipeline({ project, sliceId, phase, repo, base, dryRun, json, worktree });
+
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+  } else {
+    console.log(`pipeline ${phase} for ${project}/${sliceId}${dryRun ? " (dry-run)" : ""}:`);
+    for (const step of result.steps) {
+      const status = step.skipped ? "skipped" : step.ok ? "ok" : "FAILED";
+      const duration = step.durationMs !== null ? ` (${step.durationMs}ms)` : "";
+      console.log(`  ${step.id}: ${status}${duration}`);
+      if (step.error) console.log(`    error: ${step.error}`);
+    }
+    console.log(`result: ${result.ok ? "PASS" : "FAIL"}`);
+  }
+
+  if (!result.ok) throw new Error(`pipeline ${phase} failed at ${result.stoppedAt}`);
+}
