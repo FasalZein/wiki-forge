@@ -78,7 +78,7 @@ export async function closeoutProject(args: string[]) {
   const verbose = args.includes("--verbose");
   const worktree = args.includes("--worktree");
   const result = await collectCloseout(options.project, options.base, options.repo, undefined, undefined, { worktree });
-  if (json) console.log(JSON.stringify(result, null, 2));
+  if (json) console.log(JSON.stringify(compactCloseoutForJson(result), null, 2));
   else renderCloseout(result, verbose);
   if (!result.ok) throw new Error(`closeout failed for ${options.project}`);
 }
@@ -750,6 +750,21 @@ function collectChangedTestHealth(changedFiles: string[]) {
 
 export function isTestFile(file: string) {
   return /(^|\/)(tests?|__tests__)\//u.test(file) || /\.(test|spec)\.[^.]+$/u.test(file) || /\/test_[^/]+\.[^.]+$/u.test(file);
+}
+
+/** Strip fresh drift rows and absolute paths from closeout JSON to reduce token consumption. */
+function compactCloseoutForJson(result: Awaited<ReturnType<typeof collectCloseout>>) {
+  const MAX_DRIFT_ROWS = 30;
+  const driftedRows = result.drift.results.filter((row) => row.status !== "fresh");
+  const truncatedDrift = driftedRows.length > MAX_DRIFT_ROWS;
+  return {
+    ...result,
+    drift: {
+      ...result.drift,
+      results: driftedRows.slice(0, MAX_DRIFT_ROWS).map(({ absolutePath, ...row }) => row),
+      ...(truncatedDrift ? { truncated: true, totalDrifted: driftedRows.length } : {}),
+    },
+  };
 }
 
 function renderCloseout(result: Awaited<ReturnType<typeof collectCloseout>>, verbose: boolean) {

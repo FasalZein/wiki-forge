@@ -21,7 +21,7 @@ export async function doctorProject(args: string[]) {
   const worktree = args.includes("--worktree");
   const result = await collectDoctor(project, base, repo, { worktree });
   if (json) {
-    console.log(JSON.stringify(result, null, 2));
+    console.log(JSON.stringify(compactDoctorForJson(result), null, 2));
     return;
   }
 
@@ -55,7 +55,7 @@ export async function gateProject(args: string[]) {
   const worktree = args.includes("--worktree");
   const result = await collectGate(project, base, repo, { structuralRefactor, worktree });
   if (json) {
-    console.log(JSON.stringify(result, null, 2));
+    console.log(JSON.stringify({ ...result, doctor: compactDoctorForJson(result.doctor) }, null, 2));
   } else {
     console.log(`gate for ${project}: ${result.ok ? "PASS" : "FAIL"}`);
     console.log(`- missing tests: ${result.counts.missingTests}`);
@@ -240,4 +240,35 @@ function countTrackedTests(repo: string, revision: string) {
   const proc = Bun.spawnSync(["git", "ls-tree", "-r", "--name-only", revision], { cwd: repo, stdout: "pipe", stderr: "pipe" });
   if (proc.exitCode !== 0) return 0;
   return proc.stdout.toString().replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter((line) => line && isTestFile(line)).length;
+}
+
+/** Strip fresh drift rows, absolute paths, and large nested arrays from JSON output to reduce token consumption. */
+export function compactDoctorForJson(result: Awaited<ReturnType<typeof collectDoctor>>) {
+  const MAX_DRIFT_ROWS = 30;
+  const driftedRows = result.drift.results.filter((row) => row.status !== "fresh");
+  const truncatedDrift = driftedRows.length > MAX_DRIFT_ROWS;
+  return {
+    ...result,
+    drift: {
+      ...result.drift,
+      results: driftedRows.slice(0, MAX_DRIFT_ROWS).map(({ absolutePath, ...row }) => row),
+      ...(truncatedDrift ? { truncated: true, totalDrifted: driftedRows.length } : {}),
+    },
+    maintain: {
+      ...result.maintain,
+      refreshFromGit: {
+        ...result.maintain.refreshFromGit,
+        impactedPages: result.maintain.refreshFromGit.impactedPages?.slice(0, 25),
+      },
+    },
+    backlog: {
+      ...result.backlog,
+      sections: Object.fromEntries(
+        Object.entries(result.backlog.sections).map(([section, items]) => [
+          section,
+          items.slice(0, 15),
+        ]),
+      ),
+    },
+  };
 }

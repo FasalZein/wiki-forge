@@ -10,7 +10,7 @@ import { readVerificationLevel } from "../lib/verification";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
 import { projectSlicesDir, projectTaskHubPath } from "../lib/structure";
 import { collectBacklog, collectBacklogFocus, collectTaskContextForId, moveTaskToSection } from "./backlog";
-import { collectGate } from "./diagnostics";
+import { collectGate, compactDoctorForJson } from "./diagnostics";
 import { collectCloseout, collectMaintenancePlan, isTestFile, resolveDefaultBase } from "./maintenance";
 import { collectDriftSummary } from "./verification";
 import { applyVerificationLevel } from "./verification-shared";
@@ -347,8 +347,9 @@ export async function closeSlice(args: string[]) {
     throw new Error(`close-slice prerequisites failed for ${project}`);
   }
   const gate = await collectGate(project, base, repo, { worktree });
+  const compactGate = { ...gate, doctor: compactDoctorForJson(gate.doctor) };
   if (!gate.ok) {
-    const failed = { project, sliceId, closed: false, gate, previousSection: context.section };
+    const failed = { project, sliceId, closed: false, gate: compactGate, previousSection: context.section };
     if (json) console.log(JSON.stringify(failed, null, 2));
     throw new Error(`gate failed for ${project}`);
   }
@@ -357,7 +358,7 @@ export async function closeSlice(args: string[]) {
   await markSliceClosed(project, sliceId, completedAt);
   await clearClaimMetadata(project, sliceId);
   appendLogEntry("close-slice", sliceId, { project, details: [`base=${base}`, `completed_at=${completedAt}`] });
-  const result = { project, sliceId, closed: true, gate, previousSection: context.section, completedAt };
+  const result = { project, sliceId, closed: true, gate: compactGate, previousSection: context.section, completedAt };
   if (json) console.log(JSON.stringify(result, null, 2));
   else console.log(`closed ${sliceId}`);
 }
