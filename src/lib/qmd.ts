@@ -19,10 +19,11 @@ export function buildStructuredHybridQuery(query: string, options?: { intent?: s
   return lines.join("\n");
 }
 
-export function resolveRetrievalMode(query: string, options?: { expand?: boolean; sdkHybridAvailable?: boolean }): RetrievalMode {
+export function resolveRetrievalMode(query: string, options?: { expand?: boolean; bm25?: boolean; sdkHybridAvailable?: boolean }): RetrievalMode {
   if (options?.expand) return "expand";
-  if (classifyRetrievalIntent(query) !== "rationale") return "bm25";
-  return options?.sdkHybridAvailable ? "sdk-hybrid" : "structured-hybrid";
+  if (options?.bm25) return "bm25";
+  if (options?.sdkHybridAvailable) return "sdk-hybrid";
+  return classifyRetrievalIntent(query) === "rationale" ? "structured-hybrid" : "bm25";
 }
 
 export function classifyRetrievalIntent(query: string): RetrievalIntent {

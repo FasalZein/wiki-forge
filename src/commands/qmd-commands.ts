@@ -34,13 +34,14 @@ export async function searchVault(args: string[]) {
 }
 
 export async function queryVault(args: string[]) {
-  const expand = args[0] === "--expand";
-  const query = (expand ? args.slice(1) : args).join(" ").trim();
+  const expand = args.includes("--expand");
+  const bm25 = args.includes("--bm25");
+  const query = args.filter((a) => a !== "--expand" && a !== "--bm25").join(" ").trim();
   if (!query) {
     throw new Error("missing query");
   }
 
-  const mode = resolveRetrievalMode(query, { expand, sdkHybridAvailable: sdkHybridAvailable() });
+  const mode = resolveRetrievalMode(query, { expand, bm25, sdkHybridAvailable: sdkHybridAvailable() });
   if (mode === "expand") {
     const results = await searchKnowledgeExpandedSdk(query, { maxResults: 5, cacheKeyPrefix: "query:sdk-expand" });
     console.log(renderQueryResults(results));

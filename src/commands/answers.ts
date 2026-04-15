@@ -37,6 +37,7 @@ export async function fileAnswer(args: string[]) {
 
 function parseAskOptions(args: string[]): AskOptions {
   let expand = false;
+  let bm25 = false;
   let verbose = false;
   let maxResults = DEFAULT_ASK_MAX_RESULTS;
   let slug: string | undefined;
@@ -47,6 +48,10 @@ function parseAskOptions(args: string[]): AskOptions {
     const arg = args[index];
     if (arg === "--expand") {
       expand = true;
+      continue;
+    }
+    if (arg === "--bm25") {
+      bm25 = true;
       continue;
     }
     if (arg === "--verbose") {
@@ -77,7 +82,7 @@ function parseAskOptions(args: string[]): AskOptions {
   if (!project) throw new Error("missing project");
   const question = questionParts.join(" ").trim().replace(/\s+/g, " ");
   if (!question) throw new Error("missing question");
-  return { project, question, expand, verbose, maxResults, slug };
+  return { project, question, expand, bm25, verbose, maxResults, slug };
 }
 
 async function buildAnswerBrief(options: AskOptions): Promise<AnswerBrief> {
@@ -85,7 +90,7 @@ async function buildAnswerBrief(options: AskOptions): Promise<AnswerBrief> {
   if (!existsSync(root)) throw new Error(`project not found: ${options.project}`);
 
   const maxCandidates = resolveAskCandidateLimit(options.maxResults);
-  const retrievalMode = resolveRetrievalMode(options.question, { expand: options.expand, sdkHybridAvailable: sdkHybridAvailable() });
+  const retrievalMode = resolveRetrievalMode(options.question, { expand: options.expand, bm25: options.bm25, sdkHybridAvailable: sdkHybridAvailable() });
   const retrievalQuery = options.expand
     ? options.question
     : retrievalMode === "bm25"

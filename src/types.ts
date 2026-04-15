@@ -23,6 +23,7 @@ export type AskOptions = {
   project: string;
   question: string;
   expand: boolean;
+  bm25: boolean;
   verbose: boolean;
   maxResults: number;
   slug?: string;

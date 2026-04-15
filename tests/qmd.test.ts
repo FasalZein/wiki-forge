@@ -84,14 +84,16 @@ describe("retrieval mode resolution", () => {
     expect(resolveRetrievalMode("compare BM25 vs vector search")).toBe("structured-hybrid");
   });
 
-  test("rationale queries resolve to sdk-hybrid when available", () => {
+  test("all query intents resolve to sdk-hybrid when available", () => {
     expect(resolveRetrievalMode("why did we choose qmd", { sdkHybridAvailable: true })).toBe("sdk-hybrid");
     expect(resolveRetrievalMode("compare BM25 vs vector search", { sdkHybridAvailable: true })).toBe("sdk-hybrid");
+    expect(resolveRetrievalMode("where do PRDs live", { sdkHybridAvailable: true })).toBe("sdk-hybrid");
+    expect(resolveRetrievalMode("how does verification work", { sdkHybridAvailable: true })).toBe("sdk-hybrid");
   });
 
-  test("non-rationale queries stay on bm25 even with sdk hybrid available", () => {
-    expect(resolveRetrievalMode("where do PRDs live", { sdkHybridAvailable: true })).toBe("bm25");
-    expect(resolveRetrievalMode("how does verification work", { sdkHybridAvailable: true })).toBe("bm25");
+  test("--bm25 forces bm25 mode even when sdk hybrid available", () => {
+    expect(resolveRetrievalMode("why did we choose qmd", { bm25: true, sdkHybridAvailable: true })).toBe("bm25");
+    expect(resolveRetrievalMode("where do PRDs live", { bm25: true })).toBe("bm25");
   });
 
   test("expand flag overrides intent routing regardless of sdk hybrid", () => {

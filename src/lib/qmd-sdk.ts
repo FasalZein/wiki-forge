@@ -6,25 +6,11 @@ import type { QmdResult } from "../types";
 import { fileFingerprint, readCache, writeCache } from "./cache";
 import { fromQmdFile } from "./vault";
 
-const HOMEBREW_SQLITE = "/opt/homebrew/opt/sqlite/lib/libsqlite3.dylib";
+const HOMEBREW_SQLITE_PATHS = [
+  "/opt/homebrew/opt/sqlite/lib/libsqlite3.dylib", // Apple Silicon
+  "/usr/local/opt/sqlite/lib/libsqlite3.dylib",    // Intel
+];
 const QMD_SDK_CACHE_VERSION = "2";
-
-// Swap Apple's SQLite for Homebrew's before ANY Database instance is created.
-// This enables sqlite-vec extension loading on macOS.
-// Must happen before @tobilu/qmd is imported (it uses better-sqlite3 → bun:sqlite).
-let sqliteSwapped = false;
-function ensureCustomSqlite() {
-  if (sqliteSwapped) return;
-  sqliteSwapped = true;
-  if (!existsSync(HOMEBREW_SQLITE)) return;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { Database } = require("bun:sqlite");
-    Database.setCustomSQLite(HOMEBREW_SQLITE);
-  } catch {
-    // Already loaded or not in Bun — continue with default SQLite
-  }
-}
 
 let storePromise: Promise<QMDStore> | null = null;
 
@@ -146,11 +132,11 @@ function parseStructuredQueryDocument(queryDocument: string): { intent?: string;
 }
 
 export function sdkHybridAvailable() {
-  return existsSync(HOMEBREW_SQLITE);
+  return HOMEBREW_SQLITE_PATHS.some((p) => existsSync(p));
 }
 
 export async function getQmdStore(options?: StoreOptions & { forceNew?: boolean }): Promise<QMDStore> {
-  ensureCustomSqlite();
+  // qmd@0.x handles Database.setCustomSQLite() internally in its db module.
   if (options?.forceNew) {
     const mod = await import("@tobilu/qmd");
     return mod.createStore({ dbPath: options.dbPath, config: options.config, configPath: options.configPath });
