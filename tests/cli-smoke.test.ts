@@ -712,4 +712,19 @@ describe("wiki CLI smoke", () => {
     expect(result.exitCode).toBe(1);
     expect(result.stderr.toString()).toContain("obsidian CLI not found");
   });
+
+  test("dashboard renders project status as JSON", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+
+    const result = runWiki(["dashboard", "demo", "--repo", repo, "--base", "HEAD"], env);
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.project).toBe("demo");
+    expect(json).toHaveProperty("drift");
+    expect(json).toHaveProperty("status");
+  });
 });
