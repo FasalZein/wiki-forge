@@ -1,9 +1,8 @@
 import { dirname, join, relative } from "node:path";
-import { existsSync } from "node:fs";
 import matter from "gray-matter";
 import { VAULT_ROOT } from "../constants";
 import { orderFrontmatter, projectRoot, mkdirIfMissing, readProjectTitle } from "../cli-shared";
-import { writeText } from "../lib/fs";
+import { exists, writeText } from "../lib/fs";
 import { buildEvidenceExcerpt, buildScopedNoteIndex, findNoteByVaultPath, fromQmdFile, normalizePath, stripMarkdownExtension } from "../lib/notes";
 import { buildLexicalSearchQuery, normalizeSemanticQueryText, resolveRetrievalMode } from "../lib/qmd";
 import { appendLogEntry } from "../lib/log";
@@ -28,7 +27,7 @@ export async function fileAnswer(args: string[]) {
   const outputPath = resolveAnswerOutputPath(options.project, options.question, options.slug);
   mkdirIfMissing(dirname(outputPath));
   const contents = renderAnswerNote(brief);
-  const existed = existsSync(outputPath);
+  const existed = await exists(outputPath);
   await writeText(outputPath, contents);
   appendLogEntry("file-answer", options.question, { project: options.project, details: [`path=${relative(VAULT_ROOT, outputPath)}`] });
   console.log(`${existed ? "updated" : "created"} ${relative(VAULT_ROOT, outputPath)}`);
@@ -87,10 +86,10 @@ function parseAskOptions(args: string[]): AskOptions {
 
 async function buildAnswerBrief(options: AskOptions): Promise<AnswerBrief> {
   const root = projectRoot(options.project);
-  if (!existsSync(root)) throw new Error(`project not found: ${options.project}`);
+  if (!await exists(root)) throw new Error(`project not found: ${options.project}`);
 
   const maxCandidates = resolveAskCandidateLimit(options.maxResults);
-  const retrievalMode = resolveRetrievalMode(options.question, { expand: options.expand, bm25: options.bm25, sdkHybridAvailable: sdkHybridAvailable() });
+  const retrievalMode = resolveRetrievalMode(options.question, { expand: options.expand, bm25: options.bm25, sdkHybridAvailable: await sdkHybridAvailable() });
   const retrievalQuery = options.expand
     ? options.question
     : retrievalMode === "bm25"
@@ -112,7 +111,7 @@ async function buildAnswerBrief(options: AskOptions): Promise<AnswerBrief> {
   return {
     project: options.project,
     question: options.question,
-    projectTitle: readProjectTitle(options.project),
+    projectTitle: await readProjectTitle(options.project),
     retrievalMode,
     retrievalQuery,
     answerSources,
@@ -287,7 +286,7 @@ export async function fileResearch(args: string[]) {
   const project = args[0];
   if (!project) throw new Error("missing project");
   const root = projectRoot(project);
-  if (!existsSync(root)) throw new Error(`project not found: ${project}`);
+  if (!await exists(root)) throw new Error(`project not found: ${project}`);
   let topic: string | undefined;
   const titleParts: string[] = [];
   for (let index = 1; index < args.length; index += 1) {

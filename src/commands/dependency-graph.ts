@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync } from "node:fs";
+
 import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { assertExists, projectRoot, requireValue, safeMatter } from "../cli-shared";

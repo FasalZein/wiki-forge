@@ -14,6 +14,7 @@ function resolveCommandsOnPath(command: string) {
   for (const entry of (process.env.PATH ?? "").split(delimiter).filter(Boolean)) {
     for (const ext of extnames) {
       const candidate = join(entry, `${command}${ext}`);
+      // TODO: migrate to async exists()
       if (seen.has(candidate) || !existsSync(candidate)) continue;
       seen.add(candidate);
       try {

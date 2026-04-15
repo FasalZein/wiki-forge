@@ -9,7 +9,7 @@ import { applyVerificationLevel, computeLevelFromBooleans, isValidVerificationLe
 export async function bindSourcePaths(args: string[]) {
   const { project, pageArg, sourcePaths, mode, dryRun } = parseBindArgs(args);
   const root = projectRoot(project);
-  const wikiFilePath = resolveWikiPagePath(root, pageArg);
+  const wikiFilePath = await resolveWikiPagePath(root, pageArg);
   assertExists(wikiFilePath, `wiki page not found: ${relative(VAULT_ROOT, wikiFilePath)}`);
   const parsed = safeMatter(relative(VAULT_ROOT, wikiFilePath), await readText(wikiFilePath));
   if (!parsed) throw new Error(`unable to parse frontmatter for ${relative(VAULT_ROOT, wikiFilePath)}`);
@@ -90,7 +90,7 @@ export async function verifyPage(args: string[]) {
   if (!isValidVerificationLevel(level)) throw new Error(`invalid level: ${level}`);
   let updatedCount = 0;
   for (const pageArg of pageArgs) {
-    const wikiFilePath = resolveWikiPagePath(projectRoot(project), pageArg);
+    const wikiFilePath = await resolveWikiPagePath(projectRoot(project), pageArg);
     assertExists(wikiFilePath, `wiki page not found: ${relative(VAULT_ROOT, wikiFilePath)}`);
     if (await applyVerificationLevel(wikiFilePath, level, dryRun, relative(VAULT_ROOT, wikiFilePath))) updatedCount += 1;
   }

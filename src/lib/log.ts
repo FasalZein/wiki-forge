@@ -20,7 +20,9 @@ export function appendLogEntry(kind: string, title: string, options?: { project?
 
 export function tailLog(count = 10) {
   const path = logPath();
+  // TODO: migrate to async exists()
   if (!existsSync(path)) return [] as string[];
+  // TODO(WIKI-FORGE-070): migrate to readText once tailLog callers (logCommand, projectLogEntries) are async
   const content = readFileSync(path, "utf8").replace(/\r\n/g, "\n");
   const entries = content.split(/^## /m).filter(Boolean).map((chunk) => `## ${chunk.trimEnd()}`);
   return entries.slice(-count);

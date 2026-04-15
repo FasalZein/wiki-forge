@@ -1,8 +1,8 @@
-import { existsSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { assertExists, mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
-import { readText, writeText } from "../lib/fs";
+import { exists, readText, writeText } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
 import { isCanonicalPrdId, projectPrdsDir, projectTaskDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath, toVaultMarkdownPath, toVaultWikilinkPath } from "../lib/structure";
 import { readSliceDependencies, readSliceSummary } from "../lib/slices";
@@ -89,7 +89,7 @@ export async function createIssueSlice(args: string[]) {
   const appended = await appendTaskToBacklog(options);
   const title = `${appended.taskId.toLowerCase()} ${options.title}`;
   const slicePaths = createSlicePaths(options.project, appended.taskId);
-  ensureSliceDocsMissing(appended.taskId, slicePaths);
+  await ensureSliceDocsMissing(appended.taskId, slicePaths);
   const sourcePaths = options.sourcePaths.length ? options.sourcePaths : (prd?.sourcePaths ?? []);
   if (!options.sourcePaths.length && prd && prd.sourcePaths.length > 3) {
     console.warn(`warning: ${prd.prdId} has ${prd.sourcePaths.length} inherited source_paths; consider --source for a narrower slice binding`);
@@ -216,9 +216,9 @@ async function collectTaskContext(project: string, item: BacklogItem, section: s
   const taskHubPath = projectTaskHubPath(project, item.id);
   const planPath = projectTaskPlanPath(project, item.id);
   const testPlanPath = projectTaskTestPlanPath(project, item.id);
-  const hasTaskHub = existsSync(taskHubPath);
-  const hasPlan = existsSync(planPath);
-  const hasTestPlan = existsSync(testPlanPath);
+  const hasTaskHub = await exists(taskHubPath);
+  const hasPlan = await exists(planPath);
+  const hasTestPlan = await exists(testPlanPath);
   const [summary, planStatus, testPlanStatus] = await Promise.all([
     readSliceSummary(project, item.id),
     detectTaskDocState(planPath),
@@ -245,7 +245,7 @@ async function collectTaskContext(project: string, item: BacklogItem, section: s
 }
 
 async function detectTaskDocState(path: string): Promise<TaskDocState> {
-  if (!existsSync(path)) return "missing";
+  if (!await exists(path)) return "missing";
   const raw = await readNormalizedText(path);
   const parsed = safeMatter(path, raw, { silent: true });
   const body = parsed?.content ?? raw.replace(/^---\n[\s\S]*?\n---\n?/u, "");
@@ -396,8 +396,8 @@ function createSlicePaths(project: string, taskId: string): SlicePaths {
   };
 }
 
-function ensureSliceDocsMissing(taskId: string, paths: SlicePaths) {
-  if (existsSync(paths.indexPath) || existsSync(paths.planPath) || existsSync(paths.testPlanPath)) {
+async function ensureSliceDocsMissing(taskId: string, paths: SlicePaths) {
+  if (await exists(paths.indexPath) || await exists(paths.planPath) || await exists(paths.testPlanPath)) {
     throw new Error(`slice docs already exist for ${taskId}: ${relative(VAULT_ROOT, paths.taskSpecsDir)}`);
   }
 }

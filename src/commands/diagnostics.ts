@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+
 import { join } from "node:path";
 import { requireValue } from "../cli-shared";
 import { collectBacklog } from "./backlog";
@@ -10,6 +10,7 @@ import type { LintingSnapshot } from "./linting";
 import { collectCloseout, collectMaintenancePlan, collectRefreshFromGit, collectRefreshFromWorktree, loadProjectSnapshot, resolveDefaultBase } from "./maintenance";
 import type { ProjectSnapshot } from "./maintenance";
 import { collectDriftSummary } from "./verification";
+import { exists, readText } from "../lib/fs";
 
 export async function doctorProject(args: string[]) {
   const project = args.find((arg, index) => index === 0 || (!arg.startsWith("--") && args[index - 1] !== "--repo" && args[index - 1] !== "--base"));
@@ -218,20 +219,19 @@ async function collectBacklogConsistencyWarnings(project: string, sections: Reco
 
 async function collectStructuralRefactorStatus(repo: string, base: string) {
   const blockers: string[] = [];
-  const checks = resolveRepoScriptChecks(repo).map((check) => runRepoCheck(repo, check));
+  const checks = await Promise.all((await resolveRepoScriptChecks(repo)).map((check) => runRepoCheck(repo, check)));
   for (const check of checks) {
     if (!check.ok) blockers.push(`${check.label} failed for structural refactor gate`);
   }
-  const baseTestCount = countTrackedTests(repo, base);
-  const headTestCount = countTrackedTests(repo, "HEAD");
+  const [baseTestCount, headTestCount] = await Promise.all([countTrackedTests(repo, base), countTrackedTests(repo, "HEAD")]);
   if (baseTestCount !== headTestCount) blockers.push(`structural refactor requires unchanged tracked test count (base=${baseTestCount}, head=${headTestCount})`);
   return { ok: blockers.length === 0, blockers, checks, testCount: { base: baseTestCount, head: headTestCount } };
 }
 
-function resolveRepoScriptChecks(repo: string) {
+async function resolveRepoScriptChecks(repo: string) {
   const packageJsonPath = join(repo, "package.json");
-  if (!existsSync(packageJsonPath)) return [] as Array<{ label: string; command: string[] }>;
-  const scripts = JSON.parse(readFileSync(packageJsonPath, "utf8")).scripts ?? {};
+  if (!await exists(packageJsonPath)) return [] as Array<{ label: string; command: string[] }>;
+  const scripts = JSON.parse(await readText(packageJsonPath)).scripts ?? {};
   const checks: Array<{ label: string; command: string[] }> = [];
   if (typeof scripts.check === "string") checks.push({ label: "typecheck", command: ["bun", "run", "check"] });
   else if (typeof scripts.typecheck === "string") checks.push({ label: "typecheck", command: ["bun", "run", "typecheck"] });
@@ -240,13 +240,14 @@ function resolveRepoScriptChecks(repo: string) {
   return checks;
 }
 
-function runRepoCheck(repo: string, check: { label: string; command: string[] }) {
-  const proc = Bun.spawnSync(check.command, { cwd: repo, stdout: "pipe", stderr: "pipe" });
+async function runRepoCheck(repo: string, check: { label: string; command: string[] }) {
+  const [cmd, ...cmdArgs] = check.command;
+  const proc = await Bun.$`${cmd} ${cmdArgs}`.cwd(repo).nothrow().quiet();
   return { ...check, ok: proc.exitCode === 0, exitCode: proc.exitCode, stdout: proc.stdout.toString(), stderr: proc.stderr.toString() };
 }
 
-function countTrackedTests(repo: string, revision: string) {
-  const proc = Bun.spawnSync(["git", "ls-tree", "-r", "--name-only", revision], { cwd: repo, stdout: "pipe", stderr: "pipe" });
+async function countTrackedTests(repo: string, revision: string) {
+  const proc = await Bun.$`git ls-tree -r --name-only ${revision}`.cwd(repo).nothrow().quiet();
   if (proc.exitCode !== 0) return 0;
   return proc.stdout.toString().replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter((line) => line && isTestFile(line)).length;
 }

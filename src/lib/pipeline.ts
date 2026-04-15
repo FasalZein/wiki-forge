@@ -66,6 +66,7 @@ function dbPath() {
 function ensureDb(): Database {
   const path = dbPath();
   const dir = join(path, "..");
+  // TODO: migrate to async exists()
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   const db = new Database(path);
   db.run(`CREATE TABLE IF NOT EXISTS pipeline_steps (
@@ -211,11 +212,7 @@ function buildStepArgs(step: PipelineStepDef, options: RunPipelineOptions): stri
 
 async function executeStep(command: string, args: string[]): Promise<{ ok: boolean; error?: string }> {
   const wikiPath = process.argv[1];
-  const proc = Bun.spawnSync([process.argv[0], wikiPath, command, ...args], {
-    stdout: "pipe",
-    stderr: "pipe",
-    env: { ...process.env },
-  });
+  const proc = await Bun.$`${process.argv[0]} ${wikiPath} ${command} ${args}`.nothrow().quiet().env({ ...process.env });
   if (proc.exitCode === 0) return { ok: true };
   const stderr = proc.stderr.toString().trim();
   return { ok: false, error: stderr || `exit code ${proc.exitCode}` };

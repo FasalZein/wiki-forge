@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync, readdirSync, statSync } from "node:fs";
+import { appendFileSync, mkdirSync, readdirSync, statSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
 
 export async function readText(path: string) {
@@ -10,7 +10,8 @@ export async function readJson<T>(path: string) {
 }
 
 export async function exists(path: string) {
-  return Bun.file(path).exists();
+  // Bun.file().exists() returns false for directories; use existsSync to handle both files and dirs
+  return existsSync(path);
 }
 
 export async function writeText(path: string, content: string) {

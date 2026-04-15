@@ -18,7 +18,7 @@ export async function searchVault(args: string[]) {
     throw new Error("missing query");
   }
 
-  const mode = resolveSearchRetrievalMode({ hybrid, sdkHybridAvailable: sdkHybridAvailable() });
+  const mode = resolveSearchRetrievalMode({ hybrid, sdkHybridAvailable: await sdkHybridAvailable() });
   if (mode === "sdk-bm25") {
     const results = await searchKnowledgeLexicalSdk(query);
     console.log(renderQueryResults(results));
@@ -41,7 +41,7 @@ export async function queryVault(args: string[]) {
     throw new Error("missing query");
   }
 
-  const mode = resolveRetrievalMode(query, { expand, bm25, sdkHybridAvailable: sdkHybridAvailable() });
+  const mode = resolveRetrievalMode(query, { expand, bm25, sdkHybridAvailable: await sdkHybridAvailable() });
   if (mode === "expand") {
     const results = await searchKnowledgeExpandedSdk(query, { maxResults: 5, cacheKeyPrefix: "query:sdk-expand" });
     console.log(renderQueryResults(results));

@@ -1,8 +1,8 @@
-import { existsSync } from "node:fs";
+
 import { relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { safeMatter } from "../cli-shared";
-import { readText } from "./fs";
+import { exists, readText } from "./fs";
 import { extractShellBlocks } from "./markdown-ast";
 import { projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath } from "./structure";
 
@@ -42,7 +42,7 @@ export async function readSliceDependencies(project: string, taskId: string) {
 
 export async function readSliceDoc(project: string, taskId: string, kind: SliceDocKind) {
   const path = kind === "index" ? sliceDocPaths(project, taskId).indexPath : kind === "plan" ? sliceDocPaths(project, taskId).planPath : sliceDocPaths(project, taskId).testPlanPath;
-  if (!existsSync(path)) throw new Error(`${kind} not found: ${relative(VAULT_ROOT, path)}`);
+  if (!await exists(path)) throw new Error(`${kind} not found: ${relative(VAULT_ROOT, path)}`);
   const raw = await readText(path);
   const parsed = safeMatter(relative(VAULT_ROOT, path), raw);
   if (!parsed) throw new Error(`unable to parse frontmatter for ${relative(VAULT_ROOT, path)}`);
@@ -87,7 +87,7 @@ export async function readSliceCompletedAt(project: string, taskId: string) {
 }
 
 async function readSliceMatters(project: string, taskId: string) {
-  const paths = Object.values(sliceDocPaths(project, taskId)).filter((path) => existsSync(path));
+  const paths = (await Promise.all(Object.entries(sliceDocPaths(project, taskId)).map(async ([, path]) => (await exists(path) ? path : null)))).filter((p): p is string => p !== null);
   const results = await Promise.all(
     paths.map(async (path) => {
       const raw = await readText(path);

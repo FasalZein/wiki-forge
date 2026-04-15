@@ -3,7 +3,7 @@ import { join, relative } from "node:path";
 import matter from "gray-matter";
 import { MODULE_REQUIRED_HEADINGS, PROJECT_DIRS, PROJECT_FILES, VAULT_ROOT } from "../constants";
 import { assertExists, mkdirIfMissing, moduleTitle, normalizeFrontmatterFormatting, nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, scaffoldFile, today, writeNormalizedPage } from "../cli-shared";
-import { readText, writeText } from "../lib/fs";
+import { exists, readText, writeText } from "../lib/fs";
 import { projectModuleSpecPath, projectOnboardingPlanPath, projectSpecsDir } from "../lib/structure";
 import {
   defaultCrossLinksSection,
@@ -31,7 +31,7 @@ export async function scaffoldProject(project: string | undefined) {
   for (const dir of PROJECT_DIRS) created += mkdirIfMissing(join(root, dir)) ? 1 : 0;
   for (const file of PROJECT_FILES) {
     const path = join(root, file);
-    if (!existsSync(path)) {
+    if (!await exists(path)) {
       writeNormalizedPage(path, scaffoldFile(project, file), {});
       console.log(`created ${relative(VAULT_ROOT, path)}`);
       created += 1;
@@ -64,21 +64,21 @@ export async function onboardPlan(args: string[]) {
   console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
 }
 
-export function createModule(args: string[]) {
+export async function createModule(args: string[]) {
   const project = args[0];
   const moduleName = args[1];
   requireValue(project, "project");
   requireValue(moduleName, "module");
   const sourceIndex = args.indexOf("--source");
   const sourcePaths = sourceIndex >= 0 ? args.slice(sourceIndex + 1).filter((arg) => !arg.startsWith("--")) : [];
-  const specPath = createModuleInternal(project, moduleName, sourcePaths);
+  const specPath = await createModuleInternal(project, moduleName, sourcePaths);
   console.log(`created ${relative(VAULT_ROOT, specPath)}`);
 }
 
-export function createModuleInternal(project: string, moduleName: string, sourcePaths: string[]) {
+export async function createModuleInternal(project: string, moduleName: string, sourcePaths: string[]) {
   const specPath = projectModuleSpecPath(project, moduleName);
   mkdirIfMissing(join(projectRoot(project), "modules", moduleName));
-  if (existsSync(specPath)) throw new Error(`module spec already exists: ${relative(VAULT_ROOT, specPath)}`);
+  if (await exists(specPath)) throw new Error(`module spec already exists: ${relative(VAULT_ROOT, specPath)}`);
   const data = orderFrontmatter({ title: moduleTitle(moduleName), type: "module", project, module: moduleName, created_at: nowIso(), updated: nowIso(), status: "current", verification_level: "scaffold", ...(sourcePaths.length ? { source_paths: sourcePaths.map((value) => value.replaceAll("\\", "/")) } : {}) }, ["title", "type", "project", "module", "created_at", "updated", "status", "verification_level", "source_paths"]);
   const body = [
     `# ${moduleTitle(moduleName)}`,
@@ -137,6 +137,7 @@ function parseOnboardPlanOptions(args: string[]) {
 }
 
 function detectResearchDirs(repo: string): string[] {
+  // TODO: migrate to async exists()
   const dirs: string[] = [];
   for (const candidate of ["docs/research", "docs", "research"]) {
     const candidatePath = join(repo, candidate);

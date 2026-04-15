@@ -24,6 +24,7 @@ export function resolveRepoPath(project: string, explicitRepo?: string): string 
   const summaryPath = join(projectRoot(project), "_summary.md");
   assertExists(summaryPath, `_summary.md not found for project: ${project}`);
 
+  // TODO(WIKI-FORGE-070): migrate to readText once resolveRepoPath callers (10+) are async
   const raw = readFileSync(summaryPath, "utf8");
   const parsed = safeMatter(summaryPath, raw);
   if (!parsed || !parsed.data.repo) {
@@ -37,6 +38,7 @@ export function resolveRepoPath(project: string, explicitRepo?: string): string 
 }
 
 export function assertGitRepo(repoPath: string) {
+  // TODO: migrate to async exists()
   if (!existsSync(join(repoPath, ".git"))) {
     throw new Error(`not a git repository: ${repoPath}`);
   }
@@ -52,6 +54,7 @@ export function batchGitLastModified(repoPath: string, sourcePaths: string[]): M
   const filePaths = uniquePaths.filter((p) => !p.endsWith("/"));
 
   try {
+    // TODO: migrate to Bun.$ when caller chain is async (batchGitLastModified is sync-exported)
     const proc = Bun.spawnSync(["git", "log", "--format=__DATE__:%aI", "--name-only", "--", ...uniquePaths], {
       cwd: repoPath,
       stdout: "pipe",
@@ -87,6 +90,7 @@ export function batchGitLastModified(repoPath: string, sourcePaths: string[]): M
 
 export function sourcePathStatus(repoPath: string, sourcePath: string) {
   const normalizedPath = sourcePath.replaceAll("\\", "/");
+  // TODO: migrate to async exists()
   const existsNow = existsSync(join(repoPath, normalizedPath));
   if (existsNow) return { kind: "present" as const };
 
@@ -94,6 +98,7 @@ export function sourcePathStatus(repoPath: string, sourcePath: string) {
   if (renamedTo) return { kind: "renamed" as const, renamedTo };
 
   try {
+    // TODO: migrate to Bun.$ when caller chain is async (sourcePathStatus is sync-exported)
     const proc = Bun.spawnSync(["git", "log", "--diff-filter=D", "--summary", "--", normalizedPath], {
       cwd: repoPath,
       stdout: "pipe",
@@ -109,6 +114,7 @@ export function sourcePathStatus(repoPath: string, sourcePath: string) {
 
 export function suggestRenamedSourcePath(repoPath: string, sourcePath: string) {
   try {
+    // TODO: migrate to Bun.$ when caller chain is async (suggestRenamedSourcePath is sync-exported)
     const proc = Bun.spawnSync(["git", "log", "--follow", "--name-status", "--format=", "--", sourcePath], {
       cwd: repoPath,
       stdout: "pipe",
@@ -130,6 +136,7 @@ export function suggestRenamedSourcePath(repoPath: string, sourcePath: string) {
 
 export function gitDiffSummary(repoPath: string, sourcePath: string, maxLines = 12) {
   try {
+    // TODO: migrate to Bun.$ when caller chain is async (gitDiffSummary is sync-exported)
     const proc = Bun.spawnSync(["git", "diff", "--stat", "HEAD~1", "HEAD", "--", sourcePath], {
       cwd: repoPath,
       stdout: "pipe",

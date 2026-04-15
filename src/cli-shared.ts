@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { exists, readText } from "./lib/fs";
 import { join } from "node:path";
 import matter from "gray-matter";
 import { PROJECT_FILES, VAULT_ROOT, VAULT_ROOT_ENV } from "./constants";
@@ -265,6 +266,7 @@ export function writeNormalizedPage(filePath: string, content: string, data: Fro
 }
 
 export function mkdirIfMissing(path: string) {
+  // TODO: migrate to async exists()
   if (!existsSync(path)) {
     mkdirSync(path, { recursive: true });
     return true;
@@ -279,6 +281,7 @@ export function requireValue(value: string | undefined, label: string): asserts 
 }
 
 export function assertExists(path: string, message: string) {
+  // TODO: migrate to async exists()
   if (!existsSync(path)) {
     fail(message);
   }
@@ -304,12 +307,12 @@ export function createdAt(data: FrontmatterData) {
   return nowIso();
 }
 
-export function readProjectTitle(project: string) {
+export async function readProjectTitle(project: string) {
   const summaryPath = join(projectRoot(project), "_summary.md");
-  if (!existsSync(summaryPath)) {
+  if (!await exists(summaryPath)) {
     return project;
   }
-  const parsed = safeMatter(summaryPath, readFileSync(summaryPath, "utf8"), { silent: true });
+  const parsed = safeMatter(summaryPath, await readText(summaryPath), { silent: true });
   const title = parsed?.data.title;
   return typeof title === "string" && title.trim() ? title.trim() : project;
 }

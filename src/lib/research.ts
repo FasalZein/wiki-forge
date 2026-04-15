@@ -105,6 +105,7 @@ export function detectResearchSourceType(source: string): "web" | "paper" | "cod
   if ([".ts", ".tsx", ".js", ".jsx", ".py", ".rs", ".go", ".java", ".c", ".cpp", ".rb", ".sh"].includes(extension)) return "code";
   if ([".pdf"].includes(extension)) return "paper";
   if ([".md", ".txt", ".json"].includes(extension)) return "conversation";
+  // TODO: migrate to async exists()
   return existsSync(source) ? "code" : "synthesis";
 }
 
