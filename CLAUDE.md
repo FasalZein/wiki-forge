@@ -114,3 +114,13 @@ export KNOWLEDGE_VAULT_ROOT=~/Knowledge
 - Use `wiki maintain` as the default agent entry point for maintenance work.
 - `wiki protocol sync` keeps repo instruction files aligned, but it does not sync or enforce skill policy; keep the repo-local skills aligned separately.
 - When editing vault markdown, prefer Obsidian-flavored notes: properties, wikilinks, embeds, and callouts. Load `obsidian-markdown` for note-authoring rules.
+
+## Editing Discipline
+
+- Read the full file before editing. Plan all changes, then make ONE complete edit. If you've edited a file 3+ times, stop and re-read the user's requirements.
+- When the user corrects you, stop and re-read their message. Quote back what they asked for and confirm before proceeding.
+- After 2 consecutive tool failures, stop and change your approach entirely. Explain what failed and try a different strategy.
+- When stuck, summarize what you've tried and ask the user for guidance instead of retrying the same approach.
+- Every few turns, re-read the original request to make sure you haven't drifted from the goal.
+- Double-check your output before presenting it. Verify that your changes actually address what the user asked for.
+- Complete the FULL task before stopping. If the user asked for multiple things, implement all of them before presenting results.
