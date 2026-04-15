@@ -77,12 +77,15 @@ export async function gateProject(args: string[]) {
 export async function collectDoctor(project: string, base: string, explicitRepo?: string, options: { worktree?: boolean } = {}) {
   const lintingSnapshot = await loadLintingSnapshot(project, { noteIndex: true });
   const projectSnapshot = await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
-  const status = await collectStatusRow(project, lintingSnapshot);
-  const verify = await collectVerifySummary(project, lintingSnapshot);
-  const drift = await collectDriftSummary(project, explicitRepo, lintingSnapshot);
-  const lint = await collectLintResult(project, lintingSnapshot);
-  const semantic = await collectSemanticLintResult(project, lintingSnapshot);
-  const backlog = await collectBacklog(project);
+  // Run independent diagnostics in parallel — all depend only on the snapshots above.
+  const [status, verify, drift, lint, semantic, backlog] = await Promise.all([
+    collectStatusRow(project, lintingSnapshot),
+    collectVerifySummary(project, lintingSnapshot),
+    collectDriftSummary(project, explicitRepo, lintingSnapshot),
+    collectLintResult(project, lintingSnapshot),
+    collectSemanticLintResult(project, lintingSnapshot),
+    collectBacklog(project),
+  ]);
   const maintain = await collectMaintenancePlan(project, base, explicitRepo, projectSnapshot, lintingSnapshot, { worktree: options.worktree });
   const focus = maintain.focus;
   const backlogConsistencyWarnings = await collectBacklogConsistencyWarnings(project, backlog.sections);
