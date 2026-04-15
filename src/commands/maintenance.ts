@@ -315,25 +315,35 @@ export async function collectRefreshFromGit(project: string, base: string, expli
   return { project, repo: state.repo, base, changedFiles, impactedPages, uncoveredFiles: changedFiles.filter((file) => isCodeFile(file) && !covered.has(file)), testHealth };
 }
 
+/** A page under specs/slices/ whose frontmatter status is "done" — historical, not actionable. */
+function isHistoricalDoneSlicePage(entry: { page: string; parsed: ReturnType<typeof safeMatter> | null }): boolean {
+  if (!entry.parsed) return false;
+  if (!/^specs\/slices\/[^/]+\//.test(entry.page)) return false;
+  return entry.parsed.data.status === "done";
+}
+
 export async function collectRefreshFromWorktree(project: string, explicitRepo?: string, snapshot?: ProjectSnapshot) {
   const state = snapshot ?? await loadProjectSnapshot(project, explicitRepo);
   const changedFiles = worktreeChangedFiles(state.repo);
   const changedFileSet = new Set(changedFiles);
   const impactedPages: WorktreeImpactedPage[] = [];
-  const covered = new Set<string>();
+  const suppressedPages: WorktreeImpactedPage[] = [];
+  const coveredByActionable = new Set<string>();
+  const coveredBySuppressed = new Set<string>();
   for (const entry of state.pageEntries) {
     if (!entry.parsed) continue;
     const matchedSourcePaths = entry.sourcePaths.filter((sourcePath) => [...changedFileSet].some((file) => bindingMatchesFile(sourcePath, file)));
     if (!matchedSourcePaths.length) continue;
-    for (const file of changedFiles.filter((candidate) => matchedSourcePaths.some((sourcePath) => bindingMatchesFile(sourcePath, candidate)))) covered.add(file);
-    const pageUpdated = parseEntryUpdated(entry.rawUpdated);
     const matchedFiles = changedFiles.filter((candidate) => matchedSourcePaths.some((sourcePath) => bindingMatchesFile(sourcePath, candidate)));
+    const suppressed = isHistoricalDoneSlicePage(entry);
+    for (const file of matchedFiles) (suppressed ? coveredBySuppressed : coveredByActionable).add(file);
+    const pageUpdated = parseEntryUpdated(entry.rawUpdated);
     const lastModified = matchedFiles
       .map((file) => worktreeModifiedAt(state.repo, file))
       .filter((value): value is number => Number.isFinite(value))
       .sort((a, b) => b - a)[0];
     const stale = pageUpdated === null || (typeof lastModified === "number" && lastModified > pageUpdated.getTime());
-    impactedPages.push({
+    const pageData: WorktreeImpactedPage = {
       page: entry.page,
       matchedSourcePaths,
       verificationLevel: entry.verificationLevel,
@@ -341,8 +351,11 @@ export async function collectRefreshFromWorktree(project: string, explicitRepo?:
       stale,
       pageUpdated: String(entry.rawUpdated ?? "missing"),
       lastSourceChange: typeof lastModified === "number" ? new Date(lastModified).toISOString() : "unknown",
-    });
+    };
+    (suppressed ? suppressedPages : impactedPages).push(pageData);
   }
+  // Files covered only by suppressed historical slice pages are effectively uncovered.
+  const covered = new Set([...coveredByActionable]);
   const testHealth = collectChangedTestHealth(changedFiles);
   return {
     project,
@@ -350,6 +363,7 @@ export async function collectRefreshFromWorktree(project: string, explicitRepo?:
     base: "WORKTREE",
     changedFiles,
     impactedPages,
+    suppressedPages,
     uncoveredFiles: changedFiles.filter((file) => isCodeFile(file) && !covered.has(file)),
     testHealth,
   };
@@ -401,6 +415,8 @@ export async function collectCloseout(project: string, base: string, explicitRep
   if (semanticLint.issues.length > 0) warnings.push(`${semanticLint.issues.length} semantic lint issue(s)`);
   if (!options.worktree && staleImpactedPages.length > 0) warnings.push(`${staleImpactedPages.length} impacted page(s) are stale or otherwise drifted`);
   if (refreshFromGit.uncoveredFiles.length > 0) warnings.push(`${refreshFromGit.uncoveredFiles.length} changed file(s) are not covered by wiki bindings`);
+  const suppressedPages = options.worktree && "suppressedPages" in refreshFromGit ? (refreshFromGit as { suppressedPages: WorktreeImpactedPage[] }).suppressedPages : [];
+  if (suppressedPages.length > 0) warnings.push(`${suppressedPages.length} historical done-slice page(s) suppressed from stale check`);
   return {
     project,
     repo: refreshFromGit.repo,
@@ -409,6 +425,7 @@ export async function collectCloseout(project: string, base: string, explicitRep
     refreshFromGit,
     drift,
     staleImpactedPages,
+    suppressedPages,
     lint,
     semanticLint,
     blockers,
@@ -774,6 +791,7 @@ function renderCloseout(result: Awaited<ReturnType<typeof collectCloseout>>, ver
   console.log(`- changed files: ${result.refreshFromGit.changedFiles.length}`);
   console.log(`- impacted pages: ${result.refreshFromGit.impactedPages.length}`);
   console.log(`- stale impacted pages: ${result.staleImpactedPages.length}`);
+  if (result.suppressedPages.length) console.log(`- suppressed historical done-slice pages: ${result.suppressedPages.length}`);
   console.log(`- lint: ${result.lint.issues.length}`);
   console.log(`- semantic: ${result.semanticLint.issues.length}`);
   console.log(`- missing tests: ${result.refreshFromGit.testHealth.codeFilesWithoutChangedTests.length}`);
