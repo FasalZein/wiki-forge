@@ -380,9 +380,13 @@ export async function collectCloseout(project: string, base: string, explicitRep
   const refreshFromGit = options.worktree
     ? await collectRefreshFromWorktree(project, explicitRepo, projectSnapshot)
     : await collectRefreshFromGit(project, base, explicitRepo, projectSnapshot);
-  const drift = await collectDriftSummary(project, explicitRepo, lintingState);
-  const lint = await collectLintResult(project, lintingState);
-  const semanticLint = await collectSemanticLintResult(project, lintingState);
+  // Run independent checks in parallel — drift, lint, and semantic lint
+  // share no mutable state and depend only on the already-loaded snapshots.
+  const [drift, lint, semanticLint] = await Promise.all([
+    collectDriftSummary(project, explicitRepo, lintingState),
+    collectLintResult(project, lintingState),
+    collectSemanticLintResult(project, lintingState),
+  ]);
   const impacted = new Set(refreshFromGit.impactedPages.map((page) => page.page));
   const staleImpactedPages = options.worktree
     ? (refreshFromGit.impactedPages as WorktreeImpactedPage[])
@@ -425,10 +429,14 @@ export async function collectMaintenancePlan(project: string, base: string, expl
   const refreshFromGit = options.worktree
     ? await collectRefreshFromWorktree(project, explicitRepo, projectSnapshot)
     : await collectRefreshFromGit(project, base, explicitRepo, projectSnapshot);
-  const discover = await collectDiscoverSummary(project, explicitRepo, projectSnapshot);
-  const lint = await collectLintResult(project, lintingState);
-  const semanticLint = await collectSemanticLintResult(project, lintingState);
-  const focus = await collectBacklogFocus(project);
+  // Run independent checks in parallel — discover, lint, semantic lint, and backlog focus
+  // share no mutable state and depend only on the already-loaded snapshots.
+  const [discover, lint, semanticLint, focus] = await Promise.all([
+    collectDiscoverSummary(project, explicitRepo, projectSnapshot),
+    collectLintResult(project, lintingState),
+    collectSemanticLintResult(project, lintingState),
+    collectBacklogFocus(project),
+  ]);
   const actions: Array<{ kind: string; message: string }> = [];
   if (focus.activeTask) actions.push({ kind: "active-task", message: `${focus.activeTask.id} ${focus.activeTask.title} (plan=${focus.activeTask.planStatus}, test-plan=${focus.activeTask.testPlanStatus})` });
   else if (focus.recommendedTask) actions.push({ kind: "next-task", message: `${focus.recommendedTask.id} ${focus.recommendedTask.title}` });
