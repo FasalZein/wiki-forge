@@ -1,8 +1,8 @@
-import { existsSync } from "node:fs";
+
 import { join, relative } from "node:path";
 import { STALE_UNVERIFIED_DAYS, VAULT_ROOT } from "../constants";
 import { safeMatter } from "../cli-shared";
-import { readText } from "./fs";
+import { exists, readText } from "./fs";
 import { normalizePath, stripMarkdownExtension, walkMarkdown } from "./vault";
 import { normalizeTopicPath, rawRoot, researchRoot, researchTopicDir } from "./research";
 
@@ -48,7 +48,7 @@ export async function collectResearchAudit(topic?: string): Promise<ResearchAudi
     if (influencedBy.length === 0) missingInfluence.push(page);
     else {
       for (const target of influencedBy) {
-        if (!vaultTargetExists(target)) invalidInfluence.push({ page, target });
+        if (!await vaultTargetExists(target)) invalidInfluence.push({ page, target });
       }
     }
 
@@ -92,7 +92,7 @@ async function extractAuditUrls(sources: unknown) {
     if (typeof data.url === "string" && /^https?:\/\//iu.test(data.url)) urls.add(data.url);
     if (typeof data.raw === "string") {
       const rawPath = join(VAULT_ROOT, `${stripMarkdownExtension(data.raw)}.md`);
-      if (!existsSync(rawPath)) continue;
+      if (!await exists(rawPath)) continue;
       const rawParsed = safeMatter(normalizePath(relative(VAULT_ROOT, rawPath)), await readText(rawPath), { silent: true });
       const sourceUrl = rawParsed?.data.source_url;
       if (typeof sourceUrl === "string" && /^https?:\/\//iu.test(sourceUrl)) urls.add(sourceUrl);
@@ -138,8 +138,8 @@ function normalizeWikiTarget(value: string) {
   return stripMarkdownExtension(normalizePath(pathOnly));
 }
 
-function vaultTargetExists(target: string) {
-  return existsSync(join(VAULT_ROOT, `${target}.md`));
+async function vaultTargetExists(target: string) {
+  return exists(join(VAULT_ROOT, `${target}.md`));
 }
 
 function isOlderThan(value: unknown, days: number) {

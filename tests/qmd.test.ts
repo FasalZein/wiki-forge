@@ -3,7 +3,7 @@ import { DEFAULT_CANDIDATE_LIMITS, parseCandidateLimitsArg } from "../scripts/qm
 import { DEFAULT_BENCH_COMMANDS, parseCommandList } from "../scripts/wiki-maintenance-bench";
 import { resolveQmdIndexPath } from "../src/constants";
 import { join } from "node:path";
-import { DEFAULT_ASK_MAX_RESULTS, classifyAnswerScope, renderAnswerBrief, resolveAnswerRetrievalStrategy, resolveAskCandidateLimit, scoreAnswerSource } from "../src/commands/answers";
+import { DEFAULT_ASK_MAX_RESULTS, classifyAnswerScope, qualitySignalBoost, renderAnswerBrief, resolveAnswerRetrievalStrategy, resolveAskCandidateLimit, scoreAnswerSource } from "../src/commands/answers";
 import { resolveQueryExecutionMode, resolveSearchRetrievalMode } from "../src/commands/qmd-commands";
 import { VAULT_ROOT } from "../src/constants";
 import { buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText, resolveRetrievalMode } from "../src/lib/qmd";
@@ -227,5 +227,61 @@ describe("answer reranking", () => {
     const projectScore = scoreAnswerSource("wiki-forge", "why did we move spec docs into task folders", "projects/wiki-forge/specs/index.md", "project", 0.4, 1);
     expect(researchScore).toBeGreaterThan(1);
     expect(projectScore).toBeGreaterThan(0);
+  });
+});
+
+describe("quality-signal score boosting", () => {
+  const basePath = "projects/wiki-forge/specs/index.md";
+  const baseArgs = ["wiki-forge", "where do PRDs live", basePath, "project" as const, 0.4, 1] as const;
+
+  test("test-verified pages score higher than scaffold pages", () => {
+    const testVerified = scoreAnswerSource(...baseArgs, { verificationLevel: "test-verified", status: "current" });
+    const scaffold = scoreAnswerSource(...baseArgs, { verificationLevel: "scaffold", status: "current" });
+    expect(testVerified).toBeGreaterThan(scaffold);
+  });
+
+  test("code-verified pages score higher than scaffold pages", () => {
+    const codeVerified = scoreAnswerSource(...baseArgs, { verificationLevel: "code-verified", status: "current" });
+    const scaffold = scoreAnswerSource(...baseArgs, { verificationLevel: "scaffold", status: "current" });
+    expect(codeVerified).toBeGreaterThan(scaffold);
+  });
+
+  test("recently updated pages score higher than stale pages", () => {
+    const recent = new Date();
+    recent.setDate(recent.getDate() - 3);
+    const old = new Date();
+    old.setDate(old.getDate() - 180);
+    const recentScore = scoreAnswerSource(...baseArgs, { updated: recent.toISOString().slice(0, 10) });
+    const oldScore = scoreAnswerSource(...baseArgs, { updated: old.toISOString().slice(0, 10) });
+    expect(recentScore).toBeGreaterThan(oldScore);
+  });
+
+  test("deprecated pages penalized vs current pages", () => {
+    const current = scoreAnswerSource(...baseArgs, { status: "current" });
+    const deprecated = scoreAnswerSource(...baseArgs, { status: "deprecated" });
+    expect(current).toBeGreaterThan(deprecated);
+  });
+
+  test("returns zero boost when no quality signals present", () => {
+    expect(qualitySignalBoost(undefined)).toBe(0);
+    expect(qualitySignalBoost({})).toBe(0);
+  });
+
+  test("unknown verification levels contribute zero boost", () => {
+    expect(qualitySignalBoost({ verificationLevel: "unknown-level" })).toBe(0);
+  });
+
+  test("verification level ordering is monotonic from scaffold to test-verified", () => {
+    const levels = ["scaffold", "inferred", "code-verified", "runtime-verified", "test-verified"];
+    const boosts = levels.map((level) => qualitySignalBoost({ verificationLevel: level }));
+    for (let i = 1; i < boosts.length; i++) {
+      expect(boosts[i]).toBeGreaterThanOrEqual(boosts[i - 1]);
+    }
+  });
+
+  test("existing tests still pass without quality signals (backward compatible)", () => {
+    const withoutSignals = scoreAnswerSource("wiki-forge", "where do PRDs live", "projects/wiki-forge/specs/index.md", "project", 0.4, 1);
+    const withEmptySignals = scoreAnswerSource("wiki-forge", "where do PRDs live", "projects/wiki-forge/specs/index.md", "project", 0.4, 1, {});
+    expect(withoutSignals).toBe(withEmptySignals);
   });
 });

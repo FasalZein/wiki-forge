@@ -1,11 +1,11 @@
-import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
+import { rmSync } from "node:fs";
 import { join, relative } from "node:path";
 import { MODULE_REQUIRED_HEADINGS, PROJECT_DIRS, PROJECT_FILES, VAULT_ROOT, type VerificationLevel } from "../constants";
 import { assertExists, projectRoot, requireValue, safeMatter } from "../cli-shared";
 import { extractWikilinkTargets, parseWikiMarkdown } from "../lib/markdown-ast";
 import { buildNoteIndex } from "../lib/notes";
 import { classifyProjectDocPath, describeAllowedProjectDocPaths } from "../lib/structure";
-import { readText } from "../lib/fs";
+import { exists, listDirs, readText } from "../lib/fs";
 import { readVerificationLevel } from "../lib/verification";
 import { walkMarkdown } from "../lib/vault";
 import { lintFrontmatter, lintWikilinks } from "../module-format";
@@ -33,7 +33,7 @@ export async function statusProject(args: string[]) {
   const json = args.includes("--json");
   const project = args.find((arg) => !arg.startsWith("--"));
   const projectsRoot = join(VAULT_ROOT, "projects");
-  const projects = project ? [project] : existsSync(projectsRoot) ? readdirSync(projectsRoot).filter((entry) => statSync(join(projectsRoot, entry)).isDirectory()) : [];
+  const projects = project ? [project] : await exists(projectsRoot) ? listDirs(projectsRoot) : [];
   const rows = await Promise.all(projects.map((name) => collectStatusRow(name)));
   if (json) console.log(JSON.stringify(rows, null, 2));
   else for (const row of rows) console.log(`${row.project}: modules=${row.modules} pages=${row.pages} bound=${row.bound} unbound=${row.unbound} stale=${row.stale} root=${row.root}`);
@@ -82,9 +82,9 @@ export async function verifyProject(args: string[]) {
   }
 }
 
-export function cacheClear() {
+export async function cacheClear() {
   const cachePath = join(VAULT_ROOT, ".cache", "wiki-cli");
-  if (!existsSync(cachePath)) return console.log("cache already empty");
+  if (!await exists(cachePath)) return console.log("cache already empty");
   rmSync(cachePath, { recursive: true, force: true });
   console.log(`cleared ${relative(VAULT_ROOT, cachePath)}`);
 }
@@ -113,7 +113,7 @@ export async function loadLintingSnapshot(project: string, options: { noteIndex?
 export async function collectStatusRow(project: string, snapshot?: LintingSnapshot) {
   const state = snapshot ?? await loadLintingSnapshot(project);
   const modulesRoot = join(state.root, "modules");
-  const modules = existsSync(modulesRoot) ? readdirSync(modulesRoot).filter((entry) => statSync(join(modulesRoot, entry)).isDirectory()).length : 0;
+  const modules = await exists(modulesRoot) ? listDirs(modulesRoot).length : 0;
   let bound = 0;
   let stale = 0;
   for (const entry of state.pageEntries) {
@@ -144,8 +144,8 @@ export async function collectVerifySummary(project: string, snapshot?: LintingSn
 export async function collectLintResult(project: string, snapshot?: LintingSnapshot) {
   const state = snapshot ?? await loadLintingSnapshot(project, { noteIndex: true });
   const issues: string[] = [];
-  for (const dir of PROJECT_DIRS) if (!existsSync(join(state.root, dir))) issues.push(`missing directory: ${dir}`);
-  for (const file of PROJECT_FILES) if (!existsSync(join(state.root, file))) issues.push(`missing file: ${file}`);
+  for (const dir of PROJECT_DIRS) if (!await exists(join(state.root, dir))) issues.push(`missing directory: ${dir}`);
+  for (const file of PROJECT_FILES) if (!await exists(join(state.root, file))) issues.push(`missing file: ${file}`);
   const noteIndex = state.noteIndex ?? await buildNoteIndex();
   for (const entry of state.pageEntries) {
     if (!classifyProjectDocPath(entry.relPath)) issues.push(`${entry.relPath} invalid project doc path: expected ${describeAllowedProjectDocPaths()}`);

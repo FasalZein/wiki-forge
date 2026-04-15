@@ -18,7 +18,7 @@ export async function searchVault(args: string[]) {
     throw new Error("missing query");
   }
 
-  const mode = resolveSearchRetrievalMode({ hybrid, sdkHybridAvailable: sdkHybridAvailable() });
+  const mode = resolveSearchRetrievalMode({ hybrid, sdkHybridAvailable: await sdkHybridAvailable() });
   if (mode === "sdk-bm25") {
     const results = await searchKnowledgeLexicalSdk(query);
     console.log(renderQueryResults(results));
@@ -41,7 +41,7 @@ export async function queryVault(args: string[]) {
     throw new Error("missing query");
   }
 
-  const mode = resolveRetrievalMode(query, { expand, bm25, sdkHybridAvailable: sdkHybridAvailable() });
+  const mode = resolveRetrievalMode(query, { expand, bm25, sdkHybridAvailable: await sdkHybridAvailable() });
   if (mode === "expand") {
     const results = await searchKnowledgeExpandedSdk(query, { maxResults: 5, cacheKeyPrefix: "query:sdk-expand" });
     console.log(renderQueryResults(results));
@@ -84,11 +84,17 @@ export async function qmdStatus() {
   }
 }
 
-export async function qmdUpdate() {
-  const store = await getQmdStore({ dbPath: QMD_INDEX_PATH });
+export async function qmdUpdate(args: string[] = []) {
+  const full = args.includes("--full");
+  const store = await getQmdStore({ dbPath: QMD_INDEX_PATH, forceNew: full });
   await ensureKnowledgeCollectionSdk(store);
+  if (full) {
+    await store.removeCollection(KNOWLEDGE_COLLECTION);
+    await store.addCollection(KNOWLEDGE_COLLECTION, { path: VAULT_ROOT, pattern: "**/*.md" });
+    await ensureKnowledgeCollectionSdk(store);
+  }
   const result = await store.update({ collections: [KNOWLEDGE_COLLECTION] });
-  console.log(JSON.stringify(result, null, 2));
+  console.log(`qmd-update: indexed=${result.indexed} updated=${result.updated} unchanged=${result.unchanged} removed=${result.removed} needsEmbedding=${result.needsEmbedding}${full ? " (full rebuild)" : ""}`);
 }
 
 export async function qmdEmbed() {

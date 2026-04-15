@@ -163,7 +163,8 @@ A slice is complete only when all of these are true:
 2. /grill-me — defend the approach, resolve unknowns
 3. /write-a-prd — capture scope, link to research in Prior Research section
 4. /prd-to-slices — break into vertical slices (wiki create-issue-slice per slice)
-5. Fill the selected slice docs before coding:
+5. Select the next slice using `wiki next <project>` to respect `depends_on` ordering
+6. Fill the selected slice docs before coding:
    a. run `wiki start-slice <project> <slice-id> --agent <name> --repo <path>`
    b. fill plan.md
    c. fill test-plan.md
@@ -177,11 +178,12 @@ A slice is complete only when all of these are true:
    b. `wiki lint-repo <project> --repo <path>`
    c. `wiki maintain <project> --repo <path> --base <rev>`
    d. Update impacted wiki pages from code
-   e. `wiki verify-page <project> <page> code-verified`
-   f. `wiki verify-slice <project> <slice-id> --repo <path>`
-   g. `wiki closeout <project> --repo <path> --base <rev>` to review the composed status
-   h. `wiki gate <project> --repo <path> --base <rev>`
-   i. `wiki close-slice <project> <slice-id> --repo <path> --base <rev>`
+   e. `wiki update-index <project> --write` (if navigation/planning links changed)
+   f. `wiki verify-page <project> <page> code-verified`
+   g. `wiki verify-slice <project> <slice-id> --repo <path>`
+   h. `wiki closeout <project> --repo <path> --base <rev>` to review the composed status
+   i. `wiki gate <project> --repo <path> --base <rev>`
+   j. `wiki close-slice <project> <slice-id> --repo <path> --base <rev>`
 ```
 
 ## Workflow: Continue an Existing PRD / Slice Thread
@@ -198,15 +200,20 @@ A slice is complete only when all of these are true:
 
 ## Workflow: Small Task / Bug Fix (< 50 lines)
 
+Small tasks skip research/grill/PRD/slices but still need verification. Use `/tdd` + `/wiki`:
+
 ```text
 1. /tdd — write a failing test that reproduces the bug
 2. Fix the code, make the test pass
 3. /wiki — closeout:
-   a. wiki maintain <project> --repo <path> --base <rev>
-   b. Update impacted wiki pages from code
-   c. wiki verify-page <project> <page> code-verified
-   d. wiki closeout <project> --repo <path> --base <rev>
-   e. wiki gate <project> --repo <path> --base <rev>
+   a. wiki checkpoint <project> --repo <path>
+   b. wiki lint-repo <project> --repo <path>
+   c. wiki maintain <project> --repo <path> --base <rev>
+   d. Update impacted wiki pages from code
+   e. wiki update-index <project> --write (if navigation changed)
+   f. wiki verify-page <project> <page> code-verified
+   g. wiki closeout <project> --repo <path> --base <rev>
+   h. wiki gate <project> --repo <path> --base <rev>
 ```
 
 ## Source of Truth

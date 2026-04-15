@@ -3,6 +3,12 @@ import type { VerificationLevel } from "./constants";
 export type CommandHandler = (args: string[]) => Promise<void> | void;
 export type FrontmatterData = Record<string, unknown>;
 
+export type NoteQualitySignals = {
+  verificationLevel?: string;
+  updated?: string;
+  status?: string;
+};
+
 export type NoteInfo = {
   absolutePath: string;
   vaultPath: string;
@@ -10,6 +16,7 @@ export type NoteInfo = {
   aliases: string[];
   headings: Set<string>;
   content?: string;
+  qualitySignals?: NoteQualitySignals;
 };
 
 export type NoteIndex = {

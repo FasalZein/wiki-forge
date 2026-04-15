@@ -110,10 +110,6 @@ export function projectModuleSpecPath(project: string, moduleName: string) {
   return join(projectRoot(project), "modules", moduleName, "spec.md");
 }
 
-export function projectRelativeDocPath(project: string, filePath: string) {
-  return relative(projectRoot(project), filePath).replaceAll("\\", "/");
-}
-
 export function toVaultMarkdownPath(filePath: string) {
   return relative(VAULT_ROOT, filePath).replaceAll("\\", "/");
 }

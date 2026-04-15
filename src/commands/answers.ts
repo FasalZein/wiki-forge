@@ -1,16 +1,15 @@
 import { dirname, join, relative } from "node:path";
-import { existsSync } from "node:fs";
 import matter from "gray-matter";
 import { VAULT_ROOT } from "../constants";
 import { orderFrontmatter, projectRoot, mkdirIfMissing, readProjectTitle } from "../cli-shared";
-import { writeText } from "../lib/fs";
+import { exists, writeText } from "../lib/fs";
 import { buildEvidenceExcerpt, buildScopedNoteIndex, findNoteByVaultPath, fromQmdFile, normalizePath, stripMarkdownExtension } from "../lib/notes";
 import { buildLexicalSearchQuery, normalizeSemanticQueryText, resolveRetrievalMode } from "../lib/qmd";
 import { appendLogEntry } from "../lib/log";
 import { sdkHybridAvailable, searchKnowledgeExpandedSdk, searchKnowledgeLexicalSdk, searchKnowledgeStructuredSdk } from "../lib/qmd-sdk";
 import { questionTokens } from "../lib/research";
 import { createResearchPage } from "./research";
-import type { AnswerBrief, AnswerSource, AskOptions, NoteIndex, QmdResult } from "../types";
+import type { AnswerBrief, AnswerSource, AskOptions, NoteIndex, NoteQualitySignals, QmdResult } from "../types";
 
 export const DEFAULT_ASK_MAX_RESULTS = 4;
 const DEFAULT_ASK_CANDIDATES = 8;
@@ -28,7 +27,7 @@ export async function fileAnswer(args: string[]) {
   const outputPath = resolveAnswerOutputPath(options.project, options.question, options.slug);
   mkdirIfMissing(dirname(outputPath));
   const contents = renderAnswerNote(brief);
-  const existed = existsSync(outputPath);
+  const existed = await exists(outputPath);
   await writeText(outputPath, contents);
   appendLogEntry("file-answer", options.question, { project: options.project, details: [`path=${relative(VAULT_ROOT, outputPath)}`] });
   console.log(`${existed ? "updated" : "created"} ${relative(VAULT_ROOT, outputPath)}`);
@@ -87,10 +86,10 @@ function parseAskOptions(args: string[]): AskOptions {
 
 async function buildAnswerBrief(options: AskOptions): Promise<AnswerBrief> {
   const root = projectRoot(options.project);
-  if (!existsSync(root)) throw new Error(`project not found: ${options.project}`);
+  if (!await exists(root)) throw new Error(`project not found: ${options.project}`);
 
   const maxCandidates = resolveAskCandidateLimit(options.maxResults);
-  const retrievalMode = resolveRetrievalMode(options.question, { expand: options.expand, bm25: options.bm25, sdkHybridAvailable: sdkHybridAvailable() });
+  const retrievalMode = resolveRetrievalMode(options.question, { expand: options.expand, bm25: options.bm25, sdkHybridAvailable: await sdkHybridAvailable() });
   const retrievalQuery = options.expand
     ? options.question
     : retrievalMode === "bm25"
@@ -112,7 +111,7 @@ async function buildAnswerBrief(options: AskOptions): Promise<AnswerBrief> {
   return {
     project: options.project,
     question: options.question,
-    projectTitle: readProjectTitle(options.project),
+    projectTitle: await readProjectTitle(options.project),
     retrievalMode,
     retrievalQuery,
     answerSources,
@@ -171,7 +170,7 @@ function toAnswerSource(project: string, question: string, result: QmdResult, no
   const note = findNoteByVaultPath(noteIndex, vaultPath);
   const scope = classifyAnswerScope(project, markdownPath);
   const evidence = buildEvidenceExcerpt(note, result, question);
-  const adjustedScore = scoreAnswerSource(project, question, markdownPath, scope, result.score, evidence.score);
+  const adjustedScore = scoreAnswerSource(project, question, markdownPath, scope, result.score, evidence.score, note?.qualitySignals);
   return { result, adjustedScore, markdownPath, vaultPath, scope, note, evidence };
 }
 
@@ -186,7 +185,29 @@ export function classifyAnswerScope(project: string, markdownPath: string): Answ
   return "other";
 }
 
-export function scoreAnswerSource(project: string, question: string, markdownPath: string, scope: AnswerSource["scope"], score: number, evidenceScore: number) {
+const VERIFICATION_LEVEL_BOOST: Record<string, number> = {
+  "test-verified": 0.4,
+  "runtime-verified": 0.3,
+  "code-verified": 0.2,
+  "inferred": 0,
+  "scaffold": -0.3,
+  "stale": -0.5,
+};
+
+const STATUS_BOOST: Record<string, number> = {
+  "current": 0.1,
+  "draft": 0,
+  "deprecated": -0.4,
+};
+
+const RECENCY_THRESHOLDS = [
+  { days: 7, boost: 0.2 },
+  { days: 30, boost: 0.1 },
+  { days: 90, boost: 0 },
+] as const;
+const RECENCY_STALE_PENALTY = -0.15;
+
+export function scoreAnswerSource(project: string, question: string, markdownPath: string, scope: AnswerSource["scope"], score: number, evidenceScore: number, qualitySignals?: NoteQualitySignals) {
   let adjusted = score;
   if (scope === "project") adjusted += 1.2;
   else if (scope === "wiki") adjusted += 0.2;
@@ -220,8 +241,35 @@ export function scoreAnswerSource(project: string, question: string, markdownPat
   if (normalized.includes("/bench/")) adjusted -= 0.25;
   if (normalized.endsWith("/backlog.md") || normalized.includes("/verification/")) adjusted += 0.1;
 
+  adjusted += qualitySignalBoost(qualitySignals);
+
   const topicBoost = questionTokens(question).reduce((total, token) => total + (normalized.includes(token) ? 0.08 : 0), 0);
   return adjusted + evidenceScore * 0.35 + Math.min(topicBoost, 0.4);
+}
+
+export function qualitySignalBoost(signals?: NoteQualitySignals): number {
+  if (!signals) return 0;
+  let boost = 0;
+  if (signals.verificationLevel) {
+    boost += VERIFICATION_LEVEL_BOOST[signals.verificationLevel] ?? 0;
+  }
+  if (signals.status) {
+    boost += STATUS_BOOST[signals.status] ?? 0;
+  }
+  if (signals.updated) {
+    boost += recencyBoost(signals.updated);
+  }
+  return boost;
+}
+
+function recencyBoost(updatedStr: string): number {
+  const updated = new Date(updatedStr);
+  if (Number.isNaN(updated.getTime())) return 0;
+  const daysSince = (Date.now() - updated.getTime()) / (1000 * 60 * 60 * 24);
+  for (const threshold of RECENCY_THRESHOLDS) {
+    if (daysSince <= threshold.days) return threshold.boost;
+  }
+  return RECENCY_STALE_PENALTY;
 }
 
 export function resolveAskCandidateLimit(maxResults: number) {
@@ -287,7 +335,7 @@ export async function fileResearch(args: string[]) {
   const project = args[0];
   if (!project) throw new Error("missing project");
   const root = projectRoot(project);
-  if (!existsSync(root)) throw new Error(`project not found: ${project}`);
+  if (!await exists(root)) throw new Error(`project not found: ${project}`);
   let topic: string | undefined;
   const titleParts: string[] = [];
   for (let index = 1; index < args.length; index += 1) {

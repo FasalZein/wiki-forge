@@ -1,7 +1,8 @@
-import { chmodSync, existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { CODE_FILE_PATTERN } from "../constants";
 import { fail, requireValue } from "../cli-shared";
+import { exists } from "../lib/fs";
 import { parseUpdatedDate, resolveRepoPath, assertGitRepo } from "../lib/verification";
 import { collectGate } from "./diagnostics";
 import { collectRefreshFromGit, loadProjectSnapshot, resolveDefaultBase } from "./maintenance";
@@ -27,7 +28,7 @@ export async function installGitHook(args: string[]) {
   const repo = resolveRepoPath(options.project, options.repo);
   assertGitRepo(repo);
   const hookPath = join(repo, ".git", "hooks", hook);
-  if (existsSync(hookPath) && !force) throw new Error(`hook already exists: ${hookPath} (use --force to overwrite)`);
+  if (await exists(hookPath) && !force) throw new Error(`hook already exists: ${hookPath} (use --force to overwrite)`);
   mkdirSync(dirname(hookPath), { recursive: true });
   const script = [
     "#!/usr/bin/env bash",
@@ -86,7 +87,7 @@ export async function collectCommitCheck(project: string, explicitRepo?: string)
   const repo = resolveRepoPath(project, explicitRepo);
   assertGitRepo(repo);
   const snapshot = await loadProjectSnapshot(project, repo);
-  const stagedFiles = gitLines(repo, ["diff", "--cached", "--name-only", "--diff-filter=ACMR"]).map(normalizeRelPath);
+  const stagedFiles = (await gitLines(repo, ["diff", "--cached", "--name-only", "--diff-filter=ACMR"])).map(normalizeRelPath);
   const stagedSet = new Set(stagedFiles);
   const impactedPages: Array<{ page: string; sourcePaths: string[]; staleSources: string[] }> = [];
   const covered = new Set<string>();
@@ -243,8 +244,8 @@ function parseProjectRepoBaseArgs(args: string[]) {
   return { project, repo, base };
 }
 
-function gitLines(repo: string, command: string[]) {
-  const proc = Bun.spawnSync(["git", ...command], { cwd: repo, stdout: "pipe", stderr: "pipe" });
+async function gitLines(repo: string, command: string[]) {
+  const proc = await Bun.$`git ${command}`.cwd(repo).nothrow().quiet();
   if (proc.exitCode !== 0) throw new Error(proc.stderr.toString().trim() || `git ${command.join(" ")} failed`);
   return proc.stdout.toString().replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean);
 }

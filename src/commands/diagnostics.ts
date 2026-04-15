@@ -1,13 +1,16 @@
-import { existsSync, readFileSync } from "node:fs";
+
 import { join } from "node:path";
 import { requireValue } from "../cli-shared";
 import { collectBacklog } from "./backlog";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
 import { isTestFile } from "./maintenance";
-import { readSliceCompletedAt, readSliceStatus } from "../lib/slices";
+import { readSliceSummary } from "../lib/slices";
 import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "./linting";
-import { collectCloseout, collectMaintenancePlan, loadProjectSnapshot, resolveDefaultBase } from "./maintenance";
+import type { LintingSnapshot } from "./linting";
+import { collectCloseout, collectMaintenancePlan, collectRefreshFromGit, collectRefreshFromWorktree, loadProjectSnapshot, resolveDefaultBase } from "./maintenance";
+import type { ProjectSnapshot } from "./maintenance";
 import { collectDriftSummary } from "./verification";
+import { exists, readText } from "../lib/fs";
 
 export async function doctorProject(args: string[]) {
   const project = args.find((arg, index) => index === 0 || (!arg.startsWith("--") && args[index - 1] !== "--repo" && args[index - 1] !== "--base"));
@@ -74,9 +77,11 @@ export async function gateProject(args: string[]) {
   if (!result.ok) throw new Error(`gate failed for ${project}`);
 }
 
-export async function collectDoctor(project: string, base: string, explicitRepo?: string, options: { worktree?: boolean } = {}) {
-  const lintingSnapshot = await loadLintingSnapshot(project, { noteIndex: true });
-  const projectSnapshot = await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
+export async function collectDoctor(project: string, base: string, explicitRepo?: string, options: { worktree?: boolean; projectSnapshot?: ProjectSnapshot; lintingSnapshot?: LintingSnapshot; precomputedRefreshFromGit?: Awaited<ReturnType<typeof collectRefreshFromGit>> | Awaited<ReturnType<typeof collectRefreshFromWorktree>> } = {}) {
+  const [lintingSnapshot, projectSnapshot] = await Promise.all([
+    options.lintingSnapshot ?? loadLintingSnapshot(project, { noteIndex: true }),
+    options.projectSnapshot ?? loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true }),
+  ]);
   // Run independent diagnostics in parallel — all depend only on the snapshots above.
   const [status, verify, drift, lint, semantic, backlog] = await Promise.all([
     collectStatusRow(project, lintingSnapshot),
@@ -86,7 +91,7 @@ export async function collectDoctor(project: string, base: string, explicitRepo?
     collectSemanticLintResult(project, lintingSnapshot),
     collectBacklog(project),
   ]);
-  const maintain = await collectMaintenancePlan(project, base, explicitRepo, projectSnapshot, lintingSnapshot, { worktree: options.worktree });
+  const maintain = await collectMaintenancePlan(project, base, explicitRepo, projectSnapshot, lintingSnapshot, { worktree: options.worktree, precomputedRefreshFromGit: options.precomputedRefreshFromGit });
   const focus = maintain.focus;
   const backlogConsistencyWarnings = await collectBacklogConsistencyWarnings(project, backlog.sections);
 
@@ -138,8 +143,8 @@ export async function collectDoctor(project: string, base: string, explicitRepo?
   };
 }
 
-export async function collectGate(project: string, base: string, explicitRepo?: string, options: { structuralRefactor?: boolean; worktree?: boolean } = {}) {
-  const doctor = await collectDoctor(project, base, explicitRepo, { worktree: options.worktree });
+export async function collectGate(project: string, base: string, explicitRepo?: string, options: { structuralRefactor?: boolean; worktree?: boolean; precomputedCloseout?: Awaited<ReturnType<typeof collectCloseout>> } = {}) {
+  const doctor = await collectDoctor(project, base, explicitRepo, { worktree: options.worktree, precomputedRefreshFromGit: options.precomputedCloseout?.refreshFromGit });
   const repo = resolveRepoPath(project, explicitRepo);
   assertGitRepo(repo);
   // The gate blocks on the one non-negotiable: code must have tests.
@@ -158,7 +163,7 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
       blockers.push(`${doctor.counts.missingTests} changed code file(s) have no matching changed tests`);
     }
   }
-  const closeout = options.worktree ? await collectCloseout(project, base, explicitRepo, undefined, undefined, { worktree: true }) : null;
+  const closeout = options.precomputedCloseout ?? (options.worktree ? await collectCloseout(project, base, explicitRepo, undefined, undefined, { worktree: true }) : null);
   if (closeout?.staleImpactedPages.length) blockers.push(`${closeout.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted`);
   const warnings: string[] = [];
   if (doctor.counts.lint > 0) warnings.push(`${doctor.counts.lint} structural lint issue(s)`);
@@ -189,40 +194,44 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
 
 async function collectBacklogConsistencyWarnings(project: string, sections: Record<string, Array<{ id: string }>>) {
   const warnings: string[] = [];
+  const entries: Array<{ section: string; item: { id: string } }> = [];
   for (const [section, items] of Object.entries(sections)) {
     for (const item of items) {
-      const status = await readSliceStatus(project, item.id);
-      const completedAt = await readSliceCompletedAt(project, item.id);
-      if (!status && !completedAt) continue;
-      if (section === "Done") {
-        if (status !== "done" || !completedAt) {
-          warnings.push(`${item.id} legacy done-slice metadata drift; run wiki maintain ${project} --repair-done-slices`);
-        }
-        continue;
-      }
-      if (status === "done") warnings.push(`${item.id} is marked done in slice docs but still lives in ${section}`);
-      if (completedAt) warnings.push(`${item.id} records completed_at in slice docs but still lives in ${section}`);
+      entries.push({ section, item });
     }
+  }
+  const summaries = await Promise.all(entries.map(({ item }) => readSliceSummary(project, item.id)));
+  for (let i = 0; i < entries.length; i++) {
+    const { section, item } = entries[i];
+    const { status, completedAt } = summaries[i];
+    if (!status && !completedAt) continue;
+    if (section === "Done") {
+      if (status !== "done" || !completedAt) {
+        warnings.push(`${item.id} legacy done-slice metadata drift; run wiki maintain ${project} --repair-done-slices`);
+      }
+      continue;
+    }
+    if (status === "done") warnings.push(`${item.id} is marked done in slice docs but still lives in ${section}`);
+    if (completedAt) warnings.push(`${item.id} records completed_at in slice docs but still lives in ${section}`);
   }
   return warnings;
 }
 
 async function collectStructuralRefactorStatus(repo: string, base: string) {
   const blockers: string[] = [];
-  const checks = resolveRepoScriptChecks(repo).map((check) => runRepoCheck(repo, check));
+  const checks = await Promise.all((await resolveRepoScriptChecks(repo)).map((check) => runRepoCheck(repo, check)));
   for (const check of checks) {
     if (!check.ok) blockers.push(`${check.label} failed for structural refactor gate`);
   }
-  const baseTestCount = countTrackedTests(repo, base);
-  const headTestCount = countTrackedTests(repo, "HEAD");
+  const [baseTestCount, headTestCount] = await Promise.all([countTrackedTests(repo, base), countTrackedTests(repo, "HEAD")]);
   if (baseTestCount !== headTestCount) blockers.push(`structural refactor requires unchanged tracked test count (base=${baseTestCount}, head=${headTestCount})`);
   return { ok: blockers.length === 0, blockers, checks, testCount: { base: baseTestCount, head: headTestCount } };
 }
 
-function resolveRepoScriptChecks(repo: string) {
+async function resolveRepoScriptChecks(repo: string) {
   const packageJsonPath = join(repo, "package.json");
-  if (!existsSync(packageJsonPath)) return [] as Array<{ label: string; command: string[] }>;
-  const scripts = JSON.parse(readFileSync(packageJsonPath, "utf8")).scripts ?? {};
+  if (!await exists(packageJsonPath)) return [] as Array<{ label: string; command: string[] }>;
+  const scripts = JSON.parse(await readText(packageJsonPath)).scripts ?? {};
   const checks: Array<{ label: string; command: string[] }> = [];
   if (typeof scripts.check === "string") checks.push({ label: "typecheck", command: ["bun", "run", "check"] });
   else if (typeof scripts.typecheck === "string") checks.push({ label: "typecheck", command: ["bun", "run", "typecheck"] });
@@ -231,13 +240,14 @@ function resolveRepoScriptChecks(repo: string) {
   return checks;
 }
 
-function runRepoCheck(repo: string, check: { label: string; command: string[] }) {
-  const proc = Bun.spawnSync(check.command, { cwd: repo, stdout: "pipe", stderr: "pipe" });
+async function runRepoCheck(repo: string, check: { label: string; command: string[] }) {
+  const [cmd, ...cmdArgs] = check.command;
+  const proc = await Bun.$`${cmd} ${cmdArgs}`.cwd(repo).nothrow().quiet();
   return { ...check, ok: proc.exitCode === 0, exitCode: proc.exitCode, stdout: proc.stdout.toString(), stderr: proc.stderr.toString() };
 }
 
-function countTrackedTests(repo: string, revision: string) {
-  const proc = Bun.spawnSync(["git", "ls-tree", "-r", "--name-only", revision], { cwd: repo, stdout: "pipe", stderr: "pipe" });
+async function countTrackedTests(repo: string, revision: string) {
+  const proc = await Bun.$`git ls-tree -r --name-only ${revision}`.cwd(repo).nothrow().quiet();
   if (proc.exitCode !== 0) return 0;
   return proc.stdout.toString().replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter((line) => line && isTestFile(line)).length;
 }

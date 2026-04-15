@@ -4,7 +4,7 @@ import { CODE_FILE_PATTERN, VAULT_ROOT } from "../constants";
 import { assertExists, mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, writeNormalizedPage } from "../cli-shared";
 import { appendLogEntry, tailLog } from "../lib/log";
 import { fileFingerprint, readCache, writeCache } from "../lib/cache";
-import { readText, writeText } from "../lib/fs";
+import { exists, readText, writeText } from "../lib/fs";
 import { gitDiffSummary, readVerificationLevel, resolveRepoPath, assertGitRepo } from "../lib/verification";
 import { walkMarkdown } from "../lib/vault";
 import { safeMatter } from "../cli-shared";
@@ -25,8 +25,7 @@ export async function maintainProject(args: string[]) {
   const options = parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
   const worktree = args.includes("--worktree");
-  const repairDoneSlices = args.includes("--repair-done-slices");
-  const repair = repairDoneSlices ? await repairHistoricalDoneSlices(options.project) : null;
+  const repair = await repairHistoricalDoneSlices(options.project);
   const result = await collectMaintenancePlan(options.project, options.base, options.repo, undefined, undefined, { worktree });
   appendLogEntry("maintain", options.project, {
     project: options.project,
@@ -244,6 +243,7 @@ type DoneSliceRepair = {
 
 type RefreshOptions = {
   worktree?: boolean;
+  precomputedRefreshFromGit?: Awaited<ReturnType<typeof collectRefreshFromGit>> | Awaited<ReturnType<typeof collectRefreshFromWorktree>>;
 };
 
 type WorktreeImpactedPage = {
@@ -295,7 +295,7 @@ export async function loadProjectSnapshot(project: string, explicitRepo?: string
 
 export async function collectRefreshFromGit(project: string, base: string, explicitRepo?: string, snapshot?: ProjectSnapshot) {
   const state = snapshot ?? await loadProjectSnapshot(project, explicitRepo);
-  const changedFiles = gitChangedFiles(state.repo, base);
+  const changedFiles = await gitChangedFiles(state.repo, base);
   const changedFileSet = new Set(changedFiles);
   const diffSummaryCache = new Map<string, string[]>();
   const impactedPages: Array<{ page: string; matchedSourcePaths: string[]; verificationLevel: string | null; diffSummary: string[] }> = [];
@@ -443,9 +443,11 @@ export async function collectCloseout(project: string, base: string, explicitRep
 export async function collectMaintenancePlan(project: string, base: string, explicitRepo?: string, snapshot?: ProjectSnapshot, lintingSnapshot?: LintingSnapshot, options: RefreshOptions = {}) {
   const projectSnapshot = snapshot ?? await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
   const lintingState = lintingSnapshot ?? projectSnapshotToLintingSnapshot(projectSnapshot);
-  const refreshFromGit = options.worktree
-    ? await collectRefreshFromWorktree(project, explicitRepo, projectSnapshot)
-    : await collectRefreshFromGit(project, base, explicitRepo, projectSnapshot);
+  const refreshFromGit = options.precomputedRefreshFromGit ?? (
+    options.worktree
+      ? await collectRefreshFromWorktree(project, explicitRepo, projectSnapshot)
+      : await collectRefreshFromGit(project, base, explicitRepo, projectSnapshot)
+  );
   // Run independent checks in parallel — discover, lint, semantic lint, and backlog focus
   // share no mutable state and depend only on the already-loaded snapshots.
   const [discover, lint, semanticLint, focus] = await Promise.all([
@@ -510,10 +512,17 @@ async function repairHistoricalDoneSlices(project: string): Promise<DoneSliceRep
 }
 
 async function collectDashboard(project: string, base: string, explicitRepo?: string) {
-  const projectSnapshot = await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
-  const lintingSnapshot = await loadLintingSnapshot(project, { noteIndex: true });
+  const [projectSnapshot, lintingSnapshot] = await Promise.all([
+    loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true }),
+    loadLintingSnapshot(project, { noteIndex: true }),
+  ]);
   const maintain = await collectMaintenancePlan(project, base, explicitRepo, projectSnapshot, lintingSnapshot);
-  return { project, repo: maintain.repo, base, status: await collectStatusRow(project, lintingSnapshot), verify: await collectVerifySummary(project, lintingSnapshot), drift: await collectDriftSummary(project, explicitRepo, lintingSnapshot), discover: maintain.discover, maintain, recentLog: tailLog(20) };
+  const [status, verify, drift] = await Promise.all([
+    collectStatusRow(project, lintingSnapshot),
+    collectVerifySummary(project, lintingSnapshot),
+    collectDriftSummary(project, explicitRepo, lintingSnapshot),
+  ]);
+  return { project, repo: maintain.repo, base, status, verify, drift, discover: maintain.discover, maintain, recentLog: tailLog(20) };
 }
 
 async function collectDiscoverSummary(project: string, explicitRepo?: string, snapshot?: ProjectSnapshot) {
@@ -531,7 +540,7 @@ async function collectDiscoverSummary(project: string, explicitRepo?: string, sn
   const researchDirs: string[] = [];
   for (const candidate of ["docs/research", "docs", "research", "docs/specs"]) {
     const candidatePath = join(state.repo, candidate);
-    if (existsSync(candidatePath)) {
+    if (await exists(candidatePath)) {
       try {
         const count = [...new Bun.Glob("**/*.md").scanSync({ cwd: candidatePath, onlyFiles: true })].length;
         if (count > 0) researchDirs.push(`${candidate}/ (${count} docs)`);
@@ -558,9 +567,9 @@ async function collectIngestDiff(project: string, base: string, explicitRepo?: s
   for (const file of refresh.uncoveredFiles) {
     const guessedModule = guessModuleName(file);
     const moduleSpec = join(projectRoot(project), "modules", guessedModule, "spec.md");
-    if (existsSync(moduleSpec)) continue;
+    if (await exists(moduleSpec)) continue;
     mkdirIfMissing(join(projectRoot(project), "modules", guessedModule));
-    createModuleInternal(project, guessedModule, [file]);
+    await createModuleInternal(project, guessedModule, [file]);
     created.push(relative(VAULT_ROOT, moduleSpec));
   }
   return { project, repo: refresh.repo, base, created, updated, refresh };
@@ -577,6 +586,7 @@ function parseProjectRepoBaseArgs(args: string[]) {
   return { project, repo, base };
 }
 
+// TODO(WIKI-FORGE-069): keep sync — 7+ callers via parseProjectRepoBaseArgs are sync
 export function resolveDefaultBase(project: string, explicitRepo?: string): string {
   // 1. Check _summary.md for default_base
   const summaryPath = join(projectRoot(project), "_summary.md");
@@ -587,6 +597,7 @@ export function resolveDefaultBase(project: string, explicitRepo?: string): stri
   // 2. Try to detect the default branch from git
   try {
     const repo = resolveRepoPath(project, explicitRepo);
+    // TODO: migrate to Bun.$ when caller chain is async (resolveDefaultBase is sync-exported)
     const proc = Bun.spawnSync(["git", "symbolic-ref", "refs/remotes/origin/HEAD"], { cwd: repo, stdout: "pipe", stderr: "pipe" });
     if (proc.exitCode === 0) {
       const ref = proc.stdout.toString().trim().replace("refs/remotes/origin/", "");
@@ -622,7 +633,7 @@ function listCodeFiles(repo: string, customPaths?: string[]) {
 }
 
 async function listRepoMarkdownDocs(repo: string) {
-  const fingerprint = `${fileFingerprint(join(repo, ".git", "index"))}:${fileFingerprint(join(repo, ".git", "HEAD"))}:${gitMarkdownStatusFingerprint(repo)}`;
+  const fingerprint = `${fileFingerprint(join(repo, ".git", "index"))}:${fileFingerprint(join(repo, ".git", "HEAD"))}:${await gitMarkdownStatusFingerprint(repo)}`;
   const cacheKey = `repo-docs:${repo}`;
   const cached = await readCache<string[]>("repo-scan", cacheKey, "2", fingerprint);
   if (cached) return cached;
@@ -659,15 +670,15 @@ function isAllowedRepoMarkdownDoc(rel: string) {
 
 async function readCodePaths(project: string): Promise<string[] | undefined> {
   const summaryPath = join(projectRoot(project), "_summary.md");
-  if (!existsSync(summaryPath)) return undefined;
+  if (!await exists(summaryPath)) return undefined;
   const parsed = safeMatter(`projects/${project}/_summary.md`, await readText(summaryPath), { silent: true });
   if (!parsed) return undefined;
   const paths = parsed.data.code_paths;
   return Array.isArray(paths) ? paths.map(String) : undefined;
 }
 
-function gitMarkdownStatusFingerprint(repo: string) {
-  const proc = Bun.spawnSync(["git", "status", "--porcelain", "--untracked-files=all", "--", "*.md", "**/*.md"], { cwd: repo, stdout: "pipe", stderr: "pipe" });
+async function gitMarkdownStatusFingerprint(repo: string) {
+  const proc = await Bun.$`git status --porcelain --untracked-files=all -- *.md **/*.md`.cwd(repo).nothrow().quiet();
   return proc.exitCode === 0 ? proc.stdout.toString().trim() : "status-unavailable";
 }
 
@@ -679,7 +690,7 @@ async function readDoneSliceDocs(project: string, taskId: string) {
     ["plan", paths.planPath],
     ["test-plan", paths.testPlanPath],
   ] as const) {
-    if (!existsSync(path)) continue;
+    if (!await exists(path)) continue;
     const raw = await readText(path);
     const parsed = safeMatter(relative(VAULT_ROOT, path), raw, { silent: true });
     if (!parsed) continue;
@@ -736,8 +747,8 @@ function classifyArchiveCandidate(taskId: string, completedAt: string) {
   return { taskId, completedAt, ageDays };
 }
 
-function gitChangedFiles(repo: string, base: string) {
-  const proc = Bun.spawnSync(["git", "diff", "--name-only", `${base}...HEAD`], { cwd: repo, stdout: "pipe", stderr: "pipe" });
+async function gitChangedFiles(repo: string, base: string) {
+  const proc = await Bun.$`git diff --name-only ${base}...HEAD`.cwd(repo).nothrow().quiet();
   if (proc.exitCode !== 0) {
     const stderr = proc.stderr.toString().trim();
     if (stderr.includes("ambiguous argument")) throw new Error(`git diff failed for base '${base}'. The revision does not exist yet; pass --base <rev> that exists in this repo.`);
@@ -809,6 +820,7 @@ function isCodeFile(file: string) {
 }
 
 function gitLines(repo: string, command: string[]) {
+  // TODO: migrate to Bun.$ when caller chain is async (worktreeChangedFiles is sync, cascades from gitLines)
   const proc = Bun.spawnSync(["git", ...command], { cwd: repo, stdout: "pipe", stderr: "pipe" });
   if (proc.exitCode !== 0) throw new Error(proc.stderr.toString().trim() || `git ${command.join(" ")} failed`);
   return proc.stdout.toString().replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean);

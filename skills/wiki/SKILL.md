@@ -38,13 +38,16 @@ Do NOT trigger on generic phrases that could mean something else:
 
 Treat those as contextual maintenance requests, not blind keyword matches. The canonical code-driven closeout sequence is:
 
-1. `wiki maintain <project> --repo <path> --base <rev>`
-2. Inspect changed code/tests and update only the impacted wiki pages from code
-3. `wiki verify-page <project> <page> code-verified`
-4. `wiki verify-slice <project> <slice-id> --repo <path>` for active slice work
-5. `wiki closeout <project> --repo <path> --base <rev>` to review refresh/drift/lint/semantic/gate output
-6. `wiki gate <project> --repo <path> --base <rev>`
-7. `wiki close-slice <project> <slice-id> --repo <path> --base <rev>` for active slice work
+1. `wiki checkpoint <project> --repo <path>` — freshness check
+2. `wiki lint-repo <project> --repo <path>` — repo markdown violations
+3. `wiki maintain <project> --repo <path> --base <rev>` — compose refresh + discovery
+4. Update impacted wiki pages from code and tests
+5. `wiki update-index <project> --write` — if navigation/planning links changed
+6. `wiki verify-page <project> <page> code-verified`
+7. `wiki verify-slice <project> <slice-id> --repo <path>` — for active slice work
+8. `wiki closeout <project> --repo <path> --base <rev>` — review refresh/drift/lint/semantic/gate output
+9. `wiki gate <project> --repo <path> --base <rev>`
+10. `wiki close-slice <project> <slice-id> --repo <path> --base <rev>` — for active slice work
 
 For the full build workflow (research → grill → PRD → slices → TDD → verify), use `/forge`. The wiki skill is the knowledge/verification layer; forge is a sibling workflow layer that composes the same `wiki` CLI with research and TDD.
 Use `/forge` only for non-trivial pipeline work; do not trigger it for small fixes, note cleanup, or simple maintenance.
@@ -142,6 +145,22 @@ Auto-detection: if `KNOWLEDGE_VAULT_ROOT` is unset, the CLI walks up from `cwd` 
 | Export slice prompt | `wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]` |
 | Resume interrupted session | `wiki resume <project> --base <rev>` |
 | Flag ad hoc repo markdown | `wiki lint-repo <project> --repo <path>` |
+| Recommend next slice | `wiki next <project>` |
+| Claim a slice for an agent | `wiki claim <project> <slice-id> --agent <name>` |
+| Add a note to current slice | `wiki note <project> <slice-id> <text>` |
+| Hand off slice to another agent | `wiki handover <project> <slice-id> --to <agent>` |
+| Project dashboard | `wiki dashboard <project>` |
+| Project summary | `wiki summary <project>` |
+| Slice/agent status | `wiki status <project>` |
+| Normalize a module spec | `wiki normalize-module <project> <module>` |
+| Generate onboarding plan | `wiki onboard <project> --repo <path>` |
+| Compact verify summary | `wiki verify <project>` |
+| Refresh navigation indexes | `wiki update-index <project> --write` |
+| Install git pre-commit hook | `wiki install-git-hook <project> --repo <path>` |
+| Run commit-time checks | `wiki commit-check <project> --repo <path>` |
+| Trigger refresh after merge | `wiki refresh-on-merge <project> --repo <path>` |
+| Generate dependency graph | `wiki dependency-graph <project> --repo <path>` |
+| Ingest a diff as change record | `wiki ingest-diff <project> --repo <path>` |
 
 Planning scaffolds:
 
@@ -152,6 +171,9 @@ wiki create-issue-slice <project> <title> [--prd <PRD-ID>] [--assignee <agent>] 
 wiki create-plan <project> <name>             # creates specs/plan-<slug>.md and keeps it listed in specs/index.md
 wiki create-test-plan <project> <name>        # creates specs/test-plan-<slug>.md and keeps it listed in specs/index.md
 wiki backlog <project> [--assignee <agent>] [--json]
+wiki add-task <project> <title> [--section Todo] [--prd <PRD-ID>] [--priority <p0-p2>] [--tag <tag>]
+wiki move-task <project> <task-id> --to <section>
+wiki complete-task <project> <task-id>               # shorthand for move-task --to Done
 wiki start-slice <project> <slice-id> [--agent <name>] [--repo <path>] [--json]
 ```
 
@@ -277,6 +299,30 @@ Propagation rules:
 - module/freeform-zone docs connect to planning via `source_paths` overlap
 - standalone `create-plan` / `create-test-plan` docs stay visible in `specs/index.md`
 - run `wiki update-index <project> --write` after creating/moving pages or rebinding source paths so derived sections refresh across spec pages and freeform project zones
+
+## Data Planes
+
+The CLI operates on 4 data planes. Understanding these helps agents predict what each command reads and writes.
+
+| Data Plane | Commands | What it reads |
+|---|---|---|
+| Frontmatter | All page metadata, verification, bindings, slice state | YAML frontmatter in `.md` files |
+| Markdown body | `backlog`, `lint`, `verify-slice`, `lint-semantic` | Heading structure, checkbox lists, TODO markers, wikilinks |
+| Git history | `drift-check`, `refresh-from-git`, `maintain`, `gate`, `checkpoint` | `git log`, `git diff`, commit timestamps |
+| Filesystem/globs | `discover`, `lint-repo`, code_paths scanning, source_paths | Directory structure, file patterns |
+
+### Backlog format
+
+The backlog parser uses regex on the markdown body. Task lines must match exactly:
+
+```
+- [ ] **TASK-ID** Title text | optional priority | #optional-tag
+```
+
+- Use `- [ ]` (unchecked checkbox) for all tasks, including those in the Done section.
+- The section heading (`## In Progress`, `## Todo`, `## Backlog`, `## Done`, `## Cancelled`) determines task state.
+- Lines that don't match the pattern are treated as extra content and preserved but invisible to the task parser.
+- **Never use `- [x]`** — the parser only recognizes `- [ ]`. Using checked checkboxes silently drops tasks from the parsed backlog.
 
 ## Operating Guidelines
 

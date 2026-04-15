@@ -1,8 +1,8 @@
-import { existsSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { mkdirIfMissing, nowIso, orderFrontmatter, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
-import { readText } from "../lib/fs";
+import { exists, readText } from "../lib/fs";
 import {
   isCanonicalFeatureId,
   projectFeaturePath,
@@ -228,25 +228,25 @@ export async function createTestPlan(args: string[]) {
 
 async function createIndexedSpecDocument(project: string, kind: IndexedPlanningKind, name: string, templateLines: readonly string[], options: CreateSpecOptions = {}) {
   const specId = await nextSpecId(project, kind);
-  const outputPath = createSpecDocumentInternal(project, kind, name, templateLines, kind === "feature" ? { ...options, featureId: specId } : { ...options, prdId: specId });
+  const outputPath = await createSpecDocumentInternal(project, kind, name, templateLines, kind === "feature" ? { ...options, featureId: specId } : { ...options, prdId: specId });
   await writeProjectIndex(project);
   return outputPath;
 }
 
-export function createSpecDocumentInternal(project: string, kind: PlanningKind, name: string, templateLines: readonly string[], options: CreateSpecOptions = {}) {
+export async function createSpecDocumentInternal(project: string, kind: PlanningKind, name: string, templateLines: readonly string[], options: CreateSpecOptions = {}) {
   const slug = slugify(name);
   mkdirIfMissing(projectSpecsDir(project));
   ensureKindDirectory(project, kind);
   const displayTitle = buildDisplayTitle(kind, name, options);
   const outputPath = resolveOutputPath(project, kind, slug, options);
-  if (existsSync(outputPath)) throw new Error(`spec already exists: ${relative(VAULT_ROOT, outputPath)}`);
+  if (await exists(outputPath)) throw new Error(`spec already exists: ${relative(VAULT_ROOT, outputPath)}`);
   writeNormalizedPage(outputPath, interpolateTemplate(templateLines.join("\n"), buildTemplateValues(project, name, displayTitle, options)), buildSpecFrontmatter(project, kind, displayTitle, options));
   return outputPath;
 }
 
 async function createSimpleSpecDocument(args: string[], kind: SimplePlanningKind, templateLines: readonly string[]) {
   const { project, name } = parseProjectAndName(args);
-  const outputPath = createSpecDocumentInternal(project, kind, name, templateLines);
+  const outputPath = await createSpecDocumentInternal(project, kind, name, templateLines);
   await writeProjectIndex(project);
   return outputPath;
 }
@@ -291,7 +291,7 @@ function parsePrdArgs(args: string[]) {
 async function nextSpecId(project: string, kind: IndexedPlanningKind) {
   const { field, prefix, dir: resolveDir } = SPEC_IDENTITY[kind];
   const dir = resolveDir(project);
-  if (!existsSync(dir)) return `${prefix}-001`;
+  if (!await exists(dir)) return `${prefix}-001`;
   const filePattern = new RegExp(`^${prefix}-(\\d{3,})-`, "u");
   const frontmatterPattern = new RegExp(`^${prefix}-(\\d{3,})$`, "u");
   let max = 0;
@@ -309,7 +309,7 @@ async function nextSpecId(project: string, kind: IndexedPlanningKind) {
 async function resolveFeatureRecord(project: string, featureId: string) {
   if (!isCanonicalFeatureId(featureId)) throw new Error(`invalid feature id: ${featureId}`);
   const dir = projectFeaturesDir(project);
-  if (!existsSync(dir)) throw new Error(`feature not found: ${featureId}`);
+  if (!await exists(dir)) throw new Error(`feature not found: ${featureId}`);
   const fileName = readdirSync(dir).find((entry) => entry.startsWith(`${featureId}-`) && entry.endsWith(".md"));
   if (!fileName) throw new Error(`feature not found: ${featureId}`);
   const file = `${dir}/${fileName}`;

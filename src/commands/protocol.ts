@@ -1,10 +1,10 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { orderFrontmatter, projectRoot, requireValue } from "../cli-shared";
 import { VAULT_ROOT } from "../constants";
 import { safeMatter } from "../cli-shared";
 import { resolveRepoPath } from "../lib/verification";
-import { readText } from "../lib/fs";
+import { exists, readText } from "../lib/fs";
 
 type ProtocolScope = {
   path: string;
@@ -37,7 +37,7 @@ export async function syncProtocol(args: string[]) {
       const path = protocolFilePath(repo, scope.path, file);
       mkdirSync(dirname(path), { recursive: true });
       const next = renderProtocolFile(project, scope);
-      const current = existsSync(path) ? readFileSync(path, "utf8") : "";
+      const current = await exists(path) ? await readText(path) : "";
       const remainder = current ? extractRemainder(current) : "";
       const output = `${next}${remainder ? `\n\n${remainder.trimStart()}` : ""}`.trimEnd() + "\n";
       const updated = output !== current;
@@ -68,11 +68,11 @@ export async function auditProtocol(args: string[]) {
     for (const file of PROTOCOL_FILES) {
       const path = protocolFilePath(repo, scope.path, file);
       const rel = relative(repo, path).replaceAll("\\", "/") || file;
-      if (!existsSync(path)) {
+      if (!await exists(path)) {
         rows.push({ scope: scope.scope, file, path: rel, status: "missing" });
         continue;
       }
-      const current = readFileSync(path, "utf8");
+      const current = await readText(path);
       const managed = extractManagedBlock(current);
       rows.push({ scope: scope.scope, file, path: rel, status: managed === expected ? "ok" : "stale" });
     }
@@ -106,7 +106,7 @@ async function readProtocolScopes(project: string): Promise<ProtocolScope[]> {
   const summaryPath = join(projectRoot(project), "_summary.md");
   const scopes = new Map<string, ProtocolScope>();
   scopes.set(".", { path: ".", scope: "root" });
-  if (!existsSync(summaryPath)) return [...scopes.values()];
+  if (!await exists(summaryPath)) return [...scopes.values()];
   const parsed = safeMatter(relative(VAULT_ROOT, summaryPath), await readText(summaryPath), { silent: true });
   const rawScopes = parsed?.data.protocol_scopes;
   if (!Array.isArray(rawScopes)) return [...scopes.values()];

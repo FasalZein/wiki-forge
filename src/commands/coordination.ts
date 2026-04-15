@@ -1,8 +1,8 @@
-import { existsSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { assertExists, fail, nowIso, orderFrontmatter, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
-import { readText } from "../lib/fs";
+import { exists, readText } from "../lib/fs";
 import { agentNamesEqual } from "../lib/agents";
 import { appendLogEntry, tailLog } from "../lib/log";
 import { extractShellCommandBlocks, readSliceDependencies, readSliceHub, readSlicePlan, readSliceSourcePaths, readSliceStatus, readSliceTestPlan } from "../lib/slices";
@@ -12,6 +12,7 @@ import { projectSlicesDir, projectTaskHubPath } from "../lib/structure";
 import { collectBacklog, collectBacklogFocus, collectTaskContextForId, moveTaskToSection } from "./backlog";
 import { collectGate, compactDoctorForJson } from "./diagnostics";
 import { collectCloseout, collectMaintenancePlan, isTestFile, resolveDefaultBase } from "./maintenance";
+import { writeProjectIndex } from "./index-log";
 import { collectDriftSummary } from "./verification";
 import { applyVerificationLevel } from "./verification-shared";
 
@@ -227,9 +228,11 @@ export async function startSlice(args: string[]) {
     fail(`${sliceId} is already done`, 1);
   }
 
-  const dependencies = await collectDependencyStatuses(project, sliceId);
+  const [dependencies, sourcePaths] = await Promise.all([
+    collectDependencyStatuses(project, sliceId),
+    readSliceSourcePaths(project, sliceId),
+  ]);
   const blocking = dependencies.filter((dependency) => !dependency.done);
-  const sourcePaths = await readSliceSourcePaths(project, sliceId);
   const claim = await collectClaimResult(project, sliceId, agent, repo, context, sourcePaths);
   const startedAt = nowIso();
   const planSummary = summarizePlan(hub.content, plan.content, sourcePaths);
@@ -286,7 +289,7 @@ export async function verifySlice(args: string[]) {
   const commands = extractShellCommandBlocks(testPlan.content);
   if (!commands.length) throw new Error(`no shell command blocks found in ${relative(VAULT_ROOT, testPlan.path)}`);
 
-  const results = commands.map((command) => runVerificationCommand(repo, command));
+  const results = await Promise.all(commands.map((command) => runVerificationCommand(repo, command)));
   const ok = results.every((result) => result.ok);
   if (ok) await applyVerificationLevel(testPlan.path, "test-verified", false, relative(VAULT_ROOT, testPlan.path), true);
   appendLogEntry("verify-slice", sliceId, { project, details: [`commands=${results.length}`, `ok=${ok}`] });
@@ -311,6 +314,7 @@ export async function closeSlice(args: string[]) {
   if (baseIndex >= 0) requireValue(base, "base");
   const json = args.includes("--json");
   const worktree = args.includes("--worktree");
+  const force = args.includes("--force");
 
   const context = await collectTaskContextForId(project, sliceId);
   if (!context) throw new Error(`slice not found in backlog: ${sliceId}`);
@@ -334,7 +338,7 @@ export async function closeSlice(args: string[]) {
     ...(!worktree && closeout.staleImpactedPages.length ? [`${closeout.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted`] : []),
     ...(uncoveredChangedCodeFiles.length ? [`${uncoveredChangedCodeFiles.length} changed code file(s) are not covered by wiki bindings`] : []),
   ];
-  if (closeoutBlockers.length > 0) {
+  if (closeoutBlockers.length > 0 && !force) {
     const failed = {
       project,
       sliceId,
@@ -346,21 +350,25 @@ export async function closeSlice(args: string[]) {
     if (json) console.log(JSON.stringify(failed, null, 2));
     throw new Error(`close-slice prerequisites failed for ${project}`);
   }
-  const gate = await collectGate(project, base, repo, { worktree });
-  const compactGate = { ...gate, doctor: compactDoctorForJson(gate.doctor) };
-  if (!gate.ok) {
-    const failed = { project, sliceId, closed: false, gate: compactGate, previousSection: context.section };
-    if (json) console.log(JSON.stringify(failed, null, 2));
-    throw new Error(`gate failed for ${project}`);
+  let compactGate: Record<string, unknown> | null = null;
+  if (!force) {
+    const gate = await collectGate(project, base, repo, { worktree, precomputedCloseout: closeout });
+    compactGate = { ...gate, doctor: compactDoctorForJson(gate.doctor) };
+    if (!gate.ok) {
+      const failed = { project, sliceId, closed: false, gate: compactGate, previousSection: context.section };
+      if (json) console.log(JSON.stringify(failed, null, 2));
+      throw new Error(`gate failed for ${project}`);
+    }
   }
   const completedAt = nowIso();
   await moveTaskToSection(project, sliceId, "Done");
   await markSliceClosed(project, sliceId, completedAt);
   await clearClaimMetadata(project, sliceId);
-  appendLogEntry("close-slice", sliceId, { project, details: [`base=${base}`, `completed_at=${completedAt}`] });
-  const result = { project, sliceId, closed: true, gate: compactGate, previousSection: context.section, completedAt };
+  await writeProjectIndex(project);
+  appendLogEntry("close-slice", sliceId, { project, details: [`base=${base}`, `completed_at=${completedAt}`, ...(force ? ["force=true"] : [])] });
+  const result = { project, sliceId, closed: true, ...(compactGate ? { gate: compactGate } : {}), previousSection: context.section, completedAt, force };
   if (json) console.log(JSON.stringify(result, null, 2));
-  else console.log(`closed ${sliceId}`);
+  else console.log(`closed ${sliceId}${force ? " (forced)" : ""}`);
 }
 
 export async function exportPrompt(args: string[]) {
@@ -371,12 +379,14 @@ export async function exportPrompt(args: string[]) {
   const agentIndex = args.indexOf("--agent");
   const agent = (agentIndex >= 0 ? args[agentIndex + 1] : "codex") || "codex";
   if (!["codex", "claude", "pi"].includes(agent)) throw new Error(`unsupported agent: ${agent}`);
-  const hub = await readSliceHub(project, sliceId);
-  const plan = await readSlicePlan(project, sliceId);
-  const testPlan = await readSliceTestPlan(project, sliceId);
   const summaryPath = join(VAULT_ROOT, "projects", project, "_summary.md");
-  const summary = existsSync(summaryPath) ? await readText(summaryPath) : "";
-  const sourcePaths = await readSliceSourcePaths(project, sliceId);
+  const [hub, plan, testPlan, summary, sourcePaths] = await Promise.all([
+    readSliceHub(project, sliceId),
+    readSlicePlan(project, sliceId),
+    readSliceTestPlan(project, sliceId),
+    exists(summaryPath).then((e) => e ? readText(summaryPath) : ""),
+    readSliceSourcePaths(project, sliceId),
+  ]);
   const commands = extractShellCommandBlocks(testPlan.content);
   const context = await collectTaskContextForId(project, sliceId);
   const prompt = renderExecutionPrompt({ project, sliceId, agent, hub, plan, testPlan, summary, sourcePaths, commands, context });
@@ -388,10 +398,12 @@ export async function resumeProject(args: string[]) {
   const json = args.includes("--json");
   const repo = resolveRepoPath(options.project, options.repo);
   assertGitRepo(repo);
-  const maintain = await collectMaintenancePlan(options.project, options.base, repo);
+  const [maintain, drift] = await Promise.all([
+    collectMaintenancePlan(options.project, options.base, repo),
+    collectDriftSummary(options.project, repo),
+  ]);
   const dirty = collectDirtyRepoStatus(repo);
-  const recentCommits = collectRecentCommits(repo, 5);
-  const drift = await collectDriftSummary(options.project, repo);
+  const recentCommits = await collectRecentCommits(repo, 5);
   const stalePages = drift.results.filter((row) => row.status !== "fresh").slice(0, 10).map((row) => row.wikiPage);
   const recentNotes = projectLogEntries(options.project, "note").slice(0, 5);
   const payload = {
@@ -440,6 +452,7 @@ function defaultAgentName() {
 }
 
 function collectDirtyRepoStatus(repo: string): DirtyRepoStatus {
+  // TODO: migrate to Bun.$ when caller chain is async (resolveDirtyOverlap is sync, blocks full migration)
   assertGitRepo(repo);
   const proc = Bun.spawnSync(["git", "status", "--porcelain", "--untracked-files=all"], { cwd: repo, stdout: "pipe", stderr: "pipe" });
   if (proc.exitCode !== 0) throw new Error(`git status failed for ${repo}`);
@@ -553,11 +566,11 @@ async function collectClaimConflicts(project: string, targetSliceId: string, age
   }
 
   const slicesDir = projectSlicesDir(project);
-  if (!existsSync(slicesDir)) return [...overlaps.values()].sort((a, b) => a.taskId.localeCompare(b.taskId));
+  if (!await exists(slicesDir)) return [...overlaps.values()].sort((a, b) => a.taskId.localeCompare(b.taskId));
   for (const entry of readdirSync(slicesDir)) {
     if (entry === targetSliceId) continue;
     const indexPath = projectTaskHubPath(project, entry);
-    if (!existsSync(indexPath)) continue;
+    if (!await exists(indexPath)) continue;
     const parsed = safeMatter(relative(VAULT_ROOT, indexPath), await readText(indexPath), { silent: true });
     const claimedBy = parsed?.data.claimed_by;
     if (typeof claimedBy !== "string" || !claimedBy.trim()) continue;
@@ -591,7 +604,7 @@ async function writeClaimMetadata(project: string, sliceId: string, agent: strin
 
 async function clearClaimMetadata(project: string, sliceId: string) {
   const indexPath = projectTaskHubPath(project, sliceId);
-  if (!existsSync(indexPath)) return;
+  if (!await exists(indexPath)) return;
   const parsed = safeMatter(relative(VAULT_ROOT, indexPath), await readText(indexPath), { silent: true });
   if (!parsed) return;
   const data = { ...parsed.data };
@@ -759,8 +772,8 @@ function renderExecutionPrompt(input: {
   ].join("\n");
 }
 
-function collectRecentCommits(repo: string, limit: number) {
-  const proc = Bun.spawnSync(["git", "log", `-n${limit}`, "--oneline"], { cwd: repo, stdout: "pipe", stderr: "pipe" });
+async function collectRecentCommits(repo: string, limit: number) {
+  const proc = await Bun.$`git log -n${limit} --oneline`.cwd(repo).nothrow().quiet();
   if (proc.exitCode !== 0) return [] as string[];
   return proc.stdout.toString().replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean);
 }
@@ -773,8 +786,8 @@ function projectLogEntries(project: string, kind?: string) {
     .reverse();
 }
 
-function runVerificationCommand(repo: string, command: string) {
-  const proc = Bun.spawnSync(["bash", "-lc", command], { cwd: repo, stdout: "pipe", stderr: "pipe" });
+async function runVerificationCommand(repo: string, command: string) {
+  const proc = await Bun.$`bash -lc ${command}`.cwd(repo).nothrow().quiet();
   return {
     command,
     ok: proc.exitCode === 0,

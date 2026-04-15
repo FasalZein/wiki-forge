@@ -4,7 +4,7 @@ import { delimiter, join } from "node:path";
 const commandCache = new Map<string, string | null>();
 const commandListCache = new Map<string, string[]>();
 
-export function resolveCommandsOnPath(command: string) {
+function resolveCommandsOnPath(command: string) {
   if (commandListCache.has(command)) return commandListCache.get(command) ?? [];
   const extnames = process.platform === "win32"
     ? (process.env.PATHEXT?.split(";").filter(Boolean) ?? [".EXE", ".CMD", ".BAT", ".COM"])
@@ -14,6 +14,7 @@ export function resolveCommandsOnPath(command: string) {
   for (const entry of (process.env.PATH ?? "").split(delimiter).filter(Boolean)) {
     for (const ext of extnames) {
       const candidate = join(entry, `${command}${ext}`);
+      // TODO: migrate to async exists()
       if (seen.has(candidate) || !existsSync(candidate)) continue;
       seen.add(candidate);
       try {
@@ -41,7 +42,3 @@ export function resolveCommandOnPath(command: string) {
   return resolved;
 }
 
-export function assertCommandOnPath(command: string, message: string) {
-  if (resolveCommandOnPath(command)) return;
-  throw new Error(message);
-}

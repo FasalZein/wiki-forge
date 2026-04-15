@@ -1,9 +1,9 @@
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { mkdirIfMissing, nowIso, orderFrontmatter, requireValue, writeNormalizedPage } from "../cli-shared";
 import { slugify } from "./planning";
-import { readText } from "../lib/fs";
+import { exists, readText } from "../lib/fs";
 
 const CORE_TOP_LEVEL_DIRS = ["projects", "research", "raw", "wiki", "ideas", "templates", "journal", "specs"] as const;
 const CORE_ROOT_FILES = ["AGENTS.md", "index.md", "log.md"] as const;
@@ -88,7 +88,7 @@ const LAYERS: Record<string, LayerDefinition> = {
   },
 };
 
-export function scaffoldLayer(args: string[]) {
+export async function scaffoldLayer(args: string[]) {
   const name = args[0];
   requireValue(name, "layer");
   const layer = LAYERS[name];
@@ -96,13 +96,13 @@ export function scaffoldLayer(args: string[]) {
   for (const file of layer.scaffold()) {
     const outputPath = join(VAULT_ROOT, file.path);
     mkdirIfMissing(join(VAULT_ROOT, name));
-    if (existsSync(outputPath)) continue;
+    if (await exists(outputPath)) continue;
     writeNormalizedPage(outputPath, file.content, file.data);
     console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
   }
 }
 
-export function createLayerPage(args: string[]) {
+export async function createLayerPage(args: string[]) {
   const layerName = args[0];
   const title = args.slice(1).join(" ").trim();
   requireValue(layerName, "layer");
@@ -112,7 +112,7 @@ export function createLayerPage(args: string[]) {
   const page = layer.createPage(title);
   const outputPath = join(VAULT_ROOT, page.path);
   mkdirIfMissing(join(VAULT_ROOT, layerName));
-  if (existsSync(outputPath)) throw new Error(`layer page already exists: ${relative(VAULT_ROOT, outputPath)}`);
+  if (await exists(outputPath)) throw new Error(`layer page already exists: ${relative(VAULT_ROOT, outputPath)}`);
   writeNormalizedPage(outputPath, page.content, page.data);
   console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
 }
@@ -158,7 +158,7 @@ export async function collectVaultLintResult() {
 
   for (const layer of customLayers) {
     const layerIndex = join(VAULT_ROOT, layer, "index.md");
-    if (existsSync(join(VAULT_ROOT, layer)) && !existsSync(layerIndex)) issues.push(`${layer}/ missing index.md`);
+    if (await exists(join(VAULT_ROOT, layer)) && !await exists(layerIndex)) issues.push(`${layer}/ missing index.md`);
   }
 
   return { root: VAULT_ROOT, issues, layers: { core: [...CORE_TOP_LEVEL_DIRS], custom: customLayers } };
@@ -170,7 +170,7 @@ export async function summarizeLayer(args: string[]) {
   const layer = LAYERS[name];
   if (!layer) throw new Error(`unknown layer: ${name}`);
   const layerDir = join(VAULT_ROOT, name);
-  const pages = existsSync(layerDir) ? [...new Bun.Glob("**/*.md").scanSync({ cwd: layerDir, onlyFiles: true })] : [];
+  const pages = await exists(layerDir) ? [...new Bun.Glob("**/*.md").scanSync({ cwd: layerDir, onlyFiles: true })] : [];
   const previews: string[] = [];
   for (const file of pages.slice(0, 5)) {
     const body = await readText(join(layerDir, file));

@@ -1,11 +1,11 @@
-import { existsSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { assertExists, mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
-import { readText, writeText } from "../lib/fs";
+import { exists, readText, writeText } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
 import { isCanonicalPrdId, projectPrdsDir, projectTaskDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath, toVaultMarkdownPath, toVaultWikilinkPath } from "../lib/structure";
-import { readSliceAssignee, readSliceCompletedAt, readSliceDependencies, readSliceStatus } from "../lib/slices";
+import { readSliceDependencies, readSliceSummary } from "../lib/slices";
 import { agentNamesEqual, assertKnownAgent, readProjectAgents } from "../lib/agents";
 import { writeProjectIndex } from "./index-log";
 
@@ -89,7 +89,7 @@ export async function createIssueSlice(args: string[]) {
   const appended = await appendTaskToBacklog(options);
   const title = `${appended.taskId.toLowerCase()} ${options.title}`;
   const slicePaths = createSlicePaths(options.project, appended.taskId);
-  ensureSliceDocsMissing(appended.taskId, slicePaths);
+  await ensureSliceDocsMissing(appended.taskId, slicePaths);
   const sourcePaths = options.sourcePaths.length ? options.sourcePaths : (prd?.sourcePaths ?? []);
   if (!options.sourcePaths.length && prd && prd.sourcePaths.length > 3) {
     console.warn(`warning: ${prd.prdId} has ${prd.sourcePaths.length} inherited source_paths; consider --source for a narrower slice binding`);
@@ -180,8 +180,8 @@ export async function collectBacklogView(project: string, assignee?: string) {
   return { project, assignee: assignee ?? null, knownAgents: await readProjectAgents(project), sections, blocked };
 }
 
-export async function collectBacklogFocus(project: string): Promise<BacklogFocus> {
-  const backlog = await collectBacklog(project);
+export async function collectBacklogFocus(project: string, preloadedBacklog?: Awaited<ReturnType<typeof collectBacklog>>): Promise<BacklogFocus> {
+  const backlog = preloadedBacklog ?? await collectBacklog(project);
   const inProgress = backlog.sections["In Progress"] ?? [];
   const todo = backlog.sections["Todo"] ?? [];
   const doneIds = new Set((backlog.sections["Done"] ?? []).map((task) => task.id));
@@ -216,31 +216,36 @@ async function collectTaskContext(project: string, item: BacklogItem, section: s
   const taskHubPath = projectTaskHubPath(project, item.id);
   const planPath = projectTaskPlanPath(project, item.id);
   const testPlanPath = projectTaskTestPlanPath(project, item.id);
-  const hasTaskHub = existsSync(taskHubPath);
-  const hasPlan = existsSync(planPath);
-  const hasTestPlan = existsSync(testPlanPath);
-  const dependencies = await readSliceDependencies(project, item.id);
+  const hasTaskHub = await exists(taskHubPath);
+  const hasPlan = await exists(planPath);
+  const hasTestPlan = await exists(testPlanPath);
+  const [summary, planStatus, testPlanStatus] = await Promise.all([
+    readSliceSummary(project, item.id),
+    detectTaskDocState(planPath),
+    detectTaskDocState(testPlanPath),
+  ]);
+  const { status: sliceStatus, completedAt, assignee, dependencies } = summary;
   const blockedBy = doneIds ? dependencies.filter((dependency) => !doneIds.has(dependency)) : [];
   return {
     id: item.id,
     title: item.title,
     section,
-    assignee: await readSliceAssignee(project, item.id),
-    sliceStatus: await readSliceStatus(project, item.id),
-    completedAt: await readSliceCompletedAt(project, item.id),
+    assignee,
+    sliceStatus,
+    completedAt,
     ...(hasTaskHub ? { taskHubPath: toVaultMarkdownPath(taskHubPath) } : {}),
     ...(hasPlan ? { planPath: toVaultMarkdownPath(planPath) } : {}),
     ...(hasTestPlan ? { testPlanPath: toVaultMarkdownPath(testPlanPath) } : {}),
     hasSliceDocs: hasTaskHub || hasPlan || hasTestPlan,
-    planStatus: await detectTaskDocState(planPath),
-    testPlanStatus: await detectTaskDocState(testPlanPath),
+    planStatus,
+    testPlanStatus,
     dependencies,
     blockedBy,
   };
 }
 
 async function detectTaskDocState(path: string): Promise<TaskDocState> {
-  if (!existsSync(path)) return "missing";
+  if (!await exists(path)) return "missing";
   const raw = await readNormalizedText(path);
   const parsed = safeMatter(path, raw, { silent: true });
   const body = parsed?.content ?? raw.replace(/^---\n[\s\S]*?\n---\n?/u, "");
@@ -391,8 +396,8 @@ function createSlicePaths(project: string, taskId: string): SlicePaths {
   };
 }
 
-function ensureSliceDocsMissing(taskId: string, paths: SlicePaths) {
-  if (existsSync(paths.indexPath) || existsSync(paths.planPath) || existsSync(paths.testPlanPath)) {
+async function ensureSliceDocsMissing(taskId: string, paths: SlicePaths) {
+  if (await exists(paths.indexPath) || await exists(paths.planPath) || await exists(paths.testPlanPath)) {
     throw new Error(`slice docs already exist for ${taskId}: ${relative(VAULT_ROOT, paths.taskSpecsDir)}`);
   }
 }
@@ -547,7 +552,7 @@ function parseBacklog(backlog: string): ParsedBacklog {
       intro.push(line);
       continue;
     }
-    const task = line.match(/^- \[ \] \*\*([A-Z0-9-]+)\*\*\s+(.*)$/);
+    const task = line.match(/^- \[[ x]\] \*\*([A-Z0-9-]+)\*\*\s+(.*)$/);
     if (task) sections[currentSection].push({ raw: line, id: task[1], title: task[2] });
     else if (line.trim()) extras[currentSection].push(line);
   }
@@ -558,11 +563,15 @@ function serializeBacklog(parsed: ParsedBacklog) {
   const out = [...parsed.intro];
   for (const section of parsed.order) {
     out.push(`## ${section}`, "");
-    for (const item of parsed.sections[section] ?? []) out.push(item.raw);
+    for (const item of parsed.sections[section] ?? []) out.push(normalizeTaskCheckbox(item.raw));
     for (const line of parsed.extras[section] ?? []) out.push(line);
     out.push("");
   }
   return `${out.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd()}\n`;
+}
+
+function normalizeTaskCheckbox(raw: string) {
+  return raw.replace(/^- \[x\] /, "- [ ] ");
 }
 
 function removeTask(parsed: ParsedBacklog, taskId: string) {

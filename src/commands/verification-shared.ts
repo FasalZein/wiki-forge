@@ -1,16 +1,15 @@
-import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VERIFICATION_LEVELS, VAULT_ROOT, type VerificationLevel } from "../constants";
 import { nowIso, safeMatter, writeNormalizedPage } from "../cli-shared";
-import { readText } from "../lib/fs";
+import { exists, readText } from "../lib/fs";
 import { readVerificationLevel } from "../lib/verification";
 
-export function resolveWikiPagePath(projectRootPath: string, pageArg: string): string {
+export async function resolveWikiPagePath(projectRootPath: string, pageArg: string): Promise<string> {
   const directPath = join(projectRootPath, pageArg);
-  if (existsSync(directPath)) return directPath;
+  if (await exists(directPath)) return directPath;
   if (!pageArg.endsWith(".md")) {
     const withMd = join(projectRootPath, `${pageArg}.md`);
-    if (existsSync(withMd)) return withMd;
+    if (await exists(withMd)) return withMd;
   }
   return join(projectRootPath, "modules", pageArg, "spec.md");
 }

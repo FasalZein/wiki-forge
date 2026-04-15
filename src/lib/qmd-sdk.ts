@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { exists } from "./fs";
 import type { ExpandedQuery, HybridQueryResult, QMDStore, SearchResult, StoreOptions } from "@tobilu/qmd";
 import { QMD_INDEX_PATH } from "../constants";
 import { normalizeSemanticQueryText } from "./qmd";
@@ -131,8 +131,8 @@ function parseStructuredQueryDocument(queryDocument: string): { intent?: string;
   return { intent, queries };
 }
 
-export function sdkHybridAvailable() {
-  return HOMEBREW_SQLITE_PATHS.some((p) => existsSync(p));
+export async function sdkHybridAvailable() {
+  return Promise.all(HOMEBREW_SQLITE_PATHS.map((p) => exists(p))).then((r) => r.some(Boolean));
 }
 
 export async function getQmdStore(options?: StoreOptions & { forceNew?: boolean }): Promise<QMDStore> {

@@ -1,11 +1,12 @@
-import { existsSync, readFileSync, appendFileSync } from "node:fs";
+import { appendFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
+import { exists, readText } from "../lib/fs";
 
 const ENV_LINE = 'export KNOWLEDGE_VAULT_ROOT="$HOME/Knowledge"';
 const COMMENT = "# Wiki CLI vault root";
 
-export function setupShell(args: string[]) {
+export async function setupShell(args: string[]) {
   const vaultPath = args[0] || join(homedir(), "Knowledge");
   const shell = process.env.SHELL ?? "/bin/zsh";
   const rcFile = resolveRcFile(shell);
@@ -19,8 +20,8 @@ export function setupShell(args: string[]) {
   const rcPath = join(homedir(), rcFile);
   const exportLine = `export KNOWLEDGE_VAULT_ROOT="${vaultPath}"`;
 
-  if (existsSync(rcPath)) {
-    const content = readFileSync(rcPath, "utf8");
+  if (await exists(rcPath)) {
+    const content = await readText(rcPath);
     if (content.includes("KNOWLEDGE_VAULT_ROOT")) {
       console.log(`KNOWLEDGE_VAULT_ROOT already set in ~/${rcFile}`);
       return;
@@ -38,6 +39,7 @@ function resolveRcFile(shell: string): string | null {
   if (shell.endsWith("/bash")) {
     // macOS uses .bash_profile for login shells, Linux uses .bashrc
     const profile = join(homedir(), ".bash_profile");
+    // TODO: migrate to async exists()
     return existsSync(profile) ? ".bash_profile" : ".bashrc";
   }
   if (shell.endsWith("/fish")) return ".config/fish/config.fish";

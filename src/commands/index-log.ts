@@ -1,8 +1,8 @@
-import { existsSync, readdirSync, statSync } from "node:fs";
+
 import { dirname, join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
-import { readText, writeText } from "../lib/fs";
+import { exists, listDirs, readText, writeText } from "../lib/fs";
 import { tailLog, appendLogEntry } from "../lib/log";
 import { projectSpecsIndexPath, projectSpecViewIndexPath, workspaceIndexPath, workspaceProjectsDashboardPath } from "../lib/structure";
 import { collectBacklogFocus } from "./backlog";
@@ -126,21 +126,23 @@ async function buildProjectIndexTargets(project: string): Promise<IndexTarget[]>
 
 async function listWorkspaceProjects() {
   const projectsRoot = join(VAULT_ROOT, "projects");
-  if (!existsSync(projectsRoot)) return [];
-  return readdirSync(projectsRoot).filter((entry) => statSync(join(projectsRoot, entry)).isDirectory()).sort();
+  if (!await exists(projectsRoot)) return [];
+  return listDirs(projectsRoot).sort();
 }
 
 async function collectWorkspaceProjectRows(projects: string[]): Promise<WorkspaceProjectRow[]> {
   const rows = await Promise.all(projects.map(async (project) => {
     const summaryPath = join(projectRoot(project), "_summary.md");
-    const summaryParsed = existsSync(summaryPath)
+    const summaryParsed = await exists(summaryPath)
       ? safeMatter(relative(VAULT_ROOT, summaryPath), await readText(summaryPath), { silent: true })
       : null;
     const lintingSnapshot = await loadLintingSnapshot(project);
-    const status = await collectStatusRow(project, lintingSnapshot);
-    const pageRows = await collectProjectPageRows(project);
+    const [status, pageRows, focus] = await Promise.all([
+      collectStatusRow(project, lintingSnapshot),
+      collectProjectPageRows(project),
+      readWorkspaceProjectFocus(project),
+    ]);
     const pageIndex = buildProjectPageIndex(pageRows);
-    const focus = await readWorkspaceProjectFocus(project);
     const rawStatus = typeof summaryParsed?.data.status === "string" ? summaryParsed.data.status : "unknown";
     return {
       project,
@@ -425,7 +427,7 @@ function sortSectionEntries(lines: SectionEntry[], group: SpecIndexGroup) {
 
 async function writeIndexTarget(absolutePath: string, content: string) {
   const relPath = relative(VAULT_ROOT, absolutePath).replaceAll("\\", "/");
-  if (!existsSync(absolutePath)) {
+  if (!await exists(absolutePath)) {
     const generated = generatedIndexFrontmatter(relPath);
     if (!generated) return writeText(absolutePath, content);
     return writeNormalizedPage(absolutePath, content, generated);

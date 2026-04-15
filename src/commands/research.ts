@@ -1,9 +1,8 @@
-import { copyFileSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VAULT_ROOT, STALE_UNVERIFIED_DAYS } from "../constants";
 import { mkdirIfMissing, nowIso, orderFrontmatter, requireValue, safeMatter, today, writeNormalizedPage } from "../cli-shared";
 import { appendLogEntry } from "../lib/log";
-import { readText, writeText } from "../lib/fs";
+import { copyFile, exists, readText, writeText } from "../lib/fs";
 import { classifyRawPath, classifyResearchPath, describeAllowedRawPaths, describeAllowedResearchPaths, deriveSourceSlug, deriveSourceTitle, detectResearchSourceType, inferRawBucket, isAllowedRawBucket, normalizeTopicPath, rawBucketDir, rawPathForSource, rawRoot, rawVaultPath, researchOverviewPath, researchPagePath, researchRoot, researchTopicDir, slugifyResearchPage, topicCrossLinks, topicLabel } from "../lib/research";
 import { normalizePath, stripMarkdownExtension, walkMarkdown } from "../lib/vault";
 import { collectResearchAudit } from "../lib/research-audit";
@@ -42,7 +41,7 @@ export async function ingestResearch(args: string[]) {
   for (const source of sources) {
     const slug = deriveSourceSlug(source);
     const outputPath = researchPagePath(normalizedTopic, slug);
-    if (existsSync(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
+    if (await exists(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
     const sourceType = detectResearchSourceType(source);
     const sourceField = /^https?:\/\//iu.test(source) ? { url: source } : { path: source };
     const data = orderFrontmatter({
@@ -104,9 +103,9 @@ export async function ingestSource(args: string[]) {
     const rawDir = rawBucketDir(resolvedBucket);
     const rawPath = rawPathForSource(source, resolvedBucket);
     const outputPath = researchPagePath(normalizedTopic, deriveSourceSlug(source));
-    if (existsSync(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
+    if (await exists(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
     mkdirIfMissing(rawDir);
-    if (existsSync(rawPath)) throw new Error(`raw source already exists: ${relative(VAULT_ROOT, rawPath)}`);
+    if (await exists(rawPath)) throw new Error(`raw source already exists: ${relative(VAULT_ROOT, rawPath)}`);
 
     if (/^https?:\/\//iu.test(source)) {
       const rawTitle = title ?? deriveSourceTitle(source);
@@ -133,8 +132,8 @@ export async function ingestSource(args: string[]) {
       ].join("\n");
       writeNormalizedPage(rawPath, rawBody, rawData);
     } else {
-      if (!existsSync(source)) throw new Error(`source path not found: ${source}`);
-      copyFileSync(source, rawPath);
+      if (!await exists(source)) throw new Error(`source path not found: ${source}`);
+      await copyFile(source, rawPath);
     }
 
     const sourceLabel = /^https?:\/\//iu.test(source) ? source : relative(process.cwd(), source);
@@ -235,7 +234,7 @@ export async function ensureResearchTopic(topic: string) {
   mkdirIfMissing(dir);
   const overviewPath = researchOverviewPath(normalizedTopic);
   let created = false;
-  if (!existsSync(overviewPath)) {
+  if (!await exists(overviewPath)) {
     const data = orderFrontmatter({
       title: topicLabel(normalizedTopic),
       type: "research-topic",
@@ -325,7 +324,7 @@ export async function collectResearchLintResult(topic?: string) {
     if ((inbound.get(relNoExt) ?? 0) === 0) issues.push(`${rel} not linked from any project or idea page`);
   }
   const rawRootPath = rawRoot();
-  if (existsSync(rawRootPath)) {
+  if (await exists(rawRootPath)) {
     for (const file of new Bun.Glob("**/*").scanSync({ cwd: rawRootPath, onlyFiles: true })) {
       const rel = normalizePath(`raw/${file}`);
       if (!classifyRawPath(rel)) issues.push(`${rel} invalid raw path: expected ${describeAllowedRawPaths()}`);
@@ -435,7 +434,7 @@ export async function createResearchPage(project: string, title: string, topic?:
   await ensureResearchTopic(normalizedTopic);
   const slug = slugifyResearchPage(title);
   const outputPath = researchPagePath(normalizedTopic, slug);
-  if (existsSync(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
+  if (await exists(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
   const data = orderFrontmatter({
     title,
     type: "research",

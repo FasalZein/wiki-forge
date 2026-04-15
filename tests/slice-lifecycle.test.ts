@@ -93,4 +93,46 @@ describe("wiki slice lifecycle", () => {
     expect(json.ok).toBe(false);
     expect(json.commands[0].ok).toBe(false);
   });
+
+  test("backlog parser accepts both checked and unchecked checkboxes", () => {
+    const { vault } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "first slice"], env).exitCode).toBe(0);
+    expect(runWiki(["complete-task", "demo", "DEMO-001"], env).exitCode).toBe(0);
+
+    // Manually corrupt the backlog by changing `- [ ]` to `- [x]`
+    const backlogPath = join(vault, "projects", "demo", "backlog.md");
+    const content = readFileSync(backlogPath, "utf8");
+    writeFileSync(backlogPath, content.replace("- [ ] **DEMO-001**", "- [x] **DEMO-001**"), "utf8");
+
+    // Parser should still see the task
+    const result = runWiki(["backlog", "demo", "--json"], env);
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout.toString());
+    const doneItems = json.sections.Done ?? [];
+    expect(doneItems.some((item: { id: string }) => item.id === "DEMO-001")).toBe(true);
+  });
+
+  test("backlog serialization normalizes checked checkboxes back to unchecked", () => {
+    const { vault } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "first slice"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "second slice"], env).exitCode).toBe(0);
+
+    // Corrupt both with [x]
+    const backlogPath = join(vault, "projects", "demo", "backlog.md");
+    const content = readFileSync(backlogPath, "utf8");
+    writeFileSync(backlogPath, content.replaceAll("- [ ] **DEMO-", "- [x] **DEMO-"), "utf8");
+
+    // Moving a task triggers serialization which normalizes checkboxes
+    expect(runWiki(["move-task", "demo", "DEMO-001", "--to", "In Progress"], env).exitCode).toBe(0);
+    const after = readFileSync(backlogPath, "utf8");
+    expect(after).not.toContain("- [x]");
+    expect(after).toContain("- [ ] **DEMO-001**");
+    expect(after).toContain("- [ ] **DEMO-002**");
+  });
 });

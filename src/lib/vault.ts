@@ -3,6 +3,7 @@ import { relative, resolve } from "node:path";
 import { VAULT_ROOT } from "../constants";
 
 export function walkMarkdown(root: string): string[] {
+  // TODO: migrate to async exists()
   if (!existsSync(root)) {
     return [];
   }

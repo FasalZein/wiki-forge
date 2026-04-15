@@ -1,8 +1,8 @@
-import { existsSync } from "node:fs";
+
 import { relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { safeMatter } from "../cli-shared";
-import { readText } from "./fs";
+import { exists, readText } from "./fs";
 import { extractShellBlocks } from "./markdown-ast";
 import { projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath } from "./structure";
 
@@ -42,7 +42,7 @@ export async function readSliceDependencies(project: string, taskId: string) {
 
 export async function readSliceDoc(project: string, taskId: string, kind: SliceDocKind) {
   const path = kind === "index" ? sliceDocPaths(project, taskId).indexPath : kind === "plan" ? sliceDocPaths(project, taskId).planPath : sliceDocPaths(project, taskId).testPlanPath;
-  if (!existsSync(path)) throw new Error(`${kind} not found: ${relative(VAULT_ROOT, path)}`);
+  if (!await exists(path)) throw new Error(`${kind} not found: ${relative(VAULT_ROOT, path)}`);
   const raw = await readText(path);
   const parsed = safeMatter(relative(VAULT_ROOT, path), raw);
   if (!parsed) throw new Error(`unable to parse frontmatter for ${relative(VAULT_ROOT, path)}`);
@@ -87,13 +87,34 @@ export async function readSliceCompletedAt(project: string, taskId: string) {
 }
 
 async function readSliceMatters(project: string, taskId: string) {
-  const matters: Array<{ path: string; content: string; data: Record<string, unknown> }> = [];
-  for (const path of Object.values(sliceDocPaths(project, taskId))) {
-    if (!existsSync(path)) continue;
-    const raw = await readText(path);
-    const parsed = safeMatter(relative(VAULT_ROOT, path), raw, { silent: true });
-    if (!parsed) continue;
-    matters.push({ path, content: parsed.content, data: parsed.data });
+  const paths = (await Promise.all(Object.entries(sliceDocPaths(project, taskId)).map(async ([, path]) => (await exists(path) ? path : null)))).filter((p): p is string => p !== null);
+  const results = await Promise.all(
+    paths.map(async (path) => {
+      const raw = await readText(path);
+      const parsed = safeMatter(relative(VAULT_ROOT, path), raw, { silent: true });
+      if (!parsed) return null;
+      return { path, content: parsed.content, data: parsed.data };
+    }),
+  );
+  return results.filter((m): m is { path: string; content: string; data: Record<string, unknown> } => m !== null);
+}
+
+export async function readSliceSummary(project: string, taskId: string) {
+  const matters = await readSliceMatters(project, taskId);
+  let status: string | null = null;
+  let completedAt: string | null = null;
+  let assignee: string | null = null;
+  const dependencies = new Set<string>();
+  for (const matter of matters) {
+    if (!status && typeof matter.data.status === "string" && matter.data.status.trim()) status = matter.data.status.trim();
+    if (!completedAt && typeof matter.data.completed_at === "string" && matter.data.completed_at.trim()) completedAt = matter.data.completed_at.trim();
+    if (!assignee && typeof matter.data.assignee === "string" && matter.data.assignee.trim()) assignee = matter.data.assignee.trim();
+    if (Array.isArray(matter.data.depends_on)) {
+      for (const dependency of matter.data.depends_on) {
+        const normalized = String(dependency).trim().toUpperCase();
+        if (normalized) dependencies.add(normalized);
+      }
+    }
   }
-  return matters;
+  return { status, completedAt, assignee, dependencies: [...dependencies].sort() };
 }

@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { exists, readText } from "./lib/fs";
 import { join } from "node:path";
 import matter from "gray-matter";
 import { PROJECT_FILES, VAULT_ROOT, VAULT_ROOT_ENV } from "./constants";
@@ -56,13 +57,13 @@ Usage:
   wiki next <project> [--json]
   wiki start-slice <project> <slice-id> [--agent <name>] [--repo <path>] [--json]
   wiki verify-slice <project> <slice-id> [--repo <path>] [--json]
-  wiki close-slice <project> <slice-id> [--repo <path>] [--base <rev>] [--worktree] [--json]
+  wiki close-slice <project> <slice-id> [--repo <path>] [--base <rev>] [--worktree] [--force] [--json]
   wiki pipeline <project> <slice-id> --phase <close|verify> [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
   wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]
   wiki resume <project> [--repo <path>] [--base <rev>] [--json]
   wiki doctor <project> [--repo <path>] [--base <rev>] [--json]
   wiki gate <project> [--repo <path>] [--base <rev>] [--worktree] [--structural-refactor] [--json]
-  wiki maintain <project> [--repo <path>] [--base <rev>] [--worktree] [--repair-done-slices] [--json]
+  wiki maintain <project> [--repo <path>] [--base <rev>] [--worktree] [--json]
   wiki refresh <project> [--repo <path>] [--json]
   wiki refresh-from-git <project> [--repo <path>] [--base <rev>] [--json]
   wiki discover <project> [--repo <path>] [--tree] [--json]
@@ -122,13 +123,13 @@ Notes:
   - next recommends the highest-priority active or ready slice, skipping slices blocked by depends_on
   - start-slice is the lifecycle entry point: it checks dependencies, registers the claim, moves the backlog item to In Progress, stamps started_at, and prints a compact plan summary
   - verify-slice runs shell command blocks from a slice test-plan and promotes the test-plan to test-verified on success
-  - close-slice runs the project gate, marks slice docs done, records completed_at, and moves the slice to Done when the gate passes; use --worktree to close against dirty agent changes before commit
+  - close-slice runs the project gate, marks slice docs done, records completed_at, moves the slice to Done, and refreshes navigation indexes; use --worktree to close against dirty agent changes before commit; use --force to skip gate/closeout blockers when they originate from unrelated cross-slice work (slice-level prerequisites are still enforced)
   - pipeline automates mechanical workflow steps so agents only fill content; --phase close runs checkpoint, lint-repo, maintain, update-index; --phase verify runs verify-slice, closeout, gate, close-slice; steps are tracked in sqlite and skipped on re-run; --dry-run shows what would execute
   - export-prompt prints a self-contained execution prompt for codex, claude, or pi without writing into the project repo
   - resume prints a quick session pickup view: recent commits, dirty files, stale pages, active slice, and next actions
   - doctor emits a comprehensive health report and score for a project
   - gate is a pass/fail completion check for missing tests, lint, uncovered changed files, and backlog/slice consistency warnings; --worktree evaluates the live dirty worktree instead of committed diff ranges, and --structural-refactor relaxes direct changed-test matching only when typecheck/build/test parity still holds
-  - maintain composes refresh-from-git, discover, lint, and semantic lint into a task queue; --worktree switches the refresh surface to the live worktree, and --repair-done-slices normalizes legacy Done slices into the current metadata shape
+  - maintain composes refresh-from-git, discover, lint, and semantic lint into a task queue; --worktree switches the refresh surface to the live worktree; automatically repairs done-slice metadata drift
   - refresh-from-git maps recent code changes to impacted wiki pages and uncovered files
   - ingest-diff applies a first-pass sync: appends change digests to impacted pages and scaffolds missing module pages for uncovered changed files
   - discover surfaces uncovered repo files, unbound pages, and placeholder-heavy pages
@@ -171,21 +172,6 @@ Notes:
 
 export function projectRoot(project: string) {
   return join(VAULT_ROOT, "projects", project);
-}
-
-export function resolveWikiPagePath(projectRootPath: string, pageArg: string): string {
-  const directPath = join(projectRootPath, pageArg);
-  if (existsSync(directPath)) return directPath;
-
-  if (!pageArg.endsWith(".md")) {
-    const withMd = join(projectRootPath, `${pageArg}.md`);
-    if (existsSync(withMd)) return withMd;
-  }
-
-  const moduleSpec = join(projectRootPath, "modules", pageArg, "spec.md");
-  if (existsSync(moduleSpec)) return moduleSpec;
-
-  return directPath;
 }
 
 export function safeMatter(pathLabel: string, content: string, options?: { silent?: boolean }) {
@@ -280,6 +266,7 @@ export function writeNormalizedPage(filePath: string, content: string, data: Fro
 }
 
 export function mkdirIfMissing(path: string) {
+  // TODO: migrate to async exists()
   if (!existsSync(path)) {
     mkdirSync(path, { recursive: true });
     return true;
@@ -294,6 +281,7 @@ export function requireValue(value: string | undefined, label: string): asserts 
 }
 
 export function assertExists(path: string, message: string) {
+  // TODO: migrate to async exists()
   if (!existsSync(path)) {
     fail(message);
   }
@@ -319,12 +307,12 @@ export function createdAt(data: FrontmatterData) {
   return nowIso();
 }
 
-export function readProjectTitle(project: string) {
+export async function readProjectTitle(project: string) {
   const summaryPath = join(projectRoot(project), "_summary.md");
-  if (!existsSync(summaryPath)) {
+  if (!await exists(summaryPath)) {
     return project;
   }
-  const parsed = safeMatter(summaryPath, readFileSync(summaryPath, "utf8"), { silent: true });
+  const parsed = safeMatter(summaryPath, await readText(summaryPath), { silent: true });
   const title = parsed?.data.title;
   return typeof title === "string" && title.trim() ? title.trim() : project;
 }
