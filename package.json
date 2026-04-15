@@ -27,9 +27,14 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
+    "@portaljs/remark-wiki-link": "1.2.0",
     "@tobilu/qmd": "^2.1.0",
     "github-slugger": "2.0.0",
     "gray-matter": "4.0.3",
+    "mdast-util-from-markdown": "2.0.3",
+    "mdast-util-gfm-task-list-item": "2.0.0",
+    "mdast-util-to-string": "4.0.0",
+    "micromark-extension-gfm-task-list-item": "2.1.0",
     "remark-parse": "11.0.0",
     "unified": "11.0.5"
   }

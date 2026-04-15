@@ -242,7 +242,8 @@ async function collectTaskContext(project: string, item: BacklogItem, section: s
 async function detectTaskDocState(path: string): Promise<TaskDocState> {
   if (!existsSync(path)) return "missing";
   const raw = await readNormalizedText(path);
-  const body = raw.replace(/^---\n[\s\S]*?\n---\n?/u, "");
+  const parsed = safeMatter(path, raw, { silent: true });
+  const body = parsed?.content ?? raw.replace(/^---\n[\s\S]*?\n---\n?/u, "");
   if (/^\s*(?:-\s*(?:\[ \])?\s*|\d+\.\s*)$/mu.test(body)) return "incomplete";
   return "ready";
 }
