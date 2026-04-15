@@ -84,11 +84,17 @@ export async function qmdStatus() {
   }
 }
 
-export async function qmdUpdate() {
-  const store = await getQmdStore({ dbPath: QMD_INDEX_PATH });
+export async function qmdUpdate(args: string[] = []) {
+  const full = args.includes("--full");
+  const store = await getQmdStore({ dbPath: QMD_INDEX_PATH, forceNew: full });
   await ensureKnowledgeCollectionSdk(store);
+  if (full) {
+    await store.removeCollection(KNOWLEDGE_COLLECTION);
+    await store.addCollection(KNOWLEDGE_COLLECTION, { path: VAULT_ROOT, pattern: "**/*.md" });
+    await ensureKnowledgeCollectionSdk(store);
+  }
   const result = await store.update({ collections: [KNOWLEDGE_COLLECTION] });
-  console.log(JSON.stringify(result, null, 2));
+  console.log(`qmd-update: indexed=${result.indexed} updated=${result.updated} unchanged=${result.unchanged} removed=${result.removed} needsEmbedding=${result.needsEmbedding}${full ? " (full rebuild)" : ""}`);
 }
 
 export async function qmdEmbed() {

@@ -9,7 +9,7 @@ import { appendLogEntry } from "../lib/log";
 import { sdkHybridAvailable, searchKnowledgeExpandedSdk, searchKnowledgeLexicalSdk, searchKnowledgeStructuredSdk } from "../lib/qmd-sdk";
 import { questionTokens } from "../lib/research";
 import { createResearchPage } from "./research";
-import type { AnswerBrief, AnswerSource, AskOptions, NoteIndex, QmdResult } from "../types";
+import type { AnswerBrief, AnswerSource, AskOptions, NoteIndex, NoteQualitySignals, QmdResult } from "../types";
 
 export const DEFAULT_ASK_MAX_RESULTS = 4;
 const DEFAULT_ASK_CANDIDATES = 8;
@@ -170,7 +170,7 @@ function toAnswerSource(project: string, question: string, result: QmdResult, no
   const note = findNoteByVaultPath(noteIndex, vaultPath);
   const scope = classifyAnswerScope(project, markdownPath);
   const evidence = buildEvidenceExcerpt(note, result, question);
-  const adjustedScore = scoreAnswerSource(project, question, markdownPath, scope, result.score, evidence.score);
+  const adjustedScore = scoreAnswerSource(project, question, markdownPath, scope, result.score, evidence.score, note?.qualitySignals);
   return { result, adjustedScore, markdownPath, vaultPath, scope, note, evidence };
 }
 
@@ -185,7 +185,29 @@ export function classifyAnswerScope(project: string, markdownPath: string): Answ
   return "other";
 }
 
-export function scoreAnswerSource(project: string, question: string, markdownPath: string, scope: AnswerSource["scope"], score: number, evidenceScore: number) {
+const VERIFICATION_LEVEL_BOOST: Record<string, number> = {
+  "test-verified": 0.4,
+  "runtime-verified": 0.3,
+  "code-verified": 0.2,
+  "inferred": 0,
+  "scaffold": -0.3,
+  "stale": -0.5,
+};
+
+const STATUS_BOOST: Record<string, number> = {
+  "current": 0.1,
+  "draft": 0,
+  "deprecated": -0.4,
+};
+
+const RECENCY_THRESHOLDS = [
+  { days: 7, boost: 0.2 },
+  { days: 30, boost: 0.1 },
+  { days: 90, boost: 0 },
+] as const;
+const RECENCY_STALE_PENALTY = -0.15;
+
+export function scoreAnswerSource(project: string, question: string, markdownPath: string, scope: AnswerSource["scope"], score: number, evidenceScore: number, qualitySignals?: NoteQualitySignals) {
   let adjusted = score;
   if (scope === "project") adjusted += 1.2;
   else if (scope === "wiki") adjusted += 0.2;
@@ -219,8 +241,35 @@ export function scoreAnswerSource(project: string, question: string, markdownPat
   if (normalized.includes("/bench/")) adjusted -= 0.25;
   if (normalized.endsWith("/backlog.md") || normalized.includes("/verification/")) adjusted += 0.1;
 
+  adjusted += qualitySignalBoost(qualitySignals);
+
   const topicBoost = questionTokens(question).reduce((total, token) => total + (normalized.includes(token) ? 0.08 : 0), 0);
   return adjusted + evidenceScore * 0.35 + Math.min(topicBoost, 0.4);
+}
+
+export function qualitySignalBoost(signals?: NoteQualitySignals): number {
+  if (!signals) return 0;
+  let boost = 0;
+  if (signals.verificationLevel) {
+    boost += VERIFICATION_LEVEL_BOOST[signals.verificationLevel] ?? 0;
+  }
+  if (signals.status) {
+    boost += STATUS_BOOST[signals.status] ?? 0;
+  }
+  if (signals.updated) {
+    boost += recencyBoost(signals.updated);
+  }
+  return boost;
+}
+
+function recencyBoost(updatedStr: string): number {
+  const updated = new Date(updatedStr);
+  if (Number.isNaN(updated.getTime())) return 0;
+  const daysSince = (Date.now() - updated.getTime()) / (1000 * 60 * 60 * 24);
+  for (const threshold of RECENCY_THRESHOLDS) {
+    if (daysSince <= threshold.days) return threshold.boost;
+  }
+  return RECENCY_STALE_PENALTY;
 }
 
 export function resolveAskCandidateLimit(maxResults: number) {

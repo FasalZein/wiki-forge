@@ -4,7 +4,7 @@ import GithubSlugger from "github-slugger";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { QUERY_STOP_WORDS, VAULT_ROOT } from "../constants";
-import type { NoteIndex, NoteInfo, QmdResult } from "../types";
+import type { NoteIndex, NoteInfo, NoteQualitySignals, QmdResult } from "../types";
 import { filesFingerprint, readCache, writeCache } from "./cache";
 import { exists, readText } from "./fs";
 import { fromQmdFile, isNonMarkdownAttachment, normalizePath, stripMarkdownExtension, toVaultPath, walkMarkdown } from "./vault";
@@ -103,6 +103,7 @@ async function buildNoteInfo(file: string, includeHeadings: boolean): Promise<No
     aliases: extractAliases(parsed?.data ?? {}),
     headings: includeHeadings ? extractHeadingSlugs(parsed?.content ?? raw) : new Set<string>(),
     content: raw,
+    qualitySignals: extractQualitySignals(parsed?.data ?? {}),
   };
 }
 
@@ -205,6 +206,14 @@ function extractAliases(data: Record<string, unknown>): string[] {
     return rawAliases.filter((value): value is string => typeof value === "string");
   }
   return [];
+}
+
+function extractQualitySignals(data: Record<string, unknown>): NoteQualitySignals {
+  return {
+    verificationLevel: typeof data.verification_level === "string" ? data.verification_level : undefined,
+    updated: typeof data.updated === "string" ? data.updated : undefined,
+    status: typeof data.status === "string" ? data.status : undefined,
+  };
 }
 
 function extractHeadingSlugs(body: string): Set<string> {
