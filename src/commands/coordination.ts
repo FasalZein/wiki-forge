@@ -346,7 +346,7 @@ export async function closeSlice(args: string[]) {
     if (json) console.log(JSON.stringify(failed, null, 2));
     throw new Error(`close-slice prerequisites failed for ${project}`);
   }
-  const gate = await collectGate(project, base, repo, { worktree });
+  const gate = await collectGate(project, base, repo, { worktree, precomputedCloseout: closeout });
   const compactGate = { ...gate, doctor: compactDoctorForJson(gate.doctor) };
   if (!gate.ok) {
     const failed = { project, sliceId, closed: false, gate: compactGate, previousSection: context.section };

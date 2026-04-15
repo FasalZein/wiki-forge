@@ -244,6 +244,7 @@ type DoneSliceRepair = {
 
 type RefreshOptions = {
   worktree?: boolean;
+  precomputedRefreshFromGit?: Awaited<ReturnType<typeof collectRefreshFromGit>> | Awaited<ReturnType<typeof collectRefreshFromWorktree>>;
 };
 
 type WorktreeImpactedPage = {
@@ -443,9 +444,11 @@ export async function collectCloseout(project: string, base: string, explicitRep
 export async function collectMaintenancePlan(project: string, base: string, explicitRepo?: string, snapshot?: ProjectSnapshot, lintingSnapshot?: LintingSnapshot, options: RefreshOptions = {}) {
   const projectSnapshot = snapshot ?? await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
   const lintingState = lintingSnapshot ?? projectSnapshotToLintingSnapshot(projectSnapshot);
-  const refreshFromGit = options.worktree
-    ? await collectRefreshFromWorktree(project, explicitRepo, projectSnapshot)
-    : await collectRefreshFromGit(project, base, explicitRepo, projectSnapshot);
+  const refreshFromGit = options.precomputedRefreshFromGit ?? (
+    options.worktree
+      ? await collectRefreshFromWorktree(project, explicitRepo, projectSnapshot)
+      : await collectRefreshFromGit(project, base, explicitRepo, projectSnapshot)
+  );
   // Run independent checks in parallel — discover, lint, semantic lint, and backlog focus
   // share no mutable state and depend only on the already-loaded snapshots.
   const [discover, lint, semanticLint, focus] = await Promise.all([
@@ -510,8 +513,10 @@ async function repairHistoricalDoneSlices(project: string): Promise<DoneSliceRep
 }
 
 async function collectDashboard(project: string, base: string, explicitRepo?: string) {
-  const projectSnapshot = await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
-  const lintingSnapshot = await loadLintingSnapshot(project, { noteIndex: true });
+  const [projectSnapshot, lintingSnapshot] = await Promise.all([
+    loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true }),
+    loadLintingSnapshot(project, { noteIndex: true }),
+  ]);
   const maintain = await collectMaintenancePlan(project, base, explicitRepo, projectSnapshot, lintingSnapshot);
   return { project, repo: maintain.repo, base, status: await collectStatusRow(project, lintingSnapshot), verify: await collectVerifySummary(project, lintingSnapshot), drift: await collectDriftSummary(project, explicitRepo, lintingSnapshot), discover: maintain.discover, maintain, recentLog: tailLog(20) };
 }

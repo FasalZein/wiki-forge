@@ -173,21 +173,6 @@ export function projectRoot(project: string) {
   return join(VAULT_ROOT, "projects", project);
 }
 
-export function resolveWikiPagePath(projectRootPath: string, pageArg: string): string {
-  const directPath = join(projectRootPath, pageArg);
-  if (existsSync(directPath)) return directPath;
-
-  if (!pageArg.endsWith(".md")) {
-    const withMd = join(projectRootPath, `${pageArg}.md`);
-    if (existsSync(withMd)) return withMd;
-  }
-
-  const moduleSpec = join(projectRootPath, "modules", pageArg, "spec.md");
-  if (existsSync(moduleSpec)) return moduleSpec;
-
-  return directPath;
-}
-
 export function safeMatter(pathLabel: string, content: string, options?: { silent?: boolean }) {
   try {
     return matter(content) as { content: string; data: FrontmatterData };

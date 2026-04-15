@@ -40,10 +40,6 @@ export function describeAllowedResearchPaths() {
   return "research/<topic>/_overview.md; research/<topic>/<slug>.md";
 }
 
-export function resolveProjectResearchTopic(project: string) {
-  return `projects/${normalizeTopicPath(project)}`;
-}
-
 export function researchRoot() {
   return join(VAULT_ROOT, "research");
 }

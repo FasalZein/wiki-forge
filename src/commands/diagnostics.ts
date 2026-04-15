@@ -6,7 +6,9 @@ import { assertGitRepo, resolveRepoPath } from "../lib/verification";
 import { isTestFile } from "./maintenance";
 import { readSliceCompletedAt, readSliceStatus } from "../lib/slices";
 import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "./linting";
-import { collectCloseout, collectMaintenancePlan, loadProjectSnapshot, resolveDefaultBase } from "./maintenance";
+import type { LintingSnapshot } from "./linting";
+import { collectCloseout, collectMaintenancePlan, collectRefreshFromGit, collectRefreshFromWorktree, loadProjectSnapshot, resolveDefaultBase } from "./maintenance";
+import type { ProjectSnapshot } from "./maintenance";
 import { collectDriftSummary } from "./verification";
 
 export async function doctorProject(args: string[]) {
@@ -74,9 +76,11 @@ export async function gateProject(args: string[]) {
   if (!result.ok) throw new Error(`gate failed for ${project}`);
 }
 
-export async function collectDoctor(project: string, base: string, explicitRepo?: string, options: { worktree?: boolean } = {}) {
-  const lintingSnapshot = await loadLintingSnapshot(project, { noteIndex: true });
-  const projectSnapshot = await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
+export async function collectDoctor(project: string, base: string, explicitRepo?: string, options: { worktree?: boolean; projectSnapshot?: ProjectSnapshot; lintingSnapshot?: LintingSnapshot; precomputedRefreshFromGit?: Awaited<ReturnType<typeof collectRefreshFromGit>> | Awaited<ReturnType<typeof collectRefreshFromWorktree>> } = {}) {
+  const [lintingSnapshot, projectSnapshot] = await Promise.all([
+    options.lintingSnapshot ?? loadLintingSnapshot(project, { noteIndex: true }),
+    options.projectSnapshot ?? loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true }),
+  ]);
   // Run independent diagnostics in parallel — all depend only on the snapshots above.
   const [status, verify, drift, lint, semantic, backlog] = await Promise.all([
     collectStatusRow(project, lintingSnapshot),
@@ -86,7 +90,7 @@ export async function collectDoctor(project: string, base: string, explicitRepo?
     collectSemanticLintResult(project, lintingSnapshot),
     collectBacklog(project),
   ]);
-  const maintain = await collectMaintenancePlan(project, base, explicitRepo, projectSnapshot, lintingSnapshot, { worktree: options.worktree });
+  const maintain = await collectMaintenancePlan(project, base, explicitRepo, projectSnapshot, lintingSnapshot, { worktree: options.worktree, precomputedRefreshFromGit: options.precomputedRefreshFromGit });
   const focus = maintain.focus;
   const backlogConsistencyWarnings = await collectBacklogConsistencyWarnings(project, backlog.sections);
 
@@ -138,8 +142,8 @@ export async function collectDoctor(project: string, base: string, explicitRepo?
   };
 }
 
-export async function collectGate(project: string, base: string, explicitRepo?: string, options: { structuralRefactor?: boolean; worktree?: boolean } = {}) {
-  const doctor = await collectDoctor(project, base, explicitRepo, { worktree: options.worktree });
+export async function collectGate(project: string, base: string, explicitRepo?: string, options: { structuralRefactor?: boolean; worktree?: boolean; precomputedCloseout?: Awaited<ReturnType<typeof collectCloseout>> } = {}) {
+  const doctor = await collectDoctor(project, base, explicitRepo, { worktree: options.worktree, precomputedRefreshFromGit: options.precomputedCloseout?.refreshFromGit });
   const repo = resolveRepoPath(project, explicitRepo);
   assertGitRepo(repo);
   // The gate blocks on the one non-negotiable: code must have tests.
@@ -158,7 +162,7 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
       blockers.push(`${doctor.counts.missingTests} changed code file(s) have no matching changed tests`);
     }
   }
-  const closeout = options.worktree ? await collectCloseout(project, base, explicitRepo, undefined, undefined, { worktree: true }) : null;
+  const closeout = options.precomputedCloseout ?? (options.worktree ? await collectCloseout(project, base, explicitRepo, undefined, undefined, { worktree: true }) : null);
   if (closeout?.staleImpactedPages.length) blockers.push(`${closeout.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted`);
   const warnings: string[] = [];
   if (doctor.counts.lint > 0) warnings.push(`${doctor.counts.lint} structural lint issue(s)`);
