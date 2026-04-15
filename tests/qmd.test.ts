@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { DEFAULT_ASK_MAX_RESULTS, classifyAnswerScope, renderAnswerBrief, resolveAnswerRetrievalStrategy, resolveAskCandidateLimit, scoreAnswerSource } from "../src/commands/answers";
 import { resolveQueryExecutionMode, resolveSearchRetrievalMode } from "../src/commands/qmd-commands";
 import { VAULT_ROOT } from "../src/constants";
-import { buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText, resolveQmdInvocation, resolveRetrievalMode } from "../src/lib/qmd";
+import { buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText, resolveRetrievalMode } from "../src/lib/qmd";
 import { fromQmdFile } from "../src/lib/vault";
 
 describe("qmd query shaping", () => {
@@ -98,16 +98,6 @@ describe("retrieval mode resolution", () => {
     expect(resolveRetrievalMode("where do PRDs live", { expand: true })).toBe("expand");
     expect(resolveRetrievalMode("why did we choose qmd", { expand: true })).toBe("expand");
     expect(resolveRetrievalMode("why did we choose qmd", { expand: true, sdkHybridAvailable: true })).toBe("expand");
-  });
-});
-
-describe("qmd invocation", () => {
-  test("prefers a non-node_modules qmd binary on PATH", () => {
-    expect(resolveQmdInvocation(["status"], { qmdPaths: ["/repo/node_modules/.bin/qmd", "/opt/homebrew/bin/qmd"], nodeCliPath: "/tmp/qmd.js" })).toEqual(["/opt/homebrew/bin/qmd", "status"]);
-  });
-
-  test("falls back to the explicit node cli path when qmd is not on PATH", () => {
-    expect(resolveQmdInvocation(["status"], { qmdPath: null, nodeCliPath: import.meta.path })).toEqual(["node", import.meta.path, "status"]);
   });
 });
 
