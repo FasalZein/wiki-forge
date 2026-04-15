@@ -128,6 +128,84 @@ describe("wiki automation commands", () => {
     expect(Array.isArray(json.nextSteps)).toBe(true);
   });
 
+  test("maintain closeout and gate can inspect dirty worktree edits", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "gated"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "gated");
+    expect(runWiki(["create-module", "gated", "payments", "--source", "src/payments.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["verify-page", "gated", "modules/payments/spec", "code-verified"], env).exitCode).toBe(0);
+
+    writeFileSync(join(repo, "src", "payments.ts"), "export const total = 3\n", "utf8");
+    writeFileSync(join(repo, "tests", "payments.test.ts"), "import { expect, test } from 'bun:test'\nimport { total } from '../src/payments'\ntest('total', () => expect(total).toBe(3))\n", "utf8");
+
+    const maintain = runWiki(["maintain", "gated", "--repo", repo, "--worktree", "--json"], env);
+    expect(maintain.exitCode).toBe(0);
+    const maintainJson = JSON.parse(maintain.stdout.toString());
+    expect(maintainJson.refreshFromGit.changedFiles).toContain("src/payments.ts");
+    expect(maintainJson.refreshFromGit.changedFiles).toContain("tests/payments.test.ts");
+    expect(maintainJson.refreshFromGit.impactedPages[0].page).toBe("modules/payments/spec.md");
+
+    const closeout = runWiki(["closeout", "gated", "--repo", repo, "--worktree", "--json"], env);
+    expect(closeout.exitCode).toBe(1);
+    const closeoutJson = JSON.parse(closeout.stdout.toString());
+    expect(closeoutJson.ok).toBe(false);
+    expect(closeoutJson.staleImpactedPages[0].wikiPage).toBe("modules/payments/spec.md");
+
+    const gate = runWiki(["gate", "gated", "--repo", repo, "--worktree", "--json"], env);
+    expect(gate.exitCode).toBe(1);
+    const gateJson = JSON.parse(gate.stdout.toString());
+    expect(gateJson.ok).toBe(false);
+    expect(gateJson.blockers.some((blocker: string) => blocker.includes("impacted page"))).toBe(true);
+  });
+
+  test("maintain can repair legacy done slices idempotently", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "gated"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "gated");
+    expect(runWiki(["create-issue-slice", "gated", "legacy payments slice"], env).exitCode).toBe(0);
+    expect(runWiki(["complete-task", "gated", "GATED-001"], env).exitCode).toBe(0);
+
+    for (const file of ["index.md", "plan.md", "test-plan.md"]) {
+      const path = join(vault, "projects", "gated", "specs", "slices", "GATED-001", file);
+      const current = readFileSync(path, "utf8").replace(/^updated:.*$/m, "updated: '2026-01-01T00:00:00.000Z'");
+      writeFileSync(path, current, "utf8");
+    }
+
+    const gateBefore = runWiki(["gate", "gated", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(gateBefore.exitCode).toBe(0);
+    const gateBeforeJson = JSON.parse(gateBefore.stdout.toString());
+    expect(gateBeforeJson.warnings.some((warning: string) => warning.includes("legacy done-slice metadata drift"))).toBe(true);
+
+    const repair = runWiki(["maintain", "gated", "--repo", repo, "--base", "HEAD~1", "--repair-done-slices", "--json"], env);
+    expect(repair.exitCode).toBe(0);
+    const repairJson = JSON.parse(repair.stdout.toString());
+    expect(repairJson.repair.repaired[0].taskId).toBe("GATED-001");
+    expect(repairJson.repair.archiveCandidates.some((candidate: { taskId: string }) => candidate.taskId === "GATED-001")).toBe(true);
+
+    const index = readFileSync(join(vault, "projects", "gated", "specs", "slices", "GATED-001", "index.md"), "utf8");
+    const plan = readFileSync(join(vault, "projects", "gated", "specs", "slices", "GATED-001", "plan.md"), "utf8");
+    const testPlan = readFileSync(join(vault, "projects", "gated", "specs", "slices", "GATED-001", "test-plan.md"), "utf8");
+    expect(index).toContain("status: done");
+    expect(index).toContain("completed_at:");
+    expect(plan).toContain("status: done");
+    expect(testPlan).toContain("verification_level: test-verified");
+
+    const repairAgain = runWiki(["maintain", "gated", "--repo", repo, "--base", "HEAD~1", "--repair-done-slices", "--json"], env);
+    expect(repairAgain.exitCode).toBe(0);
+    const repairAgainJson = JSON.parse(repairAgain.stdout.toString());
+    expect(repairAgainJson.repair.repaired).toEqual([]);
+    expect(repairAgainJson.repair.alreadyCurrent).toBeGreaterThan(0);
+
+    const gateAfter = runWiki(["gate", "gated", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(gateAfter.exitCode).toBe(0);
+    const gateAfterJson = JSON.parse(gateAfter.stdout.toString());
+    expect(gateAfterJson.warnings.some((warning: string) => warning.includes("legacy done-slice metadata drift"))).toBe(false);
+  });
+
   test("refresh-on-merge is CI-friendly and supports verbose output", () => {
     const { vault, repo } = setupPassingRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };

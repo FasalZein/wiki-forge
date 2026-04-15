@@ -21,8 +21,9 @@ import {
   normalizeTableSpacing,
 } from "../module-format";
 import { syncProtocolForProject } from "./protocol";
+import { writeProjectIndex } from "./index-log";
 
-export function scaffoldProject(project: string | undefined) {
+export async function scaffoldProject(project: string | undefined) {
   requireValue(project, "project");
   const root = projectRoot(project);
   let created = 0;
@@ -37,11 +38,12 @@ export function scaffoldProject(project: string | undefined) {
     }
   }
   if (created > 0) console.log(`scaffolded ${project}`);
+  await writeProjectIndex(project);
 }
 
 export async function onboardProject(args: string[]) {
   const options = parseOnboardPlanOptions(args);
-  scaffoldProject(options.project);
+  await scaffoldProject(options.project);
   if (options.repo) {
     const outputPath = projectOnboardingPlanPath(options.project);
     mkdirIfMissing(projectSpecsDir(options.project));

@@ -16,6 +16,7 @@
   },
   "scripts": {
     "wiki": "bun src/index.ts",
+    "sync:local": "bun scripts/sync-local.ts",
     "check": "tsc --noEmit",
     "test": "bun test",
     "bench:qmd": "bun scripts/qmd-bench.ts",

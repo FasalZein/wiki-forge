@@ -2,8 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { DEFAULT_CANDIDATE_LIMITS, parseCandidateLimitsArg } from "../scripts/qmd-bench";
 import { DEFAULT_BENCH_COMMANDS, parseCommandList } from "../scripts/wiki-maintenance-bench";
 import { resolveQmdIndexPath } from "../src/constants";
+import { join } from "node:path";
 import { DEFAULT_ASK_MAX_RESULTS, classifyAnswerScope, renderAnswerBrief, resolveAskCandidateLimit, scoreAnswerSource } from "../src/commands/answers";
+import { resolveSearchRetrievalMode } from "../src/commands/qmd-commands";
+import { VAULT_ROOT } from "../src/constants";
 import { buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText, resolveQmdInvocation, resolveRetrievalMode } from "../src/lib/qmd";
+import { fromQmdFile } from "../src/lib/vault";
 
 describe("qmd query shaping", () => {
   test("normalizes hyphenated project names for semantic queries", () => {
@@ -107,6 +111,17 @@ describe("qmd invocation", () => {
   });
 });
 
+describe("search retrieval mode", () => {
+  test("uses SDK BM25 for plain search queries", () => {
+    expect(resolveSearchRetrievalMode({ hybrid: false, sdkHybridAvailable: false })).toBe("sdk-bm25");
+  });
+
+  test("uses SDK hybrid only when explicitly requested and available", () => {
+    expect(resolveSearchRetrievalMode({ hybrid: true, sdkHybridAvailable: true })).toBe("sdk-hybrid");
+    expect(resolveSearchRetrievalMode({ hybrid: true, sdkHybridAvailable: false })).toBe("structured-hybrid");
+  });
+});
+
 describe("qmd index selection", () => {
   test("uses the default sqlite path for the default index", () => {
     expect(resolveQmdIndexPath("index")).toEndWith("/.cache/qmd/index.sqlite");
@@ -176,6 +191,13 @@ describe("ask defaults", () => {
 });
 
 describe("answer reranking", () => {
+  test("normalizes absolute SDK result paths back into project markdown paths", () => {
+    const absolute = join(VAULT_ROOT, "projects", "wiki-forge", "specs", "index.md");
+    const normalized = fromQmdFile(absolute);
+    expect(normalized).toBe("projects/wiki-forge/specs/index.md");
+    expect(classifyAnswerScope("wiki-forge", normalized)).toBe("project");
+  });
+
   test("classifies project docs before wiki and meta docs", () => {
     expect(classifyAnswerScope("wiki-forge", "projects/wiki-forge/specs/index.md")).toBe("project");
     expect(classifyAnswerScope("wiki-forge", "wiki/concepts/project-wiki-system.md")).toBe("wiki");

@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { relative } from "node:path";
+import { relative, resolve } from "node:path";
 import { VAULT_ROOT } from "../constants";
 
 export function walkMarkdown(root: string): string[] {
@@ -22,7 +22,15 @@ export function toVaultPath(file: string) {
 }
 
 export function fromQmdFile(value: string) {
-  return normalizePath(value.replace(/^qmd:\/\/[^/]+\//u, ""));
+  if (/^qmd:\/\/[^/]+\//u.test(value)) {
+    return normalizePath(value.replace(/^qmd:\/\/[^/]+\//u, ""));
+  }
+  const resolvedValue = resolve(value);
+  const resolvedVault = resolve(VAULT_ROOT);
+  if (resolvedValue === resolvedVault || resolvedValue.startsWith(`${resolvedVault}/`)) {
+    return normalizePath(relative(resolvedVault, resolvedValue));
+  }
+  return normalizePath(value);
 }
 
 export function isNonMarkdownAttachment(target: string) {

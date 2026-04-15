@@ -4,6 +4,7 @@ import { QMD_INDEX_PATH } from "../constants";
 import { normalizeSemanticQueryText } from "./qmd";
 import type { QmdResult } from "../types";
 import { fileFingerprint, readCache, writeCache } from "./cache";
+import { fromQmdFile } from "./vault";
 
 const HOMEBREW_SQLITE = "/opt/homebrew/opt/sqlite/lib/libsqlite3.dylib";
 const QMD_SDK_CACHE_VERSION = "2";
@@ -102,7 +103,7 @@ function lexResultToQmdResult(query: string, result: SearchResult): QmdResult {
   return {
     docid: `#${result.docid}`,
     score: result.score,
-    file: result.filepath,
+    file: fromQmdFile(result.filepath),
     title: result.title,
     context: result.context ?? undefined,
     snippet,
@@ -115,7 +116,7 @@ function hybridResultToQmdResult(query: string, result: HybridQueryResult): QmdR
   return {
     docid: `#${result.docid}`,
     score: result.score,
-    file: result.file,
+    file: fromQmdFile(result.file),
     title: result.title,
     context: result.context ?? undefined,
     snippet,

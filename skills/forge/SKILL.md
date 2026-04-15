@@ -27,20 +27,19 @@ The real decision is **which workflow fits the task**.
 - `/forge` = full software-delivery workflow for non-trivial implementation
 
 If a harness uses different syntax for skills, keep the same boundary and sequence.
+If a harness has no slash-skill syntax, run the equivalent `wiki` CLI lifecycle directly.
 
-## Companion Skills
+## Required Skills
 
-Install these before relying on `/forge`:
+Forge assumes these companion skills are already available:
+- `/research`
+- `/grill-me`
+- `/write-a-prd`
+- `/prd-to-slices`
+- `/tdd`
+- `/wiki`
 
-```bash
-npx skills@latest add mattpocock/skills/grill-me -g
-npx skills@latest add mattpocock/skills/write-a-prd -g
-npx skills@latest add mattpocock/skills/tdd -g
-npx skills@latest add ./skills/prd-to-slices -g
-npx skills@latest add ./skills/wiki -g
-```
-
-`/research` is also required. If it is not already available, stop instead of silently skipping the first forge step.
+If any required skill is unavailable, stop and tell the user which one is missing. Do not silently skip steps.
 
 Load these in order before writing production code:
 
@@ -54,6 +53,7 @@ Load these in order before writing production code:
 | 6 | `/wiki` | File artifacts, verify pages, run gate |
 
 If a skill is unavailable, stop and tell the user. Do not silently skip steps.
+This skill defines required workflow policy. The CLI does not yet hard-enforce every step, so agents must still run the full lifecycle explicitly.
 
 **Note:** `/prd-to-issues` (GitHub variant) exists for projects needing external issue tracking. For solo or agent-driven work, `/prd-to-slices` is faster and token-free.
 
@@ -136,7 +136,7 @@ Do not silently downgrade a slice continuation into `/wiki` maintenance mode jus
 ## Hard Gates
 
 1. **No code without tests.** Every code change needs changed tests, or a documented exception in the wiki.
-2. **Run `wiki gate` before declaring done.** It blocks on missing tests.
+2. **Run `wiki gate` before declaring done.** Today it hard-blocks missing tests; agents must still clear stale-page and workflow warnings before closing a slice.
 3. **PRD + slicing before non-trivial implementation.**
 4. **Research before PRD.** Run `/research` first, then file the result with `wiki research file` so decisions are traceable.
 5. **Grill before PRD.** Stress-test assumptions — don't commit to a spec you haven't defended.
@@ -175,10 +175,13 @@ A slice is complete only when all of these are true:
 7. /wiki — after each slice:
    a. `wiki checkpoint <project> --repo <path>`
    b. `wiki lint-repo <project> --repo <path>`
-   c. Update impacted wiki pages from code
-   d. `wiki verify-page <project> <page> code-verified`
-   e. `wiki closeout <project> --repo <path> --base <rev>`
-   f. `wiki close-slice <project> <slice-id> --repo <path> --base <rev>`
+   c. `wiki maintain <project> --repo <path> --base <rev>`
+   d. Update impacted wiki pages from code
+   e. `wiki verify-page <project> <page> code-verified`
+   f. `wiki verify-slice <project> <slice-id> --repo <path>`
+   g. `wiki closeout <project> --repo <path> --base <rev>` to review the composed status
+   h. `wiki gate <project> --repo <path> --base <rev>`
+   i. `wiki close-slice <project> <slice-id> --repo <path> --base <rev>`
 ```
 
 ## Workflow: Continue an Existing PRD / Slice Thread
@@ -190,7 +193,7 @@ A slice is complete only when all of these are true:
 4. Select or create the next slice under the existing PRD
 5. Run `wiki start-slice <project> <slice-id> --agent <name> --repo <path>` and fill plan.md + test-plan.md
 6. /tdd for the slice
-7. /wiki closeout sequence (`checkpoint` -> `lint-repo` -> page updates -> `verify-page` -> `closeout` -> `close-slice`)
+7. /wiki closeout sequence (`checkpoint` -> `lint-repo` -> `maintain` -> page updates -> `verify-page` -> `verify-slice` -> `closeout` -> `gate` -> `close-slice`)
 ```
 
 ## Workflow: Small Task / Bug Fix (< 50 lines)
@@ -199,9 +202,11 @@ A slice is complete only when all of these are true:
 1. /tdd — write a failing test that reproduces the bug
 2. Fix the code, make the test pass
 3. /wiki — closeout:
-   a. Update impacted wiki pages from code
-   b. wiki verify-page <project> <page> code-verified
-   c. wiki closeout <project> --repo <path> --base <rev>
+   a. wiki maintain <project> --repo <path> --base <rev>
+   b. Update impacted wiki pages from code
+   c. wiki verify-page <project> <page> code-verified
+   d. wiki closeout <project> --repo <path> --base <rev>
+   e. wiki gate <project> --repo <path> --base <rev>
 ```
 
 ## Source of Truth

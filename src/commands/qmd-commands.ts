@@ -1,4 +1,4 @@
-import { assertQmdAvailable, buildLexicalSearchQuery, queryKnowledge, resolveRetrievalMode, searchKnowledge } from "../lib/qmd";
+import { assertQmdAvailable, buildLexicalSearchQuery, queryKnowledge, resolveRetrievalMode } from "../lib/qmd";
 import { getQmdStore, sdkHybridAvailable, searchKnowledgeHybridSdk, searchKnowledgeLexicalSdk } from "../lib/qmd-sdk";
 import { QMD_INDEX_PATH, VAULT_ROOT } from "../constants";
 
@@ -11,7 +11,6 @@ const KNOWLEDGE_CONTEXTS = [
 ] as const;
 
 export async function searchVault(args: string[]) {
-  assertQmdAvailable();
   const hybrid = args[0] === "--hybrid";
   if (hybrid) console.warn("warning: 'wiki search --hybrid' overlaps with 'wiki query'. Prefer 'wiki query' for hybrid retrieval.");
   const query = (hybrid ? args.slice(1) : args).join(" ").trim();
@@ -19,7 +18,20 @@ export async function searchVault(args: string[]) {
     throw new Error("missing query");
   }
 
-  await searchKnowledge(query, { hybrid });
+  const mode = resolveSearchRetrievalMode({ hybrid, sdkHybridAvailable: sdkHybridAvailable() });
+  if (mode === "sdk-bm25") {
+    const results = await searchKnowledgeLexicalSdk(query);
+    console.log(renderQueryResults(results));
+    return;
+  }
+  if (mode === "sdk-hybrid") {
+    const results = await searchKnowledgeHybridSdk(query);
+    console.log(renderQueryResults(results));
+    return;
+  }
+  assertQmdAvailable();
+  const results = await queryKnowledge(query, { expand: false, json: true });
+  console.log(renderQueryResults(results));
 }
 
 export async function queryVault(args: string[]) {
@@ -105,6 +117,11 @@ export async function qmdSetup() {
   await ensureKnowledgeCollectionSdk(store);
   await store.update({ collections: [KNOWLEDGE_COLLECTION] });
   await store.embed({ chunkStrategy: "auto" });
+}
+
+export function resolveSearchRetrievalMode(options: { hybrid?: boolean; sdkHybridAvailable?: boolean }) {
+  if (!options.hybrid) return "sdk-bm25" as const;
+  return options.sdkHybridAvailable ? "sdk-hybrid" as const : "structured-hybrid" as const;
 }
 
 async function ensureKnowledgeCollectionSdk(store: Awaited<ReturnType<typeof getQmdStore>>) {

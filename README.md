@@ -24,18 +24,28 @@ cd wiki-forge
 ./install.sh
 ```
 
-The installer handles bun, dependencies, global CLI linking, global qmd, shell config, and the vault directory (`~/Knowledge`). See [SETUP.md](SETUP.md) for manual setup, Obsidian config, and troubleshooting.
+The installer handles bun, dependencies, local sync of the CLI/qmd/skills, shell config, and the vault directory (`~/Knowledge`). See [SETUP.md](SETUP.md) for manual setup, Obsidian config, and troubleshooting.
 
 <details>
 <summary><strong>Manual prerequisites</strong> (if not using the installer)</summary>
 
 ```bash
-npm install -g @tobilu/qmd@latest
-npm rebuild -g @tobilu/qmd
+bun run sync:local
 brew install sqlite   # macOS — required for Bun SDK hybrid retrieval
 ```
 
 </details>
+
+---
+
+## Local Sync
+
+```bash
+bun run sync:local                      # relink CLI, refresh qmd, reinstall repo skills
+bun run sync:local -- --with-companions # also refresh grill-me / write-a-prd / tdd
+```
+
+Use this after pulling repo changes or editing `skills/*/SKILL.md`. Restart the agent session after syncing so it reloads the updated installed skills.
 
 ---
 

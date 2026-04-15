@@ -58,7 +58,8 @@ Ask:
 - Should any slices be merged or split?
 - Are AFK/HITL assignments correct?
 
-Iterate until the user approves.
+Iterate until the user approves when a human is available.
+If human approval is unavailable, proceed with AFK slices only, keep HITL slices blocked, and record the unresolved decision explicitly in the generated slice docs.
 
 ### 5. Create wiki slices
 
@@ -78,7 +79,7 @@ Create slices in dependency order (blockers first) so you can reference task IDs
 
 ### 6. Fill in the plans
 
-After scaffolding, immediately move the selected slice to `In Progress`, then fill in each plan before starting code. Do not start implementation against an empty slice scaffold.
+After scaffolding, immediately run `wiki start-slice <project> <slice-id> --agent <name> --repo <path>` for the selected slice, then fill in each plan before starting code. Do not start implementation against an empty slice scaffold.
 
 **Implementation plan** (`specs/slices/<ID>/plan.md`):
 - Scope: what this slice covers end-to-end
@@ -129,19 +130,24 @@ wiki lint-semantic <project>
 
 At this point the slice docs are planned, not implemented. Do **not** mark them `code-verified` from memory before `/tdd` produces code and tests.
 
-After implementation, use `/wiki` closeout to:
-- run `wiki refresh-from-git <project> --base <rev>`
-- run `wiki drift-check <project> --show-unbound`
+After implementation, use the canonical `/wiki` closeout lifecycle instead of an ad hoc subset:
+- run `wiki checkpoint <project> --repo <path>`
+- run `wiki lint-repo <project> --repo <path>`
+- run `wiki maintain <project> --repo <path> --base <rev>`
 - update impacted pages from code/tests
+- run `wiki update-index <project> --write` if navigation or planning links changed
 - run `wiki verify-page ...`
-- run `wiki gate ...`
+- run `wiki verify-slice <project> <slice-id> --repo <path>`
+- run `wiki closeout <project> --repo <path> --base <rev>`
+- run `wiki gate <project> --repo <path> --base <rev>`
+- run `wiki close-slice <project> <slice-id> --repo <path> --base <rev>`
 
 Status discipline:
 - create slice
-- move it to `In Progress`
+- start it with `wiki start-slice`
 - implement with `/tdd`
-- verify + gate after code/tests exist
-- move it to `Done`
+- run the full `/wiki` closeout lifecycle after code/tests exist
+- close it with `wiki close-slice`
 
 ## When to use GitHub Issues instead
 

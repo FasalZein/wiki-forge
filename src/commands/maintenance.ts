@@ -1,16 +1,17 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { CODE_FILE_PATTERN, VAULT_ROOT } from "../constants";
-import { assertExists, mkdirIfMissing, projectRoot, requireValue } from "../cli-shared";
+import { assertExists, mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, writeNormalizedPage } from "../cli-shared";
 import { appendLogEntry, tailLog } from "../lib/log";
 import { fileFingerprint, readCache, writeCache } from "../lib/cache";
 import { readText, writeText } from "../lib/fs";
 import { gitDiffSummary, readVerificationLevel, resolveRepoPath, assertGitRepo } from "../lib/verification";
 import { walkMarkdown } from "../lib/vault";
 import { safeMatter } from "../cli-shared";
+import { sliceDocPaths } from "../lib/slices";
 import { createModuleInternal } from "./project-setup";
 import { slugify } from "./planning";
-import { collectBacklogFocus } from "./backlog";
+import { collectBacklog, collectBacklogFocus } from "./backlog";
 import { collectDriftSummary } from "./verification";
 import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "./linting";
 import type { LintingSnapshot } from "./linting";
@@ -23,15 +24,25 @@ export async function dashboardProject(args: string[]) {
 export async function maintainProject(args: string[]) {
   const options = parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
-  const result = await collectMaintenancePlan(options.project, options.base, options.repo);
-  appendLogEntry("maintain", options.project, { project: options.project, details: [`base=${options.base}`, `actions=${result.actions.length}`] });
+  const worktree = args.includes("--worktree");
+  const repairDoneSlices = args.includes("--repair-done-slices");
+  const repair = repairDoneSlices ? await repairHistoricalDoneSlices(options.project) : null;
+  const result = await collectMaintenancePlan(options.project, options.base, options.repo, undefined, undefined, { worktree });
+  appendLogEntry("maintain", options.project, {
+    project: options.project,
+    details: [worktree ? "mode=worktree" : `base=${options.base}`, `actions=${result.actions.length}`, ...(repair ? [`repaired=${repair.repaired.length}`] : [])],
+  });
   const missingTests = result.refreshFromGit.testHealth.codeFilesWithoutChangedTests.length;
   const gateOk = missingTests === 0;
-  if (json) console.log(JSON.stringify({ ...result, gate: { ok: gateOk, missingTests } }, null, 2));
+  if (json) console.log(JSON.stringify({ ...result, ...(repair ? { repair } : {}), gate: { ok: gateOk, missingTests } }, null, 2));
   else {
     if (result.focus.activeTask) console.log(`active task: ${result.focus.activeTask.id} ${result.focus.activeTask.title} (plan=${result.focus.activeTask.planStatus} test-plan=${result.focus.activeTask.testPlanStatus})`);
     else if (result.focus.recommendedTask) console.log(`next backlog task: ${result.focus.recommendedTask.id} ${result.focus.recommendedTask.title}`);
     for (const warning of result.focus.warnings) console.log(`- backlog warning: ${warning}`);
+    if (repair) {
+      console.log(`legacy done-slice repair: repaired=${repair.repaired.length} already_current=${repair.alreadyCurrent} missing_docs=${repair.missingDocs.length}`);
+      if (repair.archiveCandidates.length) console.log(`- archive candidates: ${repair.archiveCandidates.map((candidate) => `${candidate.taskId} (${candidate.ageDays}d)`).join(", ")}`);
+    }
     console.log(`maintain plan for ${options.project}:`);
     console.log(`- repo: ${result.repo}`);
     console.log(`- base: ${result.base}`);
@@ -48,12 +59,16 @@ export async function maintainProject(args: string[]) {
     for (const action of result.actions) console.log(`  - [${action.kind}] ${action.message}`);
     console.log(`- closeout:`);
     console.log(`  1. run tests`);
-    console.log(`  2. wiki refresh-from-git ${options.project} --base ${options.base}`);
+    console.log(worktree
+      ? `  2. inspect live worktree changes with wiki maintain ${options.project} --repo ${result.repo} --worktree`
+      : `  2. wiki refresh-from-git ${options.project} --base ${options.base}`);
     console.log(`  3. wiki drift-check ${options.project} --show-unbound`);
     console.log(`  4. update impacted wiki pages`);
     console.log(`  5. wiki verify-page ${options.project} <page...> <level>`);
     console.log(`  6. wiki lint ${options.project} && wiki lint-semantic ${options.project}`);
-    console.log(`  7. wiki gate ${options.project} --repo ${result.repo} --base ${options.base}`);
+    console.log(worktree
+      ? `  7. wiki gate ${options.project} --repo ${result.repo} --worktree`
+      : `  7. wiki gate ${options.project} --repo ${result.repo} --base ${options.base}`);
   }
 }
 
@@ -61,7 +76,8 @@ export async function closeoutProject(args: string[]) {
   const options = parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
   const verbose = args.includes("--verbose");
-  const result = await collectCloseout(options.project, options.base, options.repo);
+  const worktree = args.includes("--worktree");
+  const result = await collectCloseout(options.project, options.base, options.repo, undefined, undefined, { worktree });
   if (json) console.log(JSON.stringify(result, null, 2));
   else renderCloseout(result, verbose);
   if (!result.ok) throw new Error(`closeout failed for ${options.project}`);
@@ -218,6 +234,28 @@ export type ProjectSnapshot = {
   }>;
 };
 
+type DoneSliceRepair = {
+  project: string;
+  repaired: Array<{ taskId: string; completedAt: string; files: string[]; changes: string[] }>;
+  alreadyCurrent: number;
+  missingDocs: string[];
+  archiveCandidates: Array<{ taskId: string; completedAt: string; ageDays: number }>;
+};
+
+type RefreshOptions = {
+  worktree?: boolean;
+};
+
+type WorktreeImpactedPage = {
+  page: string;
+  matchedSourcePaths: string[];
+  verificationLevel: string | null;
+  diffSummary: string[];
+  stale: boolean;
+  pageUpdated: string;
+  lastSourceChange: string;
+};
+
 export async function loadProjectSnapshot(project: string, explicitRepo?: string, options: { includeRepoInventory?: boolean } = {}): Promise<ProjectSnapshot> {
   const root = projectRoot(project);
   assertExists(root, `project not found: ${project}`);
@@ -277,6 +315,46 @@ export async function collectRefreshFromGit(project: string, base: string, expli
   return { project, repo: state.repo, base, changedFiles, impactedPages, uncoveredFiles: changedFiles.filter((file) => isCodeFile(file) && !covered.has(file)), testHealth };
 }
 
+export async function collectRefreshFromWorktree(project: string, explicitRepo?: string, snapshot?: ProjectSnapshot) {
+  const state = snapshot ?? await loadProjectSnapshot(project, explicitRepo);
+  const changedFiles = worktreeChangedFiles(state.repo);
+  const changedFileSet = new Set(changedFiles);
+  const impactedPages: WorktreeImpactedPage[] = [];
+  const covered = new Set<string>();
+  for (const entry of state.pageEntries) {
+    if (!entry.parsed) continue;
+    const matchedSourcePaths = entry.sourcePaths.filter((sourcePath) => [...changedFileSet].some((file) => bindingMatchesFile(sourcePath, file)));
+    if (!matchedSourcePaths.length) continue;
+    for (const file of changedFiles.filter((candidate) => matchedSourcePaths.some((sourcePath) => bindingMatchesFile(sourcePath, candidate)))) covered.add(file);
+    const pageUpdated = parseEntryUpdated(entry.rawUpdated);
+    const matchedFiles = changedFiles.filter((candidate) => matchedSourcePaths.some((sourcePath) => bindingMatchesFile(sourcePath, candidate)));
+    const lastModified = matchedFiles
+      .map((file) => worktreeModifiedAt(state.repo, file))
+      .filter((value): value is number => Number.isFinite(value))
+      .sort((a, b) => b - a)[0];
+    const stale = pageUpdated === null || (typeof lastModified === "number" && lastModified > pageUpdated.getTime());
+    impactedPages.push({
+      page: entry.page,
+      matchedSourcePaths,
+      verificationLevel: entry.verificationLevel,
+      diffSummary: matchedFiles.map((file) => `worktree: ${file}`),
+      stale,
+      pageUpdated: String(entry.rawUpdated ?? "missing"),
+      lastSourceChange: typeof lastModified === "number" ? new Date(lastModified).toISOString() : "unknown",
+    });
+  }
+  const testHealth = collectChangedTestHealth(changedFiles);
+  return {
+    project,
+    repo: state.repo,
+    base: "WORKTREE",
+    changedFiles,
+    impactedPages,
+    uncoveredFiles: changedFiles.filter((file) => isCodeFile(file) && !covered.has(file)),
+    testHealth,
+  };
+}
+
 function projectSnapshotToLintingSnapshot(snapshot: ProjectSnapshot, noteIndex?: LintingSnapshot["noteIndex"]): LintingSnapshot {
   return {
     project: snapshot.project,
@@ -296,26 +374,33 @@ function projectSnapshotToLintingSnapshot(snapshot: ProjectSnapshot, noteIndex?:
   };
 }
 
-export async function collectCloseout(project: string, base: string, explicitRepo?: string, snapshot?: ProjectSnapshot, lintingSnapshot?: LintingSnapshot) {
+export async function collectCloseout(project: string, base: string, explicitRepo?: string, snapshot?: ProjectSnapshot, lintingSnapshot?: LintingSnapshot, options: RefreshOptions = {}) {
   const projectSnapshot = snapshot ?? await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
   const lintingState = lintingSnapshot ?? projectSnapshotToLintingSnapshot(projectSnapshot);
-  const refreshFromGit = await collectRefreshFromGit(project, base, explicitRepo, projectSnapshot);
+  const refreshFromGit = options.worktree
+    ? await collectRefreshFromWorktree(project, explicitRepo, projectSnapshot)
+    : await collectRefreshFromGit(project, base, explicitRepo, projectSnapshot);
   const drift = await collectDriftSummary(project, explicitRepo, lintingState);
   const lint = await collectLintResult(project, lintingState);
   const semanticLint = await collectSemanticLintResult(project, lintingState);
   const impacted = new Set(refreshFromGit.impactedPages.map((page) => page.page));
-  const staleImpactedPages = drift.results.filter((row) => impacted.has(row.wikiPage) && row.status !== "fresh");
+  const staleImpactedPages = options.worktree
+    ? (refreshFromGit.impactedPages as WorktreeImpactedPage[])
+      .filter((page) => "stale" in page && page.stale)
+      .map((page) => ({ wikiPage: page.page, status: "stale", pageUpdated: page.pageUpdated, lastSourceChange: page.lastSourceChange }))
+    : drift.results.filter((row) => impacted.has(row.wikiPage) && row.status !== "fresh");
   const blockers: string[] = [];
   if (refreshFromGit.testHealth.codeFilesWithoutChangedTests.length > 0) blockers.push(`${refreshFromGit.testHealth.codeFilesWithoutChangedTests.length} changed code file(s) have no matching changed tests`);
+  if (options.worktree && staleImpactedPages.length > 0) blockers.push(`${staleImpactedPages.length} impacted page(s) are stale or otherwise drifted`);
   const warnings: string[] = [];
   if (lint.issues.length > 0) warnings.push(`${lint.issues.length} structural lint issue(s)`);
   if (semanticLint.issues.length > 0) warnings.push(`${semanticLint.issues.length} semantic lint issue(s)`);
-  if (staleImpactedPages.length > 0) warnings.push(`${staleImpactedPages.length} impacted page(s) are stale or otherwise drifted`);
+  if (!options.worktree && staleImpactedPages.length > 0) warnings.push(`${staleImpactedPages.length} impacted page(s) are stale or otherwise drifted`);
   if (refreshFromGit.uncoveredFiles.length > 0) warnings.push(`${refreshFromGit.uncoveredFiles.length} changed file(s) are not covered by wiki bindings`);
   return {
     project,
     repo: refreshFromGit.repo,
-    base,
+    base: options.worktree ? "WORKTREE" : base,
     ok: blockers.length === 0,
     refreshFromGit,
     drift,
@@ -327,15 +412,19 @@ export async function collectCloseout(project: string, base: string, explicitRep
     nextSteps: [
       `update impacted wiki pages from code`,
       `wiki verify-page ${project} <page...> <level>`,
-      `re-run wiki closeout ${project} --repo ${refreshFromGit.repo} --base ${base}`,
+      options.worktree
+        ? `re-run wiki closeout ${project} --repo ${refreshFromGit.repo} --worktree`
+        : `re-run wiki closeout ${project} --repo ${refreshFromGit.repo} --base ${base}`,
     ],
   };
 }
 
-export async function collectMaintenancePlan(project: string, base: string, explicitRepo?: string, snapshot?: ProjectSnapshot, lintingSnapshot?: LintingSnapshot) {
+export async function collectMaintenancePlan(project: string, base: string, explicitRepo?: string, snapshot?: ProjectSnapshot, lintingSnapshot?: LintingSnapshot, options: RefreshOptions = {}) {
   const projectSnapshot = snapshot ?? await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
   const lintingState = lintingSnapshot ?? projectSnapshotToLintingSnapshot(projectSnapshot);
-  const refreshFromGit = await collectRefreshFromGit(project, base, explicitRepo, projectSnapshot);
+  const refreshFromGit = options.worktree
+    ? await collectRefreshFromWorktree(project, explicitRepo, projectSnapshot)
+    : await collectRefreshFromGit(project, base, explicitRepo, projectSnapshot);
   const discover = await collectDiscoverSummary(project, explicitRepo, projectSnapshot);
   const lint = await collectLintResult(project, lintingState);
   const semanticLint = await collectSemanticLintResult(project, lintingState);
@@ -351,7 +440,48 @@ export async function collectMaintenancePlan(project: string, base: string, expl
   for (const page of discover.unboundPages.slice(0, 20)) actions.push({ kind: "bind-page", message: `${page} has no source_paths` });
   for (const issue of lint.issues.slice(0, 20)) actions.push({ kind: "fix-structure", message: issue });
   for (const issue of semanticLint.issues.slice(0, 20)) actions.push({ kind: "fix-semantic", message: issue });
-  return { project, repo: refreshFromGit.repo, base, focus, refreshFromGit, discover, lint, semanticLint, actions };
+  return { project, repo: refreshFromGit.repo, base: options.worktree ? "WORKTREE" : base, focus, refreshFromGit, discover, lint, semanticLint, actions };
+}
+
+async function repairHistoricalDoneSlices(project: string): Promise<DoneSliceRepair> {
+  const backlog = await collectBacklog(project);
+  const repairedAt = nowIso();
+  const repaired: DoneSliceRepair["repaired"] = [];
+  const missingDocs: string[] = [];
+  const archiveCandidates: DoneSliceRepair["archiveCandidates"] = [];
+  let alreadyCurrent = 0;
+
+  for (const item of backlog.sections["Done"] ?? []) {
+    const docs = await readDoneSliceDocs(project, item.id);
+    if (!docs.length) {
+      missingDocs.push(item.id);
+      continue;
+    }
+    const completedAt = inferHistoricalCompletedAt(docs);
+    const changes = collectDoneSliceRepairChanges(docs);
+    const archiveCandidate = classifyArchiveCandidate(item.id, completedAt);
+    if (archiveCandidate) archiveCandidates.push(archiveCandidate);
+    if (!changes.length) {
+      alreadyCurrent += 1;
+      continue;
+    }
+    for (const doc of docs) {
+      const normalized = normalizeDoneSliceDoc(doc, completedAt, repairedAt);
+      writeNormalizedPage(doc.path, doc.content, normalized);
+    }
+    repaired.push({
+      taskId: item.id,
+      completedAt,
+      files: docs.map((doc) => relative(VAULT_ROOT, doc.path)),
+      changes,
+    });
+    appendLogEntry("repair-done-slice", item.id, {
+      project,
+      details: [`completed_at=${completedAt}`, `changes=${changes.length}`],
+    });
+  }
+
+  return { project, repaired, alreadyCurrent, missingDocs, archiveCandidates };
 }
 
 async function collectDashboard(project: string, base: string, explicitRepo?: string) {
@@ -516,6 +646,71 @@ function gitMarkdownStatusFingerprint(repo: string) {
   return proc.exitCode === 0 ? proc.stdout.toString().trim() : "status-unavailable";
 }
 
+async function readDoneSliceDocs(project: string, taskId: string) {
+  const paths = sliceDocPaths(project, taskId);
+  const docs: Array<{ path: string; content: string; data: Record<string, unknown>; kind: "index" | "plan" | "test-plan" }> = [];
+  for (const [kind, path] of [
+    ["index", paths.indexPath],
+    ["plan", paths.planPath],
+    ["test-plan", paths.testPlanPath],
+  ] as const) {
+    if (!existsSync(path)) continue;
+    const raw = await readText(path);
+    const parsed = safeMatter(relative(VAULT_ROOT, path), raw, { silent: true });
+    if (!parsed) continue;
+    docs.push({ path, content: parsed.content, data: parsed.data, kind });
+  }
+  return docs;
+}
+
+function inferHistoricalCompletedAt(docs: Array<{ data: Record<string, unknown> }>) {
+  for (const key of ["completed_at", "updated", "started_at", "created_at"] as const) {
+    const timestamps = docs.flatMap((doc) => [doc.data[key]])
+      .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      .map((value) => Date.parse(value))
+      .filter((value) => Number.isFinite(value));
+    if (timestamps.length) return new Date(Math.max(...timestamps)).toISOString();
+  }
+  return nowIso();
+}
+
+function collectDoneSliceRepairChanges(docs: Array<{ data: Record<string, unknown>; kind: "index" | "plan" | "test-plan" }>) {
+  const changes = new Set<string>();
+  for (const doc of docs) {
+    if (doc.data.status !== "done") changes.add("set status: done");
+    if (typeof doc.data.completed_at !== "string" || !doc.data.completed_at.trim()) changes.add("set completed_at");
+    if (doc.data.claimed_by || doc.data.claimed_at || doc.data.claim_paths) changes.add("clear claim metadata");
+    if (!readVerificationLevel(doc.data)) {
+      changes.add(doc.kind === "test-plan" ? "set verification_level: test-verified" : "set verification_level: code-verified");
+    }
+  }
+  return [...changes];
+}
+
+function normalizeDoneSliceDoc(
+  doc: { data: Record<string, unknown>; kind: "index" | "plan" | "test-plan" },
+  completedAt: string,
+  repairedAt: string,
+) {
+  const next = { ...doc.data } as Record<string, unknown>;
+  next.status = "done";
+  next.completed_at = typeof next.completed_at === "string" && next.completed_at.trim() ? next.completed_at : completedAt;
+  next.updated = repairedAt;
+  if (!readVerificationLevel(next)) next.verification_level = doc.kind === "test-plan" ? "test-verified" : "code-verified";
+  delete next.claimed_by;
+  delete next.claimed_at;
+  delete next.claim_paths;
+  return orderFrontmatter(next, ["title", "type", "spec_kind", "project", "source_paths", "assignee", "task_id", "depends_on", "parent_prd", "parent_feature", "created_at", "started_at", "updated", "completed_at", "status", "verification_level"]);
+}
+
+function classifyArchiveCandidate(taskId: string, completedAt: string) {
+  const completedMs = Date.parse(completedAt);
+  if (!Number.isFinite(completedMs)) return null;
+  const ageDays = Math.floor((Date.now() - completedMs) / (1000 * 60 * 60 * 24));
+  if (ageDays < 30) return null;
+  return { taskId, completedAt, ageDays };
+}
+
 function gitChangedFiles(repo: string, base: string) {
   const proc = Bun.spawnSync(["git", "diff", "--name-only", `${base}...HEAD`], { cwd: repo, stdout: "pipe", stderr: "pipe" });
   if (proc.exitCode !== 0) {
@@ -570,6 +765,45 @@ function renderCloseout(result: Awaited<ReturnType<typeof collectCloseout>>, ver
 
 function isCodeFile(file: string) {
   return CODE_FILE_PATTERN.test(file);
+}
+
+function gitLines(repo: string, command: string[]) {
+  const proc = Bun.spawnSync(["git", ...command], { cwd: repo, stdout: "pipe", stderr: "pipe" });
+  if (proc.exitCode !== 0) throw new Error(proc.stderr.toString().trim() || `git ${command.join(" ")} failed`);
+  return proc.stdout.toString().replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean);
+}
+
+function normalizeRelPath(value: string) {
+  return value.replaceAll("\\", "/");
+}
+
+function bindingMatchesFile(binding: string, file: string) {
+  const normalizedBinding = normalizeRelPath(binding).replace(/\/+$/u, "");
+  const normalizedFile = normalizeRelPath(file);
+  return normalizedFile === normalizedBinding || normalizedFile.startsWith(`${normalizedBinding}/`);
+}
+
+function worktreeChangedFiles(repo: string) {
+  const changed = new Set<string>(gitLines(repo, ["diff", "--name-only", "HEAD", "--"]).map(normalizeRelPath));
+  for (const file of gitLines(repo, ["ls-files", "--others", "--exclude-standard"]).map(normalizeRelPath)) changed.add(file);
+  return [...changed].sort();
+}
+
+function worktreeModifiedAt(repo: string, file: string) {
+  try {
+    return Bun.file(join(repo, file)).lastModified;
+  } catch {
+    return Number.NaN;
+  }
+}
+
+function parseEntryUpdated(value: unknown) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  return null;
 }
 
 // Normalize file basenames for matching: strip conventional suffixes

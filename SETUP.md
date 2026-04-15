@@ -8,7 +8,7 @@ cd wiki-forge
 ./install.sh
 ```
 
-The install script handles everything: bun, dependencies, global CLI linking, global qmd installation, shell config, vault directory, and skill installation. By default it creates `~/Knowledge` if it does not exist yet.
+The install script handles first-time bootstrap: bun, dependencies, local sync of the CLI/qmd/skills, shell config, vault directory, and skill installation. By default it creates `~/Knowledge` if it does not exist yet.
 
 ## Manual Setup
 
@@ -24,9 +24,7 @@ The install script handles everything: bun, dependencies, global CLI linking, gl
 ```bash
 cd wiki-forge
 bun install
-bun link          # makes `wiki` available globally
-npm install -g @tobilu/qmd@latest
-npm rebuild -g @tobilu/qmd
+bun run sync:local
 ```
 
 On macOS, also install Homebrew sqlite if you do not already have it:
@@ -86,6 +84,27 @@ Verify:
 ```bash
 npx skills list -g | grep -E "forge|wiki|prd-to-slices|grill-me|write-a-prd|tdd"
 ```
+
+### 5. Sync local updates
+
+After pulling repo changes or editing `skills/*/SKILL.md`, run:
+
+```bash
+bun run sync:local
+```
+
+That refreshes:
+- the linked `wiki` CLI via `bun link`
+- the global `qmd` install plus native rebuild
+- repo-owned skills (`forge`, `wiki`, `prd-to-slices`)
+
+If you also want to refresh the companion workflow skills used by `/forge`, run:
+
+```bash
+bun run sync:local -- --with-companions
+```
+
+After syncing skills, restart your agent session so it reloads the updated installed copies.
 
 ## Obsidian Setup
 
@@ -208,7 +227,7 @@ wiki maintain my-app
 
 ### `wiki: command not found`
 
-Run `bun link` from the wiki-forge directory, then `source ~/.zshrc`.
+Run `bun run sync:local` from the wiki-forge directory, then `source ~/.zshrc`.
 
 ### `KNOWLEDGE_VAULT_ROOT not set`
 
@@ -246,8 +265,7 @@ Ensure you're on Obsidian 1.8+ and have enabled CLI in Settings → General. Res
 
 ```bash
 npx skills list -g                  # verify installation
-npx skills@latest add ./skills/forge -g
-npx skills@latest add mattpocock/skills/grill-me -g
-npx skills@latest add mattpocock/skills/write-a-prd -g
-npx skills@latest add mattpocock/skills/tdd -g
+bun run sync:local -- --with-companions
 ```
+
+Then restart the agent session. Installed skills under `~/.agents/skills/` do not hot-reload into already running sessions.

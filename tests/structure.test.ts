@@ -12,6 +12,8 @@ import {
   projectTaskHubPath,
   projectTaskPlanPath,
   projectTaskTestPlanPath,
+  workspaceIndexPath,
+  workspaceProjectsDashboardPath,
 } from "../src/lib/structure";
 import { classifyRawPath, classifyResearchPath, isAllowedRawBucket } from "../src/lib/research";
 
@@ -24,6 +26,8 @@ describe("project path primitives", () => {
     expect(projectTaskHubPath("demo", "DEMO-015")).toEndWith("/projects/demo/specs/slices/DEMO-015/index.md");
     expect(projectTaskPlanPath("demo", "DEMO-015")).toEndWith("/projects/demo/specs/slices/DEMO-015/plan.md");
     expect(projectTaskTestPlanPath("demo", "DEMO-015")).toEndWith("/projects/demo/specs/slices/DEMO-015/test-plan.md");
+    expect(workspaceIndexPath()).toEndWith("/index.md");
+    expect(workspaceProjectsDashboardPath()).toEndWith("/projects/_dashboard.md");
   });
 
   test("validate canonical task ids", () => {

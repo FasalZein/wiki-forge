@@ -6,11 +6,12 @@ import { readText } from "../lib/fs";
 import { agentNamesEqual } from "../lib/agents";
 import { appendLogEntry, tailLog } from "../lib/log";
 import { extractShellCommandBlocks, readSliceDependencies, readSliceHub, readSlicePlan, readSliceSourcePaths, readSliceStatus, readSliceTestPlan } from "../lib/slices";
+import { readVerificationLevel } from "../lib/verification";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
 import { projectSlicesDir, projectTaskHubPath } from "../lib/structure";
 import { collectBacklog, collectBacklogFocus, collectTaskContextForId, moveTaskToSection } from "./backlog";
 import { collectGate } from "./diagnostics";
-import { collectMaintenancePlan, resolveDefaultBase } from "./maintenance";
+import { collectCloseout, collectMaintenancePlan, isTestFile, resolveDefaultBase } from "./maintenance";
 import { collectDriftSummary } from "./verification";
 import { applyVerificationLevel } from "./verification-shared";
 
@@ -309,15 +310,43 @@ export async function closeSlice(args: string[]) {
   const base = baseIndex >= 0 ? args[baseIndex + 1] : resolveDefaultBase(project, repo);
   if (baseIndex >= 0) requireValue(base, "base");
   const json = args.includes("--json");
+  const worktree = args.includes("--worktree");
 
   const context = await collectTaskContextForId(project, sliceId);
   if (!context) throw new Error(`slice not found in backlog: ${sliceId}`);
   if (!context.hasSliceDocs) throw new Error(`slice docs missing for ${sliceId}`);
+  if (context.section !== "In Progress") {
+    throw new Error(`slice must be In Progress before closeout: ${sliceId} is in ${context.section}`);
+  }
   if (context.planStatus !== "ready" || context.testPlanStatus !== "ready") {
     throw new Error(`slice docs are not ready for closeout: plan=${context.planStatus} test-plan=${context.testPlanStatus}`);
   }
+  const testPlan = await readSliceTestPlan(project, sliceId);
+  const testPlanLevel = readVerificationLevel(testPlan.data);
+  if (testPlanLevel !== "test-verified") {
+    throw new Error(`slice test-plan must be test-verified before closeout: ${sliceId}`);
+  }
 
-  const gate = await collectGate(project, base, repo);
+  const closeout = await collectCloseout(project, base, repo, undefined, undefined, { worktree });
+  const uncoveredChangedCodeFiles = closeout.refreshFromGit.uncoveredFiles.filter((file) => !isTestFile(file));
+  const closeoutBlockers = [
+    ...closeout.blockers,
+    ...(!worktree && closeout.staleImpactedPages.length ? [`${closeout.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted`] : []),
+    ...(uncoveredChangedCodeFiles.length ? [`${uncoveredChangedCodeFiles.length} changed code file(s) are not covered by wiki bindings`] : []),
+  ];
+  if (closeoutBlockers.length > 0) {
+    const failed = {
+      project,
+      sliceId,
+      closed: false,
+      previousSection: context.section,
+      closeout,
+      blockers: closeoutBlockers,
+    };
+    if (json) console.log(JSON.stringify(failed, null, 2));
+    throw new Error(`close-slice prerequisites failed for ${project}`);
+  }
+  const gate = await collectGate(project, base, repo, { worktree });
   if (!gate.ok) {
     const failed = { project, sliceId, closed: false, gate, previousSection: context.section };
     if (json) console.log(JSON.stringify(failed, null, 2));

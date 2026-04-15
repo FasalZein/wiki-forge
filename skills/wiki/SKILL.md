@@ -21,6 +21,7 @@ Use `/wiki` when the task stays in memory, research, retrieval, verification, dr
 Escalate to `/forge` only when the work becomes non-trivial implementation.
 
 When a harness uses different skill syntax, keep the same task boundary and still drive the actual work through the `wiki` CLI.
+If a harness has no slash-skill syntax, run the same `wiki` CLI lifecycle directly.
 
 Trigger this skill for requests like:
 - "wiki refresh" / "wiki closeout"
@@ -35,19 +36,23 @@ Do NOT trigger on generic phrases that could mean something else:
 - "sync docs" → could mean Notion, Confluence, etc.; ignore unless "wiki" or "project" is mentioned
 - "update wiki" alone → could mean GitHub wiki; require "project" context or explicit `/wiki`
 
-Treat those as contextual maintenance requests, not blind keyword matches. The concrete closeout sequence is:
+Treat those as contextual maintenance requests, not blind keyword matches. The canonical code-driven closeout sequence is:
 
-1. Inspect changed code/tests
-2. Update only the impacted wiki pages from code
+1. `wiki maintain <project> --repo <path> --base <rev>`
+2. Inspect changed code/tests and update only the impacted wiki pages from code
 3. `wiki verify-page <project> <page> code-verified`
-4. `wiki closeout <project> --repo <path> --base <rev>`
+4. `wiki verify-slice <project> <slice-id> --repo <path>` for active slice work
+5. `wiki closeout <project> --repo <path> --base <rev>` to review refresh/drift/lint/semantic/gate output
+6. `wiki gate <project> --repo <path> --base <rev>`
+7. `wiki close-slice <project> <slice-id> --repo <path> --base <rev>` for active slice work
 
 For the full build workflow (research → grill → PRD → slices → TDD → verify), use `/forge`. The wiki skill is the knowledge/verification layer; forge is a sibling workflow layer that composes the same `wiki` CLI with research and TDD.
 Use `/forge` only for non-trivial pipeline work; do not trigger it for small fixes, note cleanup, or simple maintenance.
+Today, `closeout` is a compact review surface, not an automatic repair step, and `gate` hard-blocks only on missing tests. Agents still need to perform the full lifecycle explicitly.
 
 ## Use Wiki vs Wiki-Forge
 
-Use `/wiki` when the work is about memory, verification, retrieval, filing, drift, bindings, or closeout.
+Use `/wiki` when the work is about memory, verification, retrieval, filing, drift, bindings, or closeout review.
 Use `/forge` when the work is about planning and shipping non-trivial code changes.
 
 Stay in `/wiki` for:
@@ -80,13 +85,11 @@ Obsidian companion skills:
 - `/json-canvas` — use only for derived `.canvas` artifacts, never as canonical state
 - `/obsidian-bases` — use only for derived `.base` views over canonical markdown/frontmatter
 
-## Setup
+## Preconditions
 
-```bash
-cd wiki-forge && bun install && bun link
-export KNOWLEDGE_VAULT_ROOT=~/Knowledge   # when CLI repo ≠ vault
-wiki help
-```
+- `wiki` CLI is already installed and available on `PATH`.
+- The vault root is either configured with `KNOWLEDGE_VAULT_ROOT` or auto-detectable from the current working tree.
+- Use `/obsidian-markdown` when editing vault markdown unless the task specifically needs another Obsidian companion skill.
 
 Auto-detection: if `KNOWLEDGE_VAULT_ROOT` is unset, the CLI walks up from `cwd` looking for `AGENTS.md` + `index.md` + `projects/`.
 
@@ -201,8 +204,14 @@ How to identify modules: look for directories that own a distinct concern — a 
 5. Before implementation begins, register the slice:
    wiki start-slice <project> <slice-id> --agent <name> --repo <path>
 6. After each slice, run the closeout sequence:
+   wiki checkpoint <project> --repo <path>
+   wiki lint-repo <project> --repo <path>
+   wiki maintain <project> --repo <path> --base <rev>
    update impacted wiki pages from code
    wiki verify-page <project> <page> code-verified
+   wiki verify-slice <project> <slice-id> --repo <path>
+   wiki closeout <project> --repo <path> --base <rev>
+   wiki gate <project> --repo <path> --base <rev>
    wiki close-slice <project> <slice-id> --repo <path> --base <rev>
 ```
 
@@ -218,6 +227,7 @@ If the user is really asking to start or continue non-trivial implementation wor
 3. For each impacted/stale page: read source, update wiki, verify-page.
 4. If navigation changed: wiki update-index <project> --write
 5. wiki closeout <project> --repo <path> --base <rev>
+6. wiki gate <project> --repo <path> --base <rev>
 ```
 
 ### 3. Retrieval
@@ -272,9 +282,11 @@ Propagation rules:
 
 - **Never create wiki-style `.md` documentation inside project repos** except `README.md`, `CHANGELOG.md`, `AGENTS.md`, `CLAUDE.md`, `SETUP.md`, and `skills/*/SKILL.md`. Specs, research, architecture notes, and maintained docs belong in the wiki vault.
 - Use `wiki protocol sync <project> --repo <path>` to install/update the managed agent protocol block in repo `AGENTS.md` / `CLAUDE.md`; do not hand-maintain that top block.
+- `wiki protocol sync` only syncs repo instruction files. It does not sync skill text or enforce the workflow by itself.
 - **When editing wiki pages, write Obsidian-flavored markdown.** Prefer properties, wikilinks, embeds, callouts, and stable section headings over plain markdown walls of text.
 - **Use the lightest Obsidian companion skill that fits.** `obsidian-markdown` should be common; `obsidian-cli`, `json-canvas`, and `obsidian-bases` are situational.
 - **Use `wiki maintain` as the default maintenance/closeout entry point.** It composes refresh, discovery, and lint, but it does not replace `/forge` for non-trivial implementation work.
+- **For active slices, `wiki maintain` is the first closeout command, not the last.** Follow it with page updates, `verify-page`, `verify-slice`, `closeout`, `gate`, and `close-slice`.
 - **Minimize reads.** Start with `_summary.md`, then drill into modules.
 - **Bind source paths early.** Unbound pages are invisible to drift detection. `wiki bind` defaults to replace; use `--mode merge` when adding bindings without dropping the existing set.
 - **Set `repo:` in `_summary.md`** or pass `--repo <path>`.

@@ -6,7 +6,7 @@ import { assertGitRepo, resolveRepoPath } from "../lib/verification";
 import { isTestFile } from "./maintenance";
 import { readSliceCompletedAt, readSliceStatus } from "../lib/slices";
 import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "./linting";
-import { collectMaintenancePlan, loadProjectSnapshot, resolveDefaultBase } from "./maintenance";
+import { collectCloseout, collectMaintenancePlan, loadProjectSnapshot, resolveDefaultBase } from "./maintenance";
 import { collectDriftSummary } from "./verification";
 
 export async function doctorProject(args: string[]) {
@@ -18,7 +18,8 @@ export async function doctorProject(args: string[]) {
   const base = baseIndex >= 0 ? args[baseIndex + 1] : resolveDefaultBase(project, repo);
   if (baseIndex >= 0) requireValue(base, "base");
   const json = args.includes("--json");
-  const result = await collectDoctor(project, base, repo);
+  const worktree = args.includes("--worktree");
+  const result = await collectDoctor(project, base, repo, { worktree });
   if (json) {
     console.log(JSON.stringify(result, null, 2));
     return;
@@ -51,7 +52,8 @@ export async function gateProject(args: string[]) {
   if (baseIndex >= 0) requireValue(base, "base");
   const json = args.includes("--json");
   const structuralRefactor = args.includes("--structural-refactor");
-  const result = await collectGate(project, base, repo, { structuralRefactor });
+  const worktree = args.includes("--worktree");
+  const result = await collectGate(project, base, repo, { structuralRefactor, worktree });
   if (json) {
     console.log(JSON.stringify(result, null, 2));
   } else {
@@ -72,7 +74,7 @@ export async function gateProject(args: string[]) {
   if (!result.ok) throw new Error(`gate failed for ${project}`);
 }
 
-export async function collectDoctor(project: string, base: string, explicitRepo?: string) {
+export async function collectDoctor(project: string, base: string, explicitRepo?: string, options: { worktree?: boolean } = {}) {
   const lintingSnapshot = await loadLintingSnapshot(project, { noteIndex: true });
   const projectSnapshot = await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
   const status = await collectStatusRow(project, lintingSnapshot);
@@ -81,7 +83,7 @@ export async function collectDoctor(project: string, base: string, explicitRepo?
   const lint = await collectLintResult(project, lintingSnapshot);
   const semantic = await collectSemanticLintResult(project, lintingSnapshot);
   const backlog = await collectBacklog(project);
-  const maintain = await collectMaintenancePlan(project, base, explicitRepo, projectSnapshot, lintingSnapshot);
+  const maintain = await collectMaintenancePlan(project, base, explicitRepo, projectSnapshot, lintingSnapshot, { worktree: options.worktree });
   const focus = maintain.focus;
   const backlogConsistencyWarnings = await collectBacklogConsistencyWarnings(project, backlog.sections);
 
@@ -133,8 +135,8 @@ export async function collectDoctor(project: string, base: string, explicitRepo?
   };
 }
 
-export async function collectGate(project: string, base: string, explicitRepo?: string, options: { structuralRefactor?: boolean } = {}) {
-  const doctor = await collectDoctor(project, base, explicitRepo);
+export async function collectGate(project: string, base: string, explicitRepo?: string, options: { structuralRefactor?: boolean; worktree?: boolean } = {}) {
+  const doctor = await collectDoctor(project, base, explicitRepo, { worktree: options.worktree });
   const repo = resolveRepoPath(project, explicitRepo);
   assertGitRepo(repo);
   // The gate blocks on the one non-negotiable: code must have tests.
@@ -153,10 +155,12 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
       blockers.push(`${doctor.counts.missingTests} changed code file(s) have no matching changed tests`);
     }
   }
+  const closeout = options.worktree ? await collectCloseout(project, base, explicitRepo, undefined, undefined, { worktree: true }) : null;
+  if (closeout?.staleImpactedPages.length) blockers.push(`${closeout.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted`);
   const warnings: string[] = [];
   if (doctor.counts.lint > 0) warnings.push(`${doctor.counts.lint} structural lint issue(s)`);
   if (doctor.counts.semantic > 0) warnings.push(`${doctor.counts.semantic} semantic lint issue(s)`);
-  if (doctor.drift.stale > 0) warnings.push(`${doctor.drift.stale} impacted/bound page(s) are stale — run refresh, update docs, and verify-page before closeout`);
+  if (!options.worktree && doctor.drift.stale > 0) warnings.push(`${doctor.drift.stale} impacted/bound page(s) are stale — run refresh, update docs, and verify-page before closeout`);
   if (doctor.maintain.refreshFromGit.uncoveredFiles.length > 0) warnings.push(`${doctor.maintain.refreshFromGit.uncoveredFiles.length} changed file(s) are not covered by wiki bindings`);
   if (doctor.counts.repoDocs > 0) warnings.push(`${doctor.counts.repoDocs} repo markdown doc(s) should live in the wiki vault`);
   for (const warning of doctor.backlogConsistencyWarnings) warnings.push(warning);
@@ -175,6 +179,7 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
       repoDocs: doctor.counts.repoDocs,
     },
     doctor,
+    ...(closeout ? { closeout } : {}),
     ...(structuralRefactor ? { structuralRefactor } : {}),
   };
 }
@@ -186,10 +191,14 @@ async function collectBacklogConsistencyWarnings(project: string, sections: Reco
       const status = await readSliceStatus(project, item.id);
       const completedAt = await readSliceCompletedAt(project, item.id);
       if (!status && !completedAt) continue;
-      if (section === "Done" && status !== "done") warnings.push(`${item.id} is in Done but slice status is ${status ?? "unset"}`);
-      if (section !== "Done" && status === "done") warnings.push(`${item.id} is marked done in slice docs but still lives in ${section}`);
-      if (section === "Done" && !completedAt) warnings.push(`${item.id} is in Done but missing completed_at in slice docs`);
-      if (section !== "Done" && completedAt) warnings.push(`${item.id} records completed_at in slice docs but still lives in ${section}`);
+      if (section === "Done") {
+        if (status !== "done" || !completedAt) {
+          warnings.push(`${item.id} legacy done-slice metadata drift; run wiki maintain ${project} --repair-done-slices`);
+        }
+        continue;
+      }
+      if (status === "done") warnings.push(`${item.id} is marked done in slice docs but still lives in ${section}`);
+      if (completedAt) warnings.push(`${item.id} records completed_at in slice docs but still lives in ${section}`);
     }
   }
   return warnings;

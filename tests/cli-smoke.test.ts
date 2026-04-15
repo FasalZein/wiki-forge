@@ -191,6 +191,14 @@ describe("wiki CLI smoke", () => {
     expect(existsSync(join(vault, "projects", "demo", "specs", "prds", "index.md"))).toBe(true);
     expect(existsSync(join(vault, "projects", "demo", "specs", "slices", "index.md"))).toBe(true);
     expect(existsSync(join(vault, "projects", "demo", "specs", "archive", "index.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "_dashboard.md"))).toBe(true);
+    const workspaceDashboardContent = readFileSync(join(vault, "projects", "_dashboard.md"), "utf8");
+    expect(workspaceDashboardContent).toContain("[[projects/demo/_summary|demo]]");
+    expect(workspaceDashboardContent).toContain("[[projects/demo/backlog|backlog]]");
+    expect(workspaceDashboardContent).toContain("[[projects/demo/specs/index|specs]]");
+    const rootIndexContent = readFileSync(join(vault, "index.md"), "utf8");
+    expect(rootIndexContent).toContain("[[projects/_dashboard|Project Dashboard]]");
+    expect(rootIndexContent).toContain("[[projects/demo/_summary|demo]]");
 
     const logTail = runWiki(["log", "tail", "5"], env);
     expect(logTail.exitCode).toBe(0);
@@ -283,6 +291,36 @@ describe("wiki CLI smoke", () => {
     const prdContent = readFileSync(join(vault, "projects", "demo", "specs", "prds", "PRD-001-auth-workflow.md"), "utf8");
     expect(prdContent).toContain("## Prior Research");
     expect(prdContent).toContain("[[research/projects/demo/_overview]]");
+  });
+
+  test("workspace dashboard and root index refresh from real project state", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "alpha"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "alpha");
+    expect(runWiki(["create-feature", "alpha", "workspace nav"], env).exitCode).toBe(0);
+    expect(runWiki(["create-prd", "alpha", "--feature", "FEAT-001", "root views"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "alpha", "dashboard slice", "--prd", "PRD-001"], env).exitCode).toBe(0);
+
+    let dashboardContent = readFileSync(join(vault, "projects", "_dashboard.md"), "utf8");
+    let rootIndexContent = readFileSync(join(vault, "index.md"), "utf8");
+    expect(dashboardContent).toContain("[[projects/alpha/_summary|alpha]]");
+    expect(dashboardContent).toContain("ALPHA-001 dashboard slice");
+    expect(rootIndexContent).toContain("[[projects/alpha/_summary|alpha]]");
+    expect(rootIndexContent).not.toContain("[[projects/beta/_summary|beta]]");
+
+    expect(runWiki(["scaffold-project", "beta"], env).exitCode).toBe(0);
+    expect(runWiki(["create-module", "beta", "auth", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["update-index", "beta", "--write"], env).exitCode).toBe(0);
+
+    dashboardContent = readFileSync(join(vault, "projects", "_dashboard.md"), "utf8");
+    rootIndexContent = readFileSync(join(vault, "index.md"), "utf8");
+    expect(dashboardContent).toContain("[[projects/alpha/_summary|alpha]]");
+    expect(dashboardContent).toContain("[[projects/beta/_summary|beta]]");
+    expect(dashboardContent).toContain("[[projects/beta/backlog|backlog]]");
+    expect(rootIndexContent).toContain("[[projects/_dashboard|Project Dashboard]]");
+    expect(rootIndexContent).toContain("[[projects/beta/_summary|beta]]");
   });
 
   test("create-issue-slice inherits source_paths from parent prd", () => {
@@ -600,7 +638,7 @@ describe("wiki CLI smoke", () => {
     const output = result.stdout.toString();
     expect(output).toContain("Use the /research skill for actual investigation");
     expect(output).toContain("wiki research audit [topic] [--json]");
-    expect(output).toContain("wiki closeout <project> [--repo <path>] [--base <rev>] [--json] [--verbose]");
+    expect(output).toContain("wiki closeout <project> [--repo <path>] [--base <rev>] [--worktree] [--json] [--verbose]");
     expect(output).toContain("wiki backlog <project> [--assignee <agent>] [--json]");
     expect(output).toContain("wiki create-issue-slice <project> <title...> [--section <name>] [--priority <p>] [--tag <t>] [--prd <PRD-ID>] [--assignee <agent>] [--source <path...>] [--json]");
     expect(output).toContain("wiki commit-check <project> [--repo <path>] [--json] [--verbose]");
@@ -614,14 +652,14 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("wiki file-answer <project> [--expand] [--verbose] [--slug <slug>] [-n <num>] <question...>");
     expect(output).toContain("wiki qmd-setup");
     expect(output).toContain("wiki qmd-status");
-    expect(output).toContain("wiki gate <project> [--repo <path>] [--base <rev>] [--structural-refactor] [--json]");
+    expect(output).toContain("wiki gate <project> [--repo <path>] [--base <rev>] [--worktree] [--structural-refactor] [--json]");
     expect(output).toContain("wiki start-slice <project> <slice-id> [--agent <name>] [--repo <path>] [--json]");
     expect(output).toContain("wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]");
     expect(output).toContain("wiki resume <project> [--repo <path>] [--base <rev>] [--json]");
     expect(output).toContain("wiki dependency-graph <project> [--write] [--json]");
     expect(output).toContain("research audit layers dead-link checks and influenced_by coverage");
     expect(output).toContain("protocol sync/audit manage repo-root (and optional nested) AGENTS.md / CLAUDE.md files from a short wiki-forge-managed agent protocol block");
-    expect(output).toContain("closeout composes refresh-from-git, drift, lint, semantic lint, and gate into one compact review surface");
+    expect(output).toContain("closeout composes refresh-from-git, drift, lint, semantic lint, and gate into one compact review surface; use --worktree to evaluate dirty files instead of committed diff ranges");
     expect(output).toContain("checkpoint is the git-independent freshness check: it compares worktree mtimes against bound wiki pages and reports stale pages plus unbound changed files");
     expect(output).toContain("lint-repo flags repo-owned markdown files outside the allowed set");
     expect(output).toContain("protocol sync prepends a managed agent protocol block to AGENTS.md / CLAUDE.md and preserves local notes below it; declare nested scopes in projects/<project>/_summary.md frontmatter protocol_scopes: [...]");

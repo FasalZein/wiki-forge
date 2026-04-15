@@ -23,36 +23,18 @@ cd "$REPO_DIR"
 bun install --silent
 echo "[ok] dependencies installed"
 
-# 3. Link CLI globally
-bun link --silent 2>/dev/null || true
-echo "[ok] wiki CLI linked globally"
-
-# 4. Install qmd CLI + sqlite prerequisites
-if command -v npm &>/dev/null; then
-  if ! command -v qmd &>/dev/null; then
-    echo "Installing qmd CLI..."
-  else
-    echo "Updating qmd CLI..."
-  fi
-  npm install -g @tobilu/qmd@latest --audit=false --fund=false >/dev/null 2>&1 || echo "[skip] qmd CLI install/update failed"
-  npm rebuild -g @tobilu/qmd >/dev/null 2>&1 || true
-  if command -v qmd &>/dev/null; then
-    if qmd --help >/dev/null 2>&1; then
-      echo "[ok] qmd installed"
-    else
-      echo "[warn] qmd installed but failed to start cleanly; try: npm rebuild -g @tobilu/qmd"
-    fi
-  fi
-else
-  echo "[skip] npm not found — install qmd manually: npm install -g @tobilu/qmd@latest"
-fi
-
+# 3. Install sqlite prerequisite for Bun qmd SDK on macOS
 if [ "$(uname -s)" = "Darwin" ] && command -v brew &>/dev/null; then
   if [ ! -f "/opt/homebrew/opt/sqlite/lib/libsqlite3.dylib" ] && [ ! -f "/usr/local/opt/sqlite/lib/libsqlite3.dylib" ]; then
     echo "Installing Homebrew sqlite..."
     brew install sqlite >/dev/null 2>&1 || echo "[skip] Homebrew sqlite install failed"
   fi
 fi
+
+# 4. Sync CLI, qmd, and skills
+echo "Syncing local CLI, qmd, and skills..."
+bun run sync:local -- --with-companions
+echo "[ok] local sync complete"
 
 # 5. Set up vault
 read -rp "Vault path [$VAULT_DEFAULT]: " vault_input
@@ -87,36 +69,15 @@ else
   echo "[warn] unknown shell — manually add: export KNOWLEDGE_VAULT_ROOT=\"$VAULT\""
 fi
 
-# 7. Install skills (if npx skills is available)
-if command -v npx &>/dev/null; then
-  echo ""
-  echo "Installing skills..."
-  echo ""
-  npx skills@latest add "$REPO_DIR/skills/forge" -g -y 2>/dev/null || echo "[skip] forge skill (npx skills not configured)"
-  npx skills@latest add "$REPO_DIR/skills/wiki" -g -y 2>/dev/null || echo "[skip] wiki skill"
-  npx skills@latest add "$REPO_DIR/skills/prd-to-slices" -g -y 2>/dev/null || echo "[skip] prd-to-slices skill"
-  npx skills@latest add mattpocock/skills/grill-me -g -y 2>/dev/null || echo "[skip] grill-me skill"
-  npx skills@latest add mattpocock/skills/write-a-prd -g -y 2>/dev/null || echo "[skip] write-a-prd skill"
-  npx skills@latest add mattpocock/skills/tdd -g -y 2>/dev/null || echo "[skip] tdd skill"
-  echo "[note] /research is also required for full forge chaining. Install your agent's research skill separately if it is not already available."
-else
-  echo ""
-  echo "[skip] npx not found — install skills manually:"
-  echo "  npx skills@latest add ./skills/forge -g"
-  echo "  npx skills@latest add ./skills/wiki -g"
-  echo "  npx skills@latest add ./skills/prd-to-slices -g"
-  echo "  npx skills@latest add mattpocock/skills/grill-me -g"
-  echo "  npx skills@latest add mattpocock/skills/write-a-prd -g"
-  echo "  npx skills@latest add mattpocock/skills/tdd -g"
-fi
-
 echo ""
 echo "=== setup complete ==="
 echo ""
 echo "Next steps:"
 echo "  source $(basename "${RC_FILE:-your-shell-config}")"
 echo "  wiki help"
+echo "  bun run sync:local           # refresh CLI/qmd/repo skills after local changes"
 echo ""
 echo "Obsidian users: enable the Obsidian CLI in Settings → General → CLI."
 echo "On macOS, wiki-forge retrieval uses Homebrew sqlite when available for Bun qmd SDK hybrid search."
+echo "[note] /research is also required for full forge chaining. Install your agent's research skill separately if it is not already available."
 echo "See SETUP.md for full details."

@@ -42,6 +42,14 @@ export function projectSpecsDir(project: string) {
   return join(projectRoot(project), "specs");
 }
 
+export function workspaceIndexPath() {
+  return join(VAULT_ROOT, "index.md");
+}
+
+export function workspaceProjectsDashboardPath() {
+  return join(VAULT_ROOT, "projects", "_dashboard.md");
+}
+
 export function projectSpecsIndexPath(project: string) {
   return join(projectSpecsDir(project), "index.md");
 }

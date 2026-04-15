@@ -4,7 +4,9 @@ import { VAULT_ROOT } from "../constants";
 import { mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { readText, writeText } from "../lib/fs";
 import { tailLog, appendLogEntry } from "../lib/log";
-import { projectSpecsIndexPath, projectSpecViewIndexPath } from "../lib/structure";
+import { projectSpecsIndexPath, projectSpecViewIndexPath, workspaceIndexPath, workspaceProjectsDashboardPath } from "../lib/structure";
+import { collectBacklogFocus } from "./backlog";
+import { collectStatusRow, loadLintingSnapshot } from "./linting";
 import {
   buildProjectPageIndex,
   collectProjectPageRows,
@@ -20,6 +22,24 @@ import { linkLine, relatedPlanningLines, renderLinks, rewriteRowSections } from 
 
 type IndexTarget = { path: string; content: string };
 type SectionEntry = { line: string; sortKey: string; specGroup: SpecIndexGroup | null };
+type WorkspaceProjectRow = {
+  project: string;
+  title: string;
+  summaryLink: string;
+  backlogLink: string;
+  specsLink: string;
+  status: string;
+  statusOrder: number;
+  focus: string;
+  modules: number;
+  pages: number;
+  bound: number;
+  unbound: number;
+  stale: number;
+  featureCount: number;
+  prdCount: number;
+  sliceCount: number;
+};
 
 export async function updateIndex(args: string[]) {
   const json = args.includes("--json");
@@ -57,17 +77,9 @@ export function logCommand(args: string[]) {
 
 async function buildIndexPlan(project: string | undefined, all: boolean) {
   const targets: IndexTarget[] = [];
+  const projects = await listWorkspaceProjects();
+  targets.push(...await buildWorkspaceIndexTargets(projects));
   if (all) {
-    const projectsRoot = join(VAULT_ROOT, "projects");
-    const projects = existsSync(projectsRoot) ? readdirSync(projectsRoot).filter((entry) => statSync(join(projectsRoot, entry)).isDirectory()).sort() : [];
-    const lines = ["# Index", "", "## Projects", ""];
-    const projectTitles = await Promise.all(projects.map(async (name) => {
-      const summaryPath = join(projectRoot(name), "_summary.md");
-      return { name, title: existsSync(summaryPath) ? await readPageTitle(summaryPath) : name };
-    }));
-    for (const { name, title } of projectTitles) lines.push(`- [[projects/${name}/_summary|${title}]]`);
-    lines.push("");
-    targets.push({ path: "index.md", content: `${lines.join("\n")}\n` });
     for (const name of projects) targets.push(...await buildProjectIndexTargets(name));
     return { all, project: null, targets };
   }
@@ -84,9 +96,18 @@ async function applyIndexPlan(plan: { targets: IndexTarget[] }) {
 }
 
 export async function writeProjectIndex(project: string) {
-  const targets = await buildProjectIndexTargets(project);
+  const plan = await buildIndexPlan(project, false);
+  const targets = plan.targets;
   await applyIndexPlan({ targets });
   return targets;
+}
+
+async function buildWorkspaceIndexTargets(projects: string[]): Promise<IndexTarget[]> {
+  const workspaceRows = await collectWorkspaceProjectRows(projects);
+  return [
+    buildWorkspaceRootIndexTarget(workspaceRows),
+    buildWorkspaceDashboardTarget(workspaceRows),
+  ];
 }
 
 async function buildProjectIndexTargets(project: string): Promise<IndexTarget[]> {
@@ -101,6 +122,121 @@ async function buildProjectIndexTargets(project: string): Promise<IndexTarget[]>
     buildSpecFamilyIndexTarget(project, pageRows, taskHubSections, "slices"),
     buildSpecFamilyIndexTarget(project, pageRows, taskHubSections, "archive"),
   ];
+}
+
+async function listWorkspaceProjects() {
+  const projectsRoot = join(VAULT_ROOT, "projects");
+  if (!existsSync(projectsRoot)) return [];
+  return readdirSync(projectsRoot).filter((entry) => statSync(join(projectsRoot, entry)).isDirectory()).sort();
+}
+
+async function collectWorkspaceProjectRows(projects: string[]): Promise<WorkspaceProjectRow[]> {
+  const rows = await Promise.all(projects.map(async (project) => {
+    const summaryPath = join(projectRoot(project), "_summary.md");
+    const summaryParsed = existsSync(summaryPath)
+      ? safeMatter(relative(VAULT_ROOT, summaryPath), await readText(summaryPath), { silent: true })
+      : null;
+    const lintingSnapshot = await loadLintingSnapshot(project);
+    const status = await collectStatusRow(project, lintingSnapshot);
+    const pageRows = await collectProjectPageRows(project);
+    const pageIndex = buildProjectPageIndex(pageRows);
+    const focus = await readWorkspaceProjectFocus(project);
+    const rawStatus = typeof summaryParsed?.data.status === "string" ? summaryParsed.data.status : "unknown";
+    return {
+      project,
+      title: typeof summaryParsed?.data.title === "string" && summaryParsed.data.title.trim() ? summaryParsed.data.title.trim() : project,
+      summaryLink: `projects/${project}/_summary`,
+      backlogLink: `projects/${project}/backlog`,
+      specsLink: `projects/${project}/specs/index`,
+      status: humanizeStatus(rawStatus),
+      statusOrder: workspaceStatusOrder(rawStatus),
+      focus,
+      modules: status.modules,
+      pages: status.pages,
+      bound: status.bound,
+      unbound: status.unbound,
+      stale: status.stale,
+      featureCount: pageIndex.featureRows.length,
+      prdCount: pageIndex.prdRows.length,
+      sliceCount: pageIndex.taskHubRows.length,
+    } satisfies WorkspaceProjectRow;
+  }));
+  return rows.sort((left, right) => left.statusOrder - right.statusOrder || left.title.localeCompare(right.title));
+}
+
+async function readWorkspaceProjectFocus(project: string) {
+  try {
+    const focus = await collectBacklogFocus(project);
+    if (focus.activeTask) return `${focus.activeTask.id} ${focus.activeTask.title}`;
+    if (focus.recommendedTask) return `next: ${focus.recommendedTask.id} ${focus.recommendedTask.title}`;
+  } catch {}
+  return "none";
+}
+
+function buildWorkspaceRootIndexTarget(projects: WorkspaceProjectRow[]): IndexTarget {
+  const dashboardLink = relative(VAULT_ROOT, workspaceProjectsDashboardPath()).replace(/\.md$/u, "").replaceAll("\\", "/");
+  const out = [
+    "# Index",
+    "",
+    "## Workspace",
+    "",
+    `- [[${dashboardLink}|Project Dashboard]]`,
+    "",
+    "## Projects",
+    "",
+    "| Project | Status | Focus |",
+    "|---------|--------|-------|",
+    ...(projects.length
+      ? projects.map((project) => `| [[${project.summaryLink}|${escapeTableCell(project.title)}]] | ${escapeTableCell(project.status)} | ${escapeTableCell(project.focus)} |`)
+      : ["| (none onboarded yet) |  |  |"]),
+    "",
+  ];
+  return { path: relative(VAULT_ROOT, workspaceIndexPath()).replaceAll("\\", "/"), content: `${out.join("\n")}\n` };
+}
+
+function buildWorkspaceDashboardTarget(projects: WorkspaceProjectRow[]): IndexTarget {
+  const out = [
+    "# Project Dashboard",
+    "",
+    "> [!summary]",
+    "> Generated from the current workspace project corpus. Refresh via `wiki update-index --all --write` or any project index write path.",
+    "",
+    "## Projects",
+    "",
+    "| Project | Status | Focus | Coverage |",
+    "|---------|--------|-------|----------|",
+    ...(projects.length
+      ? projects.map((project) => `| [[${project.summaryLink}|${escapeTableCell(project.title)}]] · [[${project.backlogLink}|backlog]] · [[${project.specsLink}|specs]] | ${escapeTableCell(project.status)} | ${escapeTableCell(project.focus)} | ${escapeTableCell(renderWorkspaceCoverage(project))} |`)
+      : ["| (none onboarded yet) |  |  |  |"]),
+    "",
+  ];
+  return { path: relative(VAULT_ROOT, workspaceProjectsDashboardPath()).replaceAll("\\", "/"), content: `${out.join("\n")}\n` };
+}
+
+function renderWorkspaceCoverage(project: WorkspaceProjectRow) {
+  return `${project.modules} modules, ${project.pages} pages, ${project.featureCount}F/${project.prdCount}P/${project.sliceCount}S, ${project.stale} stale, ${project.unbound} unbound`;
+}
+
+function workspaceStatusOrder(status: string) {
+  return new Map([
+    ["current", 0],
+    ["active", 0],
+    ["scaffold", 1],
+    ["paused", 2],
+    ["completed", 3],
+    ["archived", 4],
+  ]).get(status.trim().toLowerCase()) ?? 9;
+}
+
+function humanizeStatus(status: string) {
+  return status
+    .trim()
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (match) => match.toUpperCase()) || "Unknown";
+}
+
+function escapeTableCell(value: string) {
+  return value.replaceAll("|", "\\|").replace(/\r?\n/g, " ").trim();
 }
 
 function buildPlanningDerivedTargets(pageIndex: ReturnType<typeof buildProjectPageIndex>): IndexTarget[] {
