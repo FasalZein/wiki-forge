@@ -1,5 +1,5 @@
-import { assertQmdAvailable, buildLexicalSearchQuery, queryKnowledge, resolveRetrievalMode } from "../lib/qmd";
-import { getQmdStore, sdkHybridAvailable, searchKnowledgeHybridSdk, searchKnowledgeLexicalSdk } from "../lib/qmd-sdk";
+import { buildLexicalSearchQuery, buildStructuredHybridQuery, type RetrievalMode, resolveRetrievalMode } from "../lib/qmd";
+import { getQmdStore, sdkHybridAvailable, searchKnowledgeExpandedSdk, searchKnowledgeHybridSdk, searchKnowledgeLexicalSdk, searchKnowledgeStructuredSdk } from "../lib/qmd-sdk";
 import { QMD_INDEX_PATH, VAULT_ROOT } from "../constants";
 
 const KNOWLEDGE_COLLECTION = "knowledge";
@@ -29,13 +29,11 @@ export async function searchVault(args: string[]) {
     console.log(renderQueryResults(results));
     return;
   }
-  assertQmdAvailable();
-  const results = await queryKnowledge(query, { expand: false, json: true });
+  const results = await searchKnowledgeStructuredSdk(buildStructuredHybridQuery(query), { cacheKeyPrefix: "search:sdk-structured" });
   console.log(renderQueryResults(results));
 }
 
 export async function queryVault(args: string[]) {
-  assertQmdAvailable();
   const expand = args[0] === "--expand";
   const query = (expand ? args.slice(1) : args).join(" ").trim();
   if (!query) {
@@ -44,7 +42,8 @@ export async function queryVault(args: string[]) {
 
   const mode = resolveRetrievalMode(query, { expand, sdkHybridAvailable: sdkHybridAvailable() });
   if (mode === "expand") {
-    await queryKnowledge(query, { expand: true });
+    const results = await searchKnowledgeExpandedSdk(query, { maxResults: 5, cacheKeyPrefix: "query:sdk-expand" });
+    console.log(renderQueryResults(results));
     return;
   }
   if (mode === "bm25") {
@@ -57,11 +56,11 @@ export async function queryVault(args: string[]) {
     console.log(renderQueryResults(results));
     return;
   }
-  await queryKnowledge(query, { expand: false });
+  const results = await searchKnowledgeStructuredSdk(buildStructuredHybridQuery(query), { maxResults: 5, cacheKeyPrefix: "query:sdk-structured" });
+  console.log(renderQueryResults(results));
 }
 
 export async function qmdStatus() {
-  assertQmdAvailable();
   const store = await getQmdStore({ dbPath: QMD_INDEX_PATH });
   const status = await store.getStatus();
   const contexts = await store.listContexts();
@@ -85,7 +84,6 @@ export async function qmdStatus() {
 }
 
 export async function qmdUpdate() {
-  assertQmdAvailable();
   const store = await getQmdStore({ dbPath: QMD_INDEX_PATH });
   await ensureKnowledgeCollectionSdk(store);
   const result = await store.update({ collections: [KNOWLEDGE_COLLECTION] });
@@ -93,7 +91,6 @@ export async function qmdUpdate() {
 }
 
 export async function qmdEmbed() {
-  assertQmdAvailable();
   const store = await getQmdStore({ dbPath: QMD_INDEX_PATH });
   await ensureKnowledgeCollectionSdk(store);
   const result = await store.embed({ chunkStrategy: "auto" });
@@ -112,7 +109,6 @@ function renderQueryResults(results: Array<{ file: string; title: string; contex
 }
 
 export async function qmdSetup() {
-  assertQmdAvailable();
   const store = await getQmdStore({ dbPath: QMD_INDEX_PATH });
   await ensureKnowledgeCollectionSdk(store);
   await store.update({ collections: [KNOWLEDGE_COLLECTION] });
@@ -122,6 +118,13 @@ export async function qmdSetup() {
 export function resolveSearchRetrievalMode(options: { hybrid?: boolean; sdkHybridAvailable?: boolean }) {
   if (!options.hybrid) return "sdk-bm25" as const;
   return options.sdkHybridAvailable ? "sdk-hybrid" as const : "structured-hybrid" as const;
+}
+
+export function resolveQueryExecutionMode(mode: RetrievalMode) {
+  if (mode === "expand") return "sdk-expand" as const;
+  if (mode === "bm25") return "sdk-bm25" as const;
+  if (mode === "sdk-hybrid") return "sdk-hybrid" as const;
+  return "sdk-structured" as const;
 }
 
 async function ensureKnowledgeCollectionSdk(store: Awaited<ReturnType<typeof getQmdStore>>) {

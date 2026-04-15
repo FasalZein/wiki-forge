@@ -69,12 +69,80 @@ export async function searchKnowledgeHybridSdk(query: string, options?: { intent
   return normalized;
 }
 
+export async function searchKnowledgeExpandedSdk(query: string, options?: { intent?: string; maxResults?: number; cacheKeyPrefix?: string; rerank?: boolean }) {
+  const cachePrefix = options?.cacheKeyPrefix ?? "sdk-expanded";
+  const cacheKey = `${cachePrefix}:${query}:${options?.maxResults ?? "default"}:${options?.intent ?? ""}:${options?.rerank ?? "default"}`;
+  const fingerprint = fileFingerprint(QMD_INDEX_PATH);
+  const cached = await readCache<CachedSdkResults>("qmd-sdk-json", cacheKey, QMD_SDK_CACHE_VERSION, fingerprint);
+  if (cached) return cached.results;
+
+  const store = await getStore();
+  const results = await store.search({
+    query,
+    intent: options?.intent,
+    rerank: options?.rerank,
+    collection: "knowledge",
+    limit: options?.maxResults ?? 10,
+  });
+  const normalized = results.map((result) => hybridResultToQmdResult(query, result));
+  await writeCache("qmd-sdk-json", cacheKey, QMD_SDK_CACHE_VERSION, fingerprint, { results: normalized });
+  return normalized;
+}
+
+export async function searchKnowledgeStructuredSdk(queryDocument: string, options?: { maxResults?: number; cacheKeyPrefix?: string; rerank?: boolean }) {
+  const parsed = parseStructuredQueryDocument(queryDocument);
+  const cachePrefix = options?.cacheKeyPrefix ?? "sdk-structured";
+  const cacheKey = `${cachePrefix}:${queryDocument}:${options?.maxResults ?? "default"}:${options?.rerank ?? "default"}`;
+  const fingerprint = fileFingerprint(QMD_INDEX_PATH);
+  const cached = await readCache<CachedSdkResults>("qmd-sdk-json", cacheKey, QMD_SDK_CACHE_VERSION, fingerprint);
+  if (cached) return cached.results;
+
+  const store = await getStore();
+  const results = await store.search({
+    queries: parsed.queries,
+    intent: parsed.intent,
+    rerank: options?.rerank,
+    collection: "knowledge",
+    limit: options?.maxResults ?? 10,
+  });
+  const normalized = results.map((result) => hybridResultToQmdResult(queryDocument, result));
+  await writeCache("qmd-sdk-json", cacheKey, QMD_SDK_CACHE_VERSION, fingerprint, { results: normalized });
+  return normalized;
+}
+
 function buildPreExpandedQueries(query: string): ExpandedQuery[] {
   const cleanQuery = query.replace(/\s+/g, " ").trim();
   return [
     { type: "lex" as const, query: cleanQuery },
     { type: "vec" as const, query: normalizeSemanticQueryText(cleanQuery) },
   ];
+}
+
+function parseStructuredQueryDocument(queryDocument: string): { intent?: string; queries: ExpandedQuery[] } {
+  let intent: string | undefined;
+  const queries: ExpandedQuery[] = [];
+
+  for (const rawLine of queryDocument.split(/\r?\n/u)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    if (line.startsWith("intent:")) {
+      const value = line.slice("intent:".length).trim();
+      if (value) intent = value;
+      continue;
+    }
+    const match = line.match(/^(lex|vec|hyde):\s*(.+)$/u);
+    if (!match) continue;
+    queries.push({
+      type: match[1] as ExpandedQuery["type"],
+      query: match[2].trim(),
+    });
+  }
+
+  if (!queries.length) {
+    throw new Error("structured sdk query requires at least one lex/vec/hyde line");
+  }
+
+  return { intent, queries };
 }
 
 export function sdkHybridAvailable() {

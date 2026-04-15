@@ -225,4 +225,25 @@ describe("wiki automation commands", () => {
     expect(verbose.exitCode).toBe(0);
     expect(verbose.stdout.toString()).toContain("impacted: modules/payments/spec.md");
   });
+
+  test("verify-page --all preserves stronger verification levels", () => {
+    const vault = tempDir("wiki-vault");
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "verification retention"], env).exitCode).toBe(0);
+    expect(runWiki(["verify-page", "demo", "specs/slices/DEMO-001/test-plan.md", "test-verified"], env).exitCode).toBe(0);
+
+    const before = readFileSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "test-plan.md"), "utf8");
+    expect(before).toContain("verification_level: test-verified");
+
+    const result = runWiki(["verify-page", "demo", "--all", "code-verified"], env);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.toString()).toContain("skipped projects/demo/specs/slices/DEMO-001/test-plan.md (kept stronger verification_level: test-verified)");
+
+    const after = readFileSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "test-plan.md"), "utf8");
+    expect(after).toContain("verification_level: test-verified");
+    const summary = readFileSync(join(vault, "projects", "demo", "_summary.md"), "utf8");
+    expect(summary).toContain("verification_level: code-verified");
+  });
 });

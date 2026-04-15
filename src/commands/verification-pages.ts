@@ -78,7 +78,9 @@ export async function verifyPage(args: string[]) {
     if (!isValidVerificationLevel(levelArg)) throw new Error(`invalid level: ${levelArg}`);
     const pages = walkMarkdown(projectRoot(project));
     let updatedCount = 0;
-    for (const page of pages) if (await applyVerificationLevel(page, levelArg, dryRun)) updatedCount += 1;
+    for (const page of pages) {
+      if (await applyVerificationLevel(page, levelArg, dryRun, relative(VAULT_ROOT, page), false, { preserveStrongerLevels: true })) updatedCount += 1;
+    }
     return console.log(`${dryRun ? "would update" : "updated"} ${updatedCount} page(s) for ${project}`);
   }
   const level = filteredArgs[filteredArgs.length - 1];

@@ -5,9 +5,9 @@ import { VAULT_ROOT } from "../constants";
 import { orderFrontmatter, projectRoot, mkdirIfMissing, readProjectTitle } from "../cli-shared";
 import { writeText } from "../lib/fs";
 import { buildEvidenceExcerpt, buildScopedNoteIndex, findNoteByVaultPath, fromQmdFile, normalizePath, stripMarkdownExtension } from "../lib/notes";
-import { assertQmdAvailable, buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText, queryKnowledge, resolveRetrievalMode } from "../lib/qmd";
+import { buildLexicalSearchQuery, normalizeSemanticQueryText, resolveRetrievalMode } from "../lib/qmd";
 import { appendLogEntry } from "../lib/log";
-import { sdkHybridAvailable, searchKnowledgeHybridSdk, searchKnowledgeLexicalSdk } from "../lib/qmd-sdk";
+import { sdkHybridAvailable, searchKnowledgeExpandedSdk, searchKnowledgeLexicalSdk, searchKnowledgeStructuredSdk } from "../lib/qmd-sdk";
 import { questionTokens } from "../lib/research";
 import { createResearchPage } from "./research";
 import type { AnswerBrief, AnswerSource, AskOptions, NoteIndex, QmdResult } from "../types";
@@ -17,14 +17,12 @@ const DEFAULT_ASK_CANDIDATES = 8;
 const DEFAULT_COMPACT_SOURCE_REFS = 3;
 
 export async function askProject(args: string[]) {
-  assertQmdAvailable();
   const options = parseAskOptions(args);
   const brief = await buildAnswerBrief(options);
   console.log(renderAnswerBrief(brief, { verbose: options.verbose }));
 }
 
 export async function fileAnswer(args: string[]) {
-  assertQmdAvailable();
   const options = parseAskOptions(args);
   const brief = await buildAnswerBrief(options);
   const outputPath = resolveAnswerOutputPath(options.project, options.question, options.slug);
@@ -119,16 +117,17 @@ async function buildAnswerBrief(options: AskOptions): Promise<AnswerBrief> {
 }
 
 async function resolveRetrieval(mode: string, query: string, project: string, maxCandidates: number): Promise<QmdResult[]> {
-  if (mode === "expand") {
-    return queryKnowledge(query, { expand: true, json: true, maxResults: maxCandidates, cacheKeyPrefix: `answer:${project}:expand` });
+  const strategy = resolveAnswerRetrievalStrategy(mode);
+  if (strategy === "sdk-expand") {
+    return searchKnowledgeExpandedSdk(query, { maxResults: maxCandidates, cacheKeyPrefix: `answer:${project}:expand` });
   }
-  if (mode === "bm25") {
+  if (strategy === "sdk-bm25") {
     return searchKnowledgeLexicalSdk(query, { maxResults: maxCandidates, cacheKeyPrefix: `answer:${project}:bm25` });
   }
-  if (mode === "sdk-hybrid") {
-    return searchKnowledgeHybridSdk(query, { maxResults: maxCandidates, cacheKeyPrefix: `answer:${project}:sdk-hybrid` });
+  if (strategy === "sdk-structured") {
+    return searchKnowledgeStructuredSdk(query, { maxResults: maxCandidates, cacheKeyPrefix: `answer:${project}:sdk-structured` });
   }
-  return queryKnowledge(query, { expand: false, json: true, maxResults: maxCandidates, cacheKeyPrefix: `answer:${project}:structured` });
+  return searchKnowledgeStructuredSdk(query, { maxResults: maxCandidates, cacheKeyPrefix: `answer:${project}:sdk-hybrid` });
 }
 
 function buildProjectAwareQuery(project: string, question: string) {
@@ -147,6 +146,13 @@ function buildProjectAwareLexicalQuery(project: string, question: string) {
   const terms = [...buildLexicalSearchQuery(question).split(/\s+/u).filter(Boolean), ...projectTerms];
   const deduped = terms.filter((term, index) => terms.indexOf(term) === index);
   return deduped.join(" ").trim() || question;
+}
+
+export function resolveAnswerRetrievalStrategy(mode: string) {
+  if (mode === "expand") return "sdk-expand" as const;
+  if (mode === "bm25") return "sdk-bm25" as const;
+  if (mode === "sdk-hybrid") return "sdk-hybrid" as const;
+  return "sdk-structured" as const;
 }
 
 function questionPrefersResearch(question: string) {

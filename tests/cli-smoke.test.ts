@@ -670,6 +670,7 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("install-git-hook writes a repo-local hook that runs wiki commit-check before commit");
     expect(output).toContain("dependency-graph generates a derived JSON Canvas dependency graph");
     expect(output).toContain("qmd retrieval and maintenance commands now prefer the in-process SDK/Bun wrapper path instead of depending on a separately working global qmd CLI");
+    expect(output).toContain("query --expand uses qmd SDK auto-expansion instead of the raw qmd CLI");
     expect(output).toContain("ask reranks qmd results toward projects/<project>/ and prints a compact citation-ready brief by default; use --verbose for routing/source sections");
     expect(output).toContain("research file scaffolds a project research note");
     expect(output).toContain("it does not perform the research step");

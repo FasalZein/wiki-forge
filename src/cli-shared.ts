@@ -96,7 +96,7 @@ Notes:
   - Use the /research skill for actual investigation; wiki research/source commands only file, scaffold, ingest, and lint research artifacts in the vault
   - search uses qmd full-text search by default
   - search --hybrid is supported, but query is the preferred hybrid retrieval command
-  - query is SDK-first: location/general queries use BM25, rationale queries use pre-expanded lex+vec hybrid in-process, and --expand keeps the raw qmd expansion path
+  - query is SDK-first: location/general queries use BM25, rationale queries use pre-expanded lex+vec hybrid in-process when available, and --expand uses SDK auto-expansion
   - backlog reads project tasks by section, can filter by assignee, and shows blocked slices via depends_on
   - add-task appends a tracked task to backlog.md with a generated project task ID
   - move-task / complete-task update task state in backlog.md
@@ -149,7 +149,7 @@ Notes:
   - research lint flags missing sources, stale unverified notes, unattributed claims, unlinked research pages, and misplaced research/raw files
   - scaffold-layer/create-layer-page are the plugin-generated extension path for custom top-level layers such as books
   - lint-vault hard-fails unknown top-level layers or invalid custom-layer paths
-  - query --expand uses qmd's raw natural-language expansion path
+  - query --expand uses qmd SDK auto-expansion instead of the raw qmd CLI
   - qmd retrieval and maintenance commands now prefer the in-process SDK/Bun wrapper path instead of depending on a separately working global qmd CLI
   - set QMD_INDEX_NAME to route wiki/qmd commands to a named qmd index (useful for isolated benchmarks)
   - set ${VAULT_ROOT_ENV} when the CLI is installed outside the vault repo

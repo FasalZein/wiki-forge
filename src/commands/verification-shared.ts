@@ -19,11 +19,22 @@ export function isValidVerificationLevel(value: string): value is VerificationLe
   return value === "stale" || VERIFICATION_LEVELS.includes(value as (typeof VERIFICATION_LEVELS)[number]);
 }
 
-export async function applyVerificationLevel(wikiFilePath: string, level: VerificationLevel, dryRun: boolean, label = relative(VAULT_ROOT, wikiFilePath), silent = false) {
+export async function applyVerificationLevel(
+  wikiFilePath: string,
+  level: VerificationLevel,
+  dryRun: boolean,
+  label = relative(VAULT_ROOT, wikiFilePath),
+  silent = false,
+  options?: { preserveStrongerLevels?: boolean },
+) {
   const raw = await readText(wikiFilePath);
   const parsed = safeMatter(relative(VAULT_ROOT, wikiFilePath), raw);
   if (!parsed) throw new Error(`unable to parse frontmatter for ${relative(VAULT_ROOT, wikiFilePath)}`);
   const currentLevel = readVerificationLevel(parsed.data);
+  if (options?.preserveStrongerLevels && currentLevel && currentLevel !== "stale" && levelIndex(level) < levelIndex(currentLevel)) {
+    if (!silent) console.log(`skipped ${label} (kept stronger verification_level: ${currentLevel})`);
+    return false;
+  }
   if (!silent && currentLevel && currentLevel !== "stale" && levelIndex(level) < levelIndex(currentLevel)) console.warn(`warning: lowering verification level from ${currentLevel} to ${level}`);
   if (dryRun) {
     if (!silent) console.log(`would update ${label} -> verification_level: ${level}`);

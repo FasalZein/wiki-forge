@@ -3,8 +3,8 @@ import { DEFAULT_CANDIDATE_LIMITS, parseCandidateLimitsArg } from "../scripts/qm
 import { DEFAULT_BENCH_COMMANDS, parseCommandList } from "../scripts/wiki-maintenance-bench";
 import { resolveQmdIndexPath } from "../src/constants";
 import { join } from "node:path";
-import { DEFAULT_ASK_MAX_RESULTS, classifyAnswerScope, renderAnswerBrief, resolveAskCandidateLimit, scoreAnswerSource } from "../src/commands/answers";
-import { resolveSearchRetrievalMode } from "../src/commands/qmd-commands";
+import { DEFAULT_ASK_MAX_RESULTS, classifyAnswerScope, renderAnswerBrief, resolveAnswerRetrievalStrategy, resolveAskCandidateLimit, scoreAnswerSource } from "../src/commands/answers";
+import { resolveQueryExecutionMode, resolveSearchRetrievalMode } from "../src/commands/qmd-commands";
 import { VAULT_ROOT } from "../src/constants";
 import { buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText, resolveQmdInvocation, resolveRetrievalMode } from "../src/lib/qmd";
 import { fromQmdFile } from "../src/lib/vault";
@@ -119,6 +119,20 @@ describe("search retrieval mode", () => {
   test("uses SDK hybrid only when explicitly requested and available", () => {
     expect(resolveSearchRetrievalMode({ hybrid: true, sdkHybridAvailable: true })).toBe("sdk-hybrid");
     expect(resolveSearchRetrievalMode({ hybrid: true, sdkHybridAvailable: false })).toBe("structured-hybrid");
+  });
+});
+
+describe("sdk execution strategy", () => {
+  test("keeps structured fallback on the structured sdk path for query/search", () => {
+    expect(resolveQueryExecutionMode("structured-hybrid")).toBe("sdk-structured");
+    expect(resolveQueryExecutionMode("sdk-hybrid")).toBe("sdk-hybrid");
+    expect(resolveQueryExecutionMode("expand")).toBe("sdk-expand");
+  });
+
+  test("keeps answer fallback on the structured sdk path", () => {
+    expect(resolveAnswerRetrievalStrategy("structured-hybrid")).toBe("sdk-structured");
+    expect(resolveAnswerRetrievalStrategy("sdk-hybrid")).toBe("sdk-hybrid");
+    expect(resolveAnswerRetrievalStrategy("bm25")).toBe("sdk-bm25");
   });
 });
 
