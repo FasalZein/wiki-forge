@@ -30,11 +30,9 @@ export async function buildNoteIndex(): Promise<NoteIndex> {
   }
 
   const index = createEmptyNoteIndex();
-  for (const file of files) {
-    const note = await buildNoteInfo(file, true);
-    if (note) {
-      indexNote(index, note);
-    }
+  const notes = await Promise.all(files.map((file) => buildNoteInfo(file, true)));
+  for (const note of notes) {
+    if (note) indexNote(index, note);
   }
 
   await writeCache("note-index", "vault", NOTE_INDEX_CACHE_VERSION, fingerprint, serializeNoteIndex(index));

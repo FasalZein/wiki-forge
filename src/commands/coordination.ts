@@ -371,12 +371,14 @@ export async function exportPrompt(args: string[]) {
   const agentIndex = args.indexOf("--agent");
   const agent = (agentIndex >= 0 ? args[agentIndex + 1] : "codex") || "codex";
   if (!["codex", "claude", "pi"].includes(agent)) throw new Error(`unsupported agent: ${agent}`);
-  const hub = await readSliceHub(project, sliceId);
-  const plan = await readSlicePlan(project, sliceId);
-  const testPlan = await readSliceTestPlan(project, sliceId);
   const summaryPath = join(VAULT_ROOT, "projects", project, "_summary.md");
-  const summary = existsSync(summaryPath) ? await readText(summaryPath) : "";
-  const sourcePaths = await readSliceSourcePaths(project, sliceId);
+  const [hub, plan, testPlan, summary, sourcePaths] = await Promise.all([
+    readSliceHub(project, sliceId),
+    readSlicePlan(project, sliceId),
+    readSliceTestPlan(project, sliceId),
+    existsSync(summaryPath) ? readText(summaryPath) : Promise.resolve(""),
+    readSliceSourcePaths(project, sliceId),
+  ]);
   const commands = extractShellCommandBlocks(testPlan.content);
   const context = await collectTaskContextForId(project, sliceId);
   const prompt = renderExecutionPrompt({ project, sliceId, agent, hub, plan, testPlan, summary, sourcePaths, commands, context });
@@ -388,10 +390,12 @@ export async function resumeProject(args: string[]) {
   const json = args.includes("--json");
   const repo = resolveRepoPath(options.project, options.repo);
   assertGitRepo(repo);
-  const maintain = await collectMaintenancePlan(options.project, options.base, repo);
+  const [maintain, drift] = await Promise.all([
+    collectMaintenancePlan(options.project, options.base, repo),
+    collectDriftSummary(options.project, repo),
+  ]);
   const dirty = collectDirtyRepoStatus(repo);
   const recentCommits = collectRecentCommits(repo, 5);
-  const drift = await collectDriftSummary(options.project, repo);
   const stalePages = drift.results.filter((row) => row.status !== "fresh").slice(0, 10).map((row) => row.wikiPage);
   const recentNotes = projectLogEntries(options.project, "note").slice(0, 5);
   const payload = {

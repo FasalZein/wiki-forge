@@ -4,7 +4,7 @@ import { requireValue } from "../cli-shared";
 import { collectBacklog } from "./backlog";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
 import { isTestFile } from "./maintenance";
-import { readSliceCompletedAt, readSliceStatus } from "../lib/slices";
+import { readSliceSummary } from "../lib/slices";
 import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "./linting";
 import type { LintingSnapshot } from "./linting";
 import { collectCloseout, collectMaintenancePlan, collectRefreshFromGit, collectRefreshFromWorktree, loadProjectSnapshot, resolveDefaultBase } from "./maintenance";
@@ -193,20 +193,25 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
 
 async function collectBacklogConsistencyWarnings(project: string, sections: Record<string, Array<{ id: string }>>) {
   const warnings: string[] = [];
+  const entries: Array<{ section: string; item: { id: string } }> = [];
   for (const [section, items] of Object.entries(sections)) {
     for (const item of items) {
-      const status = await readSliceStatus(project, item.id);
-      const completedAt = await readSliceCompletedAt(project, item.id);
-      if (!status && !completedAt) continue;
-      if (section === "Done") {
-        if (status !== "done" || !completedAt) {
-          warnings.push(`${item.id} legacy done-slice metadata drift; run wiki maintain ${project} --repair-done-slices`);
-        }
-        continue;
-      }
-      if (status === "done") warnings.push(`${item.id} is marked done in slice docs but still lives in ${section}`);
-      if (completedAt) warnings.push(`${item.id} records completed_at in slice docs but still lives in ${section}`);
+      entries.push({ section, item });
     }
+  }
+  const summaries = await Promise.all(entries.map(({ item }) => readSliceSummary(project, item.id)));
+  for (let i = 0; i < entries.length; i++) {
+    const { section, item } = entries[i];
+    const { status, completedAt } = summaries[i];
+    if (!status && !completedAt) continue;
+    if (section === "Done") {
+      if (status !== "done" || !completedAt) {
+        warnings.push(`${item.id} legacy done-slice metadata drift; run wiki maintain ${project} --repair-done-slices`);
+      }
+      continue;
+    }
+    if (status === "done") warnings.push(`${item.id} is marked done in slice docs but still lives in ${section}`);
+    if (completedAt) warnings.push(`${item.id} records completed_at in slice docs but still lives in ${section}`);
   }
   return warnings;
 }

@@ -5,7 +5,7 @@ import { assertExists, mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, re
 import { readText, writeText } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
 import { isCanonicalPrdId, projectPrdsDir, projectTaskDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath, toVaultMarkdownPath, toVaultWikilinkPath } from "../lib/structure";
-import { readSliceAssignee, readSliceCompletedAt, readSliceDependencies, readSliceStatus } from "../lib/slices";
+import { readSliceDependencies, readSliceSummary } from "../lib/slices";
 import { agentNamesEqual, assertKnownAgent, readProjectAgents } from "../lib/agents";
 import { writeProjectIndex } from "./index-log";
 
@@ -180,8 +180,8 @@ export async function collectBacklogView(project: string, assignee?: string) {
   return { project, assignee: assignee ?? null, knownAgents: await readProjectAgents(project), sections, blocked };
 }
 
-export async function collectBacklogFocus(project: string): Promise<BacklogFocus> {
-  const backlog = await collectBacklog(project);
+export async function collectBacklogFocus(project: string, preloadedBacklog?: Awaited<ReturnType<typeof collectBacklog>>): Promise<BacklogFocus> {
+  const backlog = preloadedBacklog ?? await collectBacklog(project);
   const inProgress = backlog.sections["In Progress"] ?? [];
   const todo = backlog.sections["Todo"] ?? [];
   const doneIds = new Set((backlog.sections["Done"] ?? []).map((task) => task.id));
@@ -219,21 +219,26 @@ async function collectTaskContext(project: string, item: BacklogItem, section: s
   const hasTaskHub = existsSync(taskHubPath);
   const hasPlan = existsSync(planPath);
   const hasTestPlan = existsSync(testPlanPath);
-  const dependencies = await readSliceDependencies(project, item.id);
+  const [summary, planStatus, testPlanStatus] = await Promise.all([
+    readSliceSummary(project, item.id),
+    detectTaskDocState(planPath),
+    detectTaskDocState(testPlanPath),
+  ]);
+  const { status: sliceStatus, completedAt, assignee, dependencies } = summary;
   const blockedBy = doneIds ? dependencies.filter((dependency) => !doneIds.has(dependency)) : [];
   return {
     id: item.id,
     title: item.title,
     section,
-    assignee: await readSliceAssignee(project, item.id),
-    sliceStatus: await readSliceStatus(project, item.id),
-    completedAt: await readSliceCompletedAt(project, item.id),
+    assignee,
+    sliceStatus,
+    completedAt,
     ...(hasTaskHub ? { taskHubPath: toVaultMarkdownPath(taskHubPath) } : {}),
     ...(hasPlan ? { planPath: toVaultMarkdownPath(planPath) } : {}),
     ...(hasTestPlan ? { testPlanPath: toVaultMarkdownPath(testPlanPath) } : {}),
     hasSliceDocs: hasTaskHub || hasPlan || hasTestPlan,
-    planStatus: await detectTaskDocState(planPath),
-    testPlanStatus: await detectTaskDocState(testPlanPath),
+    planStatus,
+    testPlanStatus,
     dependencies,
     blockedBy,
   };

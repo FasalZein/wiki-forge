@@ -1,4 +1,4 @@
-import { mkdirSync, statSync } from "node:fs";
+import { appendFileSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { dirname } from "node:path";
 
 export async function readText(path: string) {
@@ -16,6 +16,24 @@ export async function exists(path: string) {
 export async function writeText(path: string, content: string) {
   mkdirSync(dirname(path), { recursive: true });
   await Bun.write(path, content);
+}
+
+export function ensureDir(path: string) {
+  mkdirSync(path, { recursive: true });
+}
+
+export function appendText(path: string, content: string) {
+  appendFileSync(path, content, "utf8");
+}
+
+export async function copyFile(src: string, dest: string) {
+  await Bun.write(dest, Bun.file(src));
+}
+
+export function listDirs(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name);
 }
 
 export function statFingerprint(path: string) {

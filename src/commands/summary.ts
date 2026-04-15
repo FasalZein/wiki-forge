@@ -66,7 +66,7 @@ async function collectSummary(project: string, explicitRepo?: string) {
   let drift = { fresh: 0, stale: 0, unknown: 0, deleted: 0, renamed: 0 };
   try { const d = await collectDriftSummary(project, explicitRepo, lintingSnapshot); drift = { fresh: d.fresh, stale: d.stale, unknown: d.unknown, deleted: d.deleted, renamed: d.renamed }; } catch {}
   const backlog = await collectBacklog(project);
-  const focus = await collectBacklogFocus(project);
+  const focus = await collectBacklogFocus(project, backlog);
   const activeWork = backlog.sections["In Progress"] ?? [];
   const topTodo = (backlog.sections["Todo"] ?? []).slice(0, 5);
   const base = resolveDefaultBase(project, explicitRepo);

@@ -1,9 +1,9 @@
-import { copyFileSync, existsSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VAULT_ROOT, STALE_UNVERIFIED_DAYS } from "../constants";
 import { mkdirIfMissing, nowIso, orderFrontmatter, requireValue, safeMatter, today, writeNormalizedPage } from "../cli-shared";
 import { appendLogEntry } from "../lib/log";
-import { readText, writeText } from "../lib/fs";
+import { copyFile, readText, writeText } from "../lib/fs";
 import { classifyRawPath, classifyResearchPath, describeAllowedRawPaths, describeAllowedResearchPaths, deriveSourceSlug, deriveSourceTitle, detectResearchSourceType, inferRawBucket, isAllowedRawBucket, normalizeTopicPath, rawBucketDir, rawPathForSource, rawRoot, rawVaultPath, researchOverviewPath, researchPagePath, researchRoot, researchTopicDir, slugifyResearchPage, topicCrossLinks, topicLabel } from "../lib/research";
 import { normalizePath, stripMarkdownExtension, walkMarkdown } from "../lib/vault";
 import { collectResearchAudit } from "../lib/research-audit";
@@ -134,7 +134,7 @@ export async function ingestSource(args: string[]) {
       writeNormalizedPage(rawPath, rawBody, rawData);
     } else {
       if (!existsSync(source)) throw new Error(`source path not found: ${source}`);
-      copyFileSync(source, rawPath);
+      await copyFile(source, rawPath);
     }
 
     const sourceLabel = /^https?:\/\//iu.test(source) ? source : relative(process.cwd(), source);
