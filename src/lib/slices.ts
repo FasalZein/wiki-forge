@@ -3,6 +3,7 @@ import { relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { safeMatter } from "../cli-shared";
 import { readText } from "./fs";
+import { extractShellBlocks } from "./markdown-ast";
 import { projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath } from "./structure";
 
 export type SliceDocKind = "index" | "plan" | "test-plan";
@@ -61,13 +62,7 @@ export async function readSlicePlan(project: string, taskId: string) {
 }
 
 export function extractShellCommandBlocks(markdown: string) {
-  const blocks: string[] = [];
-  const regex = /```(?:bash|sh|shell)\n([\s\S]*?)```/g;
-  for (const match of markdown.matchAll(regex)) {
-    const block = (match[1] ?? "").trim();
-    if (block) blocks.push(block);
-  }
-  return blocks;
+  return extractShellBlocks(markdown);
 }
 
 export async function readSliceAssignee(project: string, taskId: string) {

@@ -2,6 +2,7 @@ import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { MODULE_REQUIRED_HEADINGS, PROJECT_DIRS, PROJECT_FILES, VAULT_ROOT, type VerificationLevel } from "../constants";
 import { assertExists, projectRoot, requireValue, safeMatter } from "../cli-shared";
+import { extractWikilinkTargets, parseWikiMarkdown } from "../lib/markdown-ast";
 import { buildNoteIndex } from "../lib/notes";
 import { classifyProjectDocPath, describeAllowedProjectDocPaths } from "../lib/structure";
 import { readText } from "../lib/fs";
@@ -153,7 +154,9 @@ export async function collectLintResult(project: string, snapshot?: LintingSnaps
     if (frontmatterResult.missingFields.length > 0) issues.push(`${entry.relPath} missing frontmatter fields: ${frontmatterResult.missingFields.join(", ")}`);
     for (const issue of lintWikilinks(entry.vaultPath, frontmatterResult.body, noteIndex)) issues.push(`${entry.relPath} ${issue}`);
     if (entry.vaultPath.includes("/modules/") && entry.vaultPath.endsWith("/spec")) {
-      for (const heading of MODULE_REQUIRED_HEADINGS) if (!frontmatterResult.body.includes(`${heading}\n`) && !frontmatterResult.body.endsWith(heading)) issues.push(`${entry.relPath} missing required heading: ${heading}`);
+      const parsed = parseWikiMarkdown(frontmatterResult.body);
+      const headingTexts = new Set(parsed.headings.map((h) => `${"#".repeat(h.depth)} ${h.text}`));
+      for (const heading of MODULE_REQUIRED_HEADINGS) if (!headingTexts.has(heading)) issues.push(`${entry.relPath} missing required heading: ${heading}`);
     }
   }
   return { project, issues };
@@ -169,13 +172,14 @@ export async function collectSemanticLintResult(project: string, snapshot?: Lint
   for (const entry of pageEntries) {
     const rel = entry.relPath;
     const relNoExt = rel.replace(/\.md$/u, "");
-    const links = [...entry.raw.matchAll(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g)].map((match) => String(match[1]).trim()).filter(Boolean);
+    const links = extractWikilinkTargets(entry.parsed?.content ?? entry.raw);
     const internalLinks = links.map((target) => target.replace(/\.md$/u, "").replace(/^projects\/[^/]+\//u, "")).filter((target) => !target.startsWith("index") && !target.startsWith("wiki/") && !target.startsWith("research/"));
     outbound.set(relNoExt, internalLinks.length);
     for (const target of internalLinks) if (pageSet.has(target.replace(/^\.\//u, ""))) inbound.set(target.replace(/^\.\//u, ""), (inbound.get(target.replace(/^\.\//u, "")) ?? 0) + 1);
-    const todoCount = (entry.raw.match(/\bTODO\b/g) ?? []).length;
-    if (todoCount >= 6) issues.push(`${rel} placeholder-heavy: ${todoCount} TODO markers`);
-    const bodyLength = (entry.parsed?.content ?? entry.raw).replace(/^---[\s\S]*?---\s*/u, "").trim().length;
+    const bodyContent = entry.parsed?.content ?? entry.raw;
+    const parsedPage = parseWikiMarkdown(bodyContent);
+    if (parsedPage.todoCount >= 6) issues.push(`${rel} placeholder-heavy: ${parsedPage.todoCount} TODO markers`);
+    const bodyLength = bodyContent.trim().length;
     if (bodyLength > 0 && bodyLength < 180 && !rel.endsWith("backlog.md") && !rel.endsWith("decisions.md") && !rel.endsWith("learnings.md")) issues.push(`${rel} thin page: very little maintained content`);
     if (entry.parsed && (!Array.isArray(entry.parsed.data.source_paths) || entry.parsed.data.source_paths.length === 0) && rel.includes("/modules/")) issues.push(`${rel} module page has no source_paths`);
     if (rel.startsWith("specs/") || rel.includes("/specs/")) {

@@ -1,6 +1,7 @@
 import GithubSlugger from "github-slugger";
 import { dirname, join } from "node:path";
 import { MODULE_REQUIRED_HEADINGS } from "./constants";
+import { extractWikilinks as extractWikilinksAst } from "./lib/markdown-ast";
 import { isNonMarkdownAttachment, normalizePath, stripMarkdownExtension } from "./lib/notes";
 import type { FrontmatterData, NoteIndex, NoteInfo } from "./types";
 import { findTableSpacingProblems } from "./cli-shared";
@@ -191,15 +192,11 @@ function resolveWikilinkTarget(currentVaultPath: string, rawTarget: string, note
 }
 
 function extractWikilinks(body: string) {
-  const regex = /\[\[([^\]]+)\]\]/gu;
   const links: { rawTarget: string; pathTarget: string; headingTarget?: string }[] = [];
-  for (const match of body.matchAll(regex)) {
-    const rawTarget = match[1].trim();
-    if (!rawTarget) continue;
-    const pathWithoutAlias = rawTarget.split("|")[0].replace(/\\$/u, "").trim();
-    if (isNonMarkdownAttachment(pathWithoutAlias)) continue;
-    const [pathTarget, headingTarget] = pathWithoutAlias.split("#");
-    links.push({ rawTarget, pathTarget: pathTarget.trim(), headingTarget: headingTarget?.trim() });
+  for (const wl of extractWikilinksAst(body)) {
+    const raw = wl.alias ? `${wl.target}${wl.anchor ? `#${wl.anchor}` : ""}|${wl.alias}` : `${wl.target}${wl.anchor ? `#${wl.anchor}` : ""}`;
+    if (isNonMarkdownAttachment(wl.target)) continue;
+    links.push({ rawTarget: raw, pathTarget: wl.target, headingTarget: wl.anchor ?? undefined });
   }
   return links;
 }
