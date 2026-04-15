@@ -25,8 +25,7 @@ export async function maintainProject(args: string[]) {
   const options = parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
   const worktree = args.includes("--worktree");
-  const repairDoneSlices = args.includes("--repair-done-slices");
-  const repair = repairDoneSlices ? await repairHistoricalDoneSlices(options.project) : null;
+  const repair = await repairHistoricalDoneSlices(options.project);
   const result = await collectMaintenancePlan(options.project, options.base, options.repo, undefined, undefined, { worktree });
   appendLogEntry("maintain", options.project, {
     project: options.project,

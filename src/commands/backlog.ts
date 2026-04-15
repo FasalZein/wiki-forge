@@ -552,7 +552,7 @@ function parseBacklog(backlog: string): ParsedBacklog {
       intro.push(line);
       continue;
     }
-    const task = line.match(/^- \[ \] \*\*([A-Z0-9-]+)\*\*\s+(.*)$/);
+    const task = line.match(/^- \[[ x]\] \*\*([A-Z0-9-]+)\*\*\s+(.*)$/);
     if (task) sections[currentSection].push({ raw: line, id: task[1], title: task[2] });
     else if (line.trim()) extras[currentSection].push(line);
   }
@@ -563,11 +563,15 @@ function serializeBacklog(parsed: ParsedBacklog) {
   const out = [...parsed.intro];
   for (const section of parsed.order) {
     out.push(`## ${section}`, "");
-    for (const item of parsed.sections[section] ?? []) out.push(item.raw);
+    for (const item of parsed.sections[section] ?? []) out.push(normalizeTaskCheckbox(item.raw));
     for (const line of parsed.extras[section] ?? []) out.push(line);
     out.push("");
   }
   return `${out.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd()}\n`;
+}
+
+function normalizeTaskCheckbox(raw: string) {
+  return raw.replace(/^- \[x\] /, "- [ ] ");
 }
 
 function removeTask(parsed: ParsedBacklog, taskId: string) {

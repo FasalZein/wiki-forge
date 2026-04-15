@@ -12,6 +12,7 @@ import { projectSlicesDir, projectTaskHubPath } from "../lib/structure";
 import { collectBacklog, collectBacklogFocus, collectTaskContextForId, moveTaskToSection } from "./backlog";
 import { collectGate, compactDoctorForJson } from "./diagnostics";
 import { collectCloseout, collectMaintenancePlan, isTestFile, resolveDefaultBase } from "./maintenance";
+import { writeProjectIndex } from "./index-log";
 import { collectDriftSummary } from "./verification";
 import { applyVerificationLevel } from "./verification-shared";
 
@@ -313,6 +314,7 @@ export async function closeSlice(args: string[]) {
   if (baseIndex >= 0) requireValue(base, "base");
   const json = args.includes("--json");
   const worktree = args.includes("--worktree");
+  const force = args.includes("--force");
 
   const context = await collectTaskContextForId(project, sliceId);
   if (!context) throw new Error(`slice not found in backlog: ${sliceId}`);
@@ -336,7 +338,7 @@ export async function closeSlice(args: string[]) {
     ...(!worktree && closeout.staleImpactedPages.length ? [`${closeout.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted`] : []),
     ...(uncoveredChangedCodeFiles.length ? [`${uncoveredChangedCodeFiles.length} changed code file(s) are not covered by wiki bindings`] : []),
   ];
-  if (closeoutBlockers.length > 0) {
+  if (closeoutBlockers.length > 0 && !force) {
     const failed = {
       project,
       sliceId,
@@ -348,21 +350,25 @@ export async function closeSlice(args: string[]) {
     if (json) console.log(JSON.stringify(failed, null, 2));
     throw new Error(`close-slice prerequisites failed for ${project}`);
   }
-  const gate = await collectGate(project, base, repo, { worktree, precomputedCloseout: closeout });
-  const compactGate = { ...gate, doctor: compactDoctorForJson(gate.doctor) };
-  if (!gate.ok) {
-    const failed = { project, sliceId, closed: false, gate: compactGate, previousSection: context.section };
-    if (json) console.log(JSON.stringify(failed, null, 2));
-    throw new Error(`gate failed for ${project}`);
+  let compactGate: Record<string, unknown> | null = null;
+  if (!force) {
+    const gate = await collectGate(project, base, repo, { worktree, precomputedCloseout: closeout });
+    compactGate = { ...gate, doctor: compactDoctorForJson(gate.doctor) };
+    if (!gate.ok) {
+      const failed = { project, sliceId, closed: false, gate: compactGate, previousSection: context.section };
+      if (json) console.log(JSON.stringify(failed, null, 2));
+      throw new Error(`gate failed for ${project}`);
+    }
   }
   const completedAt = nowIso();
   await moveTaskToSection(project, sliceId, "Done");
   await markSliceClosed(project, sliceId, completedAt);
   await clearClaimMetadata(project, sliceId);
-  appendLogEntry("close-slice", sliceId, { project, details: [`base=${base}`, `completed_at=${completedAt}`] });
-  const result = { project, sliceId, closed: true, gate: compactGate, previousSection: context.section, completedAt };
+  await writeProjectIndex(project);
+  appendLogEntry("close-slice", sliceId, { project, details: [`base=${base}`, `completed_at=${completedAt}`, ...(force ? ["force=true"] : [])] });
+  const result = { project, sliceId, closed: true, ...(compactGate ? { gate: compactGate } : {}), previousSection: context.section, completedAt, force };
   if (json) console.log(JSON.stringify(result, null, 2));
-  else console.log(`closed ${sliceId}`);
+  else console.log(`closed ${sliceId}${force ? " (forced)" : ""}`);
 }
 
 export async function exportPrompt(args: string[]) {
