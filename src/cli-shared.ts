@@ -57,6 +57,7 @@ Usage:
   wiki start-slice <project> <slice-id> [--agent <name>] [--repo <path>] [--json]
   wiki verify-slice <project> <slice-id> [--repo <path>] [--json]
   wiki close-slice <project> <slice-id> [--repo <path>] [--base <rev>] [--worktree] [--json]
+  wiki pipeline <project> <slice-id> --phase <close|verify> [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
   wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]
   wiki resume <project> [--repo <path>] [--base <rev>] [--json]
   wiki doctor <project> [--repo <path>] [--base <rev>] [--json]
@@ -122,6 +123,7 @@ Notes:
   - start-slice is the lifecycle entry point: it checks dependencies, registers the claim, moves the backlog item to In Progress, stamps started_at, and prints a compact plan summary
   - verify-slice runs shell command blocks from a slice test-plan and promotes the test-plan to test-verified on success
   - close-slice runs the project gate, marks slice docs done, records completed_at, and moves the slice to Done when the gate passes; use --worktree to close against dirty agent changes before commit
+  - pipeline automates mechanical workflow steps so agents only fill content; --phase close runs checkpoint, lint-repo, maintain, update-index; --phase verify runs verify-slice, closeout, gate, close-slice; steps are tracked in sqlite and skipped on re-run; --dry-run shows what would execute
   - export-prompt prints a self-contained execution prompt for codex, claude, or pi without writing into the project repo
   - resume prints a quick session pickup view: recent commits, dirty files, stale pages, active slice, and next actions
   - doctor emits a comprehensive health report and score for a project
