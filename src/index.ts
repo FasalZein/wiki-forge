@@ -3,6 +3,7 @@
 import type { CommandHandler } from "./types";
 import { printHelp, scaffoldProject, addTask, backlogCommand, moveTask, completeTask, createIssueSlice, createFeature, createPrd, createPlan, createTestPlan, createModule, onboardProject, onboardPlan, normalizeModule, dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, discoverProject, ingestDiff, handoverProject, claimSlice, noteProject, nextProject, startSlice, verifySlice, closeSlice, exportPrompt, resumeProject, commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo, syncProtocol, auditProtocol, dependencyGraph, updateIndex, logCommand, statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch } from "./commands/system";
 import { doctorProject, gateProject } from "./commands/diagnostics";
+import { pipelineCommand } from "./commands/pipeline";
 import { askProject, fileAnswer, fileResearch } from "./commands/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "./commands/qmd-commands";
 import { bindSourcePaths, driftCheck, migrateVerification, verifyPage } from "./commands/verification";
@@ -85,6 +86,7 @@ const commands: Record<string, CommandHandler> = {
   "scaffold-layer": (args) => scaffoldLayer(args),
   "create-layer-page": (args) => createLayerPage(args),
   "lint-vault": (args) => lintVault(args),
+  pipeline: (args) => pipelineCommand(args),
 };
 
 const rawArgs = process.argv.slice(2);
