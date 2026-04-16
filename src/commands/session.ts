@@ -1,6 +1,10 @@
-import { requireValue } from "../cli-shared";
+import { readdirSync } from "node:fs";
+import { join, relative } from "node:path";
+import { VAULT_ROOT } from "../constants";
+import { nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter } from "../cli-shared";
+import { ensureDir, exists, readText, writeText } from "../lib/fs";
 import { tailLog } from "../lib/log";
-import { collectSessionActivity, resolveSessionId } from "../lib/tracker";
+import { collectSessionActivity, resolveAgent, resolveSessionId } from "../lib/tracker";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
 import { collectBacklog, collectBacklogFocus } from "./backlog";
 import { collectMaintenancePlan, resolveDefaultBase } from "./maintenance";
@@ -169,6 +173,9 @@ export async function nextProject(args: string[]) {
 export async function handoverProject(args: string[]) {
   const options = await parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
+  const noWrite = args.includes("--no-write");
+  const harnessIndex = args.indexOf("--harness");
+  const harness = harnessIndex >= 0 ? args[harnessIndex + 1] : undefined;
   const [maintain, backlog, sessionActivity] = await Promise.all([
     collectMaintenancePlan(options.project, options.base, options.repo),
     collectBacklog(options.project),
@@ -193,8 +200,15 @@ export async function handoverProject(args: string[]) {
     recentNotes: recentNotes.map(compactLogEntry),
   };
   const nextSessionPrompt = buildNextSessionPrompt(result);
+
+  // Write durable handover file (WIKI-FORGE-073)
+  let handoverPath: string | null = null;
+  if (!noWrite) {
+    handoverPath = await writeHandoverFile(result, nextSessionPrompt, harness);
+  }
+
   if (json) {
-    console.log(JSON.stringify({ ...result, nextSessionPrompt }, null, 2));
+    console.log(JSON.stringify({ ...result, nextSessionPrompt, ...(handoverPath ? { handoverPath: relative(VAULT_ROOT, handoverPath) } : {}) }, null, 2));
     return;
   }
   console.log(`handover for ${options.project}:`);
@@ -231,7 +245,152 @@ export async function handoverProject(args: string[]) {
   // --- next session prompt ---
   console.log("");
   console.log("--- next session prompt ---");
-  console.log(buildNextSessionPrompt(result));
+  console.log(nextSessionPrompt);
+  if (handoverPath) console.log(`\nhandover written: ${relative(VAULT_ROOT, handoverPath)}`);
+}
+
+async function writeHandoverFile(
+  result: {
+    project: string;
+    repo: string;
+    base: string;
+    focus: { activeTask: { id: string; title: string } | null; recommendedTask: { id: string; title: string } | null; warnings: string[] };
+    dirty: { modifiedFiles: string[]; untrackedFiles: string[]; stagedFiles: string[] };
+    sessionActivity: import("../lib/tracker").SessionSummary;
+    recentCommits: string[];
+    lifecycleEvents: string[];
+    actions: Array<{ kind: string; message: string }>;
+    recentNotes: string[];
+  },
+  nextSessionPrompt: string,
+  harness?: string,
+): Promise<string> {
+  const sid = resolveSessionId();
+  const agent = resolveAgent() ?? "unknown";
+  const date = new Date().toISOString().slice(0, 10);
+  const dir = join(projectRoot(result.project), "handovers");
+  await ensureDir(dir);
+  const filename = `${date}-${sid.replace(/[^a-zA-Z0-9-]/g, "-")}.md`;
+  const filePath = join(dir, filename);
+
+  // Derive active feature/PRD from active task hub frontmatter
+  let activeFeature: string | null = null;
+  let activePrd: string | null = null;
+  const activeSlices: string[] = [];
+  if (result.focus.activeTask) {
+    activeSlices.push(result.focus.activeTask.id);
+    const hubPath = join(projectRoot(result.project), "specs", "slices", result.focus.activeTask.id, "index.md");
+    if (await exists(hubPath)) {
+      const parsed = safeMatter(relative(VAULT_ROOT, hubPath), await readText(hubPath), { silent: true });
+      if (parsed?.data.parent_feature) activeFeature = String(parsed.data.parent_feature);
+      if (parsed?.data.parent_prd) activePrd = String(parsed.data.parent_prd);
+    }
+  }
+
+  const frontmatter = orderFrontmatter({
+    title: `Handover ${date} ${sid}`,
+    type: "handover",
+    project: result.project,
+    harness: harness ?? null,
+    agent,
+    session_id: sid,
+    created_at: nowIso(),
+    active_feature: activeFeature,
+    active_prd: activePrd,
+    active_slices: activeSlices,
+    status: "draft",
+  }, ["title", "type", "project", "harness", "agent", "session_id", "created_at", "active_feature", "active_prd", "active_slices", "status"]);
+
+  const lines: string[] = [];
+  lines.push(`# Handover — ${date}`);
+  lines.push("");
+
+  // Pre-filled: Session Summary
+  lines.push("## Session Summary");
+  lines.push("");
+  const span = result.sessionActivity.durationMinutes > 0 ? ` (~${result.sessionActivity.durationMinutes}min)` : "";
+  lines.push(`- Commands: ${result.sessionActivity.totalCommands}${span}`);
+  if (result.sessionActivity.totalCommands > 0) {
+    lines.push(`- Breakdown: ${Object.entries(result.sessionActivity.commandCounts).map(([k, n]) => `${k}=${n}`).join(", ")}`);
+  }
+  lines.push("");
+
+  // Pre-filled: Recent Commits
+  lines.push("## Recent Commits");
+  lines.push("");
+  if (result.recentCommits.length) {
+    for (const commit of result.recentCommits) lines.push(`- ${commit}`);
+  } else {
+    lines.push("- (none)");
+  }
+  lines.push("");
+
+  // Pre-filled: Dirty State
+  lines.push("## Dirty State");
+  lines.push("");
+  if (result.dirty.modifiedFiles.length || result.dirty.untrackedFiles.length || result.dirty.stagedFiles.length) {
+    lines.push(`- Modified: ${result.dirty.modifiedFiles.length}`);
+    lines.push(`- Untracked: ${result.dirty.untrackedFiles.length}`);
+    lines.push(`- Staged: ${result.dirty.stagedFiles.length}`);
+  } else {
+    lines.push("- Clean working tree");
+  }
+  lines.push("");
+
+  // Pre-filled: Next Session Priorities
+  lines.push("## Next Session Priorities");
+  lines.push("");
+  lines.push(nextSessionPrompt);
+  lines.push("");
+
+  // Scaffold: What Was Accomplished
+  lines.push("## What Was Accomplished");
+  lines.push("");
+  lines.push("<!-- LLM: fill in what was accomplished during this session -->");
+  lines.push("");
+
+  // Scaffold: Blockers & Open Questions
+  lines.push("## Blockers & Open Questions");
+  lines.push("");
+  lines.push("<!-- LLM: fill in any blockers or open questions -->");
+  lines.push("");
+
+  // Build the file content with frontmatter
+  const yamlLines = ["---"];
+  for (const [key, value] of Object.entries(frontmatter)) {
+    if (Array.isArray(value)) {
+      if (value.length === 0) yamlLines.push(`${key}: []`);
+      else {
+        yamlLines.push(`${key}:`);
+        for (const item of value) yamlLines.push(`  - '${String(item).replace(/'/g, "''")}'`);
+      }
+    } else if (value === null) {
+      yamlLines.push(`${key}: null`);
+    } else if (typeof value === "string" && value.includes(":")) {
+      yamlLines.push(`${key}: '${value.replace(/'/g, "''")}'`);
+    } else {
+      yamlLines.push(`${key}: ${value}`);
+    }
+  }
+  yamlLines.push("---");
+
+  await writeText(filePath, `${yamlLines.join("\n")}\n${lines.join("\n")}`);
+  return filePath;
+}
+
+async function findLatestHandover(project: string): Promise<string | null> {
+  const dir = join(projectRoot(project), "handovers");
+  if (!await exists(dir)) return null;
+  try {
+    const files = readdirSync(dir)
+      .filter((f) => f.endsWith(".md"))
+      .sort()
+      .reverse();
+    if (!files.length) return null;
+    return join(dir, files[0]);
+  } catch {
+    return null;
+  }
 }
 
 export async function resumeProject(args: string[]) {
@@ -239,15 +398,35 @@ export async function resumeProject(args: string[]) {
   const json = args.includes("--json");
   const repo = await resolveRepoPath(options.project, options.repo);
   await assertGitRepo(repo);
-  const [maintain, drift, sessionActivity] = await Promise.all([
+  const [maintain, drift, sessionActivity, latestHandoverPath] = await Promise.all([
     collectMaintenancePlan(options.project, options.base, repo),
     collectDriftSummary(options.project, repo),
     collectSessionActivity(options.project, resolveSessionId()),
+    findLatestHandover(options.project),
   ]);
   const dirty = await collectDirtyRepoStatus(repo);
   const recentCommits = await collectRecentCommits(repo, 5);
   const stalePages = drift.results.filter((row) => row.status !== "fresh").slice(0, 10).map((row) => row.wikiPage);
   const recentNotes = (await projectLogEntries(options.project, "note")).slice(0, 5);
+
+  // Parse latest handover metadata (WIKI-FORGE-074)
+  let handoverMeta: { harness: string | null; agent: string | null; created_at: string | null; status: string | null; nextPriorities: string | null; activeSlices: string[] } | null = null;
+  if (latestHandoverPath) {
+    const raw = await readText(latestHandoverPath);
+    const parsed = safeMatter(relative(VAULT_ROOT, latestHandoverPath), raw, { silent: true });
+    if (parsed) {
+      const prioritiesMatch = raw.match(/## Next Session Priorities\n\n([\s\S]*?)(?=\n## |\n$)/);
+      handoverMeta = {
+        harness: typeof parsed.data.harness === "string" ? parsed.data.harness : null,
+        agent: typeof parsed.data.agent === "string" ? parsed.data.agent : null,
+        created_at: typeof parsed.data.created_at === "string" ? parsed.data.created_at : null,
+        status: typeof parsed.data.status === "string" ? parsed.data.status : null,
+        nextPriorities: prioritiesMatch?.[1]?.trim() ?? null,
+        activeSlices: Array.isArray(parsed.data.active_slices) ? parsed.data.active_slices.map(String) : [],
+      };
+    }
+  }
+
   const payload = {
     project: options.project,
     repo,
@@ -260,10 +439,20 @@ export async function resumeProject(args: string[]) {
     stalePages,
     recentNotes,
     actions: maintain.actions.slice(0, 8),
+    ...(handoverMeta ? { lastHandover: { path: relative(VAULT_ROOT, latestHandoverPath!), ...handoverMeta } } : {}),
   };
   if (json) {
     console.log(JSON.stringify(payload, null, 2));
     return;
+  }
+  // Surface latest handover at top (WIKI-FORGE-074)
+  if (handoverMeta) {
+    console.log(`last handover: ${relative(VAULT_ROOT, latestHandoverPath!)}`);
+    console.log(`  harness=${handoverMeta.harness ?? "unknown"} agent=${handoverMeta.agent ?? "unknown"} created=${handoverMeta.created_at ?? "unknown"} status=${handoverMeta.status ?? "unknown"}`);
+    if (handoverMeta.nextPriorities) {
+      console.log(`  priorities:`);
+      for (const line of handoverMeta.nextPriorities.split("\n").slice(0, 8)) console.log(`    ${line}`);
+    }
   }
   console.log(`resume for ${options.project}:`);
   if (payload.activeTask) console.log(`- active: ${payload.activeTask.id} ${payload.activeTask.title}`);
