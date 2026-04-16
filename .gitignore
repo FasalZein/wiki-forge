@@ -35,3 +35,6 @@ coverage/
 .zencoder/
 skills-lock.json
 specs/
+
+# Salvage patches from pruned worktrees — reviewed manually, then deleted or applied.
+salvaged-*.patch

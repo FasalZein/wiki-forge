@@ -123,8 +123,12 @@ describe("wiki CLI smoke", () => {
     const maintainText = runWiki(["maintain", "demo", "--repo", repo, "--base", "HEAD~1"], env);
     expect(maintainText.exitCode).toBe(0);
     expect(maintainText.stdout.toString()).toContain("active task: DEMO-001");
-    expect(maintainText.stdout.toString()).toContain("closeout:");
-    expect(maintainText.stdout.toString()).toContain("wiki verify-page demo <page...> <level>");
+    // WIKI-FORGE-102: closeout reminder block is gated behind --verbose by default
+    expect(maintainText.stdout.toString()).not.toContain("wiki verify-page demo <page...> <level>");
+    const maintainVerbose = runWiki(["maintain", "demo", "--repo", repo, "--base", "HEAD~1", "--verbose"], env);
+    expect(maintainVerbose.exitCode).toBe(0);
+    expect(maintainVerbose.stdout.toString()).toContain("closeout:");
+    expect(maintainVerbose.stdout.toString()).toContain("wiki verify-page demo <page...> <level>");
 
     const refreshFromGit = runWiki(["refresh-from-git", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
     expect(refreshFromGit.exitCode).toBe(0);
@@ -638,7 +642,7 @@ describe("wiki CLI smoke", () => {
     const output = result.stdout.toString();
     expect(output).toContain("Use the /research skill for actual investigation");
     expect(output).toContain("wiki research audit [topic] [--json]");
-    expect(output).toContain("wiki closeout <project> [--repo <path>] [--base <rev>] [--worktree] [--json] [--verbose]");
+    expect(output).toContain("wiki closeout <project> [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json] [--verbose]");
     expect(output).toContain("wiki backlog <project> [--assignee <agent>] [--json]");
     expect(output).toContain("wiki create-issue-slice <project> <title...> [--section <name>] [--priority <p>] [--tag <t>] [--prd <PRD-ID>] [--assignee <agent>] [--source <path...>] [--json]");
     expect(output).toContain("wiki commit-check <project> [--repo <path>] [--json] [--verbose]");

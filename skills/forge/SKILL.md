@@ -38,6 +38,7 @@ Forge assumes these companion skills are available in the repo `skills/` directo
 - `/prd-to-slices`
 - `/tdd`
 - `/wiki`
+- `/improve-codebase-architecture`
 - `/desloppify`
 
 If any required skill is unavailable, stop and tell the user which one is missing. Do not silently skip steps.
@@ -52,7 +53,8 @@ Load these in order before writing production code:
 | 4 | `/prd-to-slices` | Break PRD into tracer-bullet vertical slices in the wiki backlog |
 | 5 | `/tdd` | Red-green-refactor for each slice |
 | 6 | `/wiki` | File artifacts, verify pages, run gate |
-| 7 | `/desloppify` | Scan for AI slop, fix quality issues, verify score |
+| 7 | `/improve-codebase-architecture` | Cadence-based structural review — surface deepening candidates, file an architecture review into the wiki, and turn accepted refactors into new features/PRDs/slices. Run after a surge of development (end of a PRD, batch of slices, weekly at minimum). Skip on small-scope runs. |
+| 8 | `/desloppify` | Scan for AI slop, fix quality issues, verify score |
 
 If a skill is unavailable, stop and tell the user. Do not silently skip steps.
 This skill defines required workflow policy. The CLI does not yet hard-enforce every step, so agents must still run the full lifecycle explicitly.
@@ -86,7 +88,11 @@ Full sequence:
    c. fill test-plan.md
 7. /tdd — for each slice: red-green-refactor
 8. /wiki — after each slice: full closeout sequence
-9. /desloppify — scan, fix any new slop, verify score
+9. /improve-codebase-architecture — cadence check (run at the end of a PRD,
+   a batch of slices, or at least weekly). Files an architecture review into
+   the wiki; accepted deepening candidates become new features/PRDs/slices
+   rather than silent rewrites. Skip for single-slice small-scope work.
+10. /desloppify — scan, fix any new slop, verify score
 ```
 
 ### Small scope (< 50 lines)
@@ -217,10 +223,15 @@ A slice is complete only when all of these are true:
    m. `wiki closeout <project> --repo <path> --base <rev>` — only proceed if "PASS — ready to close"
    n. `wiki gate <project> --repo <path> --base <rev>`
    o. `wiki close-slice <project> <slice-id> --repo <path> --base <rev>` — auto-triggers parent close if computed is complete
-9. /desloppify — after wiki closeout:
-   a. `desloppify scan . --json` to detect new slop
-   b. Fix issues by category (AI slop, complexity, naming, etc.)
-   c. `desloppify score .` to verify no regression
+9. /improve-codebase-architecture — at cadence (end of PRD / batch of slices / ≥ weekly):
+   a. Explore the codebase via the Explore subagent; surface deepening candidates.
+   b. Pick a candidate, frame constraints, design 3+ interfaces in parallel.
+   c. File the review into the wiki: `wiki research file <project> "architecture review <YYYY-MM-DD>"`.
+   d. Accepted candidate → new `FEAT-<nnn>` + `PRD-<nnn>` via /forge, not a silent rewrite.
+10. /desloppify — after wiki closeout and any architecture review:
+    a. `desloppify scan . --json` to detect new slop
+    b. Fix issues by category (AI slop, complexity, naming, etc.)
+    c. `desloppify score .` to verify no regression
 ```
 
 ## Workflow: Continue an Existing PRD / Slice Thread
@@ -233,7 +244,117 @@ A slice is complete only when all of these are true:
 5. Run `wiki start-slice <project> <slice-id> --agent <name> --repo <path>` and fill plan.md + test-plan.md
 6. /tdd for the slice
 7. /wiki closeout sequence (`checkpoint` -> `lint-repo` -> `maintain` -> page updates -> `verify-page code-verified` -> `verify-slice` -> `verify-page test-verified` on slice/PRD/feature -> `maintain` -> `feature-status` -> `closeout` -> `gate` -> `close-slice`)
-8. /desloppify — scan, fix, verify score
+8. /improve-codebase-architecture — run at PRD boundaries / batch boundaries / at least weekly. Skip if this continuation is a single small slice.
+9. /desloppify — scan, fix, verify score
+```
+
+## Canonical Code-Driven Closeout Sequence
+
+This is the canonical 13-step closeout sequence for an active slice. Every forge flow above (non-trivial, small-scope, continuation) collapses into this when it reaches the closeout phase. Run the steps in order — skipping any of them is how slices silently ship in `needs-verification` state.
+
+1. `wiki checkpoint <project> --repo <path>` — freshness check
+2. `wiki lint-repo <project> --repo <path>` — repo markdown violations
+3. `wiki maintain <project> --repo <path> --base <rev>` — compose refresh + discovery
+4. Update impacted wiki pages from code and tests
+5. `wiki update-index <project> --write` — if navigation/planning links changed
+6. `wiki verify-page <project> <page> code-verified` — for each impacted page
+7. `wiki verify-slice <project> <slice-id> --repo <path>` — runs test-plan commands; if FAIL, read stderr/stdout output, fix, re-run
+8. `wiki verify-page <project> <slice/prd/feature pages> test-verified` — promote hierarchy to test-verified
+9. `wiki maintain <project> --repo <path> --base <rev>` — refresh computed_status after verification
+10. `wiki feature-status <project>` — confirm computed_status = complete
+11. `wiki closeout <project> --repo <path> --base <rev>` — only proceed if "PASS — ready to close" (not "REVIEW PASS")
+12. `wiki gate <project> --repo <path> --base <rev>`
+13. `wiki close-slice <project> <slice-id> --repo <path> --base <rev>` — auto-triggers parent close if computed is complete
+
+### Key concepts every agent must understand
+
+**`closeout` is a review surface, not a completion gate.**
+`closeout PASS` means "no hard blockers found" (currently: no missing tests). It does NOT mean "ready to close."
+If stale pages or manual steps remain, closeout shows `REVIEW PASS — manual steps remaining`.
+Only `PASS — ready to close` means the slice is fully closeable.
+Always check the manual steps list in closeout output before proceeding to `close-slice`.
+
+**`status` vs `computed_status` are different things.**
+- `status` is a frontmatter field you (or `--force`) can set directly: `not-started`, `in-progress`, `complete`.
+- `computed_status` is derived from child slices by `feature-status` and `maintain`: `not-started`, `in-progress`, `needs-verification`, `complete`.
+- `computed_status = complete` requires ALL child slices to be status=done AND verification_level=test-verified.
+- `--force` on close-slice/close-prd/close-feature changes `status` but does NOT change `computed_status`.
+- `feature-status` shows `computed_status`, not `status`. So forcing everything closed still shows `needs-verification` if slice docs aren't test-verified.
+- To resolve: `verify-page` all slice/PRD/feature pages to `test-verified`, then `maintain` to refresh `computed_status`.
+
+**`verify-slice` runs test-plan commands and reports failures with details.**
+If it returns FAIL, read the stderr/stdout output for each failed command. It will show exit codes and first 10 lines of error output. Fix the failing commands and re-run.
+
+**The complete hierarchy closure sequence:**
+1. `verify-slice` — run test-plan commands → promotes test-plan to test-verified
+2. `verify-page` on slice index, PRD, and feature → promote to test-verified
+3. `maintain` — refreshes `computed_status` from child verification levels
+4. `feature-status` — confirm computed_status = complete
+5. `close-slice` — moves to Done, auto-triggers parent close if computed is complete
+6. If auto-close didn't fire: `close-prd` / `close-feature` (without `--force`)
+
+For active slices, `wiki maintain` is the **first** closeout command, not the last. Follow it with page updates, `verify-page`, `verify-slice`, `closeout`, `gate`, and `close-slice`.
+
+## Planning Scaffolds
+
+SDLC scaffolds live on the `wiki` CLI but are driven from this workflow layer:
+
+```bash
+wiki create-feature <project> <name>          # creates specs/features/FEAT-<nnn>-<slug>.md
+wiki create-prd <project> --feature <FEAT-ID> <name>
+wiki create-issue-slice <project> <title> [--prd <PRD-ID>] [--assignee <agent>] [--source <path...>]   # creates specs/slices/<TASK-ID>/{index,plan,test-plan}.md + backlog task; --source overrides inherited parent PRD bindings
+wiki create-plan <project> <name>             # creates specs/plan-<slug>.md and keeps it listed in specs/index.md
+wiki create-test-plan <project> <name>        # creates specs/test-plan-<slug>.md and keeps it listed in specs/index.md
+wiki backlog <project> [--assignee <agent>] [--json]
+wiki add-task <project> <title> [--section Todo] [--prd <PRD-ID>] [--priority <p0-p2>] [--tag <tag>]
+wiki move-task <project> <task-id> --to <section>
+wiki complete-task <project> <task-id>               # shorthand for move-task --to Done
+wiki start-slice <project> <slice-id> [--agent <name>] [--repo <path>] [--json]
+wiki feature-status <project> [--json]               # computed hierarchy status table
+wiki start-feature <project> <FEAT-ID>               # set status=in-progress; auto-triggered by start-slice
+wiki close-feature <project> <FEAT-ID> [--force]     # set status=complete; auto-triggered by close-slice; gates on computed status
+wiki start-prd <project> <PRD-ID>                    # set status=in-progress; auto-triggered by start-slice
+wiki close-prd <project> <PRD-ID> [--force]          # set status=complete; auto-triggered by close-slice; gates on computed status
+wiki claim <project> <slice-id> --agent <name>       # claim an existing slice for an agent
+wiki next <project>                                  # recommend next slice respecting depends_on
+wiki note <project> <slice-id> <text>                # durable agent-to-agent log
+wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]
+```
+
+Hierarchy rules:
+- **feature** = project-level planning scope under `specs/features/`
+- **PRD** = numbered requirement doc under `specs/prds/`, linked to one parent feature
+- **slice docs** = task-scoped docs under `specs/slices/<TASK-ID>/`, optionally linked to one parent PRD
+- standalone plan/test-plan docs live directly under `specs/` and appear in `specs/index.md` under Planning Docs
+- `feature -> PRD -> slice` is metadata-driven (`feature_id`, `prd_id`, `parent_feature`, `parent_prd`)
+- `create-issue-slice --prd <PRD-ID>` auto-binds the new slice docs to that PRD's `source_paths` when the parent PRD is already bound
+- `create-issue-slice --assignee <agent>` writes assignee frontmatter into all generated slice docs
+- `backlog --assignee <agent>` filters the queue and still surfaces blocked slices via `depends_on`
+- `start-slice` is the lifecycle entry point: it enforces `depends_on`, detects claim conflicts, moves the backlog item to In Progress, records `started_at`, and prints a compact plan summary
+- `start-slice` auto-opens parent PRD and feature if they are still `not-started`; `close-slice` auto-closes them when all children are complete
+- `feature-status` shows the computed hierarchy: `not-started → in-progress → needs-verification → complete`; `maintain` auto-writes `computed_status` frontmatter and detects lifecycle drift
+
+## SDLC Project Zones
+
+Code-project folders owned by the forge workflow:
+
+- `specs/features/` — planning scope parents.
+- `specs/prds/` — numbered requirement docs.
+- `specs/slices/` — execution slices.
+
+Second-brain zones (`modules/`, `architecture/`, `code-map/`, `contracts/`, `data/`, `changes/`, `runbooks/`, `verification/`, `legacy/`) are documented in `/wiki`. Module and freeform-zone docs connect to planning via `source_paths` overlap; `wiki update-index <project> --write` refreshes derived sections across spec pages and freeform project zones.
+
+## Greenfield Project
+
+```text
+1. wiki scaffold-project <project>
+2. Set repo: in _summary.md frontmatter
+3. Use /forge workflow: research → grill → PRD → slices → TDD
+4. As code emerges, create modules:
+   wiki create-module <project> <module-name> --source <paths...>
+5. Before implementation begins, register the slice:
+   wiki start-slice <project> <slice-id> --agent <name> --repo <path>
+6. After each slice, run the canonical closeout sequence above.
 ```
 
 ## Source of Truth

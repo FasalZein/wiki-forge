@@ -75,7 +75,7 @@ After grilling, update the relevant artifacts:
 In the `/forge` pipeline, grill-me sits between research and PRD writing:
 
 ```text
-/research -> /grill-me -> /write-a-prd -> /prd-to-slices -> /tdd -> /wiki
+/research -> /grill-me -> /write-a-prd -> /prd-to-slices -> /tdd -> /wiki -> /improve-codebase-architecture -> /desloppify
 ```
 
 **Non-trivial work:** Always grill before writing the PRD. The grilling resolves the Open Questions section so the PRD lands with fewer unknowns.

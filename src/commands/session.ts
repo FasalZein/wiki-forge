@@ -212,6 +212,12 @@ export async function handoverProject(args: string[]) {
     return;
   }
   console.log(`handover for ${options.project}:`);
+  // --- next session prompt (top, so truncation can't eat it) ---
+  console.log("");
+  console.log("--- next session prompt ---");
+  console.log(nextSessionPrompt);
+  console.log("");
+  console.log("--- session context ---");
   console.log(`- repo: ${result.repo}`);
   console.log(`- base: ${result.base}`);
   // --- what's happening now ---
@@ -242,10 +248,6 @@ export async function handoverProject(args: string[]) {
     console.log(`- agent notes:`);
     for (const entry of recentNotes) console.log(`    ${compactLogEntry(entry)}`);
   }
-  // --- next session prompt ---
-  console.log("");
-  console.log("--- next session prompt ---");
-  console.log(nextSessionPrompt);
   if (handoverPath) console.log(`\nhandover written: ${relative(VAULT_ROOT, handoverPath)}`);
 }
 
@@ -305,7 +307,30 @@ async function writeHandoverFile(
   lines.push(`# Handover — ${date}`);
   lines.push("");
 
-  // Pre-filled: Session Summary
+  // Agent alignment callout — stays at top so truncation can't eat it.
+  lines.push("> [!note] Agent alignment");
+  lines.push("> Read **Next Session Priorities** below BEFORE the session-state sections. If this file is truncated, the priorities block is the minimum you need to resume work. Then load `/wiki` and `/forge` skills before continuing.");
+  lines.push("");
+
+  // Pre-filled: Next Session Priorities (moved to top per WIKI-FORGE-101)
+  lines.push("## Next Session Priorities");
+  lines.push("");
+  lines.push(nextSessionPrompt);
+  lines.push("");
+
+  // Scaffold: What Was Accomplished (LLM-fill, above auto sections)
+  lines.push("## What Was Accomplished");
+  lines.push("");
+  lines.push("<!-- LLM: fill in what was accomplished during this session -->");
+  lines.push("");
+
+  // Scaffold: Blockers & Open Questions
+  lines.push("## Blockers & Open Questions");
+  lines.push("");
+  lines.push("<!-- LLM: fill in any blockers or open questions -->");
+  lines.push("");
+
+  // Pre-filled: Session Summary (moved below LLM-fill per WIKI-FORGE-101)
   lines.push("## Session Summary");
   lines.push("");
   const span = result.sessionActivity.durationMinutes > 0 ? ` (~${result.sessionActivity.durationMinutes}min)` : "";
@@ -335,24 +360,6 @@ async function writeHandoverFile(
   } else {
     lines.push("- Clean working tree");
   }
-  lines.push("");
-
-  // Pre-filled: Next Session Priorities
-  lines.push("## Next Session Priorities");
-  lines.push("");
-  lines.push(nextSessionPrompt);
-  lines.push("");
-
-  // Scaffold: What Was Accomplished
-  lines.push("## What Was Accomplished");
-  lines.push("");
-  lines.push("<!-- LLM: fill in what was accomplished during this session -->");
-  lines.push("");
-
-  // Scaffold: Blockers & Open Questions
-  lines.push("## Blockers & Open Questions");
-  lines.push("");
-  lines.push("<!-- LLM: fill in any blockers or open questions -->");
   lines.push("");
 
   // Build the file content with frontmatter

@@ -107,6 +107,60 @@ export async function writeProjectIndex(project: string) {
   return targets;
 }
 
+/**
+ * Return true for paths that are pure navigation index files (workspace root
+ * index, project dashboard, spec family indexes). Derived content pages
+ * (features, prds, slices, modules) are excluded so auto-refresh doesn't
+ * bump their `updated:` frontmatter and mask genuine staleness.
+ */
+function isNavigationIndexPath(relPath: string): boolean {
+  if (relPath === "index.md") return true;
+  if (relPath === "projects/_dashboard.md") return true;
+  if (/^projects\/[^/]+\/specs\/index\.md$/u.test(relPath)) return true;
+  if (/^projects\/[^/]+\/specs\/(features|prds|slices|archive)\/index\.md$/u.test(relPath)) return true;
+  return false;
+}
+
+/**
+ * Return the list of navigation index target paths whose on-disk body content
+ * differs from what `buildIndexPlan` would generate right now. Used by
+ * `maintain`/`closeout` to auto-run `update-index --write` when navigation
+ * or spec indexes have drifted (WIKI-FORGE-105). Ignores the `updated:`
+ * frontmatter timestamp to avoid false positives. Scoped to navigation
+ * targets so content pages (feature/prd/slice/module) keep their authored
+ * `updated:` timestamps and downstream drift checks stay honest.
+ */
+export async function collectStaleIndexTargets(project: string): Promise<string[]> {
+  const plan = await buildIndexPlan(project, false);
+  const stale: string[] = [];
+  for (const target of plan.targets) {
+    if (!isNavigationIndexPath(target.path)) continue;
+    const absolutePath = join(VAULT_ROOT, target.path);
+    if (!await exists(absolutePath)) { stale.push(target.path); continue; }
+    const raw = await readText(absolutePath);
+    const parsed = safeMatter(target.path, raw, { silent: true });
+    const existingBody = parsed ? parsed.content : raw;
+    if (normalizeBody(existingBody) !== normalizeBody(target.content)) stale.push(target.path);
+  }
+  return stale;
+}
+
+/**
+ * Write only navigation index targets (workspace + spec family indexes).
+ * Companion to `collectStaleIndexTargets`; used by maintain/closeout
+ * auto-refresh so we don't touch derived content pages.
+ */
+export async function writeNavigationIndex(project: string) {
+  const plan = await buildIndexPlan(project, false);
+  const targets = plan.targets.filter((target) => isNavigationIndexPath(target.path));
+  await applyIndexPlan({ targets });
+  return targets;
+}
+
+function normalizeBody(text: string) {
+  return text.replace(/\r\n/g, "\n").trimEnd();
+}
+
 async function buildWorkspaceIndexTargets(projects: string[]): Promise<IndexTarget[]> {
   const workspaceRows = await collectWorkspaceProjectRows(projects);
   return [

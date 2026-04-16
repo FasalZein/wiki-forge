@@ -36,13 +36,13 @@ export function listCodeFiles(repo: string, customPaths?: string[]) {
 export async function listRepoMarkdownDocs(repo: string) {
   const fingerprint = `${fileFingerprint(join(repo, ".git", "index"))}:${fileFingerprint(join(repo, ".git", "HEAD"))}:${await gitMarkdownStatusFingerprint(repo)}`;
   const cacheKey = `repo-docs:${repo}`;
-  const cached = await readCache<string[]>("repo-scan", cacheKey, "2", fingerprint);
+  const cached = await readCache<string[]>("repo-scan", cacheKey, "3", fingerprint);
   if (cached) return cached;
 
   const files = new Set<string>();
   const visit = (dir: string, prefix = "") => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (entry.name === ".git" || entry.name === ".claude" || entry.name === "node_modules" || entry.name === "dist" || entry.name === "build" || entry.name === "coverage" || entry.name === ".next") continue;
+      if (entry.name === ".git" || entry.name === ".claude" || entry.name === "node_modules" || entry.name === "dist" || entry.name === "build" || entry.name === "coverage" || entry.name === ".next" || entry.name === "skills") continue;
       const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
       const absolute = join(dir, entry.name);
       if (entry.isDirectory()) {
@@ -58,14 +58,16 @@ export async function listRepoMarkdownDocs(repo: string) {
   visit(repo);
 
   const result = [...files].sort();
-  void writeCache("repo-scan", cacheKey, "2", fingerprint, result);
+  void writeCache("repo-scan", cacheKey, "3", fingerprint, result);
   return result;
 }
 
 export function isAllowedRepoMarkdownDoc(rel: string) {
   const base = rel.split("/").pop() ?? rel;
   if (/^(README|CHANGELOG|AGENTS|CLAUDE|SETUP)\.md$/iu.test(base)) return true;
-  if (/^skills\/[^/]+\/SKILL\.md$/u.test(rel)) return true;
+  // The entire `skills/` subtree is owned by skill policy and skipped at scan time by listRepoMarkdownDocs.
+  // We also accept it here so the predicate is consistent when called in isolation.
+  if (rel.startsWith("skills/")) return true;
   return false;
 }
 

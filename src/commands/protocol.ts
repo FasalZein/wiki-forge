@@ -21,7 +21,7 @@ type ProtocolAuditRow = {
 const PROTOCOL_FILES = ["AGENTS.md", "CLAUDE.md"] as const;
 const START_MARKER = "<!-- wiki-forge:agent-protocol:start -->";
 const END_MARKER = "<!-- wiki-forge:agent-protocol:end -->";
-const PROTOCOL_VERSION = 1;
+const PROTOCOL_VERSION = 2;
 
 export async function syncProtocol(args: string[]) {
   const project = args[0];
@@ -165,6 +165,18 @@ function renderProtocolFile(project: string, scope: ProtocolScope) {
     "Use `/wiki` for retrieval, refresh, drift, verification, and closeout review.",
     "If slash-skill aliases are unavailable, run the equivalent `wiki` CLI lifecycle directly.",
     "`wiki protocol sync` only syncs this managed block; it does not enforce behavior or sync skill policy.",
+    "",
+    "## Code Quality",
+    "",
+    "Codex (GPT-5-class reviewer) reviews every change before it merges. Write as if a stricter reviewer is watching:",
+    "- Smaller, more focused diffs. Every changed line should trace to the task.",
+    "- Honest names. No `foo`, no `handleStuff`, no vague `utils`.",
+    "- Tight types. No `any`, no unchecked casts, no silent `as unknown as T`.",
+    "- Real error handling. No bare `catch {}`, no swallowed promises, no `throw new Error(\"TODO\")`.",
+    "- Tests that describe behavior, not implementation. Delete shallow tests you replace.",
+    "- Match the surrounding style even when you'd design differently.",
+    "",
+    "Sloppy code costs a review round-trip. Writing it right the first time is faster than arguing with a reviewer.",
     "",
     "## Wiki Protocol",
     "",

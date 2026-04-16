@@ -13,10 +13,12 @@ CLI detects AI-introduced anti-patterns. You triage and fix. This is the **final
 ## Position in Pipeline
 
 ```text
-/tdd -> /wiki closeout -> /desloppify -> done
+/tdd -> /wiki closeout -> /improve-codebase-architecture (cadence) -> /desloppify -> done
 ```
 
 Desloppify is the last step for both non-trivial and small-scope workflows. No code ships with unaddressed slop.
+
+`/improve-codebase-architecture` sits directly before desloppify on non-trivial flows and runs at cadence boundaries (end of a PRD, batch of slices, weekly minimum). It catches module-shape problems; desloppify catches line-level ones. Running them in that order means desloppify evaluates a structurally sound target. Skip the architecture step for small-scope (<50 line) runs.
 
 ## When to Use
 

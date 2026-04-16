@@ -133,7 +133,7 @@ Rules:
 After all tests pass, look for [refactor candidates](refactoring.md):
 
 - Extract duplication
-- Deepen modules (move complexity behind simple interfaces)
+- Deepen modules (move complexity behind simple interfaces) — see [deep-modules.md](deep-modules.md). Deepening opportunities that span multiple modules are out of scope for TDD; capture them and run `/improve-codebase-architecture` at the end of the PRD or batch so they ship as their own tracked feature.
 - Apply SOLID principles where natural
 - Consider what new code reveals about existing code
 - Run tests after each refactor step
@@ -192,7 +192,7 @@ Every code change MUST have corresponding tests. This is non-negotiable:
 
 `wiki gate` enforces this — it hard-blocks on missing tests for changed files. The gate does not accept excuses.
 
-After TDD, run `/desloppify` to catch AI-introduced anti-patterns:
+After TDD + `/wiki` closeout, run `/improve-codebase-architecture` at cadence boundaries (end of a PRD, batch of slices, or at least weekly) and then `/desloppify` to catch AI-introduced anti-patterns:
 ```bash
 desloppify scan .        # detect slop
 desloppify score .       # verify no regression
