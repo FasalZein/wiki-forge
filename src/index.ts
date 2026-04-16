@@ -8,6 +8,7 @@ import { pipelineCommand } from "./commands/pipeline";
 import { askProject, fileAnswer, fileResearch } from "./commands/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "./commands/qmd-commands";
 import { bindSourcePaths, driftCheck, migrateVerification, verifyPage } from "./commands/verification";
+import { acknowledgeImpact } from "./commands/acknowledge-impact";
 import { obsidianCommand } from "./commands/obsidian";
 import { setupShell } from "./commands/setup";
 import { summaryProject } from "./commands/summary";
@@ -47,6 +48,7 @@ const commands: Record<string, CommandHandler> = {
   "start-slice": (args) => startSlice(args),
   "verify-slice": (args) => verifySlice(args),
   "close-slice": (args) => closeSlice(args),
+  "acknowledge-impact": (args) => acknowledgeImpact(args),
   "export-prompt": (args) => exportPrompt(args),
   resume: (args) => resumeProject(args),
   doctor: (args) => doctorProject(args),

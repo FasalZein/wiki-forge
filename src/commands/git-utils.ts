@@ -48,6 +48,25 @@ export async function gitChangedFiles(repo: string, base: string) {
   return proc.stdout.toString().replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean).map((line) => line.replaceAll("\\", "/"));
 }
 
+/**
+ * Return the SHA of the most recent commit that touched `filePath`, or null
+ * if the file has no git history (new/untracked). Used for verified_against
+ * acknowledgement checks (WIKI-FORGE-104).
+ */
+export async function gitLastShaForPath(repo: string, filePath: string): Promise<string | null> {
+  const proc = await Bun.$`git log -1 --format=%H -- ${filePath}`.cwd(repo).nothrow().quiet();
+  if (proc.exitCode !== 0) return null;
+  const sha = proc.stdout.toString().trim();
+  return sha || null;
+}
+
+/** Return the current HEAD SHA of the repo. */
+export async function gitHeadSha(repo: string): Promise<string> {
+  const proc = await Bun.$`git rev-parse HEAD`.cwd(repo).nothrow().quiet();
+  if (proc.exitCode !== 0) throw new Error(`git rev-parse HEAD failed: ${proc.stderr.toString().trim()}`);
+  return proc.stdout.toString().trim();
+}
+
 export async function gitLines(repo: string, command: string[]) {
   const proc = await Bun.$`git ${command}`.cwd(repo).quiet().nothrow();
   if (proc.exitCode !== 0) throw new Error(proc.stderr.toString().trim() || `git ${command.join(" ")} failed`);

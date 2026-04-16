@@ -92,6 +92,7 @@ Usage:
   wiki drift-check <project> [--repo <path>] [--show-unbound] [--fix] [--json]
   wiki verify-page <project> <module-or-page...> <level> [--dry-run]
   wiki verify-page <project> --all <level> [--dry-run]
+  wiki acknowledge-impact <project> <page...> [--repo <path>] [--json]
   wiki migrate-verification <project>
   wiki cache-clear
   wiki setup-shell [vault-path]

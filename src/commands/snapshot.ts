@@ -9,7 +9,7 @@ import { collectDriftSummary } from "./verification";
 import { collectHierarchyStatusActions, collectLifecycleDriftActions } from "./hierarchy-commands";
 import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "./linting";
 import type { LintingSnapshot } from "./linting";
-import { gitChangedFiles, bindingMatchesFile, worktreeChangedFiles, worktreeModifiedAt, parseEntryUpdated } from "./git-utils";
+import { gitChangedFiles, bindingMatchesFile, gitLastShaForPath, worktreeChangedFiles, worktreeModifiedAt, parseEntryUpdated } from "./git-utils";
 import { listCodeFiles, listRepoMarkdownDocs, readCodePaths } from "./repo-scan";
 import { collectChangedTestHealth, isCodeFile } from "./test-health";
 import { isHistoricalDoneSlicePage } from "./slice-repair";
@@ -33,6 +33,7 @@ export type ProjectSnapshot = {
     sourcePaths: string[];
     rawUpdated: unknown;
     verificationLevel: ReturnType<typeof readVerificationLevel>;
+    verifiedAgainst: string | null;
     todoCount: number;
   }>;
 };
@@ -74,6 +75,7 @@ export async function loadProjectSnapshot(project: string, explicitRepo?: string
       sourcePaths,
       rawUpdated: parsed?.data.updated,
       verificationLevel: parsed ? readVerificationLevel(parsed.data) : null,
+      verifiedAgainst: parsed && typeof parsed.data.verified_against === "string" ? parsed.data.verified_against : null,
       todoCount: (raw.match(/\bTODO\b/g) ?? []).length,
     };
   }));
@@ -96,11 +98,26 @@ export async function collectRefreshFromGit(project: string, base: string, expli
   const diffSummaryCache = new Map<string, string[]>();
   const impactedPages: Array<{ page: string; matchedSourcePaths: string[]; verificationLevel: string | null; diffSummary: string[] }> = [];
   const covered = new Set<string>();
+  const lastShaCache = new Map<string, string | null>();
+  const acknowledgedPages: string[] = [];
   for (const entry of state.pageEntries) {
     if (!entry.parsed) continue;
     const matchedSourcePaths = entry.sourcePaths.filter((sourcePath) => changedFileSet.has(sourcePath));
     if (!matchedSourcePaths.length) continue;
     for (const sourcePath of matchedSourcePaths) covered.add(sourcePath);
+    // WIKI-FORGE-104: if verified_against equals the latest commit sha that
+    // touched any of the matched source paths, skip re-listing this page.
+    if (entry.verifiedAgainst) {
+      let stillAcknowledged = true;
+      for (const sourcePath of matchedSourcePaths) {
+        if (!lastShaCache.has(sourcePath)) lastShaCache.set(sourcePath, await gitLastShaForPath(state.repo, sourcePath));
+        if (lastShaCache.get(sourcePath) !== entry.verifiedAgainst) { stillAcknowledged = false; break; }
+      }
+      if (stillAcknowledged) {
+        acknowledgedPages.push(entry.page);
+        continue;
+      }
+    }
     const diffSummary: string[] = [];
     for (const sourcePath of matchedSourcePaths) {
       if (!diffSummaryCache.has(sourcePath)) diffSummaryCache.set(sourcePath, await gitDiffSummary(state.repo, sourcePath) ?? []);
@@ -109,7 +126,7 @@ export async function collectRefreshFromGit(project: string, base: string, expli
     impactedPages.push({ page: entry.page, matchedSourcePaths, verificationLevel: entry.verificationLevel, diffSummary });
   }
   const testHealth = collectChangedTestHealth(changedFiles);
-  return { project, repo: state.repo, base, changedFiles, impactedPages, uncoveredFiles: changedFiles.filter((file) => isCodeFile(file) && !covered.has(file)), testHealth };
+  return { project, repo: state.repo, base, changedFiles, impactedPages, acknowledgedPages, uncoveredFiles: changedFiles.filter((file) => isCodeFile(file) && !covered.has(file)), testHealth };
 }
 
 export async function collectRefreshFromWorktree(project: string, explicitRepo?: string, snapshot?: ProjectSnapshot) {
