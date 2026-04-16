@@ -119,6 +119,23 @@ describe("extractWikilinks", () => {
   it("returns empty for content without wikilinks", () => {
     expect(extractWikilinks("No links here")).toEqual([]);
   });
+
+  it("ignores wikilinks inside inline code spans", () => {
+    const body = "See `[[wikilinks]]` and [[real-page]] for details.\n";
+    const links = extractWikilinks(body);
+    expect(links).toEqual([
+      { target: "real-page", anchor: null, alias: null },
+    ]);
+  });
+
+  it("ignores wikilinks inside fenced code blocks", () => {
+    const body = "Text [[real]]\n\n```markdown\n[[inside-code-block]]\n```\n\nMore [[also-real]]\n";
+    const links = extractWikilinks(body);
+    expect(links).toEqual([
+      { target: "real", anchor: null, alias: null },
+      { target: "also-real", anchor: null, alias: null },
+    ]);
+  });
 });
 
 describe("extractWikilinkTargets", () => {
