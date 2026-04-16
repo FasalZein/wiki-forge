@@ -255,7 +255,7 @@ function parseFeatureArgs(args: string[]) {
   return parseProjectAndName(args);
 }
 
-function parsePrdArgs(args: string[]) {
+export function parsePrdArgs(args: string[]) {
   const project = args[0];
   requireValue(project, "project");
   let featureId: string | undefined;
@@ -278,7 +278,7 @@ function parsePrdArgs(args: string[]) {
         index += 1;
         break;
       default:
-        nameParts.push(arg);
+        if (!arg.startsWith("--")) nameParts.push(arg);
         break;
     }
   }
@@ -322,9 +322,9 @@ function announceCreated(outputPath: string) {
   console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
 }
 
-function parseProjectAndName(args: string[]) {
+export function parseProjectAndName(args: string[]) {
   const project = args[0];
-  const name = args.slice(1).join(" ").trim();
+  const name = args.slice(1).filter(a => !a.startsWith("--")).join(" ").trim();
   requireValue(project, "project");
   requireValue(name || undefined, "name");
   return { project, name };

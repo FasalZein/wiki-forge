@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { slugify } from "../src/commands/planning";
+import { slugify, parsePrdArgs, parseProjectAndName } from "../src/commands/planning";
 
 describe("slugify", () => {
   test("lowercases input", () => {
@@ -29,5 +29,33 @@ describe("slugify", () => {
 
   test("handles alphanumeric-only input unchanged (lowercased)", () => {
     expect(slugify("authmodule")).toBe("authmodule");
+  });
+});
+
+describe("parsePrdArgs", () => {
+  test("excludes --json flag from name", () => {
+    const result = parsePrdArgs(["wiki-forge", "--feature", "FEAT-003", "durable", "handover", "artifact", "--json"]);
+    expect(result.name).toBe("durable handover artifact");
+  });
+
+  test("parses feature, supersedes, and split-from flags", () => {
+    const result = parsePrdArgs(["proj", "--feature", "FEAT-001", "--supersedes", "PRD-010", "--split-from", "PRD-005", "my", "prd"]);
+    expect(result.featureId).toBe("FEAT-001");
+    expect(result.supersedes).toBe("PRD-010");
+    expect(result.splitFrom).toBe("PRD-005");
+    expect(result.name).toBe("my prd");
+  });
+});
+
+describe("parseProjectAndName", () => {
+  test("excludes flags starting with -- from name", () => {
+    const result = parseProjectAndName(["wiki-forge", "my", "feature", "--json"]);
+    expect(result.name).toBe("my feature");
+  });
+
+  test("parses project and name without flags", () => {
+    const result = parseProjectAndName(["proj", "some", "name"]);
+    expect(result.project).toBe("proj");
+    expect(result.name).toBe("some name");
   });
 });

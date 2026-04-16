@@ -178,7 +178,9 @@ export async function collectSemanticLintResult(project: string, snapshot?: Lint
     for (const target of internalLinks) if (pageSet.has(target.replace(/^\.\//u, ""))) inbound.set(target.replace(/^\.\//u, ""), (inbound.get(target.replace(/^\.\//u, "")) ?? 0) + 1);
     const bodyContent = entry.parsed?.content ?? entry.raw;
     const parsedPage = parseWikiMarkdown(bodyContent);
-    if (parsedPage.todoCount >= 6) issues.push(`${rel} placeholder-heavy: ${parsedPage.todoCount} TODO markers`);
+    const isSlicePlanPage = /specs\/slices\/[^/]+\/(plan|test-plan)\.md$/u.test(rel);
+    const todoThreshold = isSlicePlanPage ? 12 : 6;
+    if (parsedPage.todoCount >= todoThreshold) issues.push(`${rel} placeholder-heavy: ${parsedPage.todoCount} TODO markers`);
     const bodyLength = bodyContent.trim().length;
     if (bodyLength > 0 && bodyLength < 180 && !rel.endsWith("backlog.md") && !rel.endsWith("decisions.md") && !rel.endsWith("learnings.md")) issues.push(`${rel} thin page: very little maintained content`);
     if (entry.parsed && (!Array.isArray(entry.parsed.data.source_paths) || entry.parsed.data.source_paths.length === 0) && rel.includes("/modules/")) issues.push(`${rel} module page has no source_paths`);
