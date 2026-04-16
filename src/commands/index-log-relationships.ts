@@ -46,7 +46,12 @@ export async function collectProjectPageRows(project: string): Promise<ProjectPa
     const raw = await readText(file);
     const parsed = safeMatter(relative(VAULT_ROOT, file), raw, { silent: true });
     const data = parsed?.data as Record<string, unknown> | undefined;
-    const section = rel.includes("/") ? rel.split("/")[0] ?? "root" : "root";
+    let section: string;
+    if (rel.includes("/")) {
+      section = rel.split("/")[0] ?? "root";
+    } else {
+      section = "root";
+    }
     return {
       file,
       rel,
@@ -140,13 +145,16 @@ export function buildSectionSortKey(section: string, rel: string, data: Record<s
   if (section !== "specs") return rel;
   const kindOrder = { feature: "0", prd: "1", "task-hub": "2", plan: "3", "test-plan": "4" } as const;
   const kind = typeof data?.spec_kind === "string" ? data.spec_kind : rel.endsWith("/index.md") ? "task-hub" : "zzz";
-  const ordinalSource = typeof data?.feature_id === "string"
-    ? data.feature_id
-    : typeof data?.prd_id === "string"
-      ? data.prd_id
-      : typeof data?.task_id === "string"
-        ? data.task_id
-        : "";
+  let ordinalSource: string;
+  if (typeof data?.feature_id === "string") {
+    ordinalSource = data.feature_id;
+  } else if (typeof data?.prd_id === "string") {
+    ordinalSource = data.prd_id;
+  } else if (typeof data?.task_id === "string") {
+    ordinalSource = data.task_id;
+  } else {
+    ordinalSource = "";
+  }
   const ordinalMatch = ordinalSource.match(/(\d{3,})$/);
   const ordinal = ordinalMatch ? ordinalMatch[1].padStart(6, "0") : "999999";
   const created = createdAt((data ?? {}) as Record<string, unknown>);
@@ -161,7 +169,12 @@ export function shouldSkipProjectIndexSpecEntry(rel: string) {
 }
 
 export function specIndexGroup(rel: string, data: Record<string, unknown> | undefined): SpecIndexGroup {
-  const kind = typeof data?.spec_kind === "string" ? data.spec_kind : classifyProjectDocPath(rel);
+  let kind: string | null;
+  if (typeof data?.spec_kind === "string") {
+    kind = data.spec_kind;
+  } else {
+    kind = classifyProjectDocPath(rel);
+  }
   if (kind === "feature" || kind === "spec-feature") return "features";
   if (kind === "prd" || kind === "spec-prd") return "prds";
   if (kind === "plan" || kind === "test-plan" || kind === "spec-plan" || kind === "spec-test-plan") return "plans";

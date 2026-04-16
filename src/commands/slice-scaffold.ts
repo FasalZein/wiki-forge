@@ -228,8 +228,21 @@ async function resolvePrdRecord(project: string, prdId: string): Promise<PrdReco
   if (!fileName) throw new Error(`PRD not found: ${prdId}`);
   const file = join(dir, fileName);
   const parsed = safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true });
-  const title = typeof parsed?.data.title === "string" && parsed.data.title.trim() ? parsed.data.title.trim() : prdId;
-  const parentFeature = typeof parsed?.data.parent_feature === "string" ? parsed.data.parent_feature : undefined;
-  const sourcePaths = Array.isArray(parsed?.data.source_paths) ? parsed.data.source_paths.map((value) => String(value).replaceAll("\\", "/")).filter(Boolean) : [];
+  let title: string;
+  if (typeof parsed?.data.title === "string" && parsed.data.title.trim()) {
+    title = parsed.data.title.trim();
+  } else {
+    title = prdId;
+  }
+  let parentFeature: string | undefined;
+  if (typeof parsed?.data.parent_feature === "string") {
+    parentFeature = parsed.data.parent_feature;
+  }
+  let sourcePaths: string[];
+  if (Array.isArray(parsed?.data.source_paths)) {
+    sourcePaths = parsed.data.source_paths.map((value) => String(value).replaceAll("\\", "/")).filter(Boolean);
+  } else {
+    sourcePaths = [];
+  }
   return { prdId, title, parentFeature, linkPath: toVaultWikilinkPath(file), sourcePaths };
 }

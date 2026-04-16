@@ -71,7 +71,15 @@ export async function exportPrompt(args: string[]) {
 export function summarizePlan(hubContent: string, planContent: string, sourcePaths: string[]) {
   const title = firstMeaningfulLine(hubContent, /^#\s+/u) ?? firstMeaningfulLine(planContent, /^#\s+/u) ?? "Untitled slice";
   const scope = firstSectionLine(planContent, ["Scope", "Task", "Vertical Slice"]);
-  const target = firstSectionLine(planContent, ["Target Structure", "Target", "Vertical Slice"]) ?? (sourcePaths.length ? sourcePaths.join(", ") : null);
+  const targetFromPlan = firstSectionLine(planContent, ["Target Structure", "Target", "Vertical Slice"]);
+  let target: string | null;
+  if (targetFromPlan) {
+    target = targetFromPlan;
+  } else if (sourcePaths.length) {
+    target = sourcePaths.join(", ");
+  } else {
+    target = null;
+  }
   const acceptance = firstSectionLine(planContent, ["Acceptance Criteria", "Green Criteria", "Verification Commands"]);
   return [title, scope ? `Scope: ${scope}` : null, target ? `Target: ${target}` : null, acceptance ? `Acceptance: ${acceptance}` : null]
     .filter((line): line is string => Boolean(line))

@@ -152,7 +152,12 @@ async function getStore(): Promise<QMDStore> {
 }
 
 function lexResultToQmdResult(query: string, result: SearchResult): QmdResult {
-  const body = typeof result.body === "string" ? result.body : "";
+  let body: string;
+  if (typeof result.body === "string") {
+    body = result.body;
+  } else {
+    body = "";
+  }
   const snippet = body ? buildSnippet(body, query) : `@@ -1,1 @@\n${result.title}`;
   return {
     docid: `#${result.docid}`,
@@ -165,7 +170,12 @@ function lexResultToQmdResult(query: string, result: SearchResult): QmdResult {
 }
 
 function hybridResultToQmdResult(query: string, result: HybridQueryResult): QmdResult {
-  const body = typeof result.body === "string" ? result.body : "";
+  let body: string;
+  if (typeof result.body === "string") {
+    body = result.body;
+  } else {
+    body = "";
+  }
   const snippet = body ? buildSnippet(body, query) : `@@ -1,1 @@\n${result.title}`;
   return {
     docid: `#${result.docid}`,

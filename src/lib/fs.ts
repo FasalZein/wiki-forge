@@ -6,6 +6,8 @@ export async function readText(path: string) {
 }
 
 export async function readJson<T>(path: string) {
+  // Bun.file().json() reads a local file — not a network fetch — so the cast is safe here.
+  // Callers are responsible for validating the shape of T against their expected schema.
   return Bun.file(path).json() as Promise<T>;
 }
 

@@ -1,7 +1,7 @@
 ---
 name: forge
 description: >
-  Build with rigor. Orchestrates research → grill → PRD → slices → TDD before anything ships.
+  Build with rigor. Orchestrates research -> grill -> PRD -> slices -> TDD before anything ships.
   Forge is the workflow layer, not the research layer or wiki layer. It loads companion skills and checks gates. Zero API calls — everything stays in the wiki vault.
 ---
 
@@ -15,7 +15,7 @@ Forge is the workflow layer. It coordinates separate companion layers:
 Every non-trivial change follows this order. No exceptions.
 
 ```text
-research → grill-me → PRD → slices → TDD → wiki verify
+research -> grill-me -> PRD -> slices -> TDD -> wiki verify
 ```
 
 ## Invocation Model
@@ -31,13 +31,14 @@ If a harness has no slash-skill syntax, run the equivalent `wiki` CLI lifecycle 
 
 ## Required Skills
 
-Forge assumes these companion skills are already available:
+Forge assumes these companion skills are available in the repo `skills/` directory:
 - `/research`
 - `/grill-me`
 - `/write-a-prd`
 - `/prd-to-slices`
 - `/tdd`
 - `/wiki`
+- `/desloppify`
 
 If any required skill is unavailable, stop and tell the user which one is missing. Do not silently skip steps.
 
@@ -51,66 +52,91 @@ Load these in order before writing production code:
 | 4 | `/prd-to-slices` | Break PRD into tracer-bullet vertical slices in the wiki backlog |
 | 5 | `/tdd` | Red-green-refactor for each slice |
 | 6 | `/wiki` | File artifacts, verify pages, run gate |
+| 7 | `/desloppify` | Scan for AI slop, fix quality issues, verify score |
 
 If a skill is unavailable, stop and tell the user. Do not silently skip steps.
 This skill defines required workflow policy. The CLI does not yet hard-enforce every step, so agents must still run the full lifecycle explicitly.
 
 **Note:** `/prd-to-issues` (GitHub variant) exists for projects needing external issue tracking. For solo or agent-driven work, `/prd-to-slices` is faster and token-free.
 
-## Use Forge vs Wiki
+## Execution Modes
 
-Use `/forge` when the task is non-trivial implementation workflow.
-Use `/wiki` when the task stays in the knowledge/verification layer.
+### Non-trivial (full pipeline)
 
-Choose `/forge` for:
-- new features or workflows
-- cross-module behavior changes
-- performance or refactor work with design tradeoffs
-- any task that should leave PRD + slice history
-- continuing an existing PRD/slice thread
-- selecting, claiming, implementing, verifying, or closing a slice as part of shipping code
-- research that is the first phase of a larger implementation effort
+Trigger `/forge` for:
+- A new feature or workflow
+- Behavior that crosses module boundaries
+- Changes that need research or design tradeoffs
+- Performance or refactor work spanning multiple commands/modules
+- Work likely to become a tracked slice/backlog item
+- Anything that should leave PRD + slice history in the wiki
+- Continuing an existing PRD / feature / slice, even if the next step sounds like "just proceed"
+- Creating, selecting, or advancing a backlog slice
 
-Choose `/wiki` for:
-- research-only work or research filing/audit
-- retrieval and project Q&A
-- refresh/verify/gate work after implementation choices are already made
-- wiki maintenance, drift cleanup, binding, navigation, and vault hygiene
-- docs/wiki formatting work
-- repo exploration or onboarding
+Full sequence:
+```text
+1. /research — gather evidence and decide; then file: wiki research file <project> <title>
+2. /grill-me — defend the approach, resolve unknowns
+3. /write-a-prd — capture scope, link to research in Prior Research section
+4. /prd-to-slices — break into vertical slices (wiki create-issue-slice per slice)
+5. Select the next slice using wiki next <project> to respect depends_on ordering
+6. Fill the selected slice docs before coding:
+   a. wiki start-slice <project> <slice-id> --agent <name> --repo <path>
+   b. fill plan.md
+   c. fill test-plan.md
+7. /tdd — for each slice: red-green-refactor
+8. /wiki — after each slice: full closeout sequence
+9. /desloppify — scan, fix any new slop, verify score
+```
 
-Rule of thumb:
-- changing runtime/product behavior -> `/forge`
-- researching, retrieving, documenting, or verifying without active product changes -> `/wiki`
+### Small scope (< 50 lines)
 
-## What Counts as Non-Trivial
+Skip research/grill/PRD/slices but still need tests and verification. **TDD is still mandatory.**
 
-Use forge when the task needs the forge pipeline **or is continuing work that already came from that pipeline**.
+```text
+1. /tdd — write a failing test that reproduces the bug, fix the code
+2. /wiki — closeout:
+   wiki checkpoint <project> --repo <path>
+   wiki lint-repo <project> --repo <path>
+   wiki maintain <project> --repo <path> --base <rev>
+   update impacted wiki pages from code
+   wiki update-index <project> --write (if navigation changed)
+   wiki verify-page <project> <page> code-verified
+   wiki closeout <project> --repo <path> --base <rev>
+   wiki gate <project> --repo <path> --base <rev>
+3. /desloppify — scan, fix new slop, verify no regression
+```
 
-Trigger `/forge` for work like:
-- a new feature or workflow
-- behavior that crosses module boundaries
-- changes that need research or design tradeoffs
-- performance or refactor work spanning multiple commands/modules
-- work likely to become a tracked slice/backlog item
-- anything that should leave PRD + slice history in the wiki
-- continuing an existing PRD / feature / slice, even if the next step sounds like "just proceed"
-- creating, selecting, or advancing a backlog slice
+### Docs/wiki only
 
-Do **not** trigger `/forge` for:
-- bug fixes under ~50 lines of diff
-- small focused refactors that do not need slice tracking
-- config or dependency changes
-- docs-only changes
-- wiki formatting / note cleanup
-- repo exploration or code reading
+No code changes — just knowledge layer work:
 
-For smaller tasks, use the smallest fitting workflow instead:
-- code fix: `/tdd` + `/wiki`
-- wiki/note work: `/wiki` + `/obsidian-markdown`
-- exploration: `/wiki`
+```text
+/wiki + /obsidian-markdown
+```
 
-When in doubt, ask: "does this need research → PRD → slices, or is it already part of existing PRD/slice work?" If yes, use forge.
+### Exploration only
+
+Understanding code or onboarding:
+
+```text
+/wiki (search, ask, discover, onboard)
+```
+
+## Decision Rule
+
+Ask: "Does this need the full pipeline, or is it already part of existing work?"
+
+| Situation | Workflow |
+|-----------|----------|
+| New feature or workflow | `/forge` (full) |
+| Cross-module behavior change | `/forge` (full) |
+| Continuing existing PRD/slice | `/forge` (delta) |
+| Research as part of implementation | `/forge` (research as phase 1) |
+| Bug fix < 50 lines | `/tdd` + `/wiki` |
+| Docs/wiki/formatting only | `/wiki` + `/obsidian-markdown` |
+| Repo exploration or understanding | `/wiki` only |
+| Research-only / filing / audit | `/wiki` only |
 
 ## Continuation Rule
 
@@ -135,7 +161,7 @@ Do not silently downgrade a slice continuation into `/wiki` maintenance mode jus
 
 ## Hard Gates
 
-1. **No code without tests.** Every code change needs changed tests, or a documented exception in the wiki.
+1. **No code without tests. No exceptions. Ever.** Every code change MUST have corresponding tests. This is non-negotiable — no "it's too simple to test", no "I'll add tests later", no "this is just a refactor". If you changed code, you changed or added tests. Period.
 2. **Run `wiki gate` before declaring done.** Today it hard-blocks missing tests; agents must still clear stale-page and workflow warnings before closing a slice.
 3. **PRD + slicing before non-trivial implementation.**
 4. **Research before PRD.** Run `/research` first, then file the result with `wiki research file` so decisions are traceable.
@@ -144,7 +170,7 @@ Do not silently downgrade a slice continuation into `/wiki` maintenance mode jus
 7. **No unmaintainable code.** If a slice passes tests but worsens maintainability, refactor before closing.
 8. **Never create `.md` documentation inside project repos** except `README.md`, `CHANGELOG.md`, `AGENTS.md`, `CLAUDE.md`, `SETUP.md`, and `skills/*/SKILL.md`. Specs, research, architecture notes, and maintained docs belong in the wiki vault.
 9. **Use protocol sync for repo agent instructions.** Install/update repo `AGENTS.md` / `CLAUDE.md` via `wiki protocol sync <project> --repo <path>` instead of hand-editing the managed protocol block.
-10. **Use `wiki handover` for session transitions.** Run `wiki handover <project> --repo <path> --base <rev>` at session end — it auto-captures activity, commits, state, and priorities. Run `wiki resume <project> --repo <path> --base <rev>` at session start. Do not create ad hoc HANDOVER.md files.
+10. **Use `wiki handover` for session transitions.** Run `wiki handover <project> --repo <path> --base <rev>` at session end — it auto-captures activity, commits, state, and priorities, and writes a durable `.md` file to `projects/<project>/handovers/`. Use `--harness <name>` to tag the handover and `--no-write` to skip file creation. Run `wiki resume <project> --repo <path> --base <rev>` at session start (it reads the latest handover file). Do not create ad hoc HANDOVER.md files.
 
 ## Definition of Done
 
@@ -155,6 +181,8 @@ A slice is complete only when all of these are true:
 3. Impacted wiki pages are updated from code and tests.
 4. `wiki lint <project>` and `wiki lint-semantic <project>` pass.
 5. Changed pages are re-verified with `wiki verify-page` at `code-verified` or `test-verified`.
+6. `wiki feature-status <project>` shows no unexpected drift. `close-slice` auto-closes parent PRD/feature when all children are complete; `start-slice` auto-opens them when still not-started.
+7. `desloppify score .` shows no regression. Run `desloppify scan .` and fix any new issues before closing.
 
 ## Workflow: Build or Change a Feature
 
@@ -168,12 +196,12 @@ A slice is complete only when all of these are true:
    a. run `wiki start-slice <project> <slice-id> --agent <name> --repo <path>`
    b. fill plan.md
    c. fill test-plan.md
-6. /tdd — for each slice:
+7. /tdd — for each slice:
    a. Write failing tests first
    b. Make them pass with minimal code
    c. Refactor
    d. Run tests
-7. /wiki — after each slice:
+8. /wiki — after each slice:
    a. `wiki checkpoint <project> --repo <path>`
    b. `wiki lint-repo <project> --repo <path>`
    c. `wiki maintain <project> --repo <path> --base <rev>`
@@ -184,6 +212,10 @@ A slice is complete only when all of these are true:
    h. `wiki closeout <project> --repo <path> --base <rev>` to review the composed status
    i. `wiki gate <project> --repo <path> --base <rev>`
    j. `wiki close-slice <project> <slice-id> --repo <path> --base <rev>`
+9. /desloppify — after wiki closeout:
+   a. `desloppify scan . --json` to detect new slop
+   b. Fix issues by category (AI slop, complexity, naming, etc.)
+   c. `desloppify score .` to verify no regression
 ```
 
 ## Workflow: Continue an Existing PRD / Slice Thread
@@ -196,24 +228,7 @@ A slice is complete only when all of these are true:
 5. Run `wiki start-slice <project> <slice-id> --agent <name> --repo <path>` and fill plan.md + test-plan.md
 6. /tdd for the slice
 7. /wiki closeout sequence (`checkpoint` -> `lint-repo` -> `maintain` -> page updates -> `verify-page` -> `verify-slice` -> `closeout` -> `gate` -> `close-slice`)
-```
-
-## Workflow: Small Task / Bug Fix (< 50 lines)
-
-Small tasks skip research/grill/PRD/slices but still need verification. Use `/tdd` + `/wiki`:
-
-```text
-1. /tdd — write a failing test that reproduces the bug
-2. Fix the code, make the test pass
-3. /wiki — closeout:
-   a. wiki checkpoint <project> --repo <path>
-   b. wiki lint-repo <project> --repo <path>
-   c. wiki maintain <project> --repo <path> --base <rev>
-   d. Update impacted wiki pages from code
-   e. wiki update-index <project> --write (if navigation changed)
-   f. wiki verify-page <project> <page> code-verified
-   g. wiki closeout <project> --repo <path> --base <rev>
-   h. wiki gate <project> --repo <path> --base <rev>
+8. /desloppify — scan, fix, verify score
 ```
 
 ## Source of Truth

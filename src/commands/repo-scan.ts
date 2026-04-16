@@ -15,7 +15,12 @@ export const DEFAULT_CODE_PATTERNS = [
 ];
 
 export function listCodeFiles(repo: string, customPaths?: string[]) {
-  const patterns = customPaths?.length ? customPaths.map((p) => `${p}/**/*`) : DEFAULT_CODE_PATTERNS;
+  let patterns: string[];
+  if (customPaths?.length) {
+    patterns = customPaths.map((p) => `${p}/**/*`);
+  } else {
+    patterns = DEFAULT_CODE_PATTERNS;
+  }
   const files = new Set<string>();
   for (const pattern of patterns) {
     for (const absolute of new Bun.Glob(pattern).scanSync({ cwd: repo, absolute: true, onlyFiles: true })) {

@@ -175,13 +175,13 @@ describe("activity tracker", () => {
 
       const entries = lines.map((line) => JSON.parse(line));
       const scaffoldEntry = entries.find((e: { cmd: string }) => e.cmd === "scaffold-project");
-      expect(scaffoldEntry).toBeDefined();
+      expect(scaffoldEntry?.cmd).toBe("scaffold-project");
       expect(scaffoldEntry.sid).toBe("e2e-test-session");
       expect(scaffoldEntry.ok).toBe(true);
       expect(scaffoldEntry.durationMs).toBeGreaterThanOrEqual(0);
 
       const backlogEntry = entries.find((e: { cmd: string }) => e.cmd === "backlog");
-      expect(backlogEntry).toBeDefined();
+      expect(backlogEntry?.cmd).toBe("backlog");
       expect(backlogEntry.project).toBe("demo");
       expect(backlogEntry.ok).toBe(true);
     });
@@ -210,8 +210,8 @@ describe("activity tracker", () => {
       const activityPath = join(vault, "projects", "demo", ".activity.jsonl");
       const lines = readFileSync(activityPath, "utf8").split("\n").filter(Boolean);
       const failEntry = lines.map((l) => JSON.parse(l)).find((e: { ok: boolean; cmd: string }) => !e.ok && e.cmd === "move-task");
-      expect(failEntry).toBeDefined();
-      expect(failEntry.error).toBeDefined();
+      expect(failEntry?.cmd).toBe("move-task");
+      expect(failEntry?.error).toMatch(/NONEXISTENT-999|not found/i);
     });
 
     test("handover includes session activity in JSON output", () => {
@@ -229,7 +229,7 @@ describe("activity tracker", () => {
       const result = runWiki(["handover", "demo", "--repo", repo, "--base", "main", "--json"], env);
       expect(result.exitCode).toBe(0);
       const json = JSON.parse(result.stdout.toString());
-      expect(json.sessionActivity).toBeDefined();
+      expect(typeof json.sessionActivity.totalCommands).toBe("number");
       expect(json.sessionActivity.totalCommands).toBeGreaterThanOrEqual(3);
       expect(json.sessionActivity.commandCounts["scaffold-project"]).toBe(1);
     });

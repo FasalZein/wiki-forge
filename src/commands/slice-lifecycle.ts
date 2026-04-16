@@ -214,9 +214,15 @@ export async function startSlice(args: string[]) {
     return;
   }
 
-  const dependencySummary = dependencies.length
-    ? dependencies.map((dependency) => `${dependency.id} ${dependency.done ? "✓" : `(${dependency.status})`}`).join(", ")
-    : "none";
+  let dependencySummary: string;
+  if (dependencies.length) {
+    dependencySummary = dependencies.map((dependency) => {
+      const statusLabel = dependency.done ? "✓" : `(${dependency.status})`;
+      return `${dependency.id} ${statusLabel}`;
+    }).join(", ");
+  } else {
+    dependencySummary = "none";
+  }
   console.log(`Started ${sliceId} (assignee: ${agent})`);
   console.log(`Dependencies: ${dependencySummary}`);
   console.log(`Claim registered: ${sourcePaths.length ? sourcePaths.join(", ") : "none"}`);

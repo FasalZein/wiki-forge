@@ -46,7 +46,12 @@ export async function collectBacklogView(project: string, assignee?: string) {
   const doneIds = new Set((backlog.sections["Done"] ?? []).map((task) => task.id));
   const sections = Object.fromEntries(await Promise.all(Object.entries(backlog.sections).map(async ([section, items]) => {
     const contexts = await Promise.all(items.map((item) => collectTaskContext(project, item, section, doneIds)));
-    const filtered = assignee ? contexts.filter((context) => agentNamesEqual(context.assignee ?? undefined, assignee)) : contexts;
+    let filtered;
+    if (assignee) {
+      filtered = contexts.filter((context) => agentNamesEqual(context.assignee ?? undefined, assignee));
+    } else {
+      filtered = contexts;
+    }
     return [section, filtered];
   })));
   const blocked = Object.values(sections).flat().filter((item): item is BacklogTaskContext => Boolean(item) && typeof item === "object" && Array.isArray((item as BacklogTaskContext).blockedBy) && (item as BacklogTaskContext).blockedBy.length > 0);

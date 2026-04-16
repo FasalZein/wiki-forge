@@ -194,7 +194,13 @@ function resolveWikilinkTarget(currentVaultPath: string, rawTarget: string, note
 function extractWikilinks(body: string) {
   const links: { rawTarget: string; pathTarget: string; headingTarget?: string }[] = [];
   for (const wl of extractWikilinksAst(body)) {
-    const raw = wl.alias ? `${wl.target}${wl.anchor ? `#${wl.anchor}` : ""}|${wl.alias}` : `${wl.target}${wl.anchor ? `#${wl.anchor}` : ""}`;
+    const anchor = wl.anchor ? `#${wl.anchor}` : "";
+    let raw: string;
+    if (wl.alias) {
+      raw = `${wl.target}${anchor}|${wl.alias}`;
+    } else {
+      raw = `${wl.target}${anchor}`;
+    }
     if (isNonMarkdownAttachment(wl.target)) continue;
     links.push({ rawTarget: raw, pathTarget: wl.target, headingTarget: wl.anchor ?? undefined });
   }

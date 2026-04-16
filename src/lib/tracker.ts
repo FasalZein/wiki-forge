@@ -95,7 +95,10 @@ export async function readActivity(project: string): Promise<ActivityEntry[]> {
   for (const line of text.split("\n")) {
     if (!line.trim()) continue;
     try {
-      entries.push(JSON.parse(line) as ActivityEntry);
+      const parsed = JSON.parse(line);
+      if (parsed && typeof parsed === "object" && typeof parsed.ts === "string" && typeof parsed.cmd === "string") {
+        entries.push(parsed as ActivityEntry);
+      }
     } catch {
       // skip malformed lines
     }
@@ -164,8 +167,9 @@ async function pruneIfNeeded(path: string): Promise<void> {
     const kept = text.split("\n").filter((line) => {
       if (!line.trim()) return false;
       try {
-        const entry = JSON.parse(line) as ActivityEntry;
-        return new Date(entry.ts).getTime() > cutoff;
+        const parsed = JSON.parse(line);
+        if (!parsed || typeof parsed !== "object" || typeof parsed.ts !== "string") return false;
+        return new Date(parsed.ts).getTime() > cutoff;
       } catch {
         return false;
       }
