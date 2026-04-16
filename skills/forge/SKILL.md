@@ -181,7 +181,7 @@ A slice is complete only when all of these are true:
 3. Impacted wiki pages are updated from code and tests.
 4. `wiki lint <project>` and `wiki lint-semantic <project>` pass.
 5. Changed pages are re-verified with `wiki verify-page` at `code-verified` or `test-verified`.
-6. `wiki feature-status <project>` shows no unexpected drift. `close-slice` auto-closes parent PRD/feature when all children are complete; `start-slice` auto-opens them when still not-started.
+6. `wiki feature-status <project>` shows `computed_status=complete` (NOT `needs-verification`). This requires all child slices to be status=done AND verification_level=test-verified. `close-slice` auto-closes parent PRD/feature only when computed_status=complete; if it shows `needs-verification`, you must `verify-page` slice/PRD/feature pages to test-verified first, then `maintain` to refresh computed_status.
 7. `desloppify score .` shows no regression. Run `desloppify scan .` and fix any new issues before closing.
 
 ## Workflow: Build or Change a Feature
@@ -207,11 +207,16 @@ A slice is complete only when all of these are true:
    c. `wiki maintain <project> --repo <path> --base <rev>`
    d. Update impacted wiki pages from code
    e. `wiki update-index <project> --write` (if navigation/planning links changed)
-   f. `wiki verify-page <project> <page> code-verified`
-   g. `wiki verify-slice <project> <slice-id> --repo <path>`
-   h. `wiki closeout <project> --repo <path> --base <rev>` to review the composed status
-   i. `wiki gate <project> --repo <path> --base <rev>`
-   j. `wiki close-slice <project> <slice-id> --repo <path> --base <rev>`
+   f. `wiki verify-page <project> <page> code-verified` — for each impacted page
+   g. `wiki verify-slice <project> <slice-id> --repo <path>` — runs test-plan commands; if FAIL, read the stderr/stdout output, fix, re-run
+   h. `wiki verify-page <project> <slice-index> test-verified` — promote slice index
+   i. `wiki verify-page <project> <prd-page> test-verified` — promote parent PRD
+   j. `wiki verify-page <project> <feature-page> test-verified` — promote parent feature
+   k. `wiki maintain <project> --repo <path> --base <rev>` — refreshes computed_status
+   l. `wiki feature-status <project>` — confirm computed_status = complete (not needs-verification)
+   m. `wiki closeout <project> --repo <path> --base <rev>` — only proceed if "PASS — ready to close"
+   n. `wiki gate <project> --repo <path> --base <rev>`
+   o. `wiki close-slice <project> <slice-id> --repo <path> --base <rev>` — auto-triggers parent close if computed is complete
 9. /desloppify — after wiki closeout:
    a. `desloppify scan . --json` to detect new slop
    b. Fix issues by category (AI slop, complexity, naming, etc.)
@@ -227,7 +232,7 @@ A slice is complete only when all of these are true:
 4. Select or create the next slice under the existing PRD
 5. Run `wiki start-slice <project> <slice-id> --agent <name> --repo <path>` and fill plan.md + test-plan.md
 6. /tdd for the slice
-7. /wiki closeout sequence (`checkpoint` -> `lint-repo` -> `maintain` -> page updates -> `verify-page` -> `verify-slice` -> `closeout` -> `gate` -> `close-slice`)
+7. /wiki closeout sequence (`checkpoint` -> `lint-repo` -> `maintain` -> page updates -> `verify-page code-verified` -> `verify-slice` -> `verify-page test-verified` on slice/PRD/feature -> `maintain` -> `feature-status` -> `closeout` -> `gate` -> `close-slice`)
 8. /desloppify — scan, fix, verify score
 ```
 

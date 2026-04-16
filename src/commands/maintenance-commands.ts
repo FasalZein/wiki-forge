@@ -232,12 +232,22 @@ export function compactCloseoutForJson(result: Awaited<ReturnType<typeof collect
 }
 
 export function renderCloseout(result: Awaited<ReturnType<typeof collectCloseout>>, verbose: boolean) {
-  console.log(`closeout for ${result.project}: ${result.ok ? "PASS" : "FAIL"}`);
+  const hasWork = result.staleImpactedPages.length > 0 || result.nextSteps.length > 0;
+  const statusLabel = !result.ok
+    ? "FAIL (blockers found)"
+    : hasWork
+      ? "REVIEW PASS — manual steps remaining"
+      : "PASS — ready to close";
+  console.log(`closeout for ${result.project}: ${statusLabel}`);
   console.log(`- repo: ${result.repo}`);
   console.log(`- base: ${result.base}`);
   console.log(`- changed files: ${result.refreshFromGit.changedFiles.length}`);
   console.log(`- impacted pages: ${result.refreshFromGit.impactedPages.length}`);
-  console.log(`- stale impacted pages: ${result.staleImpactedPages.length}`);
+  if (result.staleImpactedPages.length) {
+    console.log(`- stale impacted pages: ${result.staleImpactedPages.length} ⚠ (update and verify-page before closing)`);
+  } else {
+    console.log(`- stale impacted pages: 0`);
+  }
   if (result.suppressedPages.length) console.log(`- suppressed historical done-slice pages: ${result.suppressedPages.length}`);
   console.log(`- lint: ${result.lint.issues.length}`);
   console.log(`- semantic: ${result.semanticLint.issues.length}`);
@@ -247,6 +257,8 @@ export function renderCloseout(result: Awaited<ReturnType<typeof collectCloseout
     for (const blocker of result.blockers) console.log(`  - blocker: ${blocker}`);
     for (const warning of result.warnings) console.log(`  - warning: ${warning}`);
   }
-  console.log(`- manual steps:`);
-  for (const step of result.nextSteps) console.log(`  - ${step}`);
+  if (result.nextSteps.length) {
+    console.log(`- manual steps before closing:`);
+    for (const step of result.nextSteps) console.log(`  - ${step}`);
+  }
 }

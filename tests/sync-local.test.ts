@@ -16,10 +16,12 @@ describe("sync-local", () => {
     expect(plan[3]?.command[3]).toBe("/repo/wiki-forge/skills/forge");
   });
 
-  test("adds companion skills only when requested", () => {
-    const plan = buildSyncPlan({ repoDir: "/repo/wiki-forge", includeCompanions: true });
-    const companionCommands = plan.slice(-COMPANION_SKILLS.length);
-    expect(companionCommands.map((step) => step.command[3])).toEqual([...COMPANION_SKILLS]);
+  test("companion skills list is empty (all skills are repo-owned)", () => {
+    expect(COMPANION_SKILLS).toEqual([]);
+    const withCompanions = buildSyncPlan({ repoDir: "/repo/wiki-forge", includeCompanions: true });
+    const without = buildSyncPlan({ repoDir: "/repo/wiki-forge", includeCompanions: false });
+    // With no companion skills, both plans should be identical
+    expect(withCompanions.map((s) => s.label)).toEqual(without.map((s) => s.label));
   });
 
   test("parses with-companions flag", () => {

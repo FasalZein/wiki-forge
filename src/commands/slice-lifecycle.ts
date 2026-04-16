@@ -251,7 +251,22 @@ export async function verifySlice(args: string[]) {
   if (json) console.log(JSON.stringify(payload, null, 2));
   else {
     console.log(`verify-slice ${sliceId}: ${ok ? "PASS" : "FAIL"}`);
-    for (const result of results) console.log(`- ${result.ok ? "pass" : "fail"}: ${result.command}`);
+    for (const result of results) {
+      console.log(`- ${result.ok ? "pass" : "FAIL"}: ${result.command} (exit ${result.exitCode})`);
+      if (!result.ok) {
+        if (result.stderr) {
+          for (const line of result.stderr.split("\n").slice(0, 10)) console.log(`    stderr: ${line}`);
+        }
+        if (result.stdout) {
+          for (const line of result.stdout.split("\n").slice(0, 10)) console.log(`    stdout: ${line}`);
+        }
+      }
+    }
+    if (!ok) {
+      const failedCount = results.filter((r) => !r.ok).length;
+      console.log(`\n${failedCount} of ${results.length} verification command(s) failed.`);
+      console.log(`Fix the failing commands, then re-run: wiki verify-slice ${project} ${sliceId} --repo <path>`);
+    }
   }
   if (!ok) throw new Error(`verify-slice failed for ${sliceId}`);
 }
@@ -340,7 +355,20 @@ export async function closeSlice(args: string[]) {
 
   const result = { project, sliceId, closed: true, ...(compactGate ? { gate: compactGate } : {}), previousSection: context.section, completedAt, force };
   if (json) console.log(JSON.stringify(result, null, 2));
-  else console.log(`closed ${sliceId}${force ? " (forced)" : ""}`);
+  else {
+    console.log(`closed ${sliceId}${force ? " (forced)" : ""}`);
+    if (force) {
+      console.log(`\nWarning: --force skipped closeout and gate checks.`);
+      console.log(`The slice status is now "done", but parent PRD/feature computed_status`);
+      console.log(`may still show "needs-verification" if slice docs are not test-verified.`);
+      console.log(`To fully complete the hierarchy:`);
+      console.log(`  1. wiki verify-page ${project} <slice-pages> test-verified`);
+      console.log(`  2. wiki verify-page ${project} <prd-page> test-verified`);
+      console.log(`  3. wiki verify-page ${project} <feature-page> test-verified`);
+      console.log(`  4. wiki maintain ${project} --repo <path> --base <rev>`);
+      console.log(`  5. wiki feature-status ${project}  # verify computed_status = complete`);
+    }
+  }
 }
 
 async function readBlockedDependencies(project: string, sliceId: string) {

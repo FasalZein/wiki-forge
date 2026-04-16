@@ -43,15 +43,45 @@ Treat those as contextual maintenance requests, not blind keyword matches. The c
 3. `wiki maintain <project> --repo <path> --base <rev>` — compose refresh + discovery
 4. Update impacted wiki pages from code and tests
 5. `wiki update-index <project> --write` — if navigation/planning links changed
-6. `wiki verify-page <project> <page> code-verified`
-7. `wiki verify-slice <project> <slice-id> --repo <path>` — for active slice work
-8. `wiki closeout <project> --repo <path> --base <rev>` — review refresh/drift/lint/semantic/gate output
-9. `wiki gate <project> --repo <path> --base <rev>`
-10. `wiki close-slice <project> <slice-id> --repo <path> --base <rev>` — for active slice work
+6. `wiki verify-page <project> <page> code-verified` — for each impacted page
+7. `wiki verify-slice <project> <slice-id> --repo <path>` — runs test-plan commands; if FAIL, read error output
+8. `wiki verify-page <project> <slice/prd/feature pages> test-verified` — promote hierarchy to test-verified
+9. `wiki maintain <project> --repo <path> --base <rev>` — refresh computed_status after verification
+10. `wiki feature-status <project>` — confirm computed_status = complete
+11. `wiki closeout <project> --repo <path> --base <rev>` — only proceed if "PASS — ready to close" (not "REVIEW PASS")
+12. `wiki gate <project> --repo <path> --base <rev>`
+13. `wiki close-slice <project> <slice-id> --repo <path> --base <rev>` — for active slice work
 
 For the full build workflow (research → grill → PRD → slices → TDD → verify), use `/forge`. The wiki skill is the knowledge/verification layer; forge is a sibling workflow layer that composes the same `wiki` CLI with research and TDD.
 Use `/forge` only for non-trivial pipeline work; do not trigger it for small fixes, note cleanup, or simple maintenance.
-Today, `closeout` is a compact review surface, not an automatic repair step, and `gate` hard-blocks only on missing tests. Agents still need to perform the full lifecycle explicitly.
+### Key concepts agents must understand
+
+**`closeout` is a review surface, not a completion gate.**
+`closeout PASS` means "no hard blockers found" (currently: no missing tests). It does NOT mean "ready to close".
+If stale pages or manual steps remain, closeout shows `REVIEW PASS — manual steps remaining`.
+Only `PASS — ready to close` means the slice is fully closeable.
+Always check the manual steps list in closeout output before proceeding to `close-slice`.
+
+**`status` vs `computed_status` are different things.**
+- `status` is a frontmatter field you (or `--force`) can set directly: `not-started`, `in-progress`, `complete`.
+- `computed_status` is derived from child slices by `feature-status` and `maintain`: `not-started`, `in-progress`, `needs-verification`, `complete`.
+- `computed_status = complete` requires ALL child slices to be status=done AND verification_level=test-verified.
+- `--force` on close-slice/close-prd/close-feature changes `status` but does NOT change `computed_status`.
+- `feature-status` shows `computed_status`, not `status`. So forcing everything closed still shows `needs-verification` if slice docs aren't test-verified.
+- To resolve: `verify-page` all slice/PRD/feature pages to `test-verified`, then `maintain` to refresh `computed_status`.
+
+**`verify-slice` runs test-plan commands and reports failures with details.**
+If it returns FAIL, read the stderr/stdout output for each failed command. It will show exit codes and first 10 lines of error output. Fix the failing commands and re-run.
+
+**The complete hierarchy closure sequence:**
+1. `verify-slice` — run test-plan commands → promotes test-plan to test-verified
+2. `verify-page` on slice index, PRD, and feature → promote to test-verified
+3. `maintain` — refreshes `computed_status` from child verification levels
+4. `feature-status` — confirm computed_status = complete
+5. `close-slice` — moves to Done, auto-triggers parent close if computed is complete
+6. If auto-close didn't fire: `close-prd` / `close-feature` (without --force)
+
+Agents still need to perform the full lifecycle explicitly.
 
 ## Use Wiki vs Wiki-Forge
 
@@ -240,9 +270,14 @@ How to identify modules: look for directories that own a distinct concern — a 
    wiki lint-repo <project> --repo <path>
    wiki maintain <project> --repo <path> --base <rev>
    update impacted wiki pages from code
-   wiki verify-page <project> <page> code-verified
-   wiki verify-slice <project> <slice-id> --repo <path>
-   wiki closeout <project> --repo <path> --base <rev>
+   wiki verify-page <project> <page> code-verified          # for each impacted page
+   wiki verify-slice <project> <slice-id> --repo <path>     # runs test-plan commands
+   wiki verify-page <project> <slice-index> test-verified   # promote slice index
+   wiki verify-page <project> <prd-page> test-verified      # promote parent PRD
+   wiki verify-page <project> <feature-page> test-verified  # promote parent feature
+   wiki maintain <project> --repo <path> --base <rev>       # refresh computed_status
+   wiki feature-status <project>                            # confirm computed_status = complete
+   wiki closeout <project> --repo <path> --base <rev>       # only proceed if "ready to close"
    wiki gate <project> --repo <path> --base <rev>
    wiki close-slice <project> <slice-id> --repo <path> --base <rev>
 ```
