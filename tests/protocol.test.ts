@@ -25,13 +25,18 @@ describe("wiki protocol commands", () => {
     const agents = readFileSync(join(repo, "AGENTS.md"), "utf8");
     const claude = readFileSync(join(repo, "CLAUDE.md"), "utf8");
     expect(agents).toContain("managed_by: wiki-forge");
+    expect(agents).toContain("protocol_version: 2");
     expect(agents).toContain("# Agent Protocol");
     expect(agents).toContain("Do not treat them as separate policy sources");
+    expect(agents).toContain("## Code Quality");
+    expect(agents).toContain("Codex (GPT-5-class reviewer) reviews every change before it merges");
     expect(agents).toContain("wiki start-slice demo <slice-id>");
     expect(agents).toContain("wiki maintain demo --repo <path> --base <rev>");
     expect(agents).toContain("wiki gate demo --repo <path> --base <rev>");
     expect(agents).toContain("# Local Notes");
     expect(claude).toContain("managed_by: wiki-forge");
+    expect(claude).toContain("protocol_version: 2");
+    expect(claude).toContain("## Code Quality");
     expect(claude).toContain("wiki close-slice demo <slice-id>");
     expect(claude).toContain("wiki protocol sync");
   });

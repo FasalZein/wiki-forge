@@ -145,8 +145,10 @@ At this point the slice docs are planned, not implemented. Do **not** mark them 
 After verification, the slices are ready for `/tdd`. The lifecycle is:
 
 ```text
-create slice -> start-slice -> fill plan + test-plan -> /tdd -> /wiki closeout -> close-slice
+create slice -> start-slice -> fill plan + test-plan -> /tdd -> /wiki closeout -> close-slice -> /improve-codebase-architecture (cadence) -> /desloppify
 ```
+
+`/improve-codebase-architecture` runs at the end of a PRD or batch of slices (weekly at minimum) and turns any accepted deepening refactor into a new feature+PRD+slices of its own — not a silent rewrite mid-slice. `/desloppify` is the final line-level quality gate.
 
 The `/wiki` closeout sequence after each slice:
 - `wiki checkpoint <project> --repo <path>`

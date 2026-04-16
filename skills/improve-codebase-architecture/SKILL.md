@@ -5,16 +5,15 @@ description: >
   opportunities, and turn the strongest candidates into trackable refactor work.
   Use when the user wants to improve architecture, find refactoring
   opportunities, consolidate tightly-coupled modules, or make a codebase more
-  AI-navigable. Adapted from Matt Pocock's `improve-codebase-architecture`
-  skill for the wiki-forge workflow: findings are filed into the wiki vault
-  and accepted refactors become features/PRDs/slices instead of ad-hoc issues.
+  AI-navigable. Findings are filed into the wiki vault and accepted refactors
+  become features/PRDs/slices through `/forge` instead of ad-hoc issues.
 ---
 
 # Improve Codebase Architecture
 
 Explore a codebase like an AI would, surface architectural friction, discover
 opportunities for improving testability, and propose module-deepening refactors.
-File the review into the wiki vault so the decisions are durable, then turn any
+File the review into the wiki vault so decisions are durable, then turn any
 accepted refactor into a tracked feature + PRD + slices through `/forge`.
 
 A **deep module** (John Ousterhout, *A Philosophy of Software Design*) has a

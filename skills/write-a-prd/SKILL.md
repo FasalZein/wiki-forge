@@ -99,7 +99,7 @@ wiki lint-semantic <project>
 When part of `/forge`, this skill runs after `/research` and `/grill-me`:
 
 ```text
-/research -> /grill-me -> /write-a-prd -> /prd-to-slices -> /tdd -> /wiki
+/research -> /grill-me -> /write-a-prd -> /prd-to-slices -> /tdd -> /wiki -> /improve-codebase-architecture -> /desloppify
 ```
 
 The PRD captures all decisions from research and grilling. Every claim in the PRD should trace to filed research.

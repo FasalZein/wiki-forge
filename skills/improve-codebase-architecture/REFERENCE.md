@@ -1,9 +1,5 @@
 # Reference
 
-Adapted from Matt Pocock's `improve-codebase-architecture/REFERENCE.md` for
-the wiki-forge workflow: the issue template is replaced with a wiki
-research-note template.
-
 ## Dependency Categories
 
 When assessing a candidate for deepening, classify its dependencies.
