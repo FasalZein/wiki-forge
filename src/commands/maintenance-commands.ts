@@ -28,6 +28,7 @@ export async function dashboardProject(args: string[]) {
 export async function maintainProject(args: string[]) {
   const options = await parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
+  const verbose = args.includes("--verbose");
   const worktree = args.includes("--worktree");
   const repair = await repairHistoricalDoneSlices(options.project);
   const result = await collectMaintenancePlan(options.project, options.base, options.repo, undefined, undefined, { worktree });
@@ -37,8 +38,10 @@ export async function maintainProject(args: string[]) {
   });
   const missingTests = result.refreshFromGit.testHealth.codeFilesWithoutChangedTests.length;
   const gateOk = missingTests === 0;
-  if (json) console.log(JSON.stringify({ ...result, ...(repair ? { repair } : {}), gate: { ok: gateOk, missingTests } }, null, 2));
-  else {
+  if (json) {
+    const shaped = verbose ? result : compactMaintainForJson(result);
+    console.log(JSON.stringify({ ...shaped, ...(repair ? { repair } : {}), gate: { ok: gateOk, missingTests } }, null, 2));
+  } else {
     if (result.focus.activeTask) console.log(`active task: ${result.focus.activeTask.id} ${result.focus.activeTask.title} (plan=${result.focus.activeTask.planStatus} test-plan=${result.focus.activeTask.testPlanStatus})`);
     else if (result.focus.recommendedTask) console.log(`next backlog task: ${result.focus.recommendedTask.id} ${result.focus.recommendedTask.title}`);
     for (const warning of result.focus.warnings) console.log(`- backlog warning: ${warning}`);
@@ -59,20 +62,60 @@ export async function maintainProject(args: string[]) {
     console.log(`- semantic issues: ${result.semanticLint.issues.length}`);
     console.log(`- GATE: ${gateOk ? "PASS" : `FAIL — ${missingTests} code file(s) without tests`}`);
     console.log(`- actions:`);
-    for (const action of result.actions) console.log(`  - [${action.kind}] ${action.message}`);
-    console.log(`- closeout:`);
-    console.log(`  1. run tests`);
-    console.log(worktree
-      ? `  2. inspect live worktree changes with wiki maintain ${options.project} --repo ${result.repo} --worktree`
-      : `  2. wiki refresh-from-git ${options.project} --base ${options.base}`);
-    console.log(`  3. wiki drift-check ${options.project} --show-unbound`);
-    console.log(`  4. update impacted wiki pages`);
-    console.log(`  5. wiki verify-page ${options.project} <page...> <level>`);
-    console.log(`  6. wiki lint ${options.project} && wiki lint-semantic ${options.project}`);
-    console.log(worktree
-      ? `  7. wiki gate ${options.project} --repo ${result.repo} --worktree`
-      : `  7. wiki gate ${options.project} --repo ${result.repo} --base ${options.base}`);
+    if (verbose) {
+      for (const action of result.actions) console.log(`  - [${action.kind}] ${action.message}`);
+    } else {
+      for (const line of collapseActions(result.actions)) console.log(`  - ${line}`);
+    }
+    if (verbose) {
+      console.log(`- closeout:`);
+      console.log(`  1. run tests`);
+      console.log(worktree
+        ? `  2. inspect live worktree changes with wiki maintain ${options.project} --repo ${result.repo} --worktree`
+        : `  2. wiki refresh-from-git ${options.project} --base ${options.base}`);
+      console.log(`  3. wiki drift-check ${options.project} --show-unbound`);
+      console.log(`  4. update impacted wiki pages`);
+      console.log(`  5. wiki verify-page ${options.project} <page...> <level>`);
+      console.log(`  6. wiki lint ${options.project} && wiki lint-semantic ${options.project}`);
+      console.log(worktree
+        ? `  7. wiki gate ${options.project} --repo ${result.repo} --worktree`
+        : `  7. wiki gate ${options.project} --repo ${result.repo} --base ${options.base}`);
+    }
   }
+}
+
+/** Group actions by kind. Identical singletons stay expanded; duplicates collapse to a count + first-message summary. Keeps --verbose fully expanded. */
+export function collapseActions(actions: Array<{ kind: string; message: string }>): string[] {
+  const buckets = new Map<string, Array<{ kind: string; message: string }>>();
+  const order: string[] = [];
+  for (const action of actions) {
+    if (!buckets.has(action.kind)) {
+      buckets.set(action.kind, []);
+      order.push(action.kind);
+    }
+    buckets.get(action.kind)!.push(action);
+  }
+  const out: string[] = [];
+  for (const kind of order) {
+    const group = buckets.get(kind)!;
+    if (group.length === 1) {
+      out.push(`[${kind}] ${group[0].message}`);
+    } else {
+      out.push(`[${kind}] ${group.length} items (first: ${group[0].message})`);
+    }
+  }
+  return out;
+}
+
+/** Strip per-impacted-page diffSummary from maintain JSON to reduce token consumption. */
+export function compactMaintainForJson(result: Awaited<ReturnType<typeof collectMaintenancePlan>>) {
+  return {
+    ...result,
+    refreshFromGit: {
+      ...result.refreshFromGit,
+      impactedPages: result.refreshFromGit.impactedPages.map(({ diffSummary: _drop, ...row }) => row),
+    },
+  };
 }
 
 export async function closeoutProject(args: string[]) {
@@ -112,6 +155,7 @@ export async function refreshProject(args: string[]) {
 export async function refreshFromGit(args: string[]) {
   const options = await parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
+  const verbose = args.includes("--verbose");
   const result = await collectRefreshFromGit(options.project, options.base, options.repo);
   appendLogEntry("refresh-from-git", options.project, { project: options.project, details: [`base=${result.base}`, `changed=${result.changedFiles.length}`, `impacted=${result.impactedPages.length}`, `uncovered=${result.uncoveredFiles.length}`, `missing_tests=${result.testHealth.codeFilesWithoutChangedTests.length}`] });
   if (json) console.log(JSON.stringify(result, null, 2));
@@ -126,7 +170,9 @@ export async function refreshFromGit(args: string[]) {
     console.log(`- code changes without changed tests: ${result.testHealth.codeFilesWithoutChangedTests.length}`);
     for (const page of result.impactedPages) {
       console.log(`  - ${page.page} <= ${page.matchedSourcePaths.join(", ")}`);
-      for (const line of page.diffSummary.slice(0, 3)) console.log(`    ${line}`);
+      if (verbose) {
+        for (const line of page.diffSummary.slice(0, 3)) console.log(`    ${line}`);
+      }
     }
     if (result.uncoveredFiles.length) {
       console.log(`- uncovered:`);
