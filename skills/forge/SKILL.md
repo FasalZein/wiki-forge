@@ -38,6 +38,7 @@ Forge assumes these companion skills are available in the repo `skills/` directo
 - `/prd-to-slices`
 - `/tdd`
 - `/wiki`
+- `/improve-codebase-architecture`
 - `/desloppify`
 
 If any required skill is unavailable, stop and tell the user which one is missing. Do not silently skip steps.
@@ -52,7 +53,8 @@ Load these in order before writing production code:
 | 4 | `/prd-to-slices` | Break PRD into tracer-bullet vertical slices in the wiki backlog |
 | 5 | `/tdd` | Red-green-refactor for each slice |
 | 6 | `/wiki` | File artifacts, verify pages, run gate |
-| 7 | `/desloppify` | Scan for AI slop, fix quality issues, verify score |
+| 7 | `/improve-codebase-architecture` | Cadence-based structural review — surface deepening candidates, file an architecture review into the wiki, and turn accepted refactors into new features/PRDs/slices. Run after a surge of development (end of a PRD, batch of slices, weekly at minimum). Skip on small-scope runs. |
+| 8 | `/desloppify` | Scan for AI slop, fix quality issues, verify score |
 
 If a skill is unavailable, stop and tell the user. Do not silently skip steps.
 This skill defines required workflow policy. The CLI does not yet hard-enforce every step, so agents must still run the full lifecycle explicitly.
@@ -86,7 +88,11 @@ Full sequence:
    c. fill test-plan.md
 7. /tdd — for each slice: red-green-refactor
 8. /wiki — after each slice: full closeout sequence
-9. /desloppify — scan, fix any new slop, verify score
+9. /improve-codebase-architecture — cadence check (run at the end of a PRD,
+   a batch of slices, or at least weekly). Files an architecture review into
+   the wiki; accepted deepening candidates become new features/PRDs/slices
+   rather than silent rewrites. Skip for single-slice small-scope work.
+10. /desloppify — scan, fix any new slop, verify score
 ```
 
 ### Small scope (< 50 lines)
@@ -217,10 +223,15 @@ A slice is complete only when all of these are true:
    m. `wiki closeout <project> --repo <path> --base <rev>` — only proceed if "PASS — ready to close"
    n. `wiki gate <project> --repo <path> --base <rev>`
    o. `wiki close-slice <project> <slice-id> --repo <path> --base <rev>` — auto-triggers parent close if computed is complete
-9. /desloppify — after wiki closeout:
-   a. `desloppify scan . --json` to detect new slop
-   b. Fix issues by category (AI slop, complexity, naming, etc.)
-   c. `desloppify score .` to verify no regression
+9. /improve-codebase-architecture — at cadence (end of PRD / batch of slices / ≥ weekly):
+   a. Explore the codebase via the Explore subagent; surface deepening candidates.
+   b. Pick a candidate, frame constraints, design 3+ interfaces in parallel.
+   c. File the review into the wiki: `wiki research file <project> "architecture review <YYYY-MM-DD>"`.
+   d. Accepted candidate → new `FEAT-<nnn>` + `PRD-<nnn>` via /forge, not a silent rewrite.
+10. /desloppify — after wiki closeout and any architecture review:
+    a. `desloppify scan . --json` to detect new slop
+    b. Fix issues by category (AI slop, complexity, naming, etc.)
+    c. `desloppify score .` to verify no regression
 ```
 
 ## Workflow: Continue an Existing PRD / Slice Thread
@@ -233,7 +244,8 @@ A slice is complete only when all of these are true:
 5. Run `wiki start-slice <project> <slice-id> --agent <name> --repo <path>` and fill plan.md + test-plan.md
 6. /tdd for the slice
 7. /wiki closeout sequence (`checkpoint` -> `lint-repo` -> `maintain` -> page updates -> `verify-page code-verified` -> `verify-slice` -> `verify-page test-verified` on slice/PRD/feature -> `maintain` -> `feature-status` -> `closeout` -> `gate` -> `close-slice`)
-8. /desloppify — scan, fix, verify score
+8. /improve-codebase-architecture — run at PRD boundaries / batch boundaries / at least weekly. Skip if this continuation is a single small slice.
+9. /desloppify — scan, fix, verify score
 ```
 
 ## Canonical Code-Driven Closeout Sequence
