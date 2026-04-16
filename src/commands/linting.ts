@@ -172,10 +172,12 @@ export async function collectSemanticLintResult(project: string, snapshot?: Lint
   for (const entry of pageEntries) {
     const rel = entry.relPath;
     const relNoExt = rel.replace(/\.md$/u, "");
+    const kind = classifyProjectDocPath(rel);
     const links = extractWikilinkTargets(entry.parsed?.content ?? entry.raw);
     const internalLinks = links.map((target) => target.replace(/\.md$/u, "").replace(/^projects\/[^/]+\//u, "")).filter((target) => !target.startsWith("index") && !target.startsWith("wiki/") && !target.startsWith("research/"));
     outbound.set(relNoExt, internalLinks.length);
     for (const target of internalLinks) if (pageSet.has(target.replace(/^\.\//u, ""))) inbound.set(target.replace(/^\.\//u, ""), (inbound.get(target.replace(/^\.\//u, "")) ?? 0) + 1);
+    if (kind === "session-handover") continue;
     const bodyContent = entry.parsed?.content ?? entry.raw;
     const parsedPage = parseWikiMarkdown(bodyContent);
     const isSlicePlanPage = /specs\/slices\/[^/]+\/(plan|test-plan)\.md$/u.test(rel);
@@ -198,6 +200,7 @@ export async function collectSemanticLintResult(project: string, snapshot?: Lint
     const inboundCount = inbound.get(relNoExt) ?? 0;
     const outboundCount = outbound.get(relNoExt) ?? 0;
     const rel = `${relNoExt}.md`;
+    if (classifyProjectDocPath(rel) === "session-handover") continue;
     if (!rel.endsWith("_summary.md") && !rel.endsWith("specs/index.md") && inboundCount === 0) issues.push(`${rel} orphan page: no inbound links`);
     if (!rel.endsWith("_summary.md") && outboundCount === 0) issues.push(`${rel} dead-end page: no outgoing links`);
     // Orphaned slice check (WIKI-FORGE-076)

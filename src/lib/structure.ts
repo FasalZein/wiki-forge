@@ -36,7 +36,8 @@ type ProjectDocKind =
   | "spec-test-plan"
   | "task-hub-index"
   | "task-hub-plan"
-  | "task-hub-test-plan";
+  | "task-hub-test-plan"
+  | "session-handover";
 
 export function projectSpecsDir(project: string) {
   return join(projectRoot(project), "specs");
@@ -145,6 +146,7 @@ export function classifyProjectDocPath(relPath: string): ProjectDocKind | null {
   if (/^specs\/prds\/PRD-\d{3,}-[^/]+\.md$/u.test(rel)) return "spec-prd";
   if (/^specs\/plan-[^/]+\.md$/u.test(rel)) return "spec-plan";
   if (/^specs\/test-plan-[^/]+\.md$/u.test(rel)) return "spec-test-plan";
+  if (/^handovers\/[^/]+\.md$/u.test(rel)) return "session-handover";
   const taskMatch = rel.match(/^specs\/slices\/([^/]+)\/(index|plan|test-plan)\.md$/u);
   if (!taskMatch) return null;
   const [, taskId, fileName] = taskMatch;
@@ -174,5 +176,6 @@ export function describeAllowedProjectDocPaths() {
     "specs/plan-<slug>.md",
     "specs/test-plan-<slug>.md",
     "specs/slices/<TASK-ID>/{index,plan,test-plan}.md",
+    "handovers/<YYYY-MM-DD>-<session-id>.md",
   ].join("; ");
 }

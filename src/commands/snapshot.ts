@@ -14,6 +14,7 @@ import { listCodeFiles, listRepoMarkdownDocs, readCodePaths } from "./repo-scan"
 import { collectChangedTestHealth, isCodeFile } from "./test-health";
 import { isHistoricalDoneSlicePage } from "./slice-repair";
 import { tailLog } from "../lib/log";
+import { classifyProjectDocPath } from "../lib/structure";
 
 export type ProjectSnapshot = {
   project: string;
@@ -271,7 +272,8 @@ export async function collectDiscoverSummary(project: string, explicitRepo?: str
   const placeholderHeavyPages: string[] = [];
   for (const entry of state.pageEntries) {
     if (!entry.parsed) continue;
-    if (!entry.sourcePaths.length) unboundPages.push(entry.page);
+    const kind = classifyProjectDocPath(entry.relPath);
+    if (!entry.sourcePaths.length && kind !== "session-handover") unboundPages.push(entry.page);
     for (const sourcePath of entry.sourcePaths) boundFiles.add(sourcePath);
     if (entry.todoCount >= 6) placeholderHeavyPages.push(entry.page);
   }

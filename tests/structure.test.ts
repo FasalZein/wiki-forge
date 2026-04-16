@@ -60,6 +60,7 @@ describe("project structure contract", () => {
     expect(classifyProjectDocPath("specs/slices/DEMO-015/index.md")).toBe("task-hub-index");
     expect(classifyProjectDocPath("specs/slices/DEMO-015/plan.md")).toBe("task-hub-plan");
     expect(classifyProjectDocPath("specs/slices/DEMO-015/test-plan.md")).toBe("task-hub-test-plan");
+    expect(classifyProjectDocPath("handovers/2026-04-16-session-abc.md")).toBe("session-handover");
   });
 
   test("rejects non-canonical project doc paths", () => {
