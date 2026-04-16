@@ -66,7 +66,7 @@ function dbPath() {
 function ensureDb(): Database {
   const path = dbPath();
   const dir = join(path, "..");
-  // TODO: migrate to async exists()
+  // Sync exception: Database constructor requires synchronous setup
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   const db = new Database(path);
   db.run(`CREATE TABLE IF NOT EXISTS pipeline_steps (

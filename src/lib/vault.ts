@@ -1,10 +1,9 @@
-import { existsSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { VAULT_ROOT } from "../constants";
+import { exists } from "./fs";
 
-export function walkMarkdown(root: string): string[] {
-  // TODO: migrate to async exists()
-  if (!existsSync(root)) {
+export async function walkMarkdown(root: string): Promise<string[]> {
+  if (!(await exists(root))) {
     return [];
   }
   return Array.from(new Bun.Glob("**/*.md").scanSync({ cwd: root, absolute: true, onlyFiles: true }));

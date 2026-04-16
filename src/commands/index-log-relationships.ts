@@ -40,7 +40,7 @@ export type ProjectPageIndex = {
 
 export async function collectProjectPageRows(project: string): Promise<ProjectPageRow[]> {
   const root = projectRoot(project);
-  const pages = walkMarkdown(root).sort();
+  const pages = (await walkMarkdown(root)).sort();
   return Promise.all(pages.map(async (file) => {
     const rel = relative(root, file).replaceAll("\\", "/");
     const raw = await readText(file);

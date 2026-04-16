@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanupTempPaths, initVault, runGit, runWiki, setRepoFrontmatter, setupVaultAndRepo, tempDir } from "./test-helpers";
 
@@ -156,6 +156,66 @@ describe("wiki coordination commands", () => {
     expect(json.dirty.modifiedFiles).toContain("src/auth.ts");
     expect(json.dirty.untrackedFiles).toContain("src/new.ts");
     expect(json.recentNotes.some((entry: string) => entry.includes("left off at parser"))).toBe(true);
+    // Verify handover file was written (WIKI-FORGE-073)
+    expect(json.handoverPath).toBeDefined();
+    const handoverDir = join(vault, "projects", "demo", "handovers");
+    expect(existsSync(handoverDir)).toBe(true);
+    const handoverFiles = readdirSync(handoverDir).filter((f: string) => f.endsWith(".md"));
+    expect(handoverFiles.length).toBeGreaterThan(0);
+    const handoverContent = readFileSync(join(handoverDir, handoverFiles[0]), "utf8");
+    expect(handoverContent).toContain("type: handover");
+    expect(handoverContent).toContain("project: demo");
+    expect(handoverContent).toContain("## Session Summary");
+    expect(handoverContent).toContain("## Recent Commits");
+    expect(handoverContent).toContain("## Dirty State");
+    expect(handoverContent).toContain("## Next Session Priorities");
+    expect(handoverContent).toContain("## What Was Accomplished");
+    expect(handoverContent).toContain("## Blockers & Open Questions");
+  });
+
+  test("handover with --no-write does not create a file", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+
+    const result = runWiki(["handover", "demo", "--repo", repo, "--base", "HEAD~1", "--json", "--no-write"], env);
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.handoverPath).toBeUndefined();
+    expect(existsSync(join(vault, "projects", "demo", "handovers"))).toBe(false);
+  });
+
+  test("handover with --harness sets harness in frontmatter", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+
+    const result = runWiki(["handover", "demo", "--repo", repo, "--base", "HEAD~1", "--json", "--harness", "claude-code"], env);
+    expect(result.exitCode).toBe(0);
+    const handoverDir = join(vault, "projects", "demo", "handovers");
+    const handoverFiles = readdirSync(handoverDir).filter((f: string) => f.endsWith(".md"));
+    const content = readFileSync(join(handoverDir, handoverFiles[0]), "utf8");
+    expect(content).toContain("harness: claude-code");
+  });
+
+  test("resume surfaces latest handover metadata", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+
+    // First create a handover
+    expect(runWiki(["handover", "demo", "--repo", repo, "--base", "HEAD~1", "--harness", "test-harness"], env).exitCode).toBe(0);
+
+    // Then resume should detect it
+    const result = runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.lastHandover).toBeDefined();
+    expect(json.lastHandover.harness).toBe("test-harness");
+    expect(json.lastHandover.path).toContain("handovers/");
   });
 
   test("close-slice moves a passing slice to done", () => {

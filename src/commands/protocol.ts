@@ -27,7 +27,7 @@ export async function syncProtocol(args: string[]) {
   const project = args[0];
   requireValue(project, "project");
   const repoIndex = args.indexOf("--repo");
-  const repo = resolveRepoPath(project, repoIndex >= 0 ? args[repoIndex + 1] : undefined);
+  const repo = await resolveRepoPath(project, repoIndex >= 0 ? args[repoIndex + 1] : undefined);
   const json = args.includes("--json");
   const scopes = await readProtocolScopes(project);
   const results: Array<{ scope: string; file: string; path: string; updated: boolean }> = [];
@@ -58,7 +58,7 @@ export async function auditProtocol(args: string[]) {
   const project = args[0];
   requireValue(project, "project");
   const repoIndex = args.indexOf("--repo");
-  const repo = resolveRepoPath(project, repoIndex >= 0 ? args[repoIndex + 1] : undefined);
+  const repo = await resolveRepoPath(project, repoIndex >= 0 ? args[repoIndex + 1] : undefined);
   const json = args.includes("--json");
   const scopes = await readProtocolScopes(project);
   const rows: ProtocolAuditRow[] = [];

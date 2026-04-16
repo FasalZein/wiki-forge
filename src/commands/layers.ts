@@ -95,7 +95,7 @@ export async function scaffoldLayer(args: string[]) {
   if (!layer) throw new Error(`unknown layer: ${name}`);
   for (const file of layer.scaffold()) {
     const outputPath = join(VAULT_ROOT, file.path);
-    mkdirIfMissing(join(VAULT_ROOT, name));
+    await mkdirIfMissing(join(VAULT_ROOT, name));
     if (await exists(outputPath)) continue;
     writeNormalizedPage(outputPath, file.content, file.data);
     console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
@@ -111,7 +111,7 @@ export async function createLayerPage(args: string[]) {
   if (!layer) throw new Error(`unknown layer: ${layerName}`);
   const page = layer.createPage(title);
   const outputPath = join(VAULT_ROOT, page.path);
-  mkdirIfMissing(join(VAULT_ROOT, layerName));
+  await mkdirIfMissing(join(VAULT_ROOT, layerName));
   if (await exists(outputPath)) throw new Error(`layer page already exists: ${relative(VAULT_ROOT, outputPath)}`);
   writeNormalizedPage(outputPath, page.content, page.data);
   console.log(`created ${relative(VAULT_ROOT, outputPath)}`);

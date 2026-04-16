@@ -1,14 +1,14 @@
 import { resolveCommandOnPath } from "./runtime";
 
-export function assertObsidianCliAvailable() {
-  if (resolveCommandOnPath("obsidian")) return;
+export async function assertObsidianCliAvailable() {
+  if (await resolveCommandOnPath("obsidian")) return;
   throw new Error(
     "obsidian CLI not found. Install/enable Obsidian CLI in the Obsidian app, restart your terminal, and ensure 'obsidian' is on PATH.",
   );
 }
 
-export function runObsidian(args: string[]) {
-  assertObsidianCliAvailable();
+export async function runObsidian(args: string[]) {
+  await assertObsidianCliAvailable();
   const proc = Bun.spawnSync(["obsidian", ...args], {
     stdout: "pipe",
     stderr: "pipe",

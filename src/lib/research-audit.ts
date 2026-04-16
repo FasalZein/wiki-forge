@@ -27,7 +27,7 @@ export type ResearchAuditResult = {
 export async function collectResearchAudit(topic?: string): Promise<ResearchAuditResult> {
   const normalizedTopic = topic ? normalizeTopicPath(topic) : undefined;
   const root = normalizedTopic ? researchTopicDir(normalizedTopic) : researchRoot();
-  const pages = walkMarkdown(root).filter((file) => !file.endsWith("/_overview.md")).sort();
+  const pages = (await walkMarkdown(root)).filter((file) => !file.endsWith("/_overview.md")).sort();
   const deadLinks: Array<{ page: string; url: string; status: number | null; message: string }> = [];
   const missingInfluence: string[] = [];
   const invalidInfluence: Array<{ page: string; target: string }> = [];

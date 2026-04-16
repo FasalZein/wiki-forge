@@ -53,7 +53,7 @@ export async function dependencyGraph(args: string[]) {
 
 export async function collectDependencyGraph(project: string) {
   const root = projectRoot(project);
-  assertExists(root, `project not found: ${project}`);
+  await assertExists(root, `project not found: ${project}`);
   const entries = await loadGraphNodes(project);
   const byFeature = new Map(entries.filter((entry) => entry.featureId).map((entry) => [entry.featureId!, entry]));
   const byPrd = new Map(entries.filter((entry) => entry.prdId).map((entry) => [entry.prdId!, entry]));
@@ -95,7 +95,7 @@ export async function collectDependencyGraph(project: string) {
 async function loadGraphNodes(project: string): Promise<GraphNode[]> {
   const root = projectRoot(project);
   const nodes: GraphNode[] = [];
-  for (const file of walkMarkdown(join(root, "specs"))) {
+  for (const file of await walkMarkdown(join(root, "specs"))) {
     const parsed = safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true });
     if (!parsed) continue;
     const data = parsed.data;

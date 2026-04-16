@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { exists, readText } from "./lib/fs";
 import { join } from "node:path";
 import matter from "gray-matter";
@@ -267,9 +267,8 @@ export function writeNormalizedPage(filePath: string, content: string, data: Fro
   writeFileSync(filePath, serialized, "utf8");
 }
 
-export function mkdirIfMissing(path: string) {
-  // TODO: migrate to async exists()
-  if (!existsSync(path)) {
+export async function mkdirIfMissing(path: string) {
+  if (!(await exists(path))) {
     mkdirSync(path, { recursive: true });
     return true;
   }
@@ -282,9 +281,8 @@ export function requireValue(value: string | undefined, label: string): asserts 
   }
 }
 
-export function assertExists(path: string, message: string) {
-  // TODO: migrate to async exists()
-  if (!existsSync(path)) {
+export async function assertExists(path: string, message: string) {
+  if (!(await exists(path))) {
     fail(message);
   }
 }

@@ -19,7 +19,7 @@ export async function pipelineCommand(args: string[]) {
   const repoIndex = args.indexOf("--repo");
   const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
   const baseIndex = args.indexOf("--base");
-  const base = baseIndex >= 0 ? args[baseIndex + 1] : resolveDefaultBase(project, repo);
+  const base = baseIndex >= 0 ? args[baseIndex + 1] : await resolveDefaultBase(project, repo);
   if (baseIndex >= 0) requireValue(base, "base");
 
   const json = args.includes("--json");

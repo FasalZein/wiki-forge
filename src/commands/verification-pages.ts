@@ -10,7 +10,7 @@ export async function bindSourcePaths(args: string[]) {
   const { project, pageArg, sourcePaths, mode, dryRun } = parseBindArgs(args);
   const root = projectRoot(project);
   const wikiFilePath = await resolveWikiPagePath(root, pageArg);
-  assertExists(wikiFilePath, `wiki page not found: ${relative(VAULT_ROOT, wikiFilePath)}`);
+  await assertExists(wikiFilePath, `wiki page not found: ${relative(VAULT_ROOT, wikiFilePath)}`);
   const parsed = safeMatter(relative(VAULT_ROOT, wikiFilePath), await readText(wikiFilePath));
   if (!parsed) throw new Error(`unable to parse frontmatter for ${relative(VAULT_ROOT, wikiFilePath)}`);
   const incomingSourcePaths = normalizeSourcePaths(sourcePaths);
@@ -76,7 +76,7 @@ export async function verifyPage(args: string[]) {
     const levelArg = filteredArgs[2];
     requireValue(levelArg, "level");
     if (!isValidVerificationLevel(levelArg)) throw new Error(`invalid level: ${levelArg}`);
-    const pages = walkMarkdown(projectRoot(project));
+    const pages = await walkMarkdown(projectRoot(project));
     let updatedCount = 0;
     for (const page of pages) {
       if (await applyVerificationLevel(page, levelArg, dryRun, relative(VAULT_ROOT, page), false, { preserveStrongerLevels: true })) updatedCount += 1;
@@ -91,7 +91,7 @@ export async function verifyPage(args: string[]) {
   let updatedCount = 0;
   for (const pageArg of pageArgs) {
     const wikiFilePath = await resolveWikiPagePath(projectRoot(project), pageArg);
-    assertExists(wikiFilePath, `wiki page not found: ${relative(VAULT_ROOT, wikiFilePath)}`);
+    await assertExists(wikiFilePath, `wiki page not found: ${relative(VAULT_ROOT, wikiFilePath)}`);
     if (await applyVerificationLevel(wikiFilePath, level, dryRun, relative(VAULT_ROOT, wikiFilePath))) updatedCount += 1;
   }
   if (pageArgs.length > 1) console.log(`${dryRun ? "would update" : "updated"} ${updatedCount} page(s) for ${project}`);
@@ -100,9 +100,9 @@ export async function verifyPage(args: string[]) {
 export async function migrateVerification(project: string | undefined) {
   requireValue(project, "project");
   const root = projectRoot(project);
-  assertExists(root, `project not found: ${project}`);
+  await assertExists(root, `project not found: ${project}`);
   let updatedCount = 0;
-  for (const file of walkMarkdown(root)) {
+  for (const file of await walkMarkdown(root)) {
     const parsed = safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true });
     if (!parsed) continue;
     const hasOldFields = "verified_code" in parsed.data || "verified_runtime" in parsed.data || "verified_tests" in parsed.data;

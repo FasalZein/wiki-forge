@@ -1,9 +1,9 @@
-import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { homedir } from "node:os";
 import type { FrontmatterData } from "../types";
 import { safeMatter, projectRoot, assertExists } from "../cli-shared";
 import { VERIFICATION_LEVELS, type VerificationLevel } from "../constants";
+import { exists, readText } from "./fs";
 
 export function readVerificationLevel(data: FrontmatterData): VerificationLevel | null {
   const value = data.verification_level;
@@ -14,18 +14,17 @@ export function readVerificationLevel(data: FrontmatterData): VerificationLevel 
     : null;
 }
 
-export function resolveRepoPath(project: string, explicitRepo?: string): string {
+export async function resolveRepoPath(project: string, explicitRepo?: string): Promise<string> {
   if (explicitRepo) {
     const resolvedExplicit = explicitRepo.startsWith("~") ? join(homedir(), explicitRepo.slice(1)) : resolve(explicitRepo);
-    assertExists(resolvedExplicit, `repo path does not exist: ${resolvedExplicit}`);
+    await assertExists(resolvedExplicit, `repo path does not exist: ${resolvedExplicit}`);
     return resolvedExplicit;
   }
 
   const summaryPath = join(projectRoot(project), "_summary.md");
-  assertExists(summaryPath, `_summary.md not found for project: ${project}`);
+  await assertExists(summaryPath, `_summary.md not found for project: ${project}`);
 
-  // TODO(WIKI-FORGE-070): migrate to readText once resolveRepoPath callers (10+) are async
-  const raw = readFileSync(summaryPath, "utf8");
+  const raw = await readText(summaryPath);
   const parsed = safeMatter(summaryPath, raw);
   if (!parsed || !parsed.data.repo) {
     throw new Error(`_summary.md for ${project} is missing the 'repo' frontmatter field. Add 'repo: /absolute/path' or pass --repo <path>.`);
@@ -33,18 +32,17 @@ export function resolveRepoPath(project: string, explicitRepo?: string): string 
 
   const repoRaw = String(parsed.data.repo);
   const resolved = repoRaw.startsWith("~") ? join(homedir(), repoRaw.slice(1)) : resolve(repoRaw);
-  assertExists(resolved, `repo path does not exist: ${resolved} (from _summary.md repo: ${repoRaw})`);
+  await assertExists(resolved, `repo path does not exist: ${resolved} (from _summary.md repo: ${repoRaw})`);
   return resolved;
 }
 
-export function assertGitRepo(repoPath: string) {
-  // TODO: migrate to async exists()
-  if (!existsSync(join(repoPath, ".git"))) {
+export async function assertGitRepo(repoPath: string) {
+  if (!(await exists(join(repoPath, ".git")))) {
     throw new Error(`not a git repository: ${repoPath}`);
   }
 }
 
-export function batchGitLastModified(repoPath: string, sourcePaths: string[]): Map<string, Date> {
+export async function batchGitLastModified(repoPath: string, sourcePaths: string[]): Promise<Map<string, Date>> {
   const uniquePaths = [...new Set(sourcePaths)].filter(Boolean);
   const results = new Map<string, Date>();
   if (!uniquePaths.length) return results;
@@ -54,15 +52,10 @@ export function batchGitLastModified(repoPath: string, sourcePaths: string[]): M
   const filePaths = uniquePaths.filter((p) => !p.endsWith("/"));
 
   try {
-    // TODO: migrate to Bun.$ when caller chain is async (batchGitLastModified is sync-exported)
-    const proc = Bun.spawnSync(["git", "log", "--format=__DATE__:%aI", "--name-only", "--", ...uniquePaths], {
-      cwd: repoPath,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    const proc = await Bun.$`git log --format=__DATE__:%aI --name-only -- ${uniquePaths}`.cwd(repoPath).quiet().nothrow();
     if (proc.exitCode !== 0) return results;
 
-    const lines = proc.stdout.toString().replace(/\r\n/g, "\n").split("\n");
+    const lines = proc.text().replace(/\r\n/g, "\n").split("\n");
     let currentDate: Date | null = null;
     for (const rawLine of lines) {
       const line = rawLine.trim();
@@ -88,23 +81,17 @@ export function batchGitLastModified(repoPath: string, sourcePaths: string[]): M
   return results;
 }
 
-export function sourcePathStatus(repoPath: string, sourcePath: string) {
+export async function sourcePathStatus(repoPath: string, sourcePath: string) {
   const normalizedPath = sourcePath.replaceAll("\\", "/");
-  // TODO: migrate to async exists()
-  const existsNow = existsSync(join(repoPath, normalizedPath));
+  const existsNow = await exists(join(repoPath, normalizedPath));
   if (existsNow) return { kind: "present" as const };
 
-  const renamedTo = suggestRenamedSourcePath(repoPath, normalizedPath);
+  const renamedTo = await suggestRenamedSourcePath(repoPath, normalizedPath);
   if (renamedTo) return { kind: "renamed" as const, renamedTo };
 
   try {
-    // TODO: migrate to Bun.$ when caller chain is async (sourcePathStatus is sync-exported)
-    const proc = Bun.spawnSync(["git", "log", "--diff-filter=D", "--summary", "--", normalizedPath], {
-      cwd: repoPath,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-    if (proc.exitCode === 0 && proc.stdout.toString().trim()) {
+    const proc = await Bun.$`git log --diff-filter=D --summary -- ${normalizedPath}`.cwd(repoPath).quiet().nothrow();
+    if (proc.exitCode === 0 && proc.text().trim()) {
       return { kind: "deleted" as const };
     }
   } catch {}
@@ -112,16 +99,11 @@ export function sourcePathStatus(repoPath: string, sourcePath: string) {
   return { kind: "missing" as const };
 }
 
-export function suggestRenamedSourcePath(repoPath: string, sourcePath: string) {
+export async function suggestRenamedSourcePath(repoPath: string, sourcePath: string) {
   try {
-    // TODO: migrate to Bun.$ when caller chain is async (suggestRenamedSourcePath is sync-exported)
-    const proc = Bun.spawnSync(["git", "log", "--follow", "--name-status", "--format=", "--", sourcePath], {
-      cwd: repoPath,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    const proc = await Bun.$`git log --follow --name-status --format= -- ${sourcePath}`.cwd(repoPath).quiet().nothrow();
     if (proc.exitCode !== 0) return null;
-    const lines = proc.stdout.toString().replace(/\r\n/g, "\n").split("\n");
+    const lines = proc.text().replace(/\r\n/g, "\n").split("\n");
     for (const rawLine of lines) {
       const line = rawLine.trim();
       if (!line.startsWith("R")) continue;
@@ -134,16 +116,11 @@ export function suggestRenamedSourcePath(repoPath: string, sourcePath: string) {
   return null;
 }
 
-export function gitDiffSummary(repoPath: string, sourcePath: string, maxLines = 12) {
+export async function gitDiffSummary(repoPath: string, sourcePath: string, maxLines = 12) {
   try {
-    // TODO: migrate to Bun.$ when caller chain is async (gitDiffSummary is sync-exported)
-    const proc = Bun.spawnSync(["git", "diff", "--stat", "HEAD~1", "HEAD", "--", sourcePath], {
-      cwd: repoPath,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    const proc = await Bun.$`git diff --stat HEAD~1 HEAD -- ${sourcePath}`.cwd(repoPath).quiet().nothrow();
     if (proc.exitCode !== 0) return null;
-    const lines = proc.stdout.toString().replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean);
+    const lines = proc.text().replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean);
     return lines.slice(0, maxLines);
   } catch {}
   return null;

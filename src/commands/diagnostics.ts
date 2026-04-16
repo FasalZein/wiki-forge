@@ -18,7 +18,7 @@ export async function doctorProject(args: string[]) {
   const repoIndex = args.indexOf("--repo");
   const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
   const baseIndex = args.indexOf("--base");
-  const base = baseIndex >= 0 ? args[baseIndex + 1] : resolveDefaultBase(project, repo);
+  const base = baseIndex >= 0 ? args[baseIndex + 1] : await resolveDefaultBase(project, repo);
   if (baseIndex >= 0) requireValue(base, "base");
   const json = args.includes("--json");
   const worktree = args.includes("--worktree");
@@ -51,7 +51,7 @@ export async function gateProject(args: string[]) {
   const repoIndex = args.indexOf("--repo");
   const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
   const baseIndex = args.indexOf("--base");
-  const base = baseIndex >= 0 ? args[baseIndex + 1] : resolveDefaultBase(project, repo);
+  const base = baseIndex >= 0 ? args[baseIndex + 1] : await resolveDefaultBase(project, repo);
   if (baseIndex >= 0) requireValue(base, "base");
   const json = args.includes("--json");
   const structuralRefactor = args.includes("--structural-refactor");
@@ -145,8 +145,8 @@ export async function collectDoctor(project: string, base: string, explicitRepo?
 
 export async function collectGate(project: string, base: string, explicitRepo?: string, options: { structuralRefactor?: boolean; worktree?: boolean; precomputedCloseout?: Awaited<ReturnType<typeof collectCloseout>> } = {}) {
   const doctor = await collectDoctor(project, base, explicitRepo, { worktree: options.worktree, precomputedRefreshFromGit: options.precomputedCloseout?.refreshFromGit });
-  const repo = resolveRepoPath(project, explicitRepo);
-  assertGitRepo(repo);
+  const repo = await resolveRepoPath(project, explicitRepo);
+  await assertGitRepo(repo);
   // The gate blocks on the one non-negotiable: code must have tests.
   // Lint and semantic lint are quality signals reported as warnings — they are
   // too noisy to gate on (scaffolded projects always have broken wikilinks,
