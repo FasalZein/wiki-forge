@@ -91,8 +91,8 @@ export async function cacheClear() {
 
 export async function loadLintingSnapshot(project: string, options: { noteIndex?: boolean } = {}): Promise<LintingSnapshot> {
   const root = projectRoot(project);
-  assertExists(root, `project not found: ${project}`);
-  const pages = walkMarkdown(root);
+  await assertExists(root, `project not found: ${project}`);
+  const pages = await walkMarkdown(root);
   const pageEntries = await Promise.all(pages.map(async (file) => {
     const raw = await readText(file);
     const parsed = safeMatter(relative(VAULT_ROOT, file), raw, { silent: true });

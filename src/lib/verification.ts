@@ -17,12 +17,12 @@ export function readVerificationLevel(data: FrontmatterData): VerificationLevel 
 export async function resolveRepoPath(project: string, explicitRepo?: string): Promise<string> {
   if (explicitRepo) {
     const resolvedExplicit = explicitRepo.startsWith("~") ? join(homedir(), explicitRepo.slice(1)) : resolve(explicitRepo);
-    assertExists(resolvedExplicit, `repo path does not exist: ${resolvedExplicit}`);
+    await assertExists(resolvedExplicit, `repo path does not exist: ${resolvedExplicit}`);
     return resolvedExplicit;
   }
 
   const summaryPath = join(projectRoot(project), "_summary.md");
-  assertExists(summaryPath, `_summary.md not found for project: ${project}`);
+  await assertExists(summaryPath, `_summary.md not found for project: ${project}`);
 
   const raw = await readText(summaryPath);
   const parsed = safeMatter(summaryPath, raw);
@@ -32,7 +32,7 @@ export async function resolveRepoPath(project: string, explicitRepo?: string): P
 
   const repoRaw = String(parsed.data.repo);
   const resolved = repoRaw.startsWith("~") ? join(homedir(), repoRaw.slice(1)) : resolve(repoRaw);
-  assertExists(resolved, `repo path does not exist: ${resolved} (from _summary.md repo: ${repoRaw})`);
+  await assertExists(resolved, `repo path does not exist: ${resolved} (from _summary.md repo: ${repoRaw})`);
   return resolved;
 }
 

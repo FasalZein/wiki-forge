@@ -88,7 +88,7 @@ export async function createIssueSlice(args: string[]) {
   const prd = options.parentPrd ? await resolvePrdRecord(options.project, options.parentPrd) : null;
   const appended = await appendTaskToBacklog(options);
   const title = `${appended.taskId.toLowerCase()} ${options.title}`;
-  const slicePaths = createSlicePaths(options.project, appended.taskId);
+  const slicePaths = await createSlicePaths(options.project, appended.taskId);
   await ensureSliceDocsMissing(appended.taskId, slicePaths);
   const sourcePaths = options.sourcePaths.length ? options.sourcePaths : (prd?.sourcePaths ?? []);
   if (!options.sourcePaths.length && prd && prd.sourcePaths.length > 5) {
@@ -163,7 +163,7 @@ export async function completeTask(args: string[]) {
 }
 
 export async function collectBacklog(project: string) {
-  const backlogPath = backlogPathFor(project);
+  const backlogPath = await backlogPathFor(project);
   const parsed = parseBacklog(await readNormalizedText(backlogPath));
   return { project, backlogPath: relative(VAULT_ROOT, backlogPath), sections: parsed.sections };
 }
@@ -264,7 +264,7 @@ export async function collectTaskContextForId(project: string, taskId: string): 
 }
 
 export async function moveTaskToSection(project: string, taskId: string, to: string) {
-  const backlogPath = backlogPathFor(project);
+  const backlogPath = await backlogPathFor(project);
   const parsed = parseBacklog(await readNormalizedText(backlogPath));
   const found = removeTask(parsed, taskId);
   if (!found) throw new Error(`task not found: ${taskId}`);
@@ -281,11 +281,11 @@ export async function moveTaskToSection(project: string, taskId: string, to: str
   appendLogEntry("move-task", taskId, { project, details: [`to=${to}`] });
 }
 
-function backlogPathFor(project: string) {
+async function backlogPathFor(project: string) {
   const root = projectRoot(project);
-  assertExists(root, `project not found: ${project}`);
+  await assertExists(root, `project not found: ${project}`);
   const backlogPath = join(root, "backlog.md");
-  assertExists(backlogPath, `backlog not found: ${relative(VAULT_ROOT, backlogPath)}`);
+  await assertExists(backlogPath, `backlog not found: ${relative(VAULT_ROOT, backlogPath)}`);
   return backlogPath;
 }
 
@@ -294,7 +294,7 @@ async function readNormalizedText(path: string) {
 }
 
 async function appendTaskToBacklog(options: TaskOptions): Promise<AppendedTask> {
-  const backlogPath = backlogPathFor(options.project);
+  const backlogPath = await backlogPathFor(options.project);
   const current = await readNormalizedText(backlogPath);
   const taskId = nextTaskId(options.project, current);
   const taskLine = renderTaskLine(taskId, options.title, options.priority, options.tags);
@@ -385,9 +385,9 @@ function insertTaskIntoSection(backlog: string, section: string, taskLine: strin
   return `${out.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd()}\n`;
 }
 
-function createSlicePaths(project: string, taskId: string): SlicePaths {
+async function createSlicePaths(project: string, taskId: string): Promise<SlicePaths> {
   const taskSpecsDir = projectTaskDir(project, taskId);
-  mkdirIfMissing(taskSpecsDir);
+  await mkdirIfMissing(taskSpecsDir);
   return {
     taskSpecsDir,
     indexPath: projectTaskHubPath(project, taskId),
@@ -586,7 +586,7 @@ function removeTask(parsed: ParsedBacklog, taskId: string) {
 async function resolvePrdRecord(project: string, prdId: string): Promise<PrdRecord> {
   if (!isCanonicalPrdId(prdId)) throw new Error(`invalid PRD id: ${prdId}`);
   const dir = projectPrdsDir(project);
-  assertExists(dir, `PRD not found: ${prdId}`);
+  await assertExists(dir, `PRD not found: ${prdId}`);
   const fileName = readdirSync(dir).find((entry) => entry.startsWith(`${prdId}-`) && entry.endsWith(".md"));
   if (!fileName) throw new Error(`PRD not found: ${prdId}`);
   const file = join(dir, fileName);

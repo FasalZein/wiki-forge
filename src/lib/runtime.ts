@@ -1,10 +1,11 @@
-import { existsSync, statSync } from "node:fs";
+import { statSync } from "node:fs";
 import { delimiter, join } from "node:path";
+import { exists } from "./fs";
 
 const commandCache = new Map<string, string | null>();
 const commandListCache = new Map<string, string[]>();
 
-function resolveCommandsOnPath(command: string) {
+async function resolveCommandsOnPath(command: string) {
   if (commandListCache.has(command)) return commandListCache.get(command) ?? [];
   const extnames = process.platform === "win32"
     ? (process.env.PATHEXT?.split(";").filter(Boolean) ?? [".EXE", ".CMD", ".BAT", ".COM"])
@@ -14,8 +15,7 @@ function resolveCommandsOnPath(command: string) {
   for (const entry of (process.env.PATH ?? "").split(delimiter).filter(Boolean)) {
     for (const ext of extnames) {
       const candidate = join(entry, `${command}${ext}`);
-      // TODO: migrate to async exists()
-      if (seen.has(candidate) || !existsSync(candidate)) continue;
+      if (seen.has(candidate) || !(await exists(candidate))) continue;
       seen.add(candidate);
       try {
         const stat = statSync(candidate);
@@ -35,9 +35,9 @@ function resolveCommandsOnPath(command: string) {
   return resolved;
 }
 
-export function resolveCommandOnPath(command: string) {
+export async function resolveCommandOnPath(command: string) {
   if (commandCache.has(command)) return commandCache.get(command) ?? null;
-  const resolved = resolveCommandsOnPath(command)[0] ?? null;
+  const resolved = (await resolveCommandsOnPath(command))[0] ?? null;
   commandCache.set(command, resolved);
   return resolved;
 }

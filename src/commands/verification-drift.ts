@@ -36,7 +36,7 @@ export async function driftCheck(args: string[]) {
 export async function collectDriftSummary(project: string, explicitRepo?: string, snapshot?: LintingSnapshot): Promise<DriftSummary> {
   requireValue(project, "project");
   const root = projectRoot(project);
-  assertExists(root, `project not found: ${project}`);
+  await assertExists(root, `project not found: ${project}`);
   const repoPath = await resolveRepoPath(project, explicitRepo);
   await assertGitRepo(repoPath);
   const state = snapshot ?? await loadLintingSnapshot(project);

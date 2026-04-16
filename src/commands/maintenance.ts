@@ -258,10 +258,10 @@ type WorktreeImpactedPage = {
 
 export async function loadProjectSnapshot(project: string, explicitRepo?: string, options: { includeRepoInventory?: boolean } = {}): Promise<ProjectSnapshot> {
   const root = projectRoot(project);
-  assertExists(root, `project not found: ${project}`);
+  await assertExists(root, `project not found: ${project}`);
   const repo = await resolveRepoPath(project, explicitRepo);
   await assertGitRepo(repo);
-  const pages = walkMarkdown(root);
+  const pages = await walkMarkdown(root);
   const pageEntries = await Promise.all(pages.map(async (file) => {
     const raw = await readText(file);
     const relPath = relative(root, file).replaceAll("\\", "/");
@@ -523,7 +523,7 @@ async function collectDashboard(project: string, base: string, explicitRepo?: st
     collectVerifySummary(project, lintingSnapshot),
     collectDriftSummary(project, explicitRepo, lintingSnapshot),
   ]);
-  return { project, repo: maintain.repo, base, status, verify, drift, discover: maintain.discover, maintain, recentLog: tailLog(20) };
+  return { project, repo: maintain.repo, base, status, verify, drift, discover: maintain.discover, maintain, recentLog: await tailLog(20) };
 }
 
 async function collectDiscoverSummary(project: string, explicitRepo?: string, snapshot?: ProjectSnapshot) {
@@ -569,7 +569,7 @@ async function collectIngestDiff(project: string, base: string, explicitRepo?: s
     const guessedModule = guessModuleName(file);
     const moduleSpec = join(projectRoot(project), "modules", guessedModule, "spec.md");
     if (await exists(moduleSpec)) continue;
-    mkdirIfMissing(join(projectRoot(project), "modules", guessedModule));
+    await mkdirIfMissing(join(projectRoot(project), "modules", guessedModule));
     await createModuleInternal(project, guessedModule, [file]);
     created.push(relative(VAULT_ROOT, moduleSpec));
   }

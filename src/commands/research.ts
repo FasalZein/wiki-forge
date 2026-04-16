@@ -42,7 +42,7 @@ export async function ingestResearch(args: string[]) {
     const slug = deriveSourceSlug(source);
     const outputPath = researchPagePath(normalizedTopic, slug);
     if (await exists(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
-    const sourceType = detectResearchSourceType(source);
+    const sourceType = await detectResearchSourceType(source);
     const sourceField = /^https?:\/\//iu.test(source) ? { url: source } : { path: source };
     const data = orderFrontmatter({
       title: title ?? deriveSourceTitle(source),
@@ -104,7 +104,7 @@ export async function ingestSource(args: string[]) {
     const rawPath = rawPathForSource(source, resolvedBucket);
     const outputPath = researchPagePath(normalizedTopic, deriveSourceSlug(source));
     if (await exists(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
-    mkdirIfMissing(rawDir);
+    await mkdirIfMissing(rawDir);
     if (await exists(rawPath)) throw new Error(`raw source already exists: ${relative(VAULT_ROOT, rawPath)}`);
 
     if (/^https?:\/\//iu.test(source)) {
@@ -138,7 +138,7 @@ export async function ingestSource(args: string[]) {
 
     const sourceLabel = /^https?:\/\//iu.test(source) ? source : relative(process.cwd(), source);
     const rawLink = `[[${rawVaultPath(rawPath)}]]`;
-    const sourceType = detectResearchSourceType(source);
+    const sourceType = await detectResearchSourceType(source);
     const data = orderFrontmatter({
       title: title ?? deriveSourceTitle(source),
       type: "research",
@@ -230,8 +230,8 @@ export async function auditResearch(args: string[]) {
 export async function ensureResearchTopic(topic: string) {
   const normalizedTopic = normalizeTopicPath(topic);
   const dir = researchTopicDir(normalizedTopic);
-  mkdirIfMissing(researchRoot());
-  mkdirIfMissing(dir);
+  await mkdirIfMissing(researchRoot());
+  await mkdirIfMissing(dir);
   const overviewPath = researchOverviewPath(normalizedTopic);
   let created = false;
   if (!await exists(overviewPath)) {
@@ -276,7 +276,7 @@ export async function ensureResearchTopic(topic: string) {
 export async function collectResearchStatus(topic?: string) {
   const normalizedTopic = topic ? normalizeTopicPath(topic) : undefined;
   const root = normalizedTopic ? researchTopicDir(normalizedTopic) : researchRoot();
-  const pages = walkMarkdown(root).filter((file) => !file.endsWith("/_overview.md"));
+  const pages = (await walkMarkdown(root)).filter((file) => !file.endsWith("/_overview.md"));
   const byStatus = Object.fromEntries(RESEARCH_STATUSES.map((status) => [status, 0])) as Record<string, number>;
   const byVerification = Object.fromEntries(RESEARCH_VERIFICATION_LEVELS.map((level) => [level, 0])) as Record<string, number>;
   let missingSources = 0;
@@ -303,7 +303,7 @@ export async function collectResearchStatus(topic?: string) {
 export async function collectResearchLintResult(topic?: string) {
   const normalizedTopic = topic ? normalizeTopicPath(topic) : undefined;
   const root = normalizedTopic ? researchTopicDir(normalizedTopic) : researchRoot();
-  const pages = walkMarkdown(root).sort();
+  const pages = (await walkMarkdown(root)).sort();
   const issues: string[] = [];
   const inbound = await buildResearchInboundCounts();
   for (const file of pages) {
@@ -388,7 +388,7 @@ function parseIngestSourceArgs(args: string[]) {
 
 async function buildResearchInboundCounts() {
   const counts = new Map<string, number>();
-  for (const file of walkMarkdown(VAULT_ROOT)) {
+  for (const file of await walkMarkdown(VAULT_ROOT)) {
     const rel = normalizePath(relative(VAULT_ROOT, file));
     if (!rel.startsWith("projects/") && !rel.startsWith("ideas/")) continue;
     const body = await readText(file);

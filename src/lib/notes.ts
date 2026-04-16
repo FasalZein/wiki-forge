@@ -22,7 +22,7 @@ type SerializedNoteIndex = {
 };
 
 export async function buildNoteIndex(): Promise<NoteIndex> {
-  const files = walkMarkdown(VAULT_ROOT);
+  const files = await walkMarkdown(VAULT_ROOT);
   const fingerprint = filesFingerprint(files);
   const cached = await readCache<SerializedNoteIndex>("note-index", "vault", NOTE_INDEX_CACHE_VERSION, fingerprint);
   if (cached) {

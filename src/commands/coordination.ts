@@ -119,7 +119,7 @@ export async function handoverProject(args: string[]) {
   ]);
   const dirty = await collectDirtyRepoStatus(maintain.repo);
   const recentCommits = await collectRecentCommits(maintain.repo, 5);
-  const recentEvents = projectLogEntries(options.project); // all events, not just notes
+  const recentEvents = await projectLogEntries(options.project); // all events, not just notes
   const recentNotes = recentEvents.filter((e) => e.includes("] note |"));
   const lifecycleEvents = recentEvents.filter((e) => !e.includes("] note |"));
   const result = {
@@ -437,7 +437,7 @@ export async function resumeProject(args: string[]) {
   const dirty = await collectDirtyRepoStatus(repo);
   const recentCommits = await collectRecentCommits(repo, 5);
   const stalePages = drift.results.filter((row) => row.status !== "fresh").slice(0, 10).map((row) => row.wikiPage);
-  const recentNotes = projectLogEntries(options.project, "note").slice(0, 5);
+  const recentNotes = (await projectLogEntries(options.project, "note")).slice(0, 5);
   const payload = {
     project: options.project,
     repo,
@@ -622,7 +622,7 @@ function intersect(left: string[], right: string[]) {
 
 async function writeClaimMetadata(project: string, sliceId: string, agent: string, claimedAt: string, sourcePaths: string[]) {
   const indexPath = projectTaskHubPath(project, sliceId);
-  assertExists(indexPath, `slice index not found: ${relative(VAULT_ROOT, indexPath)}`);
+  await assertExists(indexPath, `slice index not found: ${relative(VAULT_ROOT, indexPath)}`);
   const parsed = safeMatter(relative(VAULT_ROOT, indexPath), await readText(indexPath));
   if (!parsed) throw new Error(`could not parse slice index: ${sliceId}`);
   const data = orderFrontmatter({
@@ -650,7 +650,7 @@ async function clearClaimMetadata(project: string, sliceId: string) {
 
 async function markSliceStarted(project: string, sliceId: string, startedAt: string) {
   const indexPath = projectTaskHubPath(project, sliceId);
-  assertExists(indexPath, `slice index not found: ${relative(VAULT_ROOT, indexPath)}`);
+  await assertExists(indexPath, `slice index not found: ${relative(VAULT_ROOT, indexPath)}`);
   const parsed = safeMatter(relative(VAULT_ROOT, indexPath), await readText(indexPath));
   if (!parsed) throw new Error(`could not parse slice index: ${sliceId}`);
   writeNormalizedPage(indexPath, parsed.content, orderFrontmatter({
@@ -811,8 +811,8 @@ async function collectRecentCommits(repo: string, limit: number) {
   return proc.stdout.toString().replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean);
 }
 
-function projectLogEntries(project: string, kind?: string) {
-  return tailLog(50)
+async function projectLogEntries(project: string, kind?: string) {
+  return (await tailLog(50))
     .filter((entry) => entry.includes(`- project: ${project}`))
     .filter((entry) => !kind || entry.includes(`] ${kind} |`))
     .slice(-10)

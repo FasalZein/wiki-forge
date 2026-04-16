@@ -25,7 +25,7 @@ export async function fileAnswer(args: string[]) {
   const options = parseAskOptions(args);
   const brief = await buildAnswerBrief(options);
   const outputPath = resolveAnswerOutputPath(options.project, options.question, options.slug);
-  mkdirIfMissing(dirname(outputPath));
+  await mkdirIfMissing(dirname(outputPath));
   const contents = renderAnswerNote(brief);
   const existed = await exists(outputPath);
   await writeText(outputPath, contents);

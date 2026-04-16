@@ -235,8 +235,8 @@ async function createIndexedSpecDocument(project: string, kind: IndexedPlanningK
 
 export async function createSpecDocumentInternal(project: string, kind: PlanningKind, name: string, templateLines: readonly string[], options: CreateSpecOptions = {}) {
   const slug = slugify(name);
-  mkdirIfMissing(projectSpecsDir(project));
-  ensureKindDirectory(project, kind);
+  await mkdirIfMissing(projectSpecsDir(project));
+  await ensureKindDirectory(project, kind);
   const displayTitle = buildDisplayTitle(kind, name, options);
   const outputPath = resolveOutputPath(project, kind, slug, options);
   if (await exists(outputPath)) throw new Error(`spec already exists: ${relative(VAULT_ROOT, outputPath)}`);
@@ -330,9 +330,9 @@ export function parseProjectAndName(args: string[]) {
   return { project, name };
 }
 
-function ensureKindDirectory(project: string, kind: PlanningKind) {
-  if (kind === "feature") mkdirIfMissing(projectFeaturesDir(project));
-  if (kind === "prd") mkdirIfMissing(projectPrdsDir(project));
+async function ensureKindDirectory(project: string, kind: PlanningKind) {
+  if (kind === "feature") await mkdirIfMissing(projectFeaturesDir(project));
+  if (kind === "prd") await mkdirIfMissing(projectPrdsDir(project));
 }
 
 function buildDisplayTitle(kind: PlanningKind, name: string, options: CreateSpecOptions) {

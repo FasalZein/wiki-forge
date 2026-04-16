@@ -56,7 +56,7 @@ export async function updateIndex(args: string[]) {
   }
 }
 
-export function logCommand(args: string[]) {
+export async function logCommand(args: string[]) {
   const subcommand = args[0] ?? "tail";
   if (subcommand === "append") {
     const kind = args[1];
@@ -72,7 +72,7 @@ export function logCommand(args: string[]) {
     return console.log(`appended log entry: ${kind} | ${title}`);
   }
   const count = subcommand === "tail" ? Number.parseInt(args[1] ?? "10", 10) : 10;
-  for (const entry of tailLog(Number.isFinite(count) && count > 0 ? count : 10)) console.log(`${entry}\n`);
+  for (const entry of await tailLog(Number.isFinite(count) && count > 0 ? count : 10)) console.log(`${entry}\n`);
 }
 
 async function buildIndexPlan(project: string | undefined, all: boolean) {
@@ -90,7 +90,7 @@ async function buildIndexPlan(project: string | undefined, all: boolean) {
 async function applyIndexPlan(plan: { targets: IndexTarget[] }) {
   for (const target of plan.targets) {
     const absolutePath = join(VAULT_ROOT, target.path);
-    mkdirIfMissing(dirname(absolutePath));
+    await mkdirIfMissing(dirname(absolutePath));
     await writeIndexTarget(absolutePath, target.content);
   }
 }

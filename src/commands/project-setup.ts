@@ -26,8 +26,8 @@ export async function scaffoldProject(project: string | undefined) {
   requireValue(project, "project");
   const root = projectRoot(project);
   let created = 0;
-  mkdirIfMissing(root);
-  for (const dir of PROJECT_DIRS) created += mkdirIfMissing(join(root, dir)) ? 1 : 0;
+  await mkdirIfMissing(root);
+  for (const dir of PROJECT_DIRS) created += (await mkdirIfMissing(join(root, dir))) ? 1 : 0;
   for (const file of PROJECT_FILES) {
     const path = join(root, file);
     if (!await exists(path)) {
@@ -45,7 +45,7 @@ export async function onboardProject(args: string[]) {
   await scaffoldProject(options.project);
   if (options.repo) {
     const outputPath = projectOnboardingPlanPath(options.project);
-    mkdirIfMissing(projectSpecsDir(options.project));
+    await mkdirIfMissing(projectSpecsDir(options.project));
     await writeText(outputPath, await renderOnboardingPlan(options.project, options.repo));
     console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
     await syncProtocolForProject(options.project, options.repo);
@@ -58,7 +58,7 @@ export async function onboardPlan(args: string[]) {
   const rendered = await renderOnboardingPlan(options.project, options.repo);
   if (!options.write) return console.log(rendered);
   const outputPath = projectOnboardingPlanPath(options.project);
-  mkdirIfMissing(projectSpecsDir(options.project));
+  await mkdirIfMissing(projectSpecsDir(options.project));
   await writeText(outputPath, rendered);
   console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
 }
@@ -76,7 +76,7 @@ export async function createModule(args: string[]) {
 
 export async function createModuleInternal(project: string, moduleName: string, sourcePaths: string[]) {
   const specPath = projectModuleSpecPath(project, moduleName);
-  mkdirIfMissing(join(projectRoot(project), "modules", moduleName));
+  await mkdirIfMissing(join(projectRoot(project), "modules", moduleName));
   if (await exists(specPath)) throw new Error(`module spec already exists: ${relative(VAULT_ROOT, specPath)}`);
   const data = orderFrontmatter({ title: moduleTitle(moduleName), type: "module", project, module: moduleName, created_at: nowIso(), updated: nowIso(), status: "current", verification_level: "scaffold", ...(sourcePaths.length ? { source_paths: sourcePaths.map((value) => value.replaceAll("\\", "/")) } : {}) }, ["title", "type", "project", "module", "created_at", "updated", "status", "verification_level", "source_paths"]);
   const body = [
@@ -101,7 +101,7 @@ export async function normalizeModule(args: string[]) {
   requireValue(project, "project");
   requireValue(moduleName, "module");
   const specPath = projectModuleSpecPath(project, moduleName);
-  assertExists(specPath, `module spec not found: ${relative(VAULT_ROOT, specPath)}`);
+  await assertExists(specPath, `module spec not found: ${relative(VAULT_ROOT, specPath)}`);
   const parsed = safeMatter(specPath, await readText(specPath));
   if (!parsed) throw new Error(`unable to parse frontmatter for ${relative(VAULT_ROOT, specPath)}`);
   const changes: string[] = [];

@@ -1,7 +1,6 @@
-import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { VAULT_ROOT } from "../constants";
-import { appendText, ensureDir } from "./fs";
+import { appendText, ensureDir, exists, readText } from "./fs";
 
 export function logPath() {
   return join(VAULT_ROOT, "log.md");
@@ -18,12 +17,10 @@ export function appendLogEntry(kind: string, title: string, options?: { project?
   appendText(path, `${lines.join("\n")}\n`);
 }
 
-export function tailLog(count = 10) {
+export async function tailLog(count = 10) {
   const path = logPath();
-  // TODO: migrate to async exists()
-  if (!existsSync(path)) return [] as string[];
-  // TODO(WIKI-FORGE-070): migrate to readText once tailLog callers (logCommand, projectLogEntries) are async
-  const content = readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+  if (!(await exists(path))) return [] as string[];
+  const content = (await readText(path)).replace(/\r\n/g, "\n");
   const entries = content.split(/^## /m).filter(Boolean).map((chunk) => `## ${chunk.trimEnd()}`);
   return entries.slice(-count);
 }

@@ -1,6 +1,6 @@
-import { existsSync } from "node:fs";
 import { basename, extname, join } from "node:path";
 import { VAULT_ROOT } from "../constants";
+import { exists } from "./fs";
 
 const TOPIC_SEGMENT = "[a-z0-9]+(?:-[a-z0-9]+)*";
 const TOPIC_PATH = `(?:${TOPIC_SEGMENT}\/)*${TOPIC_SEGMENT}`;
@@ -95,7 +95,7 @@ export function deriveSourceTitle(source: string) {
   return file.split(/[-_ ]+/g).filter(Boolean).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ") || "Research Source";
 }
 
-export function detectResearchSourceType(source: string): "web" | "paper" | "code" | "conversation" | "synthesis" {
+export async function detectResearchSourceType(source: string): Promise<"web" | "paper" | "code" | "conversation" | "synthesis"> {
   const normalized = source.toLowerCase();
   if (/^https?:\/\//iu.test(source)) {
     if (normalized.includes("arxiv.org") || normalized.endsWith(".pdf")) return "paper";
@@ -105,8 +105,7 @@ export function detectResearchSourceType(source: string): "web" | "paper" | "cod
   if ([".ts", ".tsx", ".js", ".jsx", ".py", ".rs", ".go", ".java", ".c", ".cpp", ".rb", ".sh"].includes(extension)) return "code";
   if ([".pdf"].includes(extension)) return "paper";
   if ([".md", ".txt", ".json"].includes(extension)) return "conversation";
-  // TODO: migrate to async exists()
-  return existsSync(source) ? "code" : "synthesis";
+  return (await exists(source)) ? "code" : "synthesis";
 }
 
 export function questionTokens(question: string) {
