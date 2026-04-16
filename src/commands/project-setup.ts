@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import matter from "gray-matter";
 import { MODULE_REQUIRED_HEADINGS, PROJECT_DIRS, PROJECT_FILES, VAULT_ROOT } from "../constants";
@@ -47,7 +46,7 @@ export async function onboardProject(args: string[]) {
   if (options.repo) {
     const outputPath = projectOnboardingPlanPath(options.project);
     mkdirIfMissing(projectSpecsDir(options.project));
-    await writeText(outputPath, renderOnboardingPlan(options.project, options.repo));
+    await writeText(outputPath, await renderOnboardingPlan(options.project, options.repo));
     console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
     await syncProtocolForProject(options.project, options.repo);
   }
@@ -56,7 +55,7 @@ export async function onboardProject(args: string[]) {
 
 export async function onboardPlan(args: string[]) {
   const options = parseOnboardPlanOptions(args);
-  const rendered = renderOnboardingPlan(options.project, options.repo);
+  const rendered = await renderOnboardingPlan(options.project, options.repo);
   if (!options.write) return console.log(rendered);
   const outputPath = projectOnboardingPlanPath(options.project);
   mkdirIfMissing(projectSpecsDir(options.project));
@@ -136,12 +135,11 @@ function parseOnboardPlanOptions(args: string[]) {
   return { project, repo, write: args.includes("--write") };
 }
 
-function detectResearchDirs(repo: string): string[] {
-  // TODO: migrate to async exists()
+async function detectResearchDirs(repo: string): Promise<string[]> {
   const dirs: string[] = [];
   for (const candidate of ["docs/research", "docs", "research"]) {
     const candidatePath = join(repo, candidate);
-    if (existsSync(candidatePath)) {
+    if (await exists(candidatePath)) {
       try {
         const count = [...new Bun.Glob("**/*.md").scanSync({ cwd: candidatePath, onlyFiles: true })].length;
         if (count > 0) dirs.push(`${candidate}/ (${count} docs)`);
@@ -151,9 +149,9 @@ function detectResearchDirs(repo: string): string[] {
   return dirs;
 }
 
-function renderOnboardingPlan(project: string, repo?: string) {
+async function renderOnboardingPlan(project: string, repo?: string) {
   const data = orderFrontmatter({ title: `${project} Onboarding Plan`, type: "spec", project, created_at: nowIso(), updated: nowIso(), status: "current", repo: repo ?? "TODO", source_of_truth: "code", related_playbook: "wiki/concepts/project-onboarding-playbook.md" }, ["title", "type", "project", "created_at", "updated", "status", "repo", "source_of_truth", "related_playbook"]);
-  const researchDirs = repo ? detectResearchDirs(repo) : [];
+  const researchDirs = repo ? await detectResearchDirs(repo) : [];
   const slices = [
     "#### Slice A: Repo/App/Package Map", "", "- [ ] Identify apps, packages, services, and entry points", "- [ ] Identify build/test/dev tooling", "- [ ] Identify deployment/runtime surfaces", `- [ ] Seed \`projects/${project}/code-map/*.md\` and summary inputs`,
     "", "#### Slice B: Module And Interface Map", "", "- [ ] Identify module boundaries", "- [ ] Map routes, handlers, services, repositories, jobs, and events", "- [ ] Map frontend feature boundaries and external surfaces", `- [ ] Seed \`projects/${project}/modules/*/spec.md\`, \`architecture/\`, and \`contracts/\``,

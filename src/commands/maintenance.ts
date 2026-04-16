@@ -325,7 +325,7 @@ function isHistoricalDoneSlicePage(entry: { page: string; parsed: ReturnType<typ
 
 export async function collectRefreshFromWorktree(project: string, explicitRepo?: string, snapshot?: ProjectSnapshot) {
   const state = snapshot ?? await loadProjectSnapshot(project, explicitRepo);
-  const changedFiles = worktreeChangedFiles(state.repo);
+  const changedFiles = await worktreeChangedFiles(state.repo);
   const changedFileSet = new Set(changedFiles);
   const impactedPages: WorktreeImpactedPage[] = [];
   const suppressedPages: WorktreeImpactedPage[] = [];
@@ -818,11 +818,10 @@ function isCodeFile(file: string) {
   return CODE_FILE_PATTERN.test(file);
 }
 
-function gitLines(repo: string, command: string[]) {
-  // TODO: migrate to Bun.$ when caller chain is async (worktreeChangedFiles is sync, cascades from gitLines)
-  const proc = Bun.spawnSync(["git", ...command], { cwd: repo, stdout: "pipe", stderr: "pipe" });
+async function gitLines(repo: string, command: string[]) {
+  const proc = await Bun.$`git ${command}`.cwd(repo).quiet().nothrow();
   if (proc.exitCode !== 0) throw new Error(proc.stderr.toString().trim() || `git ${command.join(" ")} failed`);
-  return proc.stdout.toString().replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean);
+  return proc.text().replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean);
 }
 
 function normalizeRelPath(value: string) {
@@ -835,9 +834,9 @@ function bindingMatchesFile(binding: string, file: string) {
   return normalizedFile === normalizedBinding || normalizedFile.startsWith(`${normalizedBinding}/`);
 }
 
-function worktreeChangedFiles(repo: string) {
-  const changed = new Set<string>(gitLines(repo, ["diff", "--name-only", "HEAD", "--"]).map(normalizeRelPath));
-  for (const file of gitLines(repo, ["ls-files", "--others", "--exclude-standard"]).map(normalizeRelPath)) changed.add(file);
+async function worktreeChangedFiles(repo: string) {
+  const changed = new Set<string>((await gitLines(repo, ["diff", "--name-only", "HEAD", "--"])).map(normalizeRelPath));
+  for (const file of (await gitLines(repo, ["ls-files", "--others", "--exclude-standard"])).map(normalizeRelPath)) changed.add(file);
   return [...changed].sort();
 }
 

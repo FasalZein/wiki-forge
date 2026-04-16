@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync } from "node:fs";
+import { appendFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { exists, readText } from "../lib/fs";
@@ -9,7 +9,7 @@ const COMMENT = "# Wiki CLI vault root";
 export async function setupShell(args: string[]) {
   const vaultPath = args[0] || join(homedir(), "Knowledge");
   const shell = process.env.SHELL ?? "/bin/zsh";
-  const rcFile = resolveRcFile(shell);
+  const rcFile = await resolveRcFile(shell);
 
   if (!rcFile) {
     console.error(`error: unsupported shell: ${shell}`);
@@ -34,13 +34,12 @@ export async function setupShell(args: string[]) {
   console.log(`\nreload with: source ~/${rcFile}`);
 }
 
-function resolveRcFile(shell: string): string | null {
+async function resolveRcFile(shell: string): Promise<string | null> {
   if (shell.endsWith("/zsh")) return ".zshrc";
   if (shell.endsWith("/bash")) {
     // macOS uses .bash_profile for login shells, Linux uses .bashrc
     const profile = join(homedir(), ".bash_profile");
-    // TODO: migrate to async exists()
-    return existsSync(profile) ? ".bash_profile" : ".bashrc";
+    return (await exists(profile)) ? ".bash_profile" : ".bashrc";
   }
   if (shell.endsWith("/fish")) return ".config/fish/config.fish";
   return null;
