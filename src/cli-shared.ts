@@ -49,7 +49,7 @@ Usage:
   wiki qmd-update
   wiki qmd-embed
   wiki dashboard <project> [--repo <path>] [--base <rev>] [--json]
-  wiki closeout <project> [--repo <path>] [--base <rev>] [--worktree] [--json] [--verbose]
+  wiki closeout <project> [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json] [--verbose]
   wiki commit-check <project> [--repo <path>] [--json] [--verbose]
   wiki checkpoint <project> [--repo <path>] [--json]
   wiki lint-repo <project> [--repo <path>] [--json]
@@ -68,7 +68,7 @@ Usage:
   wiki resume <project> [--repo <path>] [--base <rev>] [--json]
   wiki doctor <project> [--repo <path>] [--base <rev>] [--json]
   wiki gate <project> [--repo <path>] [--base <rev>] [--worktree] [--structural-refactor] [--json]
-  wiki maintain <project> [--repo <path>] [--base <rev>] [--worktree] [--json]
+  wiki maintain <project> [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json] [--verbose]
   wiki refresh <project> [--repo <path>] [--json]
   wiki refresh-from-git <project> [--repo <path>] [--base <rev>] [--json]
   wiki discover <project> [--repo <path>] [--tree] [--json]

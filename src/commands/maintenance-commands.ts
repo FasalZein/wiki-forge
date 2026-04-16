@@ -11,6 +11,7 @@ import { buildDirectoryTree } from "./repo-scan";
 import { repairHistoricalDoneSlices } from "./slice-repair";
 import { guessModuleName } from "./test-health";
 import { createModuleInternal } from "./project-setup";
+import { collectStaleIndexTargets, writeNavigationIndex } from "./index-log";
 import {
   collectDashboard,
   collectMaintenancePlan,
@@ -25,22 +26,37 @@ export async function dashboardProject(args: string[]) {
   console.log(JSON.stringify(await collectDashboard(options.project, options.base, options.repo), null, 2));
 }
 
+/**
+ * Auto-refresh project navigation/spec index files when their on-disk content
+ * has drifted from what `buildIndexPlan` would generate. Returns a small
+ * summary that maintain/closeout can surface in output. If `dryRun` is true,
+ * staleness is reported but no files are written. (WIKI-FORGE-105)
+ */
+export async function autoRefreshIndex(project: string, options: { dryRun?: boolean } = {}): Promise<{ stale: string[]; written: string[] }> {
+  const stale = await collectStaleIndexTargets(project);
+  if (stale.length === 0 || options.dryRun) return { stale, written: [] };
+  const written = await writeNavigationIndex(project);
+  return { stale, written: written.map((target) => target.path) };
+}
+
 export async function maintainProject(args: string[]) {
   const options = await parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
   const verbose = args.includes("--verbose");
   const worktree = args.includes("--worktree");
+  const dryRun = args.includes("--dry-run");
   const repair = await repairHistoricalDoneSlices(options.project);
   const result = await collectMaintenancePlan(options.project, options.base, options.repo, undefined, undefined, { worktree });
+  const indexRefresh = await autoRefreshIndex(options.project, { dryRun });
   appendLogEntry("maintain", options.project, {
     project: options.project,
-    details: [worktree ? "mode=worktree" : `base=${options.base}`, `actions=${result.actions.length}`, ...(repair ? [`repaired=${repair.repaired.length}`] : [])],
+    details: [worktree ? "mode=worktree" : `base=${options.base}`, `actions=${result.actions.length}`, `index_stale=${indexRefresh.stale.length}`, `index_written=${indexRefresh.written.length}`, ...(repair ? [`repaired=${repair.repaired.length}`] : [])],
   });
   const missingTests = result.refreshFromGit.testHealth.codeFilesWithoutChangedTests.length;
   const gateOk = missingTests === 0;
   if (json) {
     const shaped = verbose ? result : compactMaintainForJson(result);
-    console.log(JSON.stringify({ ...shaped, ...(repair ? { repair } : {}), gate: { ok: gateOk, missingTests } }, null, 2));
+    console.log(JSON.stringify({ ...shaped, ...(repair ? { repair } : {}), indexRefresh, gate: { ok: gateOk, missingTests } }, null, 2));
   } else {
     if (result.focus.activeTask) console.log(`active task: ${result.focus.activeTask.id} ${result.focus.activeTask.title} (plan=${result.focus.activeTask.planStatus} test-plan=${result.focus.activeTask.testPlanStatus})`);
     else if (result.focus.recommendedTask) console.log(`next backlog task: ${result.focus.recommendedTask.id} ${result.focus.recommendedTask.title}`);
@@ -60,6 +76,13 @@ export async function maintainProject(args: string[]) {
     console.log(`- code changes without changed tests: ${missingTests}`);
     console.log(`- lint issues: ${result.lint.issues.length}`);
     console.log(`- semantic issues: ${result.semanticLint.issues.length}`);
+    if (indexRefresh.stale.length) {
+      console.log(dryRun
+        ? `- index refresh: ${indexRefresh.stale.length} stale (dry-run; skipped)`
+        : `- index refresh: ${indexRefresh.written.length} file(s) rewritten`);
+    } else {
+      console.log(`- index refresh: up to date`);
+    }
     console.log(`- GATE: ${gateOk ? "PASS" : `FAIL — ${missingTests} code file(s) without tests`}`);
     console.log(`- actions:`);
     if (verbose) {
@@ -123,9 +146,20 @@ export async function closeoutProject(args: string[]) {
   const json = args.includes("--json");
   const verbose = args.includes("--verbose");
   const worktree = args.includes("--worktree");
+  const dryRun = args.includes("--dry-run");
+  // WIKI-FORGE-105: auto-run maintain's index refresh on entry so closeout
+  // evaluates against up-to-date navigation. Idempotent when indexes are fresh.
+  const indexRefresh = await autoRefreshIndex(options.project, { dryRun });
   const result = await collectCloseout(options.project, options.base, options.repo, undefined, undefined, { worktree });
-  if (json) console.log(JSON.stringify(compactCloseoutForJson(result), null, 2));
-  else renderCloseout(result, verbose);
+  if (json) console.log(JSON.stringify({ ...compactCloseoutForJson(result), indexRefresh }, null, 2));
+  else {
+    renderCloseout(result, verbose);
+    if (indexRefresh.stale.length) {
+      console.log(dryRun
+        ? `- index refresh: ${indexRefresh.stale.length} stale (dry-run; skipped)`
+        : `- index refresh: ${indexRefresh.written.length} file(s) rewritten`);
+    }
+  }
   if (!result.ok) throw new Error(`closeout failed for ${options.project}`);
 }
 
