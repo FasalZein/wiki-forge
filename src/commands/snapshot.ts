@@ -6,7 +6,7 @@ import { gitDiffSummary, readVerificationLevel, resolveRepoPath, assertGitRepo }
 import { walkMarkdown } from "../lib/vault";
 import { collectBacklogFocus } from "./backlog";
 import { collectDriftSummary } from "./verification";
-import { collectHierarchyStatusActions } from "./hierarchy-commands";
+import { collectHierarchyStatusActions, collectLifecycleDriftActions } from "./hierarchy-commands";
 import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "./linting";
 import type { LintingSnapshot } from "./linting";
 import { gitChangedFiles, bindingMatchesFile, worktreeChangedFiles, worktreeModifiedAt, parseEntryUpdated } from "./git-utils";
@@ -237,13 +237,14 @@ export async function collectMaintenancePlan(project: string, base: string, expl
       : await collectRefreshFromGit(project, base, explicitRepo, projectSnapshot)
   );
   // Run independent checks in parallel — discover, lint, semantic lint, backlog focus,
-  // and hierarchy status all share no mutable state and depend only on already-loaded snapshots.
-  const [discover, lint, semanticLint, focus, hierarchyActions] = await Promise.all([
+  // hierarchy status, and lifecycle drift all share no mutable state and depend only on already-loaded snapshots.
+  const [discover, lint, semanticLint, focus, hierarchyActions, lifecycleDriftActions] = await Promise.all([
     collectDiscoverSummary(project, explicitRepo, projectSnapshot),
     collectLintResult(project, lintingState),
     collectSemanticLintResult(project, lintingState),
     collectBacklogFocus(project),
     collectHierarchyStatusActions(project),
+    collectLifecycleDriftActions(project),
   ]);
   const actions: Array<{ kind: string; message: string }> = [];
   if (focus.activeTask) actions.push({ kind: "active-task", message: `${focus.activeTask.id} ${focus.activeTask.title} (plan=${focus.activeTask.planStatus}, test-plan=${focus.activeTask.testPlanStatus})` });
@@ -257,6 +258,7 @@ export async function collectMaintenancePlan(project: string, base: string, expl
   for (const issue of lint.issues.slice(0, 20)) actions.push({ kind: "fix-structure", message: issue });
   for (const issue of semanticLint.issues.slice(0, 20)) actions.push({ kind: "fix-semantic", message: issue });
   for (const action of hierarchyActions) actions.push({ kind: action.kind, message: action.message });
+  for (const action of lifecycleDriftActions) actions.push({ kind: action.kind, message: action.message });
   // Apply computed_status writes immediately so pages reflect fresh hierarchy state
   for (const action of hierarchyActions) action._apply?.();
   return { project, repo: refreshFromGit.repo, base: options.worktree ? "WORKTREE" : base, focus, refreshFromGit, discover, lint, semanticLint, actions };

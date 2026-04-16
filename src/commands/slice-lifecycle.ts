@@ -15,6 +15,7 @@ import { collectCloseout, isTestFile, resolveDefaultBase } from "./maintenance";
 import { writeProjectIndex } from "./index-log";
 import { applyVerificationLevel } from "./verification-shared";
 import { summarizePlan } from "./note-export";
+import { lifecycleClose, lifecycleOpen } from "./hierarchy-commands";
 
 type ClaimConflict = {
   taskId: string;
@@ -192,6 +193,22 @@ export async function startSlice(args: string[]) {
   await markSliceStarted(project, sliceId, startedAt);
   appendLogEntry("start-slice", sliceId, { project, details: [`agent=${agent}`, `started_at=${startedAt}`] });
 
+  // Auto-trigger: open parent PRD/feature if they are not-started
+  const parentPrd = typeof hub.data.parent_prd === "string" ? hub.data.parent_prd : null;
+  const parentFeature = typeof hub.data.parent_feature === "string" ? hub.data.parent_feature : null;
+  if (parentPrd) {
+    try {
+      await lifecycleOpen(project, parentPrd, "prd");
+      process.stderr.write(`auto-started prd ${parentPrd}\n`);
+    } catch { /* non-fatal */ }
+  }
+  if (parentFeature) {
+    try {
+      await lifecycleOpen(project, parentFeature, "feature");
+      process.stderr.write(`auto-started feature ${parentFeature}\n`);
+    } catch { /* non-fatal */ }
+  }
+
   if (json) {
     console.log(JSON.stringify(result, null, 2));
     return;
@@ -256,6 +273,9 @@ export async function closeSlice(args: string[]) {
   if (context.planStatus !== "ready" || context.testPlanStatus !== "ready") {
     throw new Error(`slice docs are not ready for closeout: plan=${context.planStatus} test-plan=${context.testPlanStatus}`);
   }
+  const hub = await readSliceHub(project, sliceId);
+  const closeSliceParentPrd = typeof hub.data.parent_prd === "string" ? hub.data.parent_prd : null;
+  const closeSliceParentFeature = typeof hub.data.parent_feature === "string" ? hub.data.parent_feature : null;
   const testPlan = await readSliceTestPlan(project, sliceId);
   const testPlanLevel = readVerificationLevel(testPlan.data);
   if (testPlanLevel !== "test-verified") {
@@ -297,6 +317,21 @@ export async function closeSlice(args: string[]) {
   await clearClaimMetadata(project, sliceId);
   await writeProjectIndex(project);
   appendLogEntry("close-slice", sliceId, { project, details: [`base=${base}`, `completed_at=${completedAt}`, ...(force ? ["force=true"] : [])] });
+
+  // Auto-trigger: close parent PRD/feature if their computed status is now complete
+  if (closeSliceParentPrd) {
+    try {
+      await lifecycleClose(project, closeSliceParentPrd, "prd", false);
+      process.stderr.write(`auto-closed prd ${closeSliceParentPrd}\n`);
+    } catch { /* non-fatal */ }
+  }
+  if (closeSliceParentFeature) {
+    try {
+      await lifecycleClose(project, closeSliceParentFeature, "feature", false);
+      process.stderr.write(`auto-closed feature ${closeSliceParentFeature}\n`);
+    } catch { /* non-fatal */ }
+  }
+
   const result = { project, sliceId, closed: true, ...(compactGate ? { gate: compactGate } : {}), previousSection: context.section, completedAt, force };
   if (json) console.log(JSON.stringify(result, null, 2));
   else console.log(`closed ${sliceId}${force ? " (forced)" : ""}`);

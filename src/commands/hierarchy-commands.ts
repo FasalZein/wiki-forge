@@ -1,11 +1,13 @@
+import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
-import { requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
+import { fail, nowIso, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
+import { exists, readText } from "../lib/fs";
 import { walkMarkdown } from "../lib/vault";
 import { readVerificationLevel } from "../lib/verification";
 import { projectFeaturesDir, projectPrdsDir, projectSlicesDir } from "../lib/structure";
 import { computeStatus, type HierarchyStatus, type SliceState } from "../lib/hierarchy";
-import { readText } from "../lib/fs";
+import { appendLogEntry } from "../lib/log";
 
 export type FeatureStatusRow = {
   featureId: string;
@@ -177,6 +179,176 @@ export async function featureStatusCommand(args: string[]) {
       console.log(`${(indent + prd.prdId).padEnd(featColWidth)}  ${prd.computedStatus.padEnd(statusColWidth)}`);
     }
   }
+}
+
+// ─── Lifecycle: shared helpers ───────────────────────────────────────────────
+
+/**
+ * Find a feature or PRD file by scanning the appropriate directory for files
+ * whose name starts with `<entityId>-` (case-insensitive) or equals `<entityId>.md`.
+ */
+async function findEntityFile(project: string, entityId: string, entityType: "feature" | "prd"): Promise<string | null> {
+  const dir = entityType === "feature" ? projectFeaturesDir(project) : projectPrdsDir(project);
+  if (!await exists(dir)) return null;
+  const prefix = entityId.toLowerCase();
+  for (const entry of readdirSync(dir)) {
+    const lower = entry.toLowerCase();
+    if (lower === `${prefix}.md` || lower.startsWith(`${prefix}-`)) {
+      return join(dir, entry);
+    }
+  }
+  return null;
+}
+
+/**
+ * Compute the hierarchy status for a single feature or PRD by looking at its child slices.
+ * For features we look at slices with parent_feature=entityId; for PRDs parent_prd=entityId.
+ */
+async function computeEntityStatus(project: string, entityId: string, entityType: "feature" | "prd"): Promise<HierarchyStatus> {
+  const slicesDir = projectSlicesDir(project);
+  if (!await exists(slicesDir)) return "not-started";
+  const sliceFiles = await walkMarkdown(slicesDir);
+  const slices: SliceState[] = [];
+  for (const file of sliceFiles) {
+    if (!file.endsWith("/index.md")) continue;
+    const relPath = relative(VAULT_ROOT, file);
+    const raw = await readText(file);
+    const parsed = safeMatter(relPath, raw, { silent: true });
+    if (!parsed) continue;
+    const parentField = entityType === "feature" ? parsed.data.parent_feature : parsed.data.parent_prd;
+    if (parentField !== entityId) continue;
+    const taskId = typeof parsed.data.task_id === "string" ? parsed.data.task_id : null;
+    if (!taskId) continue;
+    const status = typeof parsed.data.status === "string" ? parsed.data.status : null;
+    const verificationLevel = readVerificationLevel(parsed.data);
+    slices.push({ taskId, status, verificationLevel });
+  }
+  return computeStatus(slices);
+}
+
+/**
+ * Open a feature or PRD lifecycle: set status=in-progress and started_at.
+ * Errors if the file is not found or already in-progress/complete.
+ */
+export async function lifecycleOpen(project: string, entityId: string, entityType: "feature" | "prd"): Promise<void> {
+  const file = await findEntityFile(project, entityId, entityType);
+  if (!file) fail(`${entityType} page not found: ${entityId}`);
+  const relPath = relative(VAULT_ROOT, file!);
+  const raw = await readText(file!);
+  const parsed = safeMatter(relPath, raw);
+  if (!parsed) fail(`could not parse ${entityType} page: ${entityId}`);
+  const currentStatus = typeof parsed!.data.status === "string" ? parsed!.data.status : null;
+  if (currentStatus === "in-progress" || currentStatus === "complete") {
+    fail(`${entityType} ${entityId} is already ${currentStatus}`);
+  }
+  const startedAt = nowIso();
+  writeNormalizedPage(file!, parsed!.content, { ...parsed!.data, status: "in-progress", started_at: startedAt });
+  appendLogEntry(`start-${entityType}`, entityId, { project, details: [`started_at=${startedAt}`] });
+}
+
+/**
+ * Close a feature or PRD lifecycle: set status=complete and completed_at.
+ * Gates on computed status = complete unless force=true.
+ */
+export async function lifecycleClose(project: string, entityId: string, entityType: "feature" | "prd", force: boolean): Promise<void> {
+  const file = await findEntityFile(project, entityId, entityType);
+  if (!file) fail(`${entityType} page not found: ${entityId}`);
+  const relPath = relative(VAULT_ROOT, file!);
+  const raw = await readText(file!);
+  const parsed = safeMatter(relPath, raw);
+  if (!parsed) fail(`could not parse ${entityType} page: ${entityId}`);
+  if (!force) {
+    const computedStatus = await computeEntityStatus(project, entityId, entityType);
+    if (computedStatus !== "complete") {
+      fail(`${entityType} ${entityId} computed status is "${computedStatus}", not complete — use --force to override`);
+    }
+  }
+  const completedAt = nowIso();
+  writeNormalizedPage(file!, parsed!.content, { ...parsed!.data, status: "complete", completed_at: completedAt });
+  appendLogEntry(`close-${entityType}`, entityId, { project, details: [`completed_at=${completedAt}`, ...(force ? ["force=true"] : [])] });
+}
+
+// ─── start-feature / close-feature ───────────────────────────────────────────
+
+export async function startFeature(args: string[]): Promise<void> {
+  const positional = args.filter((a) => !a.startsWith("--"));
+  const project = positional[0];
+  const entityId = positional[1];
+  requireValue(project, "project");
+  requireValue(entityId, "feature-id");
+  await lifecycleOpen(project, entityId, "feature");
+  console.log(`started feature ${entityId}`);
+}
+
+export async function closeFeature(args: string[]): Promise<void> {
+  const force = args.includes("--force");
+  const positional = args.filter((a) => !a.startsWith("--"));
+  const project = positional[0];
+  const entityId = positional[1];
+  requireValue(project, "project");
+  requireValue(entityId, "feature-id");
+  await lifecycleClose(project, entityId, "feature", force);
+  console.log(`closed feature ${entityId}${force ? " (forced)" : ""}`);
+}
+
+// ─── start-prd / close-prd ───────────────────────────────────────────────────
+
+export async function startPrd(args: string[]): Promise<void> {
+  const positional = args.filter((a) => !a.startsWith("--"));
+  const project = positional[0];
+  const entityId = positional[1];
+  requireValue(project, "project");
+  requireValue(entityId, "prd-id");
+  await lifecycleOpen(project, entityId, "prd");
+  console.log(`started prd ${entityId}`);
+}
+
+export async function closePrd(args: string[]): Promise<void> {
+  const force = args.includes("--force");
+  const positional = args.filter((a) => !a.startsWith("--"));
+  const project = positional[0];
+  const entityId = positional[1];
+  requireValue(project, "project");
+  requireValue(entityId, "prd-id");
+  await lifecycleClose(project, entityId, "prd", force);
+  console.log(`closed prd ${entityId}${force ? " (forced)" : ""}`);
+}
+
+/**
+ * Collect drift actions for feature/PRD pages whose `status` field is `complete`
+ * but whose computed status (from child slices) is not `complete`.
+ * Used by collectMaintenancePlan to surface premature close-outs.
+ */
+export async function collectLifecycleDriftActions(project: string): Promise<Array<{ kind: string; message: string }>> {
+  const rows = await collectFeatureStatuses(project);
+  const actions: Array<{ kind: string; message: string }> = [];
+  for (const row of rows) {
+    const relPath = relative(VAULT_ROOT, row.file);
+    const raw = await readText(row.file);
+    const parsed = safeMatter(relPath, raw, { silent: true });
+    if (!parsed) continue;
+    const recordedStatus = typeof parsed.data.status === "string" ? parsed.data.status : null;
+    if (recordedStatus === "complete" && row.computedStatus !== "complete") {
+      actions.push({
+        kind: "lifecycle-drift",
+        message: `feature ${row.featureId} status=complete but computed=${row.computedStatus} — reopen or re-verify slices`,
+      });
+    }
+    for (const prd of row.prds) {
+      const prdRelPath = relative(VAULT_ROOT, prd.file);
+      const prdRaw = await readText(prd.file);
+      const prdParsed = safeMatter(prdRelPath, prdRaw, { silent: true });
+      if (!prdParsed) continue;
+      const prdRecordedStatus = typeof prdParsed.data.status === "string" ? prdParsed.data.status : null;
+      if (prdRecordedStatus === "complete" && prd.computedStatus !== "complete") {
+        actions.push({
+          kind: "lifecycle-drift",
+          message: `prd ${prd.prdId} status=complete but computed=${prd.computedStatus} — reopen or re-verify slices`,
+        });
+      }
+    }
+  }
+  return actions;
 }
 
 /**
