@@ -1,8 +1,7 @@
 import { join } from "node:path";
-import { projectRoot } from "../cli-shared";
+import { projectRoot, requireValue, safeMatter } from "../cli-shared";
 import { exists, readText } from "../lib/fs";
 import { resolveRepoPath } from "../lib/verification";
-import { safeMatter } from "../cli-shared";
 
 export async function resolveDefaultBase(project: string, explicitRepo?: string): Promise<string> {
   // 1. Check _summary.md for default_base
@@ -29,7 +28,6 @@ export function findProjectArg(args: string[]) {
 }
 
 export async function parseProjectRepoBaseArgs(args: string[]) {
-  const { requireValue } = await import("../cli-shared");
   const project = findProjectArg(args);
   requireValue(project, "project");
   const repoIndex = args.indexOf("--repo");
