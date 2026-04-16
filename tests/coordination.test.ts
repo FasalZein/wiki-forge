@@ -171,6 +171,12 @@ describe("wiki coordination commands", () => {
     expect(handoverContent).toContain("## Next Session Priorities");
     expect(handoverContent).toContain("## What Was Accomplished");
     expect(handoverContent).toContain("## Blockers & Open Questions");
+    // WIKI-FORGE-101: agent-alignment callout + priorities precede auto sections
+    expect(handoverContent).toContain("> [!note] Agent alignment");
+    const priorityIdx = handoverContent.indexOf("## Next Session Priorities");
+    const summaryIdx = handoverContent.indexOf("## Session Summary");
+    expect(priorityIdx).toBeGreaterThan(0);
+    expect(summaryIdx).toBeGreaterThan(priorityIdx);
   });
 
   test("handover with --no-write does not create a file", () => {
