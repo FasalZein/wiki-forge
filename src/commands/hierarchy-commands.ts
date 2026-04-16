@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
-import { fail, nowIso, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
+import { fail, nowIso, requireForceAcknowledgement, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { exists, readText } from "../lib/fs";
 import { walkMarkdown } from "../lib/vault";
 import { readVerificationLevel } from "../lib/verification";
@@ -204,7 +204,7 @@ async function findEntityFile(project: string, entityId: string, entityType: "fe
  * Compute the hierarchy status for a single feature or PRD by looking at its child slices.
  * For features we look at slices with parent_feature=entityId; for PRDs parent_prd=entityId.
  */
-async function computeEntityStatus(project: string, entityId: string, entityType: "feature" | "prd"): Promise<HierarchyStatus> {
+export async function computeEntityStatus(project: string, entityId: string, entityType: "feature" | "prd"): Promise<HierarchyStatus> {
   const slicesDir = projectSlicesDir(project);
   if (!await exists(slicesDir)) return "not-started";
   const sliceFiles = await walkMarkdown(slicesDir);
@@ -281,7 +281,7 @@ export async function startFeature(args: string[]): Promise<void> {
 }
 
 export async function closeFeature(args: string[]): Promise<void> {
-  const force = args.includes("--force");
+  const force = requireForceAcknowledgement(args, "close-feature");
   const positional = args.filter((a) => !a.startsWith("--"));
   const project = positional[0];
   const entityId = positional[1];
@@ -318,7 +318,7 @@ export async function startPrd(args: string[]): Promise<void> {
 }
 
 export async function closePrd(args: string[]): Promise<void> {
-  const force = args.includes("--force");
+  const force = requireForceAcknowledgement(args, "close-prd");
   const positional = args.filter((a) => !a.startsWith("--"));
   const project = positional[0];
   const entityId = positional[1];

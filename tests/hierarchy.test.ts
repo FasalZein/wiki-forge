@@ -52,6 +52,14 @@ describe("computeStatus", () => {
     expect(computeStatus(slices)).toBe("in-progress");
   });
 
+  test("returns in-progress when one sibling stays active after another is complete", () => {
+    const slices: SliceState[] = [
+      { taskId: "PROJ-001", status: "done", verificationLevel: "test-verified" },
+      { taskId: "PROJ-002", status: "in-progress", verificationLevel: null },
+    ];
+    expect(computeStatus(slices)).toBe("in-progress");
+  });
+
   test("returns needs-verification when all done but not all test-verified", () => {
     const slices: SliceState[] = [
       { taskId: "PROJ-001", status: "done", verificationLevel: "code-verified" },

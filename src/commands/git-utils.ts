@@ -3,6 +3,17 @@ import { projectRoot, requireValue, safeMatter } from "../cli-shared";
 import { exists, readText } from "../lib/fs";
 import { resolveRepoPath } from "../lib/verification";
 
+export type ProjectRepoArgs = {
+  project: string;
+  repo?: string;
+};
+
+export type ProjectRepoBaseArgs = {
+  project: string;
+  repo?: string;
+  base: string;
+};
+
 export async function resolveDefaultBase(project: string, explicitRepo?: string): Promise<string> {
   // 1. Check _summary.md for default_base
   const summaryPath = join(projectRoot(project), "_summary.md");
@@ -23,15 +34,21 @@ export async function resolveDefaultBase(project: string, explicitRepo?: string)
   return "HEAD~1";
 }
 
-export function findProjectArg(args: string[]) {
+export function findProjectArg(args: string[]): string | undefined {
   return args.find((arg, index) => index === 0 || (!arg.startsWith("--") && args[index - 1] !== "--repo" && args[index - 1] !== "--base"));
 }
 
-export async function parseProjectRepoBaseArgs(args: string[]) {
+export function parseProjectRepoArgs(args: string[]): ProjectRepoArgs {
   const project = findProjectArg(args);
   requireValue(project, "project");
   const repoIndex = args.indexOf("--repo");
   const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
+  if (repoIndex >= 0) requireValue(repo, "repo");
+  return { project, repo };
+}
+
+export async function parseProjectRepoBaseArgs(args: string[]): Promise<ProjectRepoBaseArgs> {
+  const { project, repo } = parseProjectRepoArgs(args);
   const baseIndex = args.indexOf("--base");
   const base = baseIndex >= 0 ? args[baseIndex + 1] : await resolveDefaultBase(project, repo);
   if (baseIndex >= 0) requireValue(base, "base");

@@ -238,6 +238,94 @@ describe("wiki automation commands", () => {
     expect(closeoutJson.warnings.some((w: string) => w.includes("suppressed"))).toBe(true);
   });
 
+  test("worktree closeout suppresses stale todo-slice pages outside the active slice", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "gated"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "gated");
+    expect(runWiki(["create-issue-slice", "gated", "active payments work", "--source", "src/payments.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "gated", "future payments work", "--source", "src/payments.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["move-task", "gated", "GATED-001", "--to", "In Progress"], env).exitCode).toBe(0);
+
+    writeFileSync(join(repo, "src", "payments.ts"), "export const total = 99\n", "utf8");
+    writeFileSync(join(repo, "tests", "payments.test.ts"), "import { expect, test } from 'bun:test'\nimport { total } from '../src/payments'\ntest('total', () => expect(total).toBe(99))\n", "utf8");
+
+    const closeout = runWiki(["closeout", "gated", "--repo", repo, "--worktree", "--json"], env);
+    const closeoutJson = JSON.parse(closeout.stdout.toString());
+    const staleWikiPages = closeoutJson.staleImpactedPages.map((p: { wikiPage: string }) => p.wikiPage);
+    expect(staleWikiPages.some((p: string) => p.includes("specs/slices/GATED-001"))).toBe(true);
+    expect(staleWikiPages.some((p: string) => p.includes("specs/slices/GATED-002"))).toBe(false);
+    expect(closeoutJson.suppressedPages.some((p: { page: string }) => p.page.includes("specs/slices/GATED-002"))).toBe(true);
+    expect(closeoutJson.warnings.some((w: string) => w.includes("non-actionable planning page"))).toBe(true);
+  });
+
+  test("worktree closeout suppresses unrelated feature and PRD planning pages outside the active hierarchy", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "gated"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "gated");
+    expect(runWiki(["create-feature", "gated", "active feature"], env).exitCode).toBe(0);
+    expect(runWiki(["create-prd", "gated", "--feature", "FEAT-001", "active prd"], env).exitCode).toBe(0);
+    expect(runWiki(["create-feature", "gated", "future feature"], env).exitCode).toBe(0);
+    expect(runWiki(["create-prd", "gated", "--feature", "FEAT-002", "future prd"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "gated", "active slice", "--prd", "PRD-001", "--source", "src/payments.ts"], env).exitCode).toBe(0);
+
+    const activePrd = join(vault, "projects", "gated", "specs", "prds", "PRD-001-active-prd.md");
+    const futurePrd = join(vault, "projects", "gated", "specs", "prds", "PRD-002-future-prd.md");
+    const activeFeature = join(vault, "projects", "gated", "specs", "features", "FEAT-001-active-feature.md");
+    const futureFeature = join(vault, "projects", "gated", "specs", "features", "FEAT-002-future-feature.md");
+    for (const path of [activePrd, futurePrd, activeFeature, futureFeature]) {
+      writeFileSync(path, readFileSync(path, "utf8").replace("source_paths: []", "source_paths:\n  - src/payments.ts"), "utf8");
+    }
+
+    expect(runWiki(["move-task", "gated", "GATED-001", "--to", "In Progress"], env).exitCode).toBe(0);
+
+    writeFileSync(join(repo, "src", "payments.ts"), "export const total = 99\n", "utf8");
+    writeFileSync(join(repo, "tests", "payments.test.ts"), "import { expect, test } from 'bun:test'\nimport { total } from '../src/payments'\ntest('total', () => expect(total).toBe(99))\n", "utf8");
+
+    const closeout = runWiki(["closeout", "gated", "--repo", repo, "--worktree", "--json"], env);
+    const closeoutJson = JSON.parse(closeout.stdout.toString());
+    const staleWikiPages = closeoutJson.staleImpactedPages.map((p: { wikiPage: string }) => p.wikiPage);
+    expect(staleWikiPages).toContain("specs/prds/PRD-001-active-prd.md");
+    expect(staleWikiPages).toContain("specs/features/FEAT-001-active-feature.md");
+    expect(staleWikiPages).not.toContain("specs/prds/PRD-002-future-prd.md");
+    expect(staleWikiPages).not.toContain("specs/features/FEAT-002-future-feature.md");
+    expect(closeoutJson.suppressedPages.some((p: { page: string }) => p.page === "specs/prds/PRD-002-future-prd.md")).toBe(true);
+    expect(closeoutJson.suppressedPages.some((p: { page: string }) => p.page === "specs/features/FEAT-002-future-feature.md")).toBe(true);
+  });
+
+  test("worktree closeout does not block on code covered only by non-actionable planning pages outside the active hierarchy", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "gated"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "gated");
+    writeFileSync(join(repo, "src", "current.ts"), "export const current = 1\n", "utf8");
+    writeFileSync(join(repo, "tests", "current.test.ts"), "import { expect, test } from 'bun:test'\nimport { current } from '../src/current'\ntest('current', () => expect(current).toBe(1))\n", "utf8");
+
+    expect(runWiki(["create-feature", "gated", "active feature"], env).exitCode).toBe(0);
+    expect(runWiki(["create-prd", "gated", "--feature", "FEAT-001", "active prd"], env).exitCode).toBe(0);
+    expect(runWiki(["create-feature", "gated", "future feature"], env).exitCode).toBe(0);
+    expect(runWiki(["create-prd", "gated", "--feature", "FEAT-002", "future prd"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "gated", "active slice", "--prd", "PRD-001", "--source", "src/current.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["move-task", "gated", "GATED-001", "--to", "In Progress"], env).exitCode).toBe(0);
+    expect(runWiki(["bind", "gated", "specs/prds/PRD-002-future-prd.md", "src/payments.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["bind", "gated", "specs/features/FEAT-002-future-feature.md", "src/payments.ts"], env).exitCode).toBe(0);
+
+    writeFileSync(join(repo, "src", "payments.ts"), "export const total = 99\n", "utf8");
+    writeFileSync(join(repo, "tests", "payments.test.ts"), "import { expect, test } from 'bun:test'\nimport { total } from '../src/payments'\ntest('total', () => expect(total).toBe(99))\n", "utf8");
+
+    const closeout = runWiki(["closeout", "gated", "--repo", repo, "--worktree", "--json"], env);
+    expect(closeout.exitCode).toBe(0);
+    const closeoutJson = JSON.parse(closeout.stdout.toString());
+    expect(closeoutJson.ok).toBe(true);
+    expect(closeoutJson.refreshFromGit.uncoveredFiles).not.toContain("src/payments.ts");
+    expect(closeoutJson.outsideActiveHierarchyFiles).toContain("src/payments.ts");
+    expect(closeoutJson.warnings.some((w: string) => w.includes("outside the active slice hierarchy"))).toBe(true);
+  });
+
   test("worktree closeout treats files covered only by done-slice pages as uncovered", () => {
     const { vault, repo } = setupPassingRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };

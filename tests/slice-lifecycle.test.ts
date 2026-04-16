@@ -135,4 +135,62 @@ describe("wiki slice lifecycle", () => {
     expect(after).toContain("- [ ] **DEMO-001**");
     expect(after).toContain("- [ ] **DEMO-002**");
   });
+
+  test("close-slice --force alone blocks and asks for a second acknowledgement", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    writeFileSync(join(repo, "src", "auth.ts"), "export const a = 1\n", "utf8");
+    expect(runWiki(["create-feature", "demo", "alpha"], env).exitCode).toBe(0);
+    expect(runWiki(["create-prd", "demo", "--feature", "FEAT-001", "alpha prd"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice", "--prd", "PRD-001", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+
+    const planPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "plan.md");
+    const testPlanPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "test-plan.md");
+    writeFileSync(planPath, "---\ntitle: DEMO-001 auth slice\ntype: spec\nspec_kind: plan\nproject: demo\ntask_id: DEMO-001\nparent_prd: PRD-001\nparent_feature: FEAT-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# DEMO-001 auth slice\n\n## Scope\n\n- Ship the auth change\n", "utf8");
+    writeFileSync(testPlanPath, "---\ntitle: DEMO-001 auth slice\ntype: spec\nspec_kind: test-plan\nproject: demo\ntask_id: DEMO-001\nparent_prd: PRD-001\nparent_feature: FEAT-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# DEMO-001 auth slice\n\n## Verification Commands\n\n```bash\nbun test tests/other.test.ts\n```\n", "utf8");
+
+    expect(runWiki(["move-task", "demo", "DEMO-001", "--to", "In Progress"], env).exitCode).toBe(0);
+    expect(runWiki(["verify-slice", "demo", "DEMO-001", "--repo", repo, "--json"], env).exitCode).toBe(0);
+
+    const result = runWiki(["close-slice", "demo", "DEMO-001", "--repo", repo, "--base", "HEAD~1", "--force"], env);
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr.toString()).toContain("--yes-really-force");
+
+    const sliceIndex = readFileSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "index.md"), "utf8");
+    expect(sliceIndex).toContain("status: draft");
+  });
+
+  test("close-slice --force prints exact parent computed_status values", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    writeFileSync(join(repo, "src", "auth-2.ts"), "export const b = 2\n", "utf8");
+    expect(runWiki(["create-feature", "demo", "alpha"], env).exitCode).toBe(0);
+    expect(runWiki(["create-prd", "demo", "--feature", "FEAT-001", "alpha prd"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice", "--prd", "PRD-001", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "sibling slice", "--prd", "PRD-001", "--source", "src/auth-2.ts"], env).exitCode).toBe(0);
+
+    const planPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "plan.md");
+    const testPlanPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "test-plan.md");
+    writeFileSync(planPath, "---\ntitle: DEMO-001 auth slice\ntype: spec\nspec_kind: plan\nproject: demo\ntask_id: DEMO-001\nparent_prd: PRD-001\nparent_feature: FEAT-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# DEMO-001 auth slice\n\n## Scope\n\n- Ship the auth change\n", "utf8");
+    writeFileSync(testPlanPath, "---\ntitle: DEMO-001 auth slice\ntype: spec\nspec_kind: test-plan\nproject: demo\ntask_id: DEMO-001\nparent_prd: PRD-001\nparent_feature: FEAT-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# DEMO-001 auth slice\n\n## Verification Commands\n\n```bash\nbun test tests/other.test.ts\n```\n", "utf8");
+    writeFileSync(
+      join(vault, "projects", "demo", "specs", "slices", "DEMO-002", "index.md"),
+      readFileSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-002", "index.md"), "utf8").replace("status: draft", "status: in-progress"),
+      "utf8",
+    );
+
+    expect(runWiki(["move-task", "demo", "DEMO-001", "--to", "In Progress"], env).exitCode).toBe(0);
+    expect(runWiki(["verify-slice", "demo", "DEMO-001", "--repo", repo, "--json"], env).exitCode).toBe(0);
+
+    const result = runWiki(["close-slice", "demo", "DEMO-001", "--repo", repo, "--base", "HEAD~1", "--force", "--yes-really-force"], env);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.toString()).toContain('parent PRD PRD-001 computed_status="in-progress"');
+    expect(result.stdout.toString()).toContain('parent feature FEAT-001 computed_status="in-progress"');
+  });
 });

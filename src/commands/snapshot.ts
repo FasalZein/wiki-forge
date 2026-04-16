@@ -16,6 +16,25 @@ import { isHistoricalDoneSlicePage } from "./slice-repair";
 import { tailLog } from "../lib/log";
 import { classifyProjectDocPath } from "../lib/structure";
 
+function sliceTaskIdFromPage(page: string) {
+  const match = page.match(/^specs\/slices\/([^/]+)\//u);
+  return match?.[1] ?? null;
+}
+
+function suppressionReasonForWorktreePlanningPage(
+  entry: ProjectSnapshot["pageEntries"][number],
+  scope: { activeTaskId: string | null; actionableSliceIds: Set<string>; activePrd: string | null; activeFeature: string | null },
+): WorktreeImpactedPage["suppressionReason"] | null {
+  if (isHistoricalDoneSlicePage(entry)) return "historical-done-slice";
+  const sliceTaskId = sliceTaskIdFromPage(entry.page);
+  if (sliceTaskId !== null) return scope.actionableSliceIds.has(sliceTaskId) ? null : "non-actionable-planning";
+  if (!scope.activeTaskId) return null;
+  if (entry.page === "_summary.md" || entry.page === "learnings.md" || entry.page === "decisions.md" || entry.page.startsWith("legacy/")) return "non-actionable-planning";
+  if (entry.page.startsWith("specs/prds/")) return entry.parsed?.data.prd_id === scope.activePrd ? null : "non-actionable-planning";
+  if (entry.page.startsWith("specs/features/")) return entry.parsed?.data.feature_id === scope.activeFeature ? null : "non-actionable-planning";
+  return null;
+}
+
 export type ProjectSnapshot = {
   project: string;
   root: string;
@@ -51,6 +70,7 @@ export type WorktreeImpactedPage = {
   stale: boolean;
   pageUpdated: string;
   lastSourceChange: string;
+  suppressionReason?: "historical-done-slice" | "non-actionable-planning";
 };
 
 export async function loadProjectSnapshot(project: string, explicitRepo?: string, options: { includeRepoInventory?: boolean } = {}): Promise<ProjectSnapshot> {
@@ -133,17 +153,30 @@ export async function collectRefreshFromWorktree(project: string, explicitRepo?:
   const state = snapshot ?? await loadProjectSnapshot(project, explicitRepo);
   const changedFiles = await worktreeChangedFiles(state.repo);
   const changedFileSet = new Set(changedFiles);
+  const focus = await collectBacklogFocus(project);
+  const activeTaskId = focus.activeTask?.id ?? null;
+  const actionableSliceIds = new Set(focus.inProgress.map((task) => task.id));
+  const activeSliceEntry = activeTaskId
+    ? state.pageEntries.find((entry) => entry.page === `specs/slices/${activeTaskId}/index.md`)
+    : null;
+  const activePrd = typeof activeSliceEntry?.parsed?.data.parent_prd === "string" ? activeSliceEntry.parsed.data.parent_prd : null;
+  const activeFeature = typeof activeSliceEntry?.parsed?.data.parent_feature === "string" ? activeSliceEntry.parsed.data.parent_feature : null;
   const impactedPages: WorktreeImpactedPage[] = [];
   const suppressedPages: WorktreeImpactedPage[] = [];
   const coveredByActionable = new Set<string>();
-  const coveredBySuppressed = new Set<string>();
+  const coveredByHistoricalSuppressed = new Set<string>();
+  const coveredByNonActionablePlanning = new Set<string>();
   for (const entry of state.pageEntries) {
     if (!entry.parsed) continue;
     const matchedSourcePaths = entry.sourcePaths.filter((sourcePath) => [...changedFileSet].some((file) => bindingMatchesFile(sourcePath, file)));
     if (!matchedSourcePaths.length) continue;
     const matchedFiles = changedFiles.filter((candidate) => matchedSourcePaths.some((sourcePath) => bindingMatchesFile(sourcePath, candidate)));
-    const suppressed = isHistoricalDoneSlicePage(entry);
-    for (const file of matchedFiles) (suppressed ? coveredBySuppressed : coveredByActionable).add(file);
+    const suppressionReason = suppressionReasonForWorktreePlanningPage(entry, { activeTaskId, actionableSliceIds, activePrd, activeFeature });
+    for (const file of matchedFiles) {
+      if (!suppressionReason) coveredByActionable.add(file);
+      else if (suppressionReason === "historical-done-slice") coveredByHistoricalSuppressed.add(file);
+      else coveredByNonActionablePlanning.add(file);
+    }
     const pageUpdated = parseEntryUpdated(entry.rawUpdated);
     const lastModified = matchedFiles
       .map((file) => worktreeModifiedAt(state.repo, file))
@@ -158,10 +191,11 @@ export async function collectRefreshFromWorktree(project: string, explicitRepo?:
       stale,
       pageUpdated: String(entry.rawUpdated ?? "missing"),
       lastSourceChange: typeof lastModified === "number" ? new Date(lastModified).toISOString() : "unknown",
+      ...(suppressionReason ? { suppressionReason } : {}),
     };
-    (suppressed ? suppressedPages : impactedPages).push(pageData);
+    (suppressionReason ? suppressedPages : impactedPages).push(pageData);
   }
-  // Files covered only by suppressed historical slice pages are effectively uncovered.
+  const outsideActiveHierarchyFiles = changedFiles.filter((file) => isCodeFile(file) && !coveredByActionable.has(file) && coveredByNonActionablePlanning.has(file));
   const testHealth = collectChangedTestHealth(changedFiles);
   return {
     project,
@@ -170,7 +204,8 @@ export async function collectRefreshFromWorktree(project: string, explicitRepo?:
     changedFiles,
     impactedPages,
     suppressedPages,
-    uncoveredFiles: changedFiles.filter((file) => isCodeFile(file) && !coveredByActionable.has(file)),
+    outsideActiveHierarchyFiles,
+    uncoveredFiles: changedFiles.filter((file) => isCodeFile(file) && !coveredByActionable.has(file) && !coveredByNonActionablePlanning.has(file)),
     testHealth,
   };
 }
@@ -222,7 +257,9 @@ export async function collectCloseout(project: string, base: string, explicitRep
   if (!options.worktree && staleImpactedPages.length > 0) warnings.push(`${staleImpactedPages.length} impacted page(s) are stale or otherwise drifted`);
   if (refreshFromGit.uncoveredFiles.length > 0) warnings.push(`${refreshFromGit.uncoveredFiles.length} changed file(s) are not covered by wiki bindings`);
   const suppressedPages = options.worktree && "suppressedPages" in refreshFromGit ? (refreshFromGit as { suppressedPages: WorktreeImpactedPage[] }).suppressedPages : [];
-  if (suppressedPages.length > 0) warnings.push(`${suppressedPages.length} historical done-slice page(s) suppressed from stale check`);
+  const outsideActiveHierarchyFiles = options.worktree && "outsideActiveHierarchyFiles" in refreshFromGit ? (refreshFromGit as { outsideActiveHierarchyFiles: string[] }).outsideActiveHierarchyFiles : [];
+  if (suppressedPages.length > 0) warnings.push(`${suppressedPages.length} non-actionable planning page(s) suppressed from stale check`);
+  if (outsideActiveHierarchyFiles.length > 0) warnings.push(`${outsideActiveHierarchyFiles.length} changed code file(s) belong to non-actionable planning pages outside the active slice hierarchy`);
   return {
     project,
     repo: refreshFromGit.repo,
@@ -232,6 +269,7 @@ export async function collectCloseout(project: string, base: string, explicitRep
     drift,
     staleImpactedPages,
     suppressedPages,
+    outsideActiveHierarchyFiles,
     lint,
     semanticLint,
     blockers,

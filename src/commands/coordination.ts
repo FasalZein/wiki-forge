@@ -1,6 +1,4 @@
-import { requireValue } from "../cli-shared";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
-import { resolveDefaultBase } from "./maintenance";
 
 export type DirtyRepoStatus = {
   modifiedFiles: string[];
@@ -8,16 +6,7 @@ export type DirtyRepoStatus = {
   stagedFiles: string[];
 };
 
-export async function parseProjectRepoBaseArgs(args: string[]) {
-  const project = args[0];
-  requireValue(project, "project");
-  const repoIndex = args.indexOf("--repo");
-  const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
-  const baseIndex = args.indexOf("--base");
-  const base = baseIndex >= 0 ? args[baseIndex + 1] : await resolveDefaultBase(project, repo);
-  if (baseIndex >= 0) requireValue(base, "base");
-  return { project, repo, base };
-}
+export { parseProjectRepoBaseArgs } from "./git-utils";
 
 export function defaultAgentName() {
   return process.env.PI_AGENT_NAME || process.env.CLAUDE_AGENT_NAME || process.env.USER || "agent";

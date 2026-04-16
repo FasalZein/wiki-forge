@@ -125,6 +125,26 @@ describe("wiki start-feature", () => {
 // ─── close-feature ────────────────────────────────────────────────────────────
 
 describe("wiki close-feature", () => {
+  test("--force alone blocks and asks for a second acknowledgement", () => {
+    const vault = tempDir("close-feat-force-blocked");
+    initVault(vault);
+    const { featuresDir } = setupProjectWithFeatureAndPrd(vault, "proj");
+    writeFileSync(
+      join(featuresDir, "FEAT-001-alpha.md"),
+      `---\ntitle: FEAT-001\ntype: spec\nspec_kind: feature\nproject: proj\nfeature_id: FEAT-001\nstatus: in-progress\nstarted_at: 2026-01-01T00:00:00.000Z\n---\n# FEAT-001\n`,
+      "utf8",
+    );
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    const result = runWiki(["close-feature", "proj", "FEAT-001", "--force"], env);
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr.toString()).toContain("--yes-really-force");
+
+    const content = readFileSync(join(featuresDir, "FEAT-001-alpha.md"), "utf8");
+    expect(content).toContain("status: in-progress");
+    expect(content).not.toContain("completed_at:");
+  });
+
   test("--force closes feature regardless of computed status", () => {
     const vault = tempDir("close-feat-force");
     initVault(vault);
@@ -137,9 +157,10 @@ describe("wiki close-feature", () => {
     );
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
 
-    const result = runWiki(["close-feature", "proj", "FEAT-001", "--force"], env);
+    const result = runWiki(["close-feature", "proj", "FEAT-001", "--force", "--yes-really-force"], env);
     expect(result.exitCode).toBe(0);
     expect(result.stdout.toString()).toContain("closed feature FEAT-001 (forced)");
+    expect(result.stdout.toString()).toContain('computed_status="not-started"');
 
     const content = readFileSync(join(featuresDir, "FEAT-001-alpha.md"), "utf8");
     expect(content).toContain("status: complete");
@@ -235,6 +256,26 @@ describe("wiki start-prd", () => {
 // ─── close-prd ───────────────────────────────────────────────────────────────
 
 describe("wiki close-prd", () => {
+  test("--force alone blocks and asks for a second acknowledgement", () => {
+    const vault = tempDir("close-prd-force-blocked");
+    initVault(vault);
+    const { prdsDir } = setupProjectWithFeatureAndPrd(vault, "proj");
+    writeFileSync(
+      join(prdsDir, "PRD-001-alpha.md"),
+      `---\ntitle: PRD-001\ntype: spec\nspec_kind: prd\nproject: proj\nprd_id: PRD-001\nstatus: in-progress\nstarted_at: 2026-01-01T00:00:00.000Z\n---\n# PRD-001\n`,
+      "utf8",
+    );
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    const result = runWiki(["close-prd", "proj", "PRD-001", "--force"], env);
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr.toString()).toContain("--yes-really-force");
+
+    const content = readFileSync(join(prdsDir, "PRD-001-alpha.md"), "utf8");
+    expect(content).toContain("status: in-progress");
+    expect(content).not.toContain("completed_at:");
+  });
+
   test("--force closes PRD regardless of computed status", () => {
     const vault = tempDir("close-prd-force");
     initVault(vault);
@@ -246,9 +287,10 @@ describe("wiki close-prd", () => {
     );
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
 
-    const result = runWiki(["close-prd", "proj", "PRD-001", "--force"], env);
+    const result = runWiki(["close-prd", "proj", "PRD-001", "--force", "--yes-really-force"], env);
     expect(result.exitCode).toBe(0);
     expect(result.stdout.toString()).toContain("closed prd PRD-001 (forced)");
+    expect(result.stdout.toString()).toContain('computed_status="not-started"');
 
     const content = readFileSync(join(prdsDir, "PRD-001-alpha.md"), "utf8");
     expect(content).toContain("status: complete");

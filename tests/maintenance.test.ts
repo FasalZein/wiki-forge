@@ -1,5 +1,34 @@
 import { describe, expect, test } from "bun:test";
-import { isTestFile } from "../src/commands/maintenance";
+import { findProjectArg, isTestFile, parseProjectRepoArgs, parseProjectRepoBaseArgs } from "../src/commands/maintenance";
+
+describe("findProjectArg", () => {
+  test("keeps the leading project arg while ignoring repo/base flag values later", () => {
+    expect(findProjectArg(["wiki-forge", "--repo", "/tmp/repo", "--base", "main", "--json"])).toBe("wiki-forge");
+  });
+});
+
+describe("parseProjectRepoArgs", () => {
+  test("parses project and repo while ignoring trailing flags", () => {
+    expect(parseProjectRepoArgs(["wiki-forge", "--repo", "/tmp/repo", "--json"])).toEqual({ project: "wiki-forge", repo: "/tmp/repo" });
+  });
+
+  test("throws when --repo has no value", () => {
+    expect(() => parseProjectRepoArgs(["wiki-forge", "--repo"]))
+      .toThrow("missing repo");
+  });
+});
+
+describe("parseProjectRepoBaseArgs", () => {
+  test("parses explicit base without needing repo inspection", async () => {
+    await expect(parseProjectRepoBaseArgs(["wiki-forge", "--repo", "/tmp/repo", "--base", "main", "--json"]))
+      .resolves.toEqual({ project: "wiki-forge", repo: "/tmp/repo", base: "main" });
+  });
+
+  test("throws when --base has no value", async () => {
+    await expect(parseProjectRepoBaseArgs(["wiki-forge", "--base"]))
+      .rejects.toThrow("missing base");
+  });
+});
 
 describe("isTestFile", () => {
   test("identifies files in tests/ directory", () => {
