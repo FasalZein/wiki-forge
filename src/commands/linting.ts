@@ -200,6 +200,10 @@ export async function collectSemanticLintResult(project: string, snapshot?: Lint
     const rel = `${relNoExt}.md`;
     if (!rel.endsWith("_summary.md") && !rel.endsWith("specs/index.md") && inboundCount === 0) issues.push(`${rel} orphan page: no inbound links`);
     if (!rel.endsWith("_summary.md") && outboundCount === 0) issues.push(`${rel} dead-end page: no outgoing links`);
+    // Orphaned slice check (WIKI-FORGE-076)
+    if (entry.parsed?.data.spec_kind === "task-hub" && !entry.parsed.data.parent_prd) {
+      issues.push(`${rel} orphaned-slice: no parent_prd in frontmatter`);
+    }
   }
   return { project, issues };
 }

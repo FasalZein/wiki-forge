@@ -18,6 +18,9 @@ export async function createIssueSlice(args: string[]) {
   const options = parseTaskArgs(args);
   if (options.assignee) await assertKnownAgent(options.project, options.assignee);
   const prd = options.parentPrd ? await resolvePrdRecord(options.project, options.parentPrd) : null;
+  if (!prd) {
+    console.warn("[warn] no --prd provided; slice will be orphaned and excluded from hierarchy status");
+  }
   const appended = await appendTaskToBacklog(options);
   const title = `${appended.taskId.toLowerCase()} ${options.title}`;
   const slicePaths = await createSlicePaths(options.project, appended.taskId);
