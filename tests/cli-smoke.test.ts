@@ -325,6 +325,11 @@ describe("wiki CLI smoke", () => {
     expect(dashboardContent).toContain("[[projects/beta/backlog|backlog]]");
     expect(rootIndexContent).toContain("[[projects/_dashboard|Project Dashboard]]");
     expect(rootIndexContent).toContain("[[projects/beta/_summary|beta]]");
+
+    expect(runWiki(["start-slice", "alpha", "ALPHA-001", "--agent", "pi", "--repo", repo], env).exitCode).toBe(0);
+    expect(runWiki(["update-index", "alpha", "--write"], env).exitCode).toBe(0);
+    dashboardContent = readFileSync(join(vault, "projects", "_dashboard.md"), "utf8");
+    expect(dashboardContent).toContain("ALPHA-001 dashboard slice");
   });
 
   test("create-issue-slice inherits source_paths from parent prd", () => {
@@ -651,6 +656,9 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("wiki protocol sync <project> [--repo <path>] [--json]");
     expect(output).toContain("wiki protocol audit <project> [--repo <path>] [--json]");
     expect(output).toContain("wiki install-git-hook <project> [--repo <path>] [--hook <name>] [--force] [--json]");
+    expect(output).toContain("wiki close-feature <project> <FEAT-ID> [--force] [--yes-really-force]");
+    expect(output).toContain("wiki close-prd <project> <PRD-ID> [--force] [--yes-really-force]");
+    expect(output).toContain("wiki close-slice <project> <slice-id> [--repo <path>] [--base <rev>] [--worktree] [--force] [--yes-really-force] [--json]");
     expect(output).toContain("wiki refresh-on-merge <project> [--repo <path>] [--base <rev>] [--json] [--verbose]");
     expect(output).toContain("wiki ask <project> [--expand] [--verbose] [-n <num>] <question...>");
     expect(output).toContain("wiki file-answer <project> [--expand] [--verbose] [--slug <slug>] [-n <num>] <question...>");
@@ -664,11 +672,13 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("research audit layers dead-link checks and influenced_by coverage");
     expect(output).toContain("protocol sync/audit manage repo-root (and optional nested) AGENTS.md / CLAUDE.md files from a short wiki-forge-managed agent protocol block");
     expect(output).toContain("closeout composes refresh-from-git, drift, lint, semantic lint, and gate into one compact review surface; use --worktree to evaluate dirty files instead of committed diff ranges");
+    expect(output).toContain("close-feature / close-prd set status=complete and completed_at; gates on computed status unless --force; --force is intentionally two-step and requires --yes-really-force");
     expect(output).toContain("checkpoint is the git-independent freshness check: it compares worktree mtimes against bound wiki pages and reports stale pages plus unbound changed files");
     expect(output).toContain("lint-repo flags repo-owned markdown files outside the allowed set");
     expect(output).toContain("protocol sync prepends a managed agent protocol block to AGENTS.md / CLAUDE.md and preserves local notes below it; declare nested scopes in projects/<project>/_summary.md frontmatter protocol_scopes: [...]");
     expect(output).toContain("protocol audit reports missing or stale managed protocol files for the expected scopes");
     expect(output).toContain("start-slice is the lifecycle entry point: it checks dependencies, registers the claim, moves the backlog item to In Progress, stamps started_at, and prints a compact plan summary");
+    expect(output).toContain("close-slice runs the project gate, marks slice docs done, records completed_at, moves the slice to Done, and refreshes navigation indexes; use --worktree to close against dirty agent changes before commit; --force is intentionally two-step and requires --yes-really-force");
     expect(output).toContain("export-prompt prints a self-contained execution prompt for codex, claude, or pi without writing into the project repo");
     expect(output).toContain("resume prints a quick session pickup view: recent commits, dirty files, stale pages, active slice, and next actions");
     expect(output).toContain("install-git-hook writes a repo-local hook that runs wiki commit-check before commit");

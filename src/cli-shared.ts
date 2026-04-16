@@ -5,6 +5,8 @@ import matter from "gray-matter";
 import { PROJECT_FILES, VAULT_ROOT, VAULT_ROOT_ENV } from "./constants";
 import type { FrontmatterData } from "./types";
 
+export const FORCE_CONFIRM_FLAG = "--yes-really-force";
+
 export function printHelp() {
   console.log(`wiki CLI
 
@@ -32,9 +34,9 @@ Usage:
   wiki create-prd <project> --feature <FEAT-ID> <name...> [--supersedes <PRD-ID>] [--split-from <PRD-ID>]
   wiki feature-status <project> [--json]
   wiki start-feature <project> <FEAT-ID>
-  wiki close-feature <project> <FEAT-ID> [--force]
+  wiki close-feature <project> <FEAT-ID> [--force] [--yes-really-force]
   wiki start-prd <project> <PRD-ID>
-  wiki close-prd <project> <PRD-ID> [--force]
+  wiki close-prd <project> <PRD-ID> [--force] [--yes-really-force]
   wiki create-plan <project> <name...>
   wiki create-test-plan <project> <name...>
   wiki create-module <project> <module> [--source <path...>]
@@ -62,7 +64,7 @@ Usage:
   wiki next <project> [--json]
   wiki start-slice <project> <slice-id> [--agent <name>] [--repo <path>] [--json]
   wiki verify-slice <project> <slice-id> [--repo <path>] [--json]
-  wiki close-slice <project> <slice-id> [--repo <path>] [--base <rev>] [--worktree] [--force] [--json]
+  wiki close-slice <project> <slice-id> [--repo <path>] [--base <rev>] [--worktree] [--force] [--yes-really-force] [--json]
   wiki pipeline <project> <slice-id> --phase <close|verify> [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
   wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]
   wiki resume <project> [--repo <path>] [--base <rev>] [--json]
@@ -114,7 +116,7 @@ Notes:
   - create-prd requires --feature, allocates an immutable project-scoped PRD ID (PRD-001), and scaffolds a canonical PRD under projects/<project>/specs/prds/
   - feature-status shows a table of features and PRDs with computed hierarchy statuses (not-started, in-progress, needs-verification, complete)
   - start-feature / start-prd set status=in-progress and started_at; auto-triggered by start-slice when a parent is still not-started
-  - close-feature / close-prd set status=complete and completed_at; gates on computed status unless --force; auto-triggered by close-slice when all children are complete
+  - close-feature / close-prd set status=complete and completed_at; gates on computed status unless --force; --force is intentionally two-step and requires --yes-really-force; auto-triggered by close-slice when all children are complete
   - create-plan / create-test-plan scaffold standalone planning docs under projects/<project>/specs/ and keep them visible in specs/index.md
   - onboard writes the scaffold and can also write a project-specific onboarding plan when --repo is provided
   - onboard-plan renders the canonical onboarding slices and can write a project-specific plan file
@@ -132,7 +134,7 @@ Notes:
   - next recommends the highest-priority active or ready slice, skipping slices blocked by depends_on
   - start-slice is the lifecycle entry point: it checks dependencies, registers the claim, moves the backlog item to In Progress, stamps started_at, and prints a compact plan summary
   - verify-slice runs shell command blocks from a slice test-plan and promotes the test-plan to test-verified on success
-  - close-slice runs the project gate, marks slice docs done, records completed_at, moves the slice to Done, and refreshes navigation indexes; use --worktree to close against dirty agent changes before commit; use --force to skip gate/closeout blockers when they originate from unrelated cross-slice work (slice-level prerequisites are still enforced)
+  - close-slice runs the project gate, marks slice docs done, records completed_at, moves the slice to Done, and refreshes navigation indexes; use --worktree to close against dirty agent changes before commit; --force is intentionally two-step and requires --yes-really-force so agents pause before skipping gate/closeout blockers from unrelated cross-slice work (slice-level prerequisites are still enforced)
   - pipeline automates mechanical workflow steps so agents only fill content; --phase close runs checkpoint, lint-repo, maintain, update-index; --phase verify runs verify-slice, closeout, gate, close-slice; steps are tracked in sqlite and skipped on re-run; --dry-run shows what would execute
   - export-prompt prints a self-contained execution prompt for codex, claude, or pi without writing into the project repo
   - resume prints a quick session pickup view: recent commits, dirty files, stale pages, active slice, and next actions
@@ -300,6 +302,17 @@ export function fail(message: string, exitCode = 1): never {
   const error = new Error(message) as Error & { exitCode: number };
   error.exitCode = exitCode;
   throw error;
+}
+
+export function requireForceAcknowledgement(args: string[], command: string): boolean {
+  const force = args.includes("--force");
+  if (force && !args.includes(FORCE_CONFIRM_FLAG)) {
+    fail(
+      `blocked ${command}: --force requires a second acknowledgement (${FORCE_CONFIRM_FLAG}) so you stop and rethink the override first`,
+      2,
+    );
+  }
+  return force;
 }
 
 export function today() {

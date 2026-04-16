@@ -5,7 +5,8 @@ import { fail, requireValue } from "../cli-shared";
 import { exists } from "../lib/fs";
 import { parseUpdatedDate, resolveRepoPath, assertGitRepo } from "../lib/verification";
 import { collectGate } from "./diagnostics";
-import { collectRefreshFromGit, loadProjectSnapshot, resolveDefaultBase } from "./maintenance";
+import { collectRefreshFromGit, loadProjectSnapshot } from "./maintenance";
+import { parseProjectRepoArgs, parseProjectRepoBaseArgs, gitLines, normalizeRelPath, bindingMatchesFile } from "./git-utils";
 import { collectDriftSummary } from "./verification";
 
 export async function commitCheck(args: string[]) {
@@ -227,38 +228,6 @@ async function collectRefreshOnMerge(project: string, base: string, explicitRepo
   return { project, repo: refresh.repo, base, ok: gate.ok && staleImpactedPages.length === 0, changedFiles: refresh.changedFiles, impactedPages: refresh.impactedPages, staleImpactedPages, uncoveredFiles: refresh.uncoveredFiles, gate };
 }
 
-function parseProjectRepoArgs(args: string[]) {
-  const project = args[0];
-  requireValue(project, "project");
-  const repoIndex = args.indexOf("--repo");
-  const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
-  if (repoIndex >= 0) requireValue(repo, "repo");
-  return { project, repo };
-}
-
-async function parseProjectRepoBaseArgs(args: string[]) {
-  const { project, repo } = parseProjectRepoArgs(args);
-  const baseIndex = args.indexOf("--base");
-  const base = baseIndex >= 0 ? args[baseIndex + 1] : await resolveDefaultBase(project, repo);
-  if (baseIndex >= 0) requireValue(base, "base");
-  return { project, repo, base };
-}
-
-async function gitLines(repo: string, command: string[]) {
-  const proc = await Bun.$`git ${command}`.cwd(repo).nothrow().quiet();
-  if (proc.exitCode !== 0) throw new Error(proc.stderr.toString().trim() || `git ${command.join(" ")} failed`);
-  return proc.stdout.toString().replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean);
-}
-
-function normalizeRelPath(value: string) {
-  return value.replaceAll("\\", "/");
-}
-
-function bindingMatchesFile(binding: string, file: string) {
-  const normalizedBinding = normalizeRelPath(binding).replace(/\/+$/u, "");
-  const normalizedFile = normalizeRelPath(file);
-  return normalizedFile === normalizedBinding || normalizedFile.startsWith(`${normalizedBinding}/`);
-}
 
 function isWorktreeSourceNewer(repo: string, sourcePath: string, updated: Date | null) {
   if (!updated) return true;

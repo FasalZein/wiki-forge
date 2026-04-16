@@ -5,7 +5,7 @@ import { mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, sa
 import { exists, listDirs, readText, writeText } from "../lib/fs";
 import { tailLog, appendLogEntry } from "../lib/log";
 import { projectSpecsIndexPath, projectSpecViewIndexPath, workspaceIndexPath, workspaceProjectsDashboardPath } from "../lib/structure";
-import { collectBacklogFocus } from "./backlog";
+import { collectBacklogFocus } from "./backlog-collect";
 import { collectStatusRow, loadLintingSnapshot } from "./linting";
 import {
   buildProjectPageIndex,

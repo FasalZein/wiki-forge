@@ -1,7 +1,7 @@
 // Facade: re-exports all public names from the split maintenance modules.
 // External callers import from here unchanged.
 
-export { resolveDefaultBase, findProjectArg, parseProjectRepoBaseArgs, gitChangedFiles, gitLines, normalizeRelPath, bindingMatchesFile, worktreeChangedFiles, worktreeModifiedAt, parseEntryUpdated, gitMarkdownStatusFingerprint } from "./git-utils";
+export { resolveDefaultBase, findProjectArg, parseProjectRepoArgs, parseProjectRepoBaseArgs, gitChangedFiles, gitLines, normalizeRelPath, bindingMatchesFile, worktreeChangedFiles, worktreeModifiedAt, parseEntryUpdated, gitMarkdownStatusFingerprint } from "./git-utils";
 
 export { SCAFFOLD_DIRS, DEFAULT_CODE_PATTERNS, listCodeFiles, listRepoMarkdownDocs, isAllowedRepoMarkdownDoc, buildDirectoryTree, readCodePaths } from "./repo-scan";
 

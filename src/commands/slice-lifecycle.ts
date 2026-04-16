@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import { relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
-import { assertExists, fail, nowIso, orderFrontmatter, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
+import { assertExists, fail, nowIso, orderFrontmatter, requireForceAcknowledgement, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { exists, readText } from "../lib/fs";
 import { agentNamesEqual } from "../lib/agents";
 import { appendLogEntry } from "../lib/log";
@@ -15,7 +15,7 @@ import { collectCloseout, isTestFile, resolveDefaultBase } from "./maintenance";
 import { writeProjectIndex } from "./index-log";
 import { applyVerificationLevel } from "./verification-shared";
 import { summarizePlan } from "./note-export";
-import { lifecycleClose, lifecycleOpen } from "./hierarchy-commands";
+import { computeEntityStatus, lifecycleClose, lifecycleOpen } from "./hierarchy-commands";
 
 type ClaimConflict = {
   taskId: string;
@@ -284,9 +284,11 @@ export async function closeSlice(args: string[]) {
   const json = args.includes("--json");
   const worktree = args.includes("--worktree");
   const forceReview = args.includes("--force-review");
-  // --force is kept as a superset that also skips the gate; --force-review
-  // bypasses only the closeout REVIEW PASS block.
-  const force = args.includes("--force") || forceReview;
+  // --force-review is a narrower bypass for closeout REVIEW PASS only; it is
+  // already intentionally explicit, so no second-step is required.
+  // --force is the superset bypass; it requires --yes-really-force as a
+  // two-step acknowledgement to prevent accidental skips.
+  const force = forceReview || requireForceAcknowledgement(args, "close-slice");
 
   const context = await collectTaskContextForId(project, sliceId);
   if (!context) throw new Error(`slice not found in backlog: ${sliceId}`);
@@ -364,14 +366,32 @@ export async function closeSlice(args: string[]) {
     } catch { /* non-fatal */ }
   }
 
+  const forceWarnings: Array<{ label: string; status: string }> = [];
+  if (force) {
+    if (closeSliceParentPrd) {
+      const prdStatus = await computeEntityStatus(project, closeSliceParentPrd, "prd");
+      if (prdStatus !== "complete") forceWarnings.push({ label: `parent PRD ${closeSliceParentPrd}`, status: prdStatus });
+    }
+    if (closeSliceParentFeature) {
+      const featureStatus = await computeEntityStatus(project, closeSliceParentFeature, "feature");
+      if (featureStatus !== "complete") forceWarnings.push({ label: `parent feature ${closeSliceParentFeature}`, status: featureStatus });
+    }
+  }
+
   const result = { project, sliceId, closed: true, ...(compactGate ? { gate: compactGate } : {}), previousSection: context.section, completedAt, force };
   if (json) console.log(JSON.stringify(result, null, 2));
   else {
     console.log(`closed ${sliceId}${force ? " (forced)" : ""}`);
     if (force) {
       console.log(`\nWarning: --force skipped closeout and gate checks.`);
-      console.log(`The slice status is now "done", but parent PRD/feature computed_status`);
-      console.log(`may still show "needs-verification" if slice docs are not test-verified.`);
+      for (const warning of forceWarnings) {
+        console.log(`Warning: --force overrode ${warning.label} computed_status="${warning.status}".`);
+      }
+      if (forceWarnings.length) {
+        console.log(`The slice frontmatter now says status=done, but feature-status`);
+        console.log(`will still show the parent computed_status values above until child pages`);
+        console.log(`are all done AND test-verified.`);
+      }
       console.log(`To fully complete the hierarchy:`);
       console.log(`  1. wiki verify-page ${project} <slice-pages> test-verified`);
       console.log(`  2. wiki verify-page ${project} <prd-page> test-verified`);

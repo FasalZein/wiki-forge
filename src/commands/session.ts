@@ -2,6 +2,7 @@ import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter } from "../cli-shared";
+import { parseProjectRepoBaseArgs } from "./git-utils";
 import { ensureDir, exists, readText, writeText } from "../lib/fs";
 import { tailLog } from "../lib/log";
 import { collectSessionActivity, resolveAgent, resolveSessionId } from "../lib/tracker";
@@ -15,17 +16,6 @@ type DirtyRepoStatus = {
   untrackedFiles: string[];
   stagedFiles: string[];
 };
-
-async function parseProjectRepoBaseArgs(args: string[]) {
-  const project = args[0];
-  requireValue(project, "project");
-  const repoIndex = args.indexOf("--repo");
-  const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
-  const baseIndex = args.indexOf("--base");
-  const base = baseIndex >= 0 ? args[baseIndex + 1] : await resolveDefaultBase(project, repo);
-  if (baseIndex >= 0) requireValue(base, "base");
-  return { project, repo, base };
-}
 
 async function collectDirtyRepoStatus(repo: string): Promise<DirtyRepoStatus> {
   await assertGitRepo(repo);
