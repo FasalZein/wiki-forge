@@ -135,8 +135,9 @@ export async function handoverProject(args: string[]) {
     actions: maintain.actions.slice(0, 12),
     recentNotes: recentNotes.map(compactLogEntry),
   };
+  const nextSessionPrompt = buildNextSessionPrompt(result);
   if (json) {
-    console.log(JSON.stringify(result, null, 2));
+    console.log(JSON.stringify({ ...result, nextSessionPrompt }, null, 2));
     return;
   }
   console.log(`handover for ${options.project}:`);
@@ -170,6 +171,10 @@ export async function handoverProject(args: string[]) {
     console.log(`- agent notes:`);
     for (const entry of recentNotes) console.log(`    ${compactLogEntry(entry)}`);
   }
+  // --- next session prompt ---
+  console.log("");
+  console.log("--- next session prompt ---");
+  console.log(buildNextSessionPrompt(result));
 }
 
 export async function claimSlice(args: string[]) {
@@ -831,6 +836,50 @@ function compactLogEntry(entry: string) {
   const header = lines[0]?.replace(/^##\s+/u, "") ?? entry;
   const details = lines.slice(1).filter((line) => !line.startsWith("- project: "));
   return [header, ...details].join(" | ");
+}
+
+function buildNextSessionPrompt(result: {
+  project: string;
+  repo: string;
+  base: string;
+  focus: { activeTask: { id: string; title: string } | null; recommendedTask: { id: string; title: string } | null; warnings: string[] };
+  dirty: { modifiedFiles: string[]; untrackedFiles: string[]; stagedFiles: string[] };
+  actions: Array<{ kind: string; message: string }>;
+  recentNotes: string[];
+  recentCommits: string[];
+}): string {
+  const lines: string[] = [];
+  lines.push(`Continue work on ${result.project}. Repo: ${result.repo}`);
+  lines.push(`Start with: wiki resume ${result.project} --repo ${result.repo} --base ${result.base}`);
+  lines.push("");
+
+  // dirty state warning
+  if (result.dirty.modifiedFiles.length || result.dirty.untrackedFiles.length) {
+    lines.push(`Warning: ${result.dirty.modifiedFiles.length} modified, ${result.dirty.untrackedFiles.length} untracked files — review and commit or discard before starting new work.`);
+  }
+
+  // what to work on
+  if (result.focus.activeTask) {
+    lines.push(`Active slice: ${result.focus.activeTask.id} — ${result.focus.activeTask.title}. Continue this first.`);
+  } else if (result.focus.recommendedTask) {
+    lines.push(`Next slice: ${result.focus.recommendedTask.id} — ${result.focus.recommendedTask.title}. Start with wiki start-slice.`);
+  }
+
+  // top priorities from actions (skip move-doc-to-wiki noise)
+  const priorityActions = result.actions.filter((a) => !a.kind.startsWith("move-doc")).slice(0, 3);
+  if (priorityActions.length) {
+    lines.push("");
+    lines.push("Priorities:");
+    for (const action of priorityActions) lines.push(`- [${action.kind}] ${action.message}`);
+  }
+
+  // most recent note (context from previous agent)
+  if (result.recentNotes.length) {
+    lines.push("");
+    lines.push(`Previous agent note: ${result.recentNotes[0]}`);
+  }
+
+  return lines.join("\n");
 }
 
 function renderSessionActivity(activity: import("../lib/tracker").SessionSummary) {
