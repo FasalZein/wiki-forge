@@ -641,7 +641,7 @@ async function listRepoMarkdownDocs(repo: string) {
   const files = new Set<string>();
   const visit = (dir: string, prefix = "") => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (entry.name === ".git" || entry.name === "node_modules" || entry.name === "dist" || entry.name === "build" || entry.name === "coverage" || entry.name === ".next") continue;
+      if (entry.name === ".git" || entry.name === ".claude" || entry.name === "node_modules" || entry.name === "dist" || entry.name === "build" || entry.name === "coverage" || entry.name === ".next") continue;
       const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
       const absolute = join(dir, entry.name);
       if (entry.isDirectory()) {

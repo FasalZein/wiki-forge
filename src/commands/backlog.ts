@@ -91,7 +91,7 @@ export async function createIssueSlice(args: string[]) {
   const slicePaths = createSlicePaths(options.project, appended.taskId);
   await ensureSliceDocsMissing(appended.taskId, slicePaths);
   const sourcePaths = options.sourcePaths.length ? options.sourcePaths : (prd?.sourcePaths ?? []);
-  if (!options.sourcePaths.length && prd && prd.sourcePaths.length > 3) {
+  if (!options.sourcePaths.length && prd && prd.sourcePaths.length > 5) {
     console.warn(`warning: ${prd.prdId} has ${prd.sourcePaths.length} inherited source_paths; consider --source for a narrower slice binding`);
   }
 

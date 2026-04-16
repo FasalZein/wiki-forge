@@ -113,8 +113,13 @@ export function parseWikiMarkdown(body: string): ParsedWikiMarkdown {
  * Returns targets, anchors, and aliases.
  */
 export function extractWikilinks(body: string): WikiLink[] {
+  // Strip fenced code blocks and inline code spans so wikilinks inside
+  // code contexts (e.g. `[[example]]`) are not treated as real links.
+  const stripped = body
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/`[^`]+`/g, "");
   const links: WikiLink[] = [];
-  for (const match of body.matchAll(WIKILINK_RE)) {
+  for (const match of stripped.matchAll(WIKILINK_RE)) {
     links.push({
       target: match[1].trim(),
       anchor: match[2]?.trim() ?? null,
