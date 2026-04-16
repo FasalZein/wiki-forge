@@ -283,7 +283,10 @@ export async function closeSlice(args: string[]) {
   if (baseIndex >= 0) requireValue(base, "base");
   const json = args.includes("--json");
   const worktree = args.includes("--worktree");
-  const force = args.includes("--force");
+  const forceReview = args.includes("--force-review");
+  // --force is kept as a superset that also skips the gate; --force-review
+  // bypasses only the closeout REVIEW PASS block.
+  const force = args.includes("--force") || forceReview;
 
   const context = await collectTaskContextForId(project, sliceId);
   if (!context) throw new Error(`slice not found in backlog: ${sliceId}`);
@@ -305,9 +308,10 @@ export async function closeSlice(args: string[]) {
 
   const closeout = await collectCloseout(project, base, repo, undefined, undefined, { worktree });
   const uncoveredChangedCodeFiles = closeout.refreshFromGit.uncoveredFiles.filter((file) => !isTestFile(file));
+  const reviewPassPending = closeout.ok && closeout.staleImpactedPages.length > 0;
   const closeoutBlockers = [
     ...closeout.blockers,
-    ...(!worktree && closeout.staleImpactedPages.length ? [`${closeout.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted`] : []),
+    ...(!worktree && closeout.staleImpactedPages.length ? [`${closeout.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted (closeout: REVIEW PASS — run: ${closeout.nextSteps.join(" && ")})`] : []),
     ...(uncoveredChangedCodeFiles.length ? [`${uncoveredChangedCodeFiles.length} changed code file(s) are not covered by wiki bindings`] : []),
   ];
   if (closeoutBlockers.length > 0 && !force) {
@@ -318,9 +322,16 @@ export async function closeSlice(args: string[]) {
       previousSection: context.section,
       closeout,
       blockers: closeoutBlockers,
+      ...(reviewPassPending ? { reviewPass: true, hint: `closeout is REVIEW PASS with ${closeout.staleImpactedPages.length} stale page(s). Re-run close-slice with --force-review after manual review, or fix the pending steps first.` } : {}),
     };
     if (json) console.log(JSON.stringify(failed, null, 2));
     throw new Error(`close-slice prerequisites failed for ${project}`);
+  }
+  if (reviewPassPending && forceReview) {
+    appendLogEntry("close-slice-force-review", sliceId, {
+      project,
+      details: [`stale_pages=${closeout.staleImpactedPages.length}`, `base=${base}`],
+    });
   }
   let compactGate: Record<string, unknown> | null = null;
   if (!force) {
