@@ -11,6 +11,7 @@ import { obsidianCommand } from "./commands/obsidian";
 import { setupShell } from "./commands/setup";
 import { summaryProject } from "./commands/summary";
 import { createLayerPage, lintVault, scaffoldLayer } from "./commands/layers";
+import { appendActivity, extractProject, extractTarget, resolveAgent, resolveSessionId } from "./lib/tracker";
 
 const commands: Record<string, CommandHandler> = {
   help: () => printHelp(),
@@ -91,6 +92,8 @@ const commands: Record<string, CommandHandler> = {
 
 const rawArgs = process.argv.slice(2);
 const { command, args } = resolveCommand(rawArgs);
+const sessionId = resolveSessionId();
+const agent = resolveAgent();
 
 try {
   if (args.includes("--help") || args.includes("-h")) {
@@ -101,7 +104,28 @@ try {
   if (!handler) {
     throw new Error(`Unknown command: ${command}. Run 'wiki help' for usage.`);
   }
-  await handler(args);
+  const start = Date.now();
+  let ok = true;
+  let errorMsg: string | undefined;
+  try {
+    await handler(args);
+  } catch (handlerError) {
+    ok = false;
+    errorMsg = (handlerError instanceof Error ? handlerError.message : String(handlerError)).slice(0, 200);
+    throw handlerError;
+  } finally {
+    appendActivity({
+      ts: new Date().toISOString(),
+      sid: sessionId,
+      cmd: command,
+      project: extractProject(command, args),
+      target: extractTarget(command, args),
+      agent,
+      durationMs: Date.now() - start,
+      ok,
+      ...(errorMsg ? { error: errorMsg } : {}),
+    });
+  }
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   const exitCode = typeof error === "object" && error !== null && "exitCode" in error && typeof (error as { exitCode?: unknown }).exitCode === "number"

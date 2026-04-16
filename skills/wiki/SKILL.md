@@ -143,12 +143,12 @@ Auto-detection: if `KNOWLEDGE_VAULT_ROOT` is unset, the CLI walks up from `cwd` 
 | Save answer brief | `wiki file-answer <project> [--verbose] "<question>"` |
 | Start a slice safely | `wiki start-slice <project> <slice-id> [--agent <name>]` |
 | Export slice prompt | `wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]` |
-| Resume interrupted session | `wiki resume <project> --base <rev>` |
+| Resume interrupted session | `wiki resume <project> --repo <path> --base <rev>` |
 | Flag ad hoc repo markdown | `wiki lint-repo <project> --repo <path>` |
 | Recommend next slice | `wiki next <project>` |
 | Claim a slice for an agent | `wiki claim <project> <slice-id> --agent <name>` |
 | Add a note to current slice | `wiki note <project> <slice-id> <text>` |
-| Hand off slice to another agent | `wiki handover <project> <slice-id> --to <agent>` |
+| Session handover for next agent | `wiki handover <project> --repo <path> --base <rev>` |
 | Project dashboard | `wiki dashboard <project>` |
 | Project summary | `wiki summary <project>` |
 | Slice/agent status | `wiki status <project>` |
@@ -263,7 +263,8 @@ Verbose Q&A         → wiki ask <project> --verbose "where is approval implemen
 Save answer brief   → wiki file-answer <project> "question"
 Start work safely   → wiki start-slice <project> <slice-id> --agent pi
 Export handoff      → wiki export-prompt <project> <slice-id> --agent pi
-Resume session      → wiki resume <project> --base <rev>
+Resume session      → wiki resume <project> --repo <path> --base <rev>
+End session         → wiki handover <project> --repo <path> --base <rev>
 ```
 
 ### 4. File Research
@@ -340,6 +341,8 @@ The backlog parser uses regex on the markdown body. Task lines must match exactl
 - **Verify after updating.** `wiki verify-page <project> <page> code-verified`.
 - **Prefer `test-verified`** for critical pages once code and tests are both checked.
 - **Keep navigation, planning docs, and derived relationship sections current.** `wiki update-index <project> --write` after creating/moving pages or rebinding source paths.
-- **Use the log.** `wiki log` gives durable session continuity outside chat history.
+- **Use the log.** `wiki note <project> <message>` writes durable agent-to-agent context. `wiki log tail` shows recent entries.
+- **Always handover.** Run `wiki handover <project> --repo <path> --base <rev>` at session end. It captures what happened, what's dirty, and what to do next — the next agent reads this, not chat history.
+- **Always resume.** Run `wiki resume <project> --repo <path> --base <rev>` at session start. It shows active task, recent commits, stale pages, and maintenance queue.
 - **Don't invent CLI features.** If a command isn't listed here, it doesn't exist.
 - **Do not invent document layouts.** Use the CLI-generated structure and fill it in; improve the generators when the structure is weak.

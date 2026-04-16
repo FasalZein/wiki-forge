@@ -117,7 +117,7 @@ Notes:
   - install-git-hook writes a repo-local hook that runs wiki commit-check before commit
   - refresh-on-merge is a CI-friendly merge check that wraps refresh-from-git, drift status, and gate output
   - dependency-graph generates a derived JSON Canvas dependency graph from feature/PRD/slice metadata and checks for missing refs/cycles
-  - handover summarizes backlog focus, dirty git state, and top maintenance actions for the next agent
+  - handover summarizes backlog focus, dirty git state, session activity (auto-tracked commands, slice transitions, errors), and top maintenance actions for the next agent
   - claim records slice ownership and blocks overlapping file-level claims across active/claimed slices when source_paths overlap
   - note appends a durable agent-to-agent message to the global wiki log with project/slice metadata
   - next recommends the highest-priority active or ready slice, skipping slices blocked by depends_on
@@ -156,6 +156,8 @@ Notes:
   - qmd retrieval and maintenance commands now prefer the in-process SDK/Bun wrapper path instead of depending on a separately working global qmd CLI
   - set QMD_INDEX_NAME to route wiki/qmd commands to a named qmd index (useful for isolated benchmarks)
   - set ${VAULT_ROOT_ENV} when the CLI is installed outside the vault repo
+  - set WIKI_SESSION_ID to group activity tracking entries by session (defaults to ppid+date)
+  - set WIKI_AGENT_NAME to identify the agent in activity tracking (defaults to USER)
   - bind manages source_paths (repo-relative code paths) on a wiki page's frontmatter; default mode is replace, and --mode merge appends normalized unique paths without dropping existing bindings
   - drift-check compares git modification times of source files against wiki page updated dates
   - drift-check also detects simple rename candidates from git history

@@ -144,7 +144,7 @@ Do not silently downgrade a slice continuation into `/wiki` maintenance mode jus
 7. **No unmaintainable code.** If a slice passes tests but worsens maintainability, refactor before closing.
 8. **Never create `.md` documentation inside project repos** except `README.md`, `CHANGELOG.md`, `AGENTS.md`, `CLAUDE.md`, `SETUP.md`, and `skills/*/SKILL.md`. Specs, research, architecture notes, and maintained docs belong in the wiki vault.
 9. **Use protocol sync for repo agent instructions.** Install/update repo `AGENTS.md` / `CLAUDE.md` via `wiki protocol sync <project> --repo <path>` instead of hand-editing the managed protocol block.
-10. **Use the wiki vault or session artifacts for planning/handoffs.** Do not create ad hoc repo markdown handoff files.
+10. **Use `wiki handover` for session transitions.** Run `wiki handover <project> --repo <path> --base <rev>` at session end — it auto-captures activity, commits, state, and priorities. Run `wiki resume <project> --repo <path> --base <rev>` at session start. Do not create ad hoc HANDOVER.md files.
 
 ## Definition of Done
 

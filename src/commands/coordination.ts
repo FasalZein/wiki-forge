@@ -5,6 +5,7 @@ import { assertExists, fail, nowIso, orderFrontmatter, requireValue, safeMatter,
 import { exists, readText } from "../lib/fs";
 import { agentNamesEqual } from "../lib/agents";
 import { appendLogEntry, tailLog } from "../lib/log";
+import { collectSessionActivity, resolveSessionId } from "../lib/tracker";
 import { extractShellCommandBlocks, readSliceDependencies, readSliceHub, readSlicePlan, readSliceSourcePaths, readSliceStatus, readSliceTestPlan } from "../lib/slices";
 import { readVerificationLevel } from "../lib/verification";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
@@ -111,10 +112,16 @@ export async function noteProject(args: string[]) {
 export async function handoverProject(args: string[]) {
   const options = parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
-  const maintain = await collectMaintenancePlan(options.project, options.base, options.repo);
+  const [maintain, backlog, sessionActivity] = await Promise.all([
+    collectMaintenancePlan(options.project, options.base, options.repo),
+    collectBacklog(options.project),
+    collectSessionActivity(options.project, resolveSessionId()),
+  ]);
   const dirty = collectDirtyRepoStatus(maintain.repo);
-  const backlog = await collectBacklog(options.project);
-  const recentNotes = projectLogEntries(options.project, "note");
+  const recentCommits = await collectRecentCommits(maintain.repo, 5);
+  const recentEvents = projectLogEntries(options.project); // all events, not just notes
+  const recentNotes = recentEvents.filter((e) => e.includes("] note |"));
+  const lifecycleEvents = recentEvents.filter((e) => !e.includes("] note |"));
   const result = {
     project: options.project,
     repo: maintain.repo,
@@ -122,8 +129,11 @@ export async function handoverProject(args: string[]) {
     focus: maintain.focus,
     backlog: Object.fromEntries(Object.entries(backlog.sections).map(([section, items]) => [section, items.length])),
     dirty,
+    sessionActivity,
+    recentCommits,
+    lifecycleEvents: lifecycleEvents.map(compactLogEntry),
     actions: maintain.actions.slice(0, 12),
-    recentNotes,
+    recentNotes: recentNotes.map(compactLogEntry),
   };
   if (json) {
     console.log(JSON.stringify(result, null, 2));
@@ -132,17 +142,33 @@ export async function handoverProject(args: string[]) {
   console.log(`handover for ${options.project}:`);
   console.log(`- repo: ${result.repo}`);
   console.log(`- base: ${result.base}`);
+  // --- what's happening now ---
   if (result.focus.activeTask) console.log(`- active: ${result.focus.activeTask.id} ${result.focus.activeTask.title}`);
   else if (result.focus.recommendedTask) console.log(`- next: ${result.focus.recommendedTask.id} ${result.focus.recommendedTask.title}`);
-  console.log(`- dirty: modified=${dirty.modifiedFiles.length} untracked=${dirty.untrackedFiles.length} staged=${dirty.stagedFiles.length}`);
+  console.log(`- backlog: ${Object.entries(result.backlog).filter(([, n]) => (n as number) > 0).map(([k, n]) => `${k}=${n}`).join(" ")}`);
+  if (dirty.modifiedFiles.length || dirty.untrackedFiles.length || dirty.stagedFiles.length) {
+    console.log(`- dirty: modified=${dirty.modifiedFiles.length} untracked=${dirty.untrackedFiles.length} staged=${dirty.stagedFiles.length}`);
+  }
   for (const warning of result.focus.warnings) console.log(`- warning: ${warning}`);
+  // --- what happened ---
+  renderSessionActivity(sessionActivity);
+  if (recentCommits.length) {
+    console.log(`- recent commits:`);
+    for (const commit of recentCommits) console.log(`    ${commit}`);
+  }
+  if (lifecycleEvents.length) {
+    console.log(`- recent activity:`);
+    for (const entry of lifecycleEvents.slice(0, 8)) console.log(`    ${compactLogEntry(entry)}`);
+  }
+  // --- what to do next ---
   if (result.actions.length) {
     console.log(`- next actions:`);
-    for (const action of result.actions.slice(0, 8)) console.log(`  - [${action.kind}] ${action.message}`);
+    for (const action of result.actions.slice(0, 8)) console.log(`    [${action.kind}] ${action.message}`);
   }
+  // --- context from previous agents ---
   if (recentNotes.length) {
-    console.log(`- recent notes:`);
-    for (const entry of recentNotes) console.log(`  - ${compactLogEntry(entry)}`);
+    console.log(`- agent notes:`);
+    for (const entry of recentNotes) console.log(`    ${compactLogEntry(entry)}`);
   }
 }
 
@@ -398,9 +424,10 @@ export async function resumeProject(args: string[]) {
   const json = args.includes("--json");
   const repo = resolveRepoPath(options.project, options.repo);
   assertGitRepo(repo);
-  const [maintain, drift] = await Promise.all([
+  const [maintain, drift, sessionActivity] = await Promise.all([
     collectMaintenancePlan(options.project, options.base, repo),
     collectDriftSummary(options.project, repo),
+    collectSessionActivity(options.project, resolveSessionId()),
   ]);
   const dirty = collectDirtyRepoStatus(repo);
   const recentCommits = await collectRecentCommits(repo, 5);
@@ -413,6 +440,7 @@ export async function resumeProject(args: string[]) {
     activeTask: maintain.focus.activeTask,
     nextTask: maintain.focus.recommendedTask,
     dirty,
+    sessionActivity,
     recentCommits,
     stalePages,
     recentNotes,
@@ -428,6 +456,7 @@ export async function resumeProject(args: string[]) {
   console.log(`- recent commits:`);
   for (const commit of recentCommits) console.log(`  - ${commit}`);
   console.log(`- dirty: modified=${dirty.modifiedFiles.length} staged=${dirty.stagedFiles.length} untracked=${dirty.untrackedFiles.length}`);
+  renderSessionActivity(sessionActivity);
   for (const page of stalePages) console.log(`- stale: ${page}`);
   for (const note of recentNotes) console.log(`- note: ${compactLogEntry(note)}`);
   if (payload.actions.length) {
@@ -802,4 +831,19 @@ function compactLogEntry(entry: string) {
   const header = lines[0]?.replace(/^##\s+/u, "") ?? entry;
   const details = lines.slice(1).filter((line) => !line.startsWith("- project: "));
   return [header, ...details].join(" | ");
+}
+
+function renderSessionActivity(activity: import("../lib/tracker").SessionSummary) {
+  if (activity.totalCommands === 0) return;
+  const span = activity.durationMinutes > 0 ? `, ~${activity.durationMinutes}min` : "";
+  console.log(`- session (${activity.totalCommands} commands${span}):`);
+  const counts = Object.entries(activity.commandCounts).map(([k, n]) => `${k}=${n}`).join(" ");
+  if (counts) console.log(`    ${counts}`);
+  const closed = activity.sliceTransitions.filter((e) => e.cmd === "close-slice" && e.ok).map((e) => e.target);
+  if (closed.length) console.log(`    closed: ${closed.join(", ")}`);
+  const started = activity.sliceTransitions.filter((e) => e.cmd === "start-slice" && e.ok).map((e) => e.target);
+  if (started.length) console.log(`    started: ${started.join(", ")}`);
+  for (const err of activity.errors.slice(0, 5)) {
+    console.log(`    failed: ${err.cmd}${err.target ? ` ${err.target}` : ""} (${err.error})`);
+  }
 }
