@@ -51,9 +51,9 @@ export async function applyVerificationLevel(
 
 export function computeLevelFromBooleans(data: Record<string, unknown>): VerificationLevel {
   if (data.verification_level && isValidVerificationLevel(String(data.verification_level))) return data.verification_level as VerificationLevel;
-  if (data.verified_tests === true) return "test-verified";
-  if (data.verified_runtime === true) return "runtime-verified";
-  if (data.verified_code === true) return "code-verified";
+  if (data.verified_tests) return "test-verified";
+  if (data.verified_runtime) return "runtime-verified";
+  if (data.verified_code) return "code-verified";
   return "scaffold";
 }
 

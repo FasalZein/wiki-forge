@@ -41,8 +41,7 @@ brew install sqlite   # macOS — required for Bun SDK hybrid retrieval
 ## Local Sync
 
 ```bash
-bun run sync:local                      # relink CLI, refresh qmd, reinstall repo skills
-bun run sync:local -- --with-companions # also refresh grill-me / write-a-prd / tdd
+bun run sync:local                      # relink CLI, refresh qmd, reinstall all 7 repo skills
 ```
 
 Use this after pulling repo changes or editing `skills/*/SKILL.md`. Restart the agent session after syncing so it reloads the updated installed skills.
@@ -210,6 +209,7 @@ Compact map:
 |------|---------------|
 | Protocol | `wiki protocol sync`, `wiki protocol audit` |
 | Planning | `wiki create-feature`, `wiki create-prd`, `wiki create-issue-slice`, `wiki backlog`, `wiki next` |
+| Hierarchy | `wiki feature-status`, `wiki start-feature`, `wiki close-feature`, `wiki start-prd`, `wiki close-prd` |
 | Lifecycle | `wiki start-slice`, `wiki verify-slice`, `wiki close-slice` |
 | Active work checks | `wiki checkpoint`, `wiki lint-repo`, `wiki commit-check` |
 | Closeout | `wiki verify-page`, `wiki closeout`, `wiki gate` |
@@ -222,7 +222,7 @@ Compact map:
 |-------|-----------|-------------|
 | **Wiki** | Maintained project memory in `~/Knowledge` | `wiki` CLI |
 | **Research** | Filed evidence and source-backed notes under `research/` and `raw/` | `/research` skill + `wiki research` commands |
-| **Forge** | Optional workflow layer: research -> grill -> PRD -> slices -> TDD -> verify | `/forge` skill |
+| **Forge** | Optional workflow layer: research -> grill -> PRD -> slices -> TDD -> verify -> desloppify | `/forge` skill |
 
 These are separate concerns. The wiki is the knowledge store. Research is evidence. Forge is the software-development workflow layer over that memory.
 
@@ -325,20 +325,22 @@ Propagation rule:
 
 ## Skills
 
-### Repo-Owned Skills
+All 7 workflow skills are repo-owned and installed via the local sync script:
+
+```bash
+bun run sync:local   # installs all skills globally
+```
+
+Or install individually:
 
 ```bash
 npx skills@latest add FasalZein/wiki-forge/skills/forge -g
 npx skills@latest add FasalZein/wiki-forge/skills/wiki -g
 npx skills@latest add FasalZein/wiki-forge/skills/prd-to-slices -g
-```
-
-### Companion Skills (optional)
-
-```bash
-npx skills@latest add mattpocock/skills/grill-me -g
-npx skills@latest add mattpocock/skills/write-a-prd -g
-npx skills@latest add mattpocock/skills/tdd -g
+npx skills@latest add FasalZein/wiki-forge/skills/write-a-prd -g
+npx skills@latest add FasalZein/wiki-forge/skills/grill-me -g
+npx skills@latest add FasalZein/wiki-forge/skills/tdd -g
+npx skills@latest add FasalZein/wiki-forge/skills/desloppify -g
 ```
 
 `/research` is also required for full forge chaining. Install your agent's research skill separately if it is not already available.
@@ -348,11 +350,12 @@ npx skills@latest add mattpocock/skills/tdd -g
 | Skill | Invoke | What it does | When to use |
 |-------|--------|-------------|-------------|
 | **wiki** | `/wiki` | Knowledge-layer operations: research, retrieval, maintenance, drift, verification, gates | When no non-trivial product behavior is being planned or changed |
-| **forge** | `/forge` | Software-development workflow: research -> grill -> PRD -> slices -> TDD -> verify | Non-trivial implementation work, new features, cross-module changes, or existing slice continuation |
+| **forge** | `/forge` | Software-development workflow: research -> grill -> PRD -> slices -> TDD -> verify -> desloppify | Non-trivial implementation work, new features, cross-module changes, or existing slice continuation |
 | **prd-to-slices** | `/prd-to-slices` | Breaks a PRD into tracked vertical slices in the wiki backlog | After writing a PRD, before implementation |
-| **grill-me** | `/grill-me` | Stress-tests a plan before committing to it | Before writing a PRD |
-| **write-a-prd** | `/write-a-prd` | Captures problem, scope, modules, acceptance criteria | When you need formal project intent |
-| **tdd** | `/tdd` | Red-green-refactor for each slice | During implementation |
+| **write-a-prd** | `/write-a-prd` | Wiki-vault-native PRD authoring via `wiki create-prd` | When you need formal project intent |
+| **grill-me** | `/grill-me` | Stress-tests a plan across 10 dimensions before committing | Before writing a PRD |
+| **tdd** | `/tdd` | Red-green-refactor with vertical slices — no code without tests, ever | During implementation |
+| **desloppify** | `/desloppify` | Scans for AI-introduced anti-patterns, triages, fixes, verifies | Final quality gate after wiki closeout |
 
 ### When to Use What
 
@@ -361,7 +364,7 @@ npx skills@latest add mattpocock/skills/tdd -g
 | Knowledge maintenance / verification / retrieval | `/wiki` |
 | Research-only work | `/wiki` + `/research` when external investigation is needed |
 | Research capture | `/research` + `wiki research file` |
-| Small code fix (< 50 lines) | `/tdd` + `/wiki` |
+| Small code fix (< 50 lines) | `/tdd` + `/wiki` + `/desloppify` |
 | Wiki / note cleanup | `/wiki` + `/obsidian-markdown` |
 | Repo exploration | `wiki maintain` |
 | New feature, workflow, or cross-module change | `/forge` (full pipeline) |
@@ -398,7 +401,7 @@ Rule of thumb:
 For non-trivial work, forge orchestrates the full pipeline:
 
 ```
-/research  ->  /grill-me  ->  /write-a-prd  ->  /prd-to-slices  ->  /tdd  ->  /wiki
+/research  ->  /grill-me  ->  /write-a-prd  ->  /prd-to-slices  ->  /tdd  ->  /wiki  ->  /desloppify
 ```
 
 ```bash
@@ -417,12 +420,16 @@ wiki create-prd my-app --feature FEAT-001 "prd name"
 wiki create-issue-slice my-app "slice name" --prd PRD-001
 
 # 5. Implement (TDD)
-# write tests first, then implement, then refactor
+# write tests first, then implement, then refactor — no exceptions
 
 # 6. Close out (mandatory sequence)
 # update impacted pages
 wiki verify-page my-app <page> code-verified
 wiki closeout my-app --repo ~/Dev/my-app --base main
+
+# 7. Quality gate (final step)
+desloppify scan .        # detect AI-introduced anti-patterns
+desloppify score .       # verify no regression
 ```
 
 ---
@@ -433,6 +440,8 @@ wiki closeout my-app --repo ~/Dev/my-app --base main
 - **Code is the source of truth.** Wiki pages compile from code, never the other way around.
 - **No wiki-style docs in project repos.** Architecture docs, module specs, research — all go to the vault. Allowed repo markdown: `README.md`, `CHANGELOG.md`, `AGENTS.md`, `CLAUDE.md`, `SETUP.md`, and `skills/*/SKILL.md`.
 - **Verification prevents drift.** Every page has a verification level. `drift-check` demotes stale pages when source code changes.
+- **No code without tests.** TDD is non-negotiable — `wiki gate` hard-blocks on missing tests for changed files.
+- **Desloppify is the final gate.** Every workflow ends with a desloppify scan to catch AI-introduced anti-patterns before declaring done.
 
 ---
 

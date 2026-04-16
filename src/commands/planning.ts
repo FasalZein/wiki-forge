@@ -300,7 +300,12 @@ async function nextSpecId(project: string, kind: IndexedPlanningKind) {
     max = Math.max(max, parseOrdinal(entry, filePattern));
     const file = `${dir}/${entry}`;
     const parsed = safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true });
-    const fromFrontmatter = typeof parsed?.data[field] === "string" ? parsed.data[field] : "";
+    let fromFrontmatter: string;
+    if (typeof parsed?.data[field] === "string") {
+      fromFrontmatter = parsed.data[field] as string;
+    } else {
+      fromFrontmatter = "";
+    }
     max = Math.max(max, parseOrdinal(fromFrontmatter, frontmatterPattern));
   }
   return `${prefix}-${String(max + 1).padStart(3, "0")}`;
@@ -314,7 +319,12 @@ async function resolveFeatureRecord(project: string, featureId: string) {
   if (!fileName) throw new Error(`feature not found: ${featureId}`);
   const file = `${dir}/${fileName}`;
   const parsed = safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true });
-  const title = typeof parsed?.data.title === "string" && parsed.data.title.trim() ? parsed.data.title.trim() : featureId;
+  let title: string;
+  if (typeof parsed?.data.title === "string" && parsed.data.title.trim()) {
+    title = parsed.data.title.trim();
+  } else {
+    title = featureId;
+  }
   return { featureId, title, linkPath: relative(VAULT_ROOT, file).replace(/\.md$/u, "").replaceAll("\\", "/") };
 }
 

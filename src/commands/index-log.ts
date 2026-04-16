@@ -71,7 +71,12 @@ export async function logCommand(args: string[]) {
     });
     return console.log(`appended log entry: ${kind} | ${title}`);
   }
-  const count = subcommand === "tail" ? Number.parseInt(args[1] ?? "10", 10) : 10;
+  let count: number;
+  if (subcommand === "tail") {
+    count = Number.parseInt(args[1] ?? "10", 10);
+  } else {
+    count = 10;
+  }
   for (const entry of await tailLog(Number.isFinite(count) && count > 0 ? count : 10)) console.log(`${entry}\n`);
 }
 
@@ -143,10 +148,21 @@ async function collectWorkspaceProjectRows(projects: string[]): Promise<Workspac
       readWorkspaceProjectFocus(project),
     ]);
     const pageIndex = buildProjectPageIndex(pageRows);
-    const rawStatus = typeof summaryParsed?.data.status === "string" ? summaryParsed.data.status : "unknown";
+    let rawStatus: string;
+    if (typeof summaryParsed?.data.status === "string") {
+      rawStatus = summaryParsed.data.status;
+    } else {
+      rawStatus = "unknown";
+    }
+    let title: string;
+    if (typeof summaryParsed?.data.title === "string" && summaryParsed.data.title.trim()) {
+      title = summaryParsed.data.title.trim();
+    } else {
+      title = project;
+    }
     return {
       project,
-      title: typeof summaryParsed?.data.title === "string" && summaryParsed.data.title.trim() ? summaryParsed.data.title.trim() : project,
+      title,
       summaryLink: `projects/${project}/_summary`,
       backlogLink: `projects/${project}/backlog`,
       specsLink: `projects/${project}/specs/index`,

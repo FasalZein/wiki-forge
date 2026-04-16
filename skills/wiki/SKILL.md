@@ -148,13 +148,18 @@ Auto-detection: if `KNOWLEDGE_VAULT_ROOT` is unset, the CLI walks up from `cwd` 
 | Recommend next slice | `wiki next <project>` |
 | Claim a slice for an agent | `wiki claim <project> <slice-id> --agent <name>` |
 | Add a note to current slice | `wiki note <project> <slice-id> <text>` |
-| Session handover for next agent | `wiki handover <project> --repo <path> --base <rev>` |
+| Session handover for next agent | `wiki handover <project> --repo <path> --base <rev> [--harness <name>] [--no-write]` |
 | Project dashboard | `wiki dashboard <project>` |
 | Project summary | `wiki summary <project>` |
 | Slice/agent status | `wiki status <project>` |
 | Normalize a module spec | `wiki normalize-module <project> <module>` |
 | Generate onboarding plan | `wiki onboard <project> --repo <path>` |
 | Compact verify summary | `wiki verify <project>` |
+| Feature/PRD hierarchy status | `wiki feature-status <project> [--json]` |
+| Start a feature lifecycle | `wiki start-feature <project> <FEAT-ID>` |
+| Close a feature lifecycle | `wiki close-feature <project> <FEAT-ID> [--force]` |
+| Start a PRD lifecycle | `wiki start-prd <project> <PRD-ID>` |
+| Close a PRD lifecycle | `wiki close-prd <project> <PRD-ID> [--force]` |
 | Refresh navigation indexes | `wiki update-index <project> --write` |
 | Install git pre-commit hook | `wiki install-git-hook <project> --repo <path>` |
 | Run commit-time checks | `wiki commit-check <project> --repo <path>` |
@@ -175,6 +180,11 @@ wiki add-task <project> <title> [--section Todo] [--prd <PRD-ID>] [--priority <p
 wiki move-task <project> <task-id> --to <section>
 wiki complete-task <project> <task-id>               # shorthand for move-task --to Done
 wiki start-slice <project> <slice-id> [--agent <name>] [--repo <path>] [--json]
+wiki feature-status <project> [--json]                     # computed hierarchy status table
+wiki start-feature <project> <FEAT-ID>                     # set status=in-progress; auto-triggered by start-slice
+wiki close-feature <project> <FEAT-ID> [--force]           # set status=complete; auto-triggered by close-slice; gates on computed status
+wiki start-prd <project> <PRD-ID>                          # set status=in-progress; auto-triggered by start-slice
+wiki close-prd <project> <PRD-ID> [--force]                # set status=complete; auto-triggered by close-slice; gates on computed status
 ```
 
 Current rule:
@@ -297,6 +307,8 @@ Use these folders mechanically:
 Propagation rules:
 - `feature -> PRD -> slice` is metadata-driven (`feature_id`, `prd_id`, `parent_feature`, `parent_prd`)
 - `create-issue-slice --prd <PRD-ID>` auto-binds the new slice docs to that PRD's `source_paths` when the parent PRD is already bound
+- `start-slice` auto-opens parent PRD and feature if they are still `not-started`; `close-slice` auto-closes them when all children are complete
+- `feature-status` shows the computed hierarchy: `not-started → in-progress → needs-verification → complete`; `maintain` auto-writes `computed_status` frontmatter and detects lifecycle drift
 - module/freeform-zone docs connect to planning via `source_paths` overlap
 - standalone `create-plan` / `create-test-plan` docs stay visible in `specs/index.md`
 - run `wiki update-index <project> --write` after creating/moving pages or rebinding source paths so derived sections refresh across spec pages and freeform project zones

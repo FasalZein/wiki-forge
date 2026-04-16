@@ -96,12 +96,18 @@ async function buildNoteInfo(file: string, includeHeadings: boolean): Promise<No
   const raw = await readText(file);
   const parsed = safeMatter(file, raw, { silent: true });
   const vaultPath = toVaultPath(file);
+  let headings: Set<string>;
+  if (includeHeadings) {
+    headings = extractHeadingSlugs(parsed?.content ?? raw);
+  } else {
+    headings = new Set<string>();
+  }
   return {
     absolutePath: file,
     vaultPath,
     basename: basename(vaultPath),
     aliases: extractAliases(parsed?.data ?? {}),
-    headings: includeHeadings ? extractHeadingSlugs(parsed?.content ?? raw) : new Set<string>(),
+    headings,
     content: raw,
     qualitySignals: extractQualitySignals(parsed?.data ?? {}),
   };

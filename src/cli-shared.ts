@@ -30,6 +30,11 @@ Usage:
   wiki create-issue-slice <project> <title...> [--section <name>] [--priority <p>] [--tag <t>] [--prd <PRD-ID>] [--assignee <agent>] [--source <path...>] [--json]
   wiki create-feature <project> <name...>
   wiki create-prd <project> --feature <FEAT-ID> <name...> [--supersedes <PRD-ID>] [--split-from <PRD-ID>]
+  wiki feature-status <project> [--json]
+  wiki start-feature <project> <FEAT-ID>
+  wiki close-feature <project> <FEAT-ID> [--force]
+  wiki start-prd <project> <PRD-ID>
+  wiki close-prd <project> <PRD-ID> [--force]
   wiki create-plan <project> <name...>
   wiki create-test-plan <project> <name...>
   wiki create-module <project> <module> [--source <path...>]
@@ -106,6 +111,9 @@ Notes:
   - if projects/<project>/_summary.md defines frontmatter agents: [...], assignee values are validated against that registry
   - create-feature allocates an immutable feature ID (FEAT-001) and scaffolds a canonical feature page under projects/<project>/specs/features/
   - create-prd requires --feature, allocates an immutable project-scoped PRD ID (PRD-001), and scaffolds a canonical PRD under projects/<project>/specs/prds/
+  - feature-status shows a table of features and PRDs with computed hierarchy statuses (not-started, in-progress, needs-verification, complete)
+  - start-feature / start-prd set status=in-progress and started_at; auto-triggered by start-slice when a parent is still not-started
+  - close-feature / close-prd set status=complete and completed_at; gates on computed status unless --force; auto-triggered by close-slice when all children are complete
   - create-plan / create-test-plan scaffold standalone planning docs under projects/<project>/specs/ and keep them visible in specs/index.md
   - onboard writes the scaffold and can also write a project-specific onboarding plan when --repo is provided
   - onboard-plan renders the canonical onboarding slices and can write a project-specific plan file
@@ -117,7 +125,7 @@ Notes:
   - install-git-hook writes a repo-local hook that runs wiki commit-check before commit
   - refresh-on-merge is a CI-friendly merge check that wraps refresh-from-git, drift status, and gate output
   - dependency-graph generates a derived JSON Canvas dependency graph from feature/PRD/slice metadata and checks for missing refs/cycles
-  - handover summarizes backlog focus, dirty git state, session activity (auto-tracked commands, slice transitions, errors), and top maintenance actions for the next agent
+  - handover summarizes backlog focus, dirty git state, session activity (auto-tracked commands, slice transitions, errors), and top maintenance actions for the next agent; writes a durable .md file to projects/<project>/handovers/ by default (use --no-write to skip); --harness <name> tags the handover file
   - claim records slice ownership and blocks overlapping file-level claims across active/claimed slices when source_paths overlap
   - note appends a durable agent-to-agent message to the global wiki log with project/slice metadata
   - next recommends the highest-priority active or ready slice, skipping slices blocked by depends_on
@@ -164,7 +172,7 @@ Notes:
   - drift-check --show-unbound lists pages without source_paths
   - drift-check --fix auto-demotes stale/deleted pages to verification_level: stale in frontmatter
   - refresh-from-git includes compact git diff summaries for impacted pages
-  - lint-semantic flags orphan pages, dead-end pages, unbound module pages, and placeholder-heavy pages
+  - lint-semantic flags orphan pages, dead-end pages, unbound module pages, placeholder-heavy pages, and orphaned slices (task-hub with no parent_prd)
   - verify-page promotes a page to a verification level (scaffold|inferred|code-verified|runtime-verified|test-verified)
   - cache-clear removes .cache/wiki-cli/
   - setup-shell adds KNOWLEDGE_VAULT_ROOT to your shell config (zsh/bash/fish)

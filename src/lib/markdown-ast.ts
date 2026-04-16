@@ -185,7 +185,7 @@ function extractTaskFromListItem(li: ListItem): WikiTask | null {
       return {
         id: boldText,
         title: rest,
-        checked: li.checked === true,
+        checked: !!li.checked,
       };
     }
   }

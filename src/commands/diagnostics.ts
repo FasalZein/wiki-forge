@@ -163,7 +163,14 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
       blockers.push(`${doctor.counts.missingTests} changed code file(s) have no matching changed tests`);
     }
   }
-  const closeout = options.precomputedCloseout ?? (options.worktree ? await collectCloseout(project, base, explicitRepo, undefined, undefined, { worktree: true }) : null);
+  let closeout;
+  if (options.precomputedCloseout) {
+    closeout = options.precomputedCloseout;
+  } else if (options.worktree) {
+    closeout = await collectCloseout(project, base, explicitRepo, undefined, undefined, { worktree: true });
+  } else {
+    closeout = null;
+  }
   if (closeout?.staleImpactedPages.length) blockers.push(`${closeout.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted`);
   const warnings: string[] = [];
   if (doctor.counts.lint > 0) warnings.push(`${doctor.counts.lint} structural lint issue(s)`);

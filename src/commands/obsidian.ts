@@ -1,7 +1,11 @@
 import { runObsidian } from "../lib/obsidian";
 
 function noteTargetArgs(note: string) {
-  return note.includes("/") || note.endsWith(".md") ? [`path=${note.endsWith(".md") ? note : `${note}.md`}`] : [`file=${note}`];
+  if (note.includes("/") || note.endsWith(".md")) {
+    const notePath = note.endsWith(".md") ? note : `${note}.md`;
+    return [`path=${notePath}`];
+  }
+  return [`file=${note}`];
 }
 
 export async function obsidianCommand(args: string[]) {

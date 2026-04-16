@@ -157,7 +157,7 @@ describe("wiki coordination commands", () => {
     expect(json.dirty.untrackedFiles).toContain("src/new.ts");
     expect(json.recentNotes.some((entry: string) => entry.includes("left off at parser"))).toBe(true);
     // Verify handover file was written (WIKI-FORGE-073)
-    expect(json.handoverPath).toBeDefined();
+    expect(json.handoverPath).toContain("handovers/");
     const handoverDir = join(vault, "projects", "demo", "handovers");
     expect(existsSync(handoverDir)).toBe(true);
     const handoverFiles = readdirSync(handoverDir).filter((f: string) => f.endsWith(".md"));
@@ -213,7 +213,7 @@ describe("wiki coordination commands", () => {
     const result = runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
     expect(result.exitCode).toBe(0);
     const json = JSON.parse(result.stdout.toString());
-    expect(json.lastHandover).toBeDefined();
+    expect(typeof json.lastHandover).toBe("object");
     expect(json.lastHandover.harness).toBe("test-harness");
     expect(json.lastHandover.path).toContain("handovers/");
   });

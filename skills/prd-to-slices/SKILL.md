@@ -26,7 +26,10 @@ This skill decomposes an approved PRD. It does not replace the earlier forge ste
 
 ### 2. Explore the codebase
 
-If you have not already explored the codebase, do so. Understand what exists before slicing.
+If you have not already explored the codebase, do so. Understand what exists before slicing:
+- Read modules that will be modified
+- Understand existing interfaces and test patterns
+- Identify natural vertical boundaries
 
 ### 3. Draft vertical slices
 
@@ -48,7 +51,7 @@ Present the proposed breakdown as a numbered list. For each slice show:
 
 - **Title**: short descriptive name
 - **Type**: AFK / HITL
-- **Blocked by**: which other slices must complete first
+- **Blocked by**: which other slices must complete first (`depends_on` in frontmatter)
 - **User stories covered**: which stories from the PRD this addresses
 - **Test approach**: what the red tests will verify
 
@@ -66,8 +69,10 @@ If human approval is unavailable, proceed with AFK slices only, keep HITL slices
 For each approved slice, run:
 
 ```bash
-wiki create-issue-slice <project> <title> [--priority p0|p1|p2] [--tag <tag>] [--prd <PRD-ID>]
+wiki create-issue-slice <project> <title> [--priority p0|p1|p2] [--tag <tag>] [--prd <PRD-ID>] [--assignee <agent>] [--source <path...>]
 ```
+
+**Always pass `--prd <PRD-ID>`** so lineage stays mechanical. This writes `parent_prd` and `parent_feature` metadata onto slice docs. `--source` overrides inherited parent PRD bindings when the slice touches a narrower set of files.
 
 This creates four things per slice:
 1. A backlog task in `backlog.md` with a unique ID (e.g., `PROJECT-003`)
@@ -75,22 +80,28 @@ This creates four things per slice:
 3. An implementation plan at `specs/slices/<ID>/plan.md`
 4. A test plan at `specs/slices/<ID>/test-plan.md`
 
-Create slices in dependency order (blockers first) so you can reference task IDs in later plans.
+Create slices in dependency order (blockers first) so you can reference task IDs in later plans. Add `depends_on: [TASK-ID]` to slice frontmatter when ordering matters.
 
 ### 6. Fill in the plans
 
-After scaffolding, immediately run `wiki start-slice <project> <slice-id> --agent <name> --repo <path>` for the selected slice, then fill in each plan before starting code. Do not start implementation against an empty slice scaffold.
+After scaffolding, immediately run `wiki start-slice <project> <slice-id> --agent <name> --repo <path>` for the selected slice. This:
+- Checks `depends_on` ordering
+- Moves the backlog item to In Progress
+- Auto-opens parent PRD and feature if they are still `not-started`
+- Prints a compact plan summary
+
+Then fill in each plan before starting code. Do not start implementation against an empty slice scaffold.
 
 **Implementation plan** (`specs/slices/<ID>/plan.md`):
 - Scope: what this slice covers end-to-end
 - Vertical Slice: numbered steps through each layer
 - Acceptance Criteria: checkboxes matching PRD stories
-- Add `Blocked by: PROJECT-001` if dependencies exist
 
 **Test plan** (`specs/slices/<ID>/test-plan.md`):
 - Red Tests: the failing tests to write first
 - Green Criteria: what "passing" means
 - Refactor Checks: what to clean up after green
+- Verification Commands: shell commands that prove the slice is done (used by `wiki verify-slice`)
 
 Only after the slice is in progress and both docs are filled should `/tdd` begin.
 
@@ -106,21 +117,18 @@ Then fill its plan + test plan and resume with `/tdd`.
 
 Reuse the existing PRD when the scope still fits it. Only create or rewrite a PRD when the scope materially changes.
 
-### 8. Link back to PRD
+### 8. Hierarchy auto-triggers
 
-Pass `--prd <PRD-ID>` when creating each slice so lineage stays mechanical.
-That writes `parent_prd` / `parent_feature` metadata onto the slice docs, which `wiki update-index <project> --write` uses to regenerate parent/child planning sections.
+The wiki CLI manages feature/PRD lifecycle automatically:
+- `wiki start-slice` auto-opens parent PRD and feature (`not-started` -> `in-progress`)
+- `wiki close-slice` auto-closes parent PRD and feature when all children are complete
+- `wiki feature-status <project>` shows the computed hierarchy at any time
 
-The generated task hub and plans already link back to the PRD:
-```markdown
-- [[projects/<project>/specs/prds/PRD-<nnn>-<slug>]]
-```
+You don't need to manually run `start-feature`/`start-prd` when starting slices — the auto-triggers handle it. Use `wiki feature-status` to verify the hierarchy looks correct after slicing.
 
-Do not hand-maintain PRD child-slice lists; let `update-index` regenerate them.
+### 9. Verify slicing artifacts
 
-### 9. Verify slicing artifacts, then hand off to implementation
-
-After creating and filling all slices, run the planning-doc closeout sequence:
+After creating and filling all slices, run:
 
 ```bash
 wiki update-index <project> --write
@@ -128,26 +136,29 @@ wiki lint <project>
 wiki lint-semantic <project>
 ```
 
+`lint-semantic` will flag orphaned slices (missing `parent_prd`) — this is why `--prd` is important.
+
 At this point the slice docs are planned, not implemented. Do **not** mark them `code-verified` from memory before `/tdd` produces code and tests.
 
-After implementation, use the canonical `/wiki` closeout lifecycle instead of an ad hoc subset:
-- run `wiki checkpoint <project> --repo <path>`
-- run `wiki lint-repo <project> --repo <path>`
-- run `wiki maintain <project> --repo <path> --base <rev>`
-- update impacted pages from code/tests
-- run `wiki update-index <project> --write` if navigation or planning links changed
-- run `wiki verify-page ...`
-- run `wiki verify-slice <project> <slice-id> --repo <path>`
-- run `wiki closeout <project> --repo <path> --base <rev>`
-- run `wiki gate <project> --repo <path> --base <rev>`
-- run `wiki close-slice <project> <slice-id> --repo <path> --base <rev>`
+### 10. Hand off to implementation
 
-Status discipline:
-- create slice
-- start it with `wiki start-slice`
-- implement with `/tdd`
-- run the full `/wiki` closeout lifecycle after code/tests exist
-- close it with `wiki close-slice`
+After verification, the slices are ready for `/tdd`. The lifecycle is:
+
+```text
+create slice -> start-slice -> fill plan + test-plan -> /tdd -> /wiki closeout -> close-slice
+```
+
+The `/wiki` closeout sequence after each slice:
+- `wiki checkpoint <project> --repo <path>`
+- `wiki lint-repo <project> --repo <path>`
+- `wiki maintain <project> --repo <path> --base <rev>`
+- update impacted pages from code/tests
+- `wiki update-index <project> --write` (if navigation or planning links changed)
+- `wiki verify-page <project> <page> code-verified`
+- `wiki verify-slice <project> <slice-id> --repo <path>`
+- `wiki closeout <project> --repo <path> --base <rev>`
+- `wiki gate <project> --repo <path> --base <rev>`
+- `wiki close-slice <project> <slice-id> --repo <path> --base <rev>`
 
 ## When to use GitHub Issues instead
 

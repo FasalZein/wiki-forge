@@ -2,12 +2,8 @@
 
 import { resolve } from "node:path";
 
-export const REPO_SKILLS = ["forge", "wiki", "prd-to-slices"] as const;
-export const COMPANION_SKILLS = [
-  "mattpocock/skills/grill-me",
-  "mattpocock/skills/write-a-prd",
-  "mattpocock/skills/tdd",
-] as const;
+export const REPO_SKILLS = ["forge", "wiki", "prd-to-slices", "write-a-prd", "grill-me", "tdd", "desloppify"] as const;
+export const COMPANION_SKILLS = [] as const;
 
 export type SyncStep = {
   label: string;
