@@ -51,9 +51,9 @@ export async function nextProject(args: string[]) {
   let repo: string | undefined;
   let base: string | undefined;
   try {
-    repo = resolveRepoPath(project);
-    assertGitRepo(repo);
-    base = resolveDefaultBase(project, repo);
+    repo = await resolveRepoPath(project);
+    await assertGitRepo(repo);
+    base = await resolveDefaultBase(project, repo);
     actions = (await collectMaintenancePlan(project, base, repo)).actions.slice(0, 5);
   } catch {}
 
@@ -110,14 +110,14 @@ export async function noteProject(args: string[]) {
 }
 
 export async function handoverProject(args: string[]) {
-  const options = parseProjectRepoBaseArgs(args);
+  const options = await parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
   const [maintain, backlog, sessionActivity] = await Promise.all([
     collectMaintenancePlan(options.project, options.base, options.repo),
     collectBacklog(options.project),
     collectSessionActivity(options.project, resolveSessionId()),
   ]);
-  const dirty = collectDirtyRepoStatus(maintain.repo);
+  const dirty = await collectDirtyRepoStatus(maintain.repo);
   const recentCommits = await collectRecentCommits(maintain.repo, 5);
   const recentEvents = projectLogEntries(options.project); // all events, not just notes
   const recentNotes = recentEvents.filter((e) => e.includes("] note |"));
@@ -313,8 +313,8 @@ export async function verifySlice(args: string[]) {
   requireValue(project, "project");
   requireValue(sliceId, "slice-id");
   const repoIndex = args.indexOf("--repo");
-  const repo = resolveRepoPath(project, repoIndex >= 0 ? args[repoIndex + 1] : undefined);
-  assertGitRepo(repo);
+  const repo = await resolveRepoPath(project, repoIndex >= 0 ? args[repoIndex + 1] : undefined);
+  await assertGitRepo(repo);
   const json = args.includes("--json");
   const testPlan = await readSliceTestPlan(project, sliceId);
   const commands = extractShellCommandBlocks(testPlan.content);
@@ -341,7 +341,7 @@ export async function closeSlice(args: string[]) {
   const repoIndex = args.indexOf("--repo");
   const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
   const baseIndex = args.indexOf("--base");
-  const base = baseIndex >= 0 ? args[baseIndex + 1] : resolveDefaultBase(project, repo);
+  const base = baseIndex >= 0 ? args[baseIndex + 1] : await resolveDefaultBase(project, repo);
   if (baseIndex >= 0) requireValue(base, "base");
   const json = args.includes("--json");
   const worktree = args.includes("--worktree");
@@ -425,16 +425,16 @@ export async function exportPrompt(args: string[]) {
 }
 
 export async function resumeProject(args: string[]) {
-  const options = parseProjectRepoBaseArgs(args);
+  const options = await parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
-  const repo = resolveRepoPath(options.project, options.repo);
-  assertGitRepo(repo);
+  const repo = await resolveRepoPath(options.project, options.repo);
+  await assertGitRepo(repo);
   const [maintain, drift, sessionActivity] = await Promise.all([
     collectMaintenancePlan(options.project, options.base, repo),
     collectDriftSummary(options.project, repo),
     collectSessionActivity(options.project, resolveSessionId()),
   ]);
-  const dirty = collectDirtyRepoStatus(repo);
+  const dirty = await collectDirtyRepoStatus(repo);
   const recentCommits = await collectRecentCommits(repo, 5);
   const stalePages = drift.results.filter((row) => row.status !== "fresh").slice(0, 10).map((row) => row.wikiPage);
   const recentNotes = projectLogEntries(options.project, "note").slice(0, 5);
@@ -470,13 +470,13 @@ export async function resumeProject(args: string[]) {
   }
 }
 
-function parseProjectRepoBaseArgs(args: string[]) {
+async function parseProjectRepoBaseArgs(args: string[]) {
   const project = args[0];
   requireValue(project, "project");
   const repoIndex = args.indexOf("--repo");
   const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
   const baseIndex = args.indexOf("--base");
-  const base = baseIndex >= 0 ? args[baseIndex + 1] : resolveDefaultBase(project, repo);
+  const base = baseIndex >= 0 ? args[baseIndex + 1] : await resolveDefaultBase(project, repo);
   if (baseIndex >= 0) requireValue(base, "base");
   return { project, repo, base };
 }
@@ -485,15 +485,14 @@ function defaultAgentName() {
   return process.env.PI_AGENT_NAME || process.env.CLAUDE_AGENT_NAME || process.env.USER || "agent";
 }
 
-function collectDirtyRepoStatus(repo: string): DirtyRepoStatus {
-  // TODO: migrate to Bun.$ when caller chain is async (resolveDirtyOverlap is sync, blocks full migration)
-  assertGitRepo(repo);
-  const proc = Bun.spawnSync(["git", "status", "--porcelain", "--untracked-files=all"], { cwd: repo, stdout: "pipe", stderr: "pipe" });
+async function collectDirtyRepoStatus(repo: string): Promise<DirtyRepoStatus> {
+  await assertGitRepo(repo);
+  const proc = await Bun.$`git status --porcelain --untracked-files=all`.cwd(repo).quiet().nothrow();
   if (proc.exitCode !== 0) throw new Error(`git status failed for ${repo}`);
   const modifiedFiles: string[] = [];
   const untrackedFiles: string[] = [];
   const stagedFiles: string[] = [];
-  for (const line of proc.stdout.toString().replace(/\r\n/g, "\n").split("\n")) {
+  for (const line of proc.text().replace(/\r\n/g, "\n").split("\n")) {
     if (!line.trim()) continue;
     const status = line.slice(0, 2);
     const file = line.slice(3).trim().replaceAll("\\", "/");
@@ -512,11 +511,11 @@ function collectDirtyRepoStatus(repo: string): DirtyRepoStatus {
   };
 }
 
-function resolveDirtyOverlap(project: string, explicitRepo: string | undefined, sourcePaths: string[]) {
+async function resolveDirtyOverlap(project: string, explicitRepo: string | undefined, sourcePaths: string[]) {
   if (!sourcePaths.length) return [] as string[];
   try {
-    const repo = resolveRepoPath(project, explicitRepo);
-    const dirty = collectDirtyRepoStatus(repo);
+    const repo = await resolveRepoPath(project, explicitRepo);
+    const dirty = await collectDirtyRepoStatus(repo);
     const dirtyFiles = new Set([...dirty.modifiedFiles, ...dirty.untrackedFiles, ...dirty.stagedFiles]);
     return sourcePaths.filter((path) => dirtyFiles.has(path));
   } catch {
@@ -566,7 +565,7 @@ async function collectClaimResult(
   const resolvedSourcePaths = sourcePaths ?? await readSliceSourcePaths(project, sliceId);
   const blockedBy = await readBlockedDependencies(project, sliceId);
   const conflicts = blockedBy.length ? [] : await collectClaimConflicts(project, sliceId, agent, resolvedSourcePaths);
-  const dirtyOverlap = resolveDirtyOverlap(project, repo, resolvedSourcePaths);
+  const dirtyOverlap = await resolveDirtyOverlap(project, repo, resolvedSourcePaths);
   const claimedAt = conflicts.length === 0 ? nowIso() : null;
   return {
     project,

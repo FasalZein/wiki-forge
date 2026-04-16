@@ -37,8 +37,8 @@ export async function collectDriftSummary(project: string, explicitRepo?: string
   requireValue(project, "project");
   const root = projectRoot(project);
   assertExists(root, `project not found: ${project}`);
-  const repoPath = resolveRepoPath(project, explicitRepo);
-  assertGitRepo(repoPath);
+  const repoPath = await resolveRepoPath(project, explicitRepo);
+  await assertGitRepo(repoPath);
   const state = snapshot ?? await loadLintingSnapshot(project);
   let boundCount = 0, freshCount = 0, staleCount = 0, unknownCount = 0, deletedCount = 0, renamedCount = 0;
   const results: DriftRow[] = [];
@@ -52,8 +52,8 @@ export async function collectDriftSummary(project: string, explicitRepo?: string
     for (const sourcePath of entry.sourcePaths) allSourcePaths.add(sourcePath);
     entries.push({ file: entry.file, relPath: entry.relPath, sourcePaths: entry.sourcePaths, wikiUpdated: parseUpdatedDate(entry.rawUpdated), currentLevel: entry.verificationLevel, rawUpdated: entry.rawUpdated });
   }
-  const gitDates = batchGitLastModified(repoPath, [...allSourcePaths]);
-  const sourceStatusCache = new Map<string, ReturnType<typeof sourcePathStatus>>();
+  const gitDates = await batchGitLastModified(repoPath, [...allSourcePaths]);
+  const sourceStatusCache = new Map<string, Awaited<ReturnType<typeof sourcePathStatus>>>();
   for (const entry of entries) {
     if (!entry.wikiUpdated) {
       results.push({ wikiPage: entry.relPath, absolutePath: entry.file, updated: String(entry.rawUpdated ?? "missing"), sourcePaths: entry.sourcePaths, currentLevel: entry.currentLevel, status: "unknown", driftedSources: [], renamedSources: [], deletedSources: [], errors: ["unable to parse updated date from frontmatter"] });
@@ -64,7 +64,7 @@ export async function collectDriftSummary(project: string, explicitRepo?: string
     const deletedSources: string[] = [];
     const errors: string[] = [];
     for (const sourcePath of entry.sourcePaths) {
-      const fileStatus = sourceStatusCache.get(sourcePath) ?? sourcePathStatus(repoPath, sourcePath);
+      const fileStatus = sourceStatusCache.get(sourcePath) ?? await sourcePathStatus(repoPath, sourcePath);
       sourceStatusCache.set(sourcePath, fileStatus);
       if (fileStatus.kind === "renamed") { renamedSources.push({ from: sourcePath, to: fileStatus.renamedTo }); continue; }
       if (fileStatus.kind === "deleted") { deletedSources.push(sourcePath); continue; }

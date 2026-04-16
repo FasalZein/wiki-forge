@@ -25,8 +25,8 @@ export async function installGitHook(args: string[]) {
   const hookIndex = args.indexOf("--hook");
   const hook = hookIndex >= 0 ? args[hookIndex + 1] : "pre-commit";
   requireValue(hook, "hook");
-  const repo = resolveRepoPath(options.project, options.repo);
-  assertGitRepo(repo);
+  const repo = await resolveRepoPath(options.project, options.repo);
+  await assertGitRepo(repo);
   const hookPath = join(repo, ".git", "hooks", hook);
   if (await exists(hookPath) && !force) throw new Error(`hook already exists: ${hookPath} (use --force to overwrite)`);
   mkdirSync(dirname(hookPath), { recursive: true });
@@ -50,7 +50,7 @@ export async function installGitHook(args: string[]) {
 }
 
 export async function refreshOnMerge(args: string[]) {
-  const options = parseProjectRepoBaseArgs(args);
+  const options = await parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
   const verbose = args.includes("--verbose");
   const result = await collectRefreshOnMerge(options.project, options.base, options.repo);
@@ -84,8 +84,8 @@ export async function lintRepo(args: string[]) {
 }
 
 export async function collectCommitCheck(project: string, explicitRepo?: string) {
-  const repo = resolveRepoPath(project, explicitRepo);
-  assertGitRepo(repo);
+  const repo = await resolveRepoPath(project, explicitRepo);
+  await assertGitRepo(repo);
   const snapshot = await loadProjectSnapshot(project, repo);
   const stagedFiles = (await gitLines(repo, ["diff", "--cached", "--name-only", "--diff-filter=ACMR"])).map(normalizeRelPath);
   const stagedSet = new Set(stagedFiles);
@@ -236,10 +236,10 @@ function parseProjectRepoArgs(args: string[]) {
   return { project, repo };
 }
 
-function parseProjectRepoBaseArgs(args: string[]) {
+async function parseProjectRepoBaseArgs(args: string[]) {
   const { project, repo } = parseProjectRepoArgs(args);
   const baseIndex = args.indexOf("--base");
-  const base = baseIndex >= 0 ? args[baseIndex + 1] : resolveDefaultBase(project, repo);
+  const base = baseIndex >= 0 ? args[baseIndex + 1] : await resolveDefaultBase(project, repo);
   if (baseIndex >= 0) requireValue(base, "base");
   return { project, repo, base };
 }

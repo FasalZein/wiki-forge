@@ -69,6 +69,6 @@ async function collectSummary(project: string, explicitRepo?: string) {
   const focus = await collectBacklogFocus(project, backlog);
   const activeWork = backlog.sections["In Progress"] ?? [];
   const topTodo = (backlog.sections["Todo"] ?? []).slice(0, 5);
-  const base = resolveDefaultBase(project, explicitRepo);
+  const base = await resolveDefaultBase(project, explicitRepo);
   return { project, description, repo: repoPath, base, status, verify, drift, activeWork, topTodo, focus };
 }

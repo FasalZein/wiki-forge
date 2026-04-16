@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { CODE_FILE_PATTERN, VAULT_ROOT } from "../constants";
 import { assertExists, mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, writeNormalizedPage } from "../cli-shared";
@@ -17,12 +17,12 @@ import { collectLintResult, collectSemanticLintResult, collectStatusRow, collect
 import type { LintingSnapshot } from "./linting";
 
 export async function dashboardProject(args: string[]) {
-  const options = parseProjectRepoBaseArgs(args);
+  const options = await parseProjectRepoBaseArgs(args);
   console.log(JSON.stringify(await collectDashboard(options.project, options.base, options.repo), null, 2));
 }
 
 export async function maintainProject(args: string[]) {
-  const options = parseProjectRepoBaseArgs(args);
+  const options = await parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
   const worktree = args.includes("--worktree");
   const repair = await repairHistoricalDoneSlices(options.project);
@@ -72,7 +72,7 @@ export async function maintainProject(args: string[]) {
 }
 
 export async function closeoutProject(args: string[]) {
-  const options = parseProjectRepoBaseArgs(args);
+  const options = await parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
   const verbose = args.includes("--verbose");
   const worktree = args.includes("--worktree");
@@ -106,7 +106,7 @@ export async function refreshProject(args: string[]) {
 }
 
 export async function refreshFromGit(args: string[]) {
-  const options = parseProjectRepoBaseArgs(args);
+  const options = await parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
   const result = await collectRefreshFromGit(options.project, options.base, options.repo);
   appendLogEntry("refresh-from-git", options.project, { project: options.project, details: [`base=${result.base}`, `changed=${result.changedFiles.length}`, `impacted=${result.impactedPages.length}`, `uncovered=${result.uncoveredFiles.length}`, `missing_tests=${result.testHealth.codeFilesWithoutChangedTests.length}`] });
@@ -200,7 +200,7 @@ function buildDirectoryTree(files: string[]) {
 }
 
 export async function ingestDiff(args: string[]) {
-  const options = parseProjectRepoBaseArgs(args);
+  const options = await parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
   const result = await collectIngestDiff(options.project, options.base, options.repo);
   appendLogEntry("ingest-diff", options.project, { project: options.project, details: [`base=${options.base}`, `created=${result.created.length}`, `updated=${result.updated.length}`] });
@@ -259,8 +259,8 @@ type WorktreeImpactedPage = {
 export async function loadProjectSnapshot(project: string, explicitRepo?: string, options: { includeRepoInventory?: boolean } = {}): Promise<ProjectSnapshot> {
   const root = projectRoot(project);
   assertExists(root, `project not found: ${project}`);
-  const repo = resolveRepoPath(project, explicitRepo);
-  assertGitRepo(repo);
+  const repo = await resolveRepoPath(project, explicitRepo);
+  await assertGitRepo(repo);
   const pages = walkMarkdown(root);
   const pageEntries = await Promise.all(pages.map(async (file) => {
     const raw = await readText(file);
@@ -305,10 +305,11 @@ export async function collectRefreshFromGit(project: string, base: string, expli
     const matchedSourcePaths = entry.sourcePaths.filter((sourcePath) => changedFileSet.has(sourcePath));
     if (!matchedSourcePaths.length) continue;
     for (const sourcePath of matchedSourcePaths) covered.add(sourcePath);
-    const diffSummary = matchedSourcePaths.flatMap((sourcePath) => {
-      if (!diffSummaryCache.has(sourcePath)) diffSummaryCache.set(sourcePath, gitDiffSummary(state.repo, sourcePath) ?? []);
-      return diffSummaryCache.get(sourcePath) ?? [];
-    });
+    const diffSummary: string[] = [];
+    for (const sourcePath of matchedSourcePaths) {
+      if (!diffSummaryCache.has(sourcePath)) diffSummaryCache.set(sourcePath, await gitDiffSummary(state.repo, sourcePath) ?? []);
+      diffSummary.push(...(diffSummaryCache.get(sourcePath) ?? []));
+    }
     impactedPages.push({ page: entry.page, matchedSourcePaths, verificationLevel: entry.verificationLevel, diffSummary });
   }
   const testHealth = collectChangedTestHealth(changedFiles);
@@ -575,32 +576,30 @@ async function collectIngestDiff(project: string, base: string, explicitRepo?: s
   return { project, repo: refresh.repo, base, created, updated, refresh };
 }
 
-function parseProjectRepoBaseArgs(args: string[]) {
+async function parseProjectRepoBaseArgs(args: string[]) {
   const project = findProjectArg(args);
   requireValue(project, "project");
   const repoIndex = args.indexOf("--repo");
   const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
   const baseIndex = args.indexOf("--base");
-  const base = baseIndex >= 0 ? args[baseIndex + 1] : resolveDefaultBase(project, repo);
+  const base = baseIndex >= 0 ? args[baseIndex + 1] : await resolveDefaultBase(project, repo);
   if (baseIndex >= 0) requireValue(base, "base");
   return { project, repo, base };
 }
 
-// TODO(WIKI-FORGE-069): keep sync — 7+ callers via parseProjectRepoBaseArgs are sync
-export function resolveDefaultBase(project: string, explicitRepo?: string): string {
+export async function resolveDefaultBase(project: string, explicitRepo?: string): Promise<string> {
   // 1. Check _summary.md for default_base
   const summaryPath = join(projectRoot(project), "_summary.md");
-  if (existsSync(summaryPath)) {
-    const parsed = safeMatter(`projects/${project}/_summary.md`, readFileSync(summaryPath, "utf8"), { silent: true });
+  if (await exists(summaryPath)) {
+    const parsed = safeMatter(`projects/${project}/_summary.md`, await readText(summaryPath), { silent: true });
     if (parsed?.data.default_base) return String(parsed.data.default_base);
   }
   // 2. Try to detect the default branch from git
   try {
-    const repo = resolveRepoPath(project, explicitRepo);
-    // TODO: migrate to Bun.$ when caller chain is async (resolveDefaultBase is sync-exported)
-    const proc = Bun.spawnSync(["git", "symbolic-ref", "refs/remotes/origin/HEAD"], { cwd: repo, stdout: "pipe", stderr: "pipe" });
+    const repo = await resolveRepoPath(project, explicitRepo);
+    const proc = await Bun.$`git symbolic-ref refs/remotes/origin/HEAD`.cwd(repo).quiet().nothrow();
     if (proc.exitCode === 0) {
-      const ref = proc.stdout.toString().trim().replace("refs/remotes/origin/", "");
+      const ref = proc.text().trim().replace("refs/remotes/origin/", "");
       if (ref) return ref;
     }
   } catch {}
