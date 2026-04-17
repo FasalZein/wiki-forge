@@ -3,7 +3,6 @@ import { appendLogEntry } from "../lib/log";
 import { collectLintResult, collectSemanticLintResult } from "../verification";
 import type { LintingSnapshot } from "../verification";
 import { parseProjectRepoBaseArgs } from "../git-utils";
-import { repairHistoricalDoneSlices } from "../slice";
 import {
   collectHierarchyStatusActions,
   collectLifecycleDriftActions,
@@ -29,13 +28,19 @@ export async function autoRefreshIndex(project: string, options: { dryRun?: bool
   return { stale, written: written.map((target) => target.path) };
 }
 
-export async function maintainProject(args: string[]) {
+export type MaintainRepairInput = {
+  repaired: Array<{ taskId: string; completedAt: string; files: string[]; changes: string[] }>;
+  alreadyCurrent: number;
+  missingDocs: string[];
+  archiveCandidates: Array<{ taskId: string; completedAt: string; ageDays: number }>;
+};
+
+export async function maintainProject(args: string[], repair?: MaintainRepairInput) {
   const options = await parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
   const verbose = args.includes("--verbose");
   const worktree = args.includes("--worktree");
   const dryRun = args.includes("--dry-run");
-  const repair = await repairHistoricalDoneSlices(options.project);
   const result = await collectMaintenancePlan(options.project, options.base, options.repo, undefined, undefined, { worktree });
   const indexRefresh = await autoRefreshIndex(options.project, { dryRun });
   appendLogEntry("maintain", options.project, {

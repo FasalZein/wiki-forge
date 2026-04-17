@@ -33,7 +33,10 @@ export async function statusProject(args: string[]) {
   const json = args.includes("--json");
   const project = args.find((arg) => !arg.startsWith("--"));
   const projectsRoot = join(VAULT_ROOT, "projects");
-  const projects = project ? [project] : await exists(projectsRoot) ? listDirs(projectsRoot) : [];
+  let projects: string[];
+  if (project) projects = [project];
+  else if (await exists(projectsRoot)) projects = listDirs(projectsRoot);
+  else projects = [];
   const rows = await Promise.all(projects.map((name) => collectStatusRow(name)));
   if (json) console.log(JSON.stringify(rows, null, 2));
   else for (const row of rows) console.log(`${row.project}: modules=${row.modules} pages=${row.pages} bound=${row.bound} unbound=${row.unbound} stale=${row.stale} root=${row.root}`);

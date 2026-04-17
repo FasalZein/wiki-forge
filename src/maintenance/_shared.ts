@@ -7,9 +7,9 @@ import { readVerificationLevel, resolveRepoPath, assertGitRepo, gitDiffSummary, 
 import { walkMarkdown } from "../lib/vault";
 import { collectBacklogFocus } from "../hierarchy";
 import { gitChangedFiles, bindingMatchesFile, gitLastShaForPath, worktreeChangedFiles, worktreeModifiedAt, parseEntryUpdated } from "../git-utils";
-import { listCodeFiles, listRepoMarkdownDocs, readCodePaths } from "../protocol";
+import { listCodeFiles, listRepoMarkdownDocs, readCodePaths } from "../lib/repo-scan";
 import { collectChangedTestHealth, isCodeFile } from "./test-health";
-import { isHistoricalDoneSlicePage } from "../slice";
+import { isHistoricalDoneSlicePage } from "../lib/slice-query";
 import type { LintingSnapshot } from "../verification";
 
 export type ProjectSnapshot = {
@@ -61,11 +61,20 @@ function suppressionReasonForWorktreePlanningPage(
 ): WorktreeImpactedPage["suppressionReason"] | null {
   if (isHistoricalDoneSlicePage(entry)) return "historical-done-slice";
   const sliceTaskId = sliceTaskIdFromPage(entry.page);
-  if (sliceTaskId !== null) return scope.actionableSliceIds.has(sliceTaskId) ? null : "non-actionable-planning";
+  if (sliceTaskId !== null) {
+    if (scope.actionableSliceIds.has(sliceTaskId)) return null;
+    return "non-actionable-planning";
+  }
   if (!scope.activeTaskId) return null;
   if (entry.page === "_summary.md" || entry.page === "learnings.md" || entry.page === "decisions.md" || entry.page.startsWith("legacy/")) return "non-actionable-planning";
-  if (entry.page.startsWith("specs/prds/")) return entry.parsed?.data.prd_id === scope.activePrd ? null : "non-actionable-planning";
-  if (entry.page.startsWith("specs/features/")) return entry.parsed?.data.feature_id === scope.activeFeature ? null : "non-actionable-planning";
+  if (entry.page.startsWith("specs/prds/")) {
+    if (entry.parsed?.data.prd_id === scope.activePrd) return null;
+    return "non-actionable-planning";
+  }
+  if (entry.page.startsWith("specs/features/")) {
+    if (entry.parsed?.data.feature_id === scope.activeFeature) return null;
+    return "non-actionable-planning";
+  }
   return null;
 }
 

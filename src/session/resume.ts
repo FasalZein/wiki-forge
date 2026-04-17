@@ -6,7 +6,9 @@ import { parseProjectRepoBaseArgs } from "../git-utils";
 import { exists, readText } from "../lib/fs";
 import { collectSessionActivity, resolveSessionId } from "../lib/tracker";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
-import { collectMaintenancePlan, collectDriftSummary } from "../maintenance";
+import { collectMaintenancePlan } from "../maintenance";
+import { collectDriftSummary } from "../lib/drift-query";
+import { loadLintingSnapshot } from "../verification";
 import {
   collectDirtyRepoStatus,
   collectRecentCommits,
@@ -35,9 +37,10 @@ export async function resumeProject(args: string[]) {
   const json = args.includes("--json");
   const repo = await resolveRepoPath(options.project, options.repo);
   await assertGitRepo(repo);
+  const lintingSnapshot = await loadLintingSnapshot(options.project);
   const [maintain, drift, sessionActivity, latestHandoverPath] = await Promise.all([
     collectMaintenancePlan(options.project, options.base, repo),
-    collectDriftSummary(options.project, repo),
+    collectDriftSummary(options.project, repo, lintingSnapshot),
     collectSessionActivity(options.project, resolveSessionId()),
     findLatestHandover(options.project),
   ]);

@@ -125,7 +125,14 @@ async function loadGraphNodes(project: string): Promise<GraphNode[]> {
 
 function buildCanvas(project: string, nodes: GraphNode[], edges: GraphEdge[]) {
   const positioned = nodes.map((node, index) => {
-    const column = node.kind === "feature" ? 0 : node.kind === "prd" ? 1 : 2;
+    let column: number;
+    if (node.kind === "feature") column = 0;
+    else if (node.kind === "prd") column = 1;
+    else column = 2;
+    let color: string;
+    if (node.kind === "feature") color = "4";
+    else if (node.kind === "prd") color = "2";
+    else color = "5";
     const row = nodes.filter((entry) => entry.kind === node.kind).findIndex((entry) => entry.key === node.key);
     return {
       id: node.id,
@@ -135,7 +142,7 @@ function buildCanvas(project: string, nodes: GraphNode[], edges: GraphEdge[]) {
       width: 380,
       height: 160,
       file: node.file,
-      color: node.kind === "feature" ? "4" : node.kind === "prd" ? "2" : "5",
+      color,
     };
   });
   return { nodes: positioned, edges };

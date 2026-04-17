@@ -5,6 +5,8 @@ import { printHelp, scaffoldProject, addTask, backlogCommand, moveTask, complete
 import { doctorProject, gateProject } from "./maintenance";
 import { closeFeature, closePrd, featureStatusCommand, startFeature, startPrd } from "./hierarchy";
 import { pipelineCommand } from "./slice/pipeline";
+import { repairHistoricalDoneSlices } from "./slice";
+import { findProjectArg } from "./git-utils";
 import { askProject, fileAnswer, fileResearch } from "./retrieval/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "./retrieval/qmd-commands";
 import { bindSourcePaths, migrateVerification, verifyPage } from "./verification";
@@ -54,7 +56,11 @@ const commands: Record<string, CommandHandler> = {
   resume: (args) => resumeProject(args),
   doctor: (args) => doctorProject(args),
   gate: (args) => gateProject(args),
-  maintain: (args) => maintainProject(args),
+  maintain: async (args) => {
+    const project = findProjectArg(args);
+    const repair = project ? await repairHistoricalDoneSlices(project) : undefined;
+    await maintainProject(args, repair);
+  },
   refresh: (args) => refreshProject(args),
   "refresh-from-git": (args) => refreshFromGit(args),
   discover: (args) => discoverProject(args),

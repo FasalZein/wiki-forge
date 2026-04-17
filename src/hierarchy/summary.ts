@@ -3,7 +3,7 @@ import { VAULT_ROOT } from "../constants";
 import { projectRoot, requireValue, safeMatter } from "../cli-shared";
 import { readText } from "../lib/fs";
 import { collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "../verification";
-import { collectDriftSummary } from "../maintenance";
+import { collectDriftSummary } from "../lib/drift-query";
 import { collectBacklog, collectBacklogFocus } from "./backlog";
 import { resolveDefaultBase } from "../git-utils";
 

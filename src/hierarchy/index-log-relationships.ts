@@ -144,7 +144,10 @@ export function relatedFeaturesFor(featureRows: ProjectPageRow[], prdRows: Proje
 export function buildSectionSortKey(section: string, rel: string, data: Record<string, unknown> | undefined) {
   if (section !== "specs") return rel;
   const kindOrder = { feature: "0", prd: "1", "task-hub": "2", plan: "3", "test-plan": "4" } as const;
-  const kind = typeof data?.spec_kind === "string" ? data.spec_kind : rel.endsWith("/index.md") ? "task-hub" : "zzz";
+  let kind: string;
+  if (typeof data?.spec_kind === "string") kind = data.spec_kind;
+  else if (rel.endsWith("/index.md")) kind = "task-hub";
+  else kind = "zzz";
   let ordinalSource: string;
   if (typeof data?.feature_id === "string") {
     ordinalSource = data.feature_id;

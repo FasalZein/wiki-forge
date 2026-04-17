@@ -1,15 +1,8 @@
-export type { ProjectSnapshot, RefreshOptions, WorktreeImpactedPage } from "./_shared";
-export {
-  loadProjectSnapshot,
-  collectRefreshFromGit,
-  collectRefreshFromWorktree,
-  projectSnapshotToLintingSnapshot,
-} from "./_shared";
-
 export { maintainProject, collectMaintenancePlan, collapseActions, compactMaintainForJson, autoRefreshIndex } from "./maintain";
 export { closeoutProject, collectCloseout, compactCloseoutForJson, renderCloseout } from "./closeout";
 export { refreshProject, refreshFromGit, refreshOnMerge } from "./refresh";
-export { discoverProject, collectDiscoverSummary, dashboardProject, collectDashboard, collectIngestDiff, ingestDiff } from "./discover";
+export { discoverProject, collectDiscoverSummary, collectIngestDiff, ingestDiff } from "./discover";
+export { dashboardProject, collectDashboard } from "./dashboard";
 export { checkpoint, collectCheckpoint } from "./checkpoint";
 export { commitCheck, collectCommitCheck, installGitHook } from "./commit-check";
 export { doctorProject, collectDoctor, compactDoctorForJson } from "./doctor";

@@ -74,7 +74,8 @@ export async function refreshOnMerge(args: string[]) {
 
 async function collectRefreshOnMerge(project: string, base: string, explicitRepo?: string) {
   const refresh = await collectRefreshFromGit(project, base, explicitRepo);
-  const drift = await collectDriftSummary(project, explicitRepo);
+  const lintingSnapshot = await loadLintingSnapshot(project);
+  const drift = await collectDriftSummary(project, explicitRepo, lintingSnapshot);
   const gate = await collectGate(project, base, explicitRepo);
   const impacted = new Set(refresh.impactedPages.map((page) => page.page));
   const staleImpactedPages = drift.results.filter((row) => impacted.has(row.wikiPage) && row.status !== "fresh");

@@ -41,7 +41,11 @@ export async function readSliceDependencies(project: string, taskId: string) {
 }
 
 export async function readSliceDoc(project: string, taskId: string, kind: SliceDocKind) {
-  const path = kind === "index" ? sliceDocPaths(project, taskId).indexPath : kind === "plan" ? sliceDocPaths(project, taskId).planPath : sliceDocPaths(project, taskId).testPlanPath;
+  const paths = sliceDocPaths(project, taskId);
+  let path: string;
+  if (kind === "index") path = paths.indexPath;
+  else if (kind === "plan") path = paths.planPath;
+  else path = paths.testPlanPath;
   if (!await exists(path)) throw new Error(`${kind} not found: ${relative(VAULT_ROOT, path)}`);
   const raw = await readText(path);
   const parsed = safeMatter(relative(VAULT_ROOT, path), raw);

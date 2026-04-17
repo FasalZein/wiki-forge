@@ -204,8 +204,7 @@ function extractManagedBlock(content: string) {
   const start = content.indexOf(START_MARKER);
   const end = content.indexOf(END_MARKER);
   if (start < 0 || end < 0 || end < start) return "";
-  const prefix = content.slice(0, end + END_MARKER.length).trimEnd();
-  return prefix;
+  return content.slice(0, end + END_MARKER.length).trimEnd();
 }
 
 function extractRemainder(content: string) {

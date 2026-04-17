@@ -3,19 +3,16 @@ import { VAULT_ROOT } from "../constants";
 import { requireValue, projectRoot, mkdirIfMissing } from "../cli-shared";
 import { exists, readText, writeText } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
-import { tailLog } from "../lib/log";
 import { classifyProjectDocPath } from "../lib/structure";
 import { findProjectArg, parseProjectRepoBaseArgs } from "../git-utils";
-import { loadLintingSnapshot, collectStatusRow, collectVerifySummary } from "../verification";
-import { collectDriftSummary } from "./drift";
-import { buildDirectoryTree, listCodeFiles, listRepoMarkdownDocs, readCodePaths, createModuleInternal } from "../protocol";
+import { buildDirectoryTree, listCodeFiles, listRepoMarkdownDocs, readCodePaths } from "../lib/repo-scan";
+import { createModuleInternal } from "../protocol";
 import { guessModuleName } from "./test-health";
 import {
   loadProjectSnapshot,
   collectRefreshFromGit,
   type ProjectSnapshot,
 } from "./_shared";
-import { collectMaintenancePlan } from "./maintain";
 
 export async function discoverProject(args: string[]) {
   const project = findProjectArg(args);
@@ -83,25 +80,6 @@ export async function collectDiscoverSummary(project: string, explicitRepo?: str
   const repoFiles = state.repoFiles ?? listCodeFiles(state.repo, await readCodePaths(project));
   const repoDocFiles = state.repoDocFiles ?? await listRepoMarkdownDocs(state.repo);
   return { project, repo: state.repo, repoFiles: repoFiles.length, boundFiles: boundFiles.size, uncoveredFiles: repoFiles.filter((file) => !boundFiles.has(file)), unboundPages: unboundPages.sort(), placeholderHeavyPages: placeholderHeavyPages.sort(), researchDirs, repoDocFiles };
-}
-
-export async function dashboardProject(args: string[]) {
-  const options = await parseProjectRepoBaseArgs(args);
-  console.log(JSON.stringify(await collectDashboard(options.project, options.base, options.repo), null, 2));
-}
-
-export async function collectDashboard(project: string, base: string, explicitRepo?: string) {
-  const [projectSnapshot, lintingSnapshot] = await Promise.all([
-    loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true }),
-    loadLintingSnapshot(project, { noteIndex: true }),
-  ]);
-  const maintain = await collectMaintenancePlan(project, base, explicitRepo, projectSnapshot, lintingSnapshot);
-  const [status, verify, drift] = await Promise.all([
-    collectStatusRow(project, lintingSnapshot),
-    collectVerifySummary(project, lintingSnapshot),
-    collectDriftSummary(project, explicitRepo, lintingSnapshot),
-  ]);
-  return { project, repo: maintain.repo, base, status, verify, drift, discover: maintain.discover, maintain, recentLog: await tailLog(20) };
 }
 
 export async function collectIngestDiff(project: string, base: string, explicitRepo?: string) {
