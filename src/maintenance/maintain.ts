@@ -1,12 +1,16 @@
 import { requireValue } from "../cli-shared";
 import { appendLogEntry } from "../lib/log";
-import { collectLintResult, collectSemanticLintResult } from "../verification/linting";
-import type { LintingSnapshot } from "../verification/linting";
+import { collectLintResult, collectSemanticLintResult } from "../verification";
+import type { LintingSnapshot } from "../verification";
 import { parseProjectRepoBaseArgs } from "../git-utils";
-import { repairHistoricalDoneSlices } from "../slice/slice-repair";
-import { collectHierarchyStatusActions, collectLifecycleDriftActions } from "../hierarchy";
-import { collectStaleIndexTargets, writeNavigationIndex } from "../hierarchy/index-log";
-import { collectBacklogFocus } from "../hierarchy/backlog";
+import { repairHistoricalDoneSlices } from "../slice";
+import {
+  collectHierarchyStatusActions,
+  collectLifecycleDriftActions,
+  collectStaleIndexTargets,
+  writeNavigationIndex,
+  collectBacklogFocus,
+} from "../hierarchy";
 import {
   loadProjectSnapshot,
   projectSnapshotToLintingSnapshot,

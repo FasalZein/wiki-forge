@@ -1,6 +1,6 @@
 import { requireValue } from "../cli-shared";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
-import { collectBacklogFocus } from "../hierarchy/backlog";
+import { collectBacklogFocus } from "../hierarchy";
 import { collectMaintenancePlan } from "../maintenance";
 import { resolveDefaultBase } from "../git-utils";
 

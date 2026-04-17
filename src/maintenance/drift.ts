@@ -4,8 +4,8 @@ import { assertExists, nowIso, projectRoot, requireValue, safeMatter, today, wri
 import { readText } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
 import { batchGitLastModified, parseUpdatedDate, readVerificationLevel, resolveRepoPath, assertGitRepo, sourcePathStatus } from "../lib/verification";
-import { loadLintingSnapshot } from "../verification/linting";
-import type { LintingSnapshot } from "../verification/linting";
+import { loadLintingSnapshot } from "../verification";
+import type { LintingSnapshot } from "../verification";
 
 type DriftRow = {
   wikiPage: string; absolutePath: string; updated: string; sourcePaths: string[]; currentLevel: VerificationLevel | null;

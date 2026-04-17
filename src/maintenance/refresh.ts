@@ -1,6 +1,6 @@
 import { requireValue } from "../cli-shared";
 import { appendLogEntry } from "../lib/log";
-import { collectLintResult, loadLintingSnapshot } from "../verification/linting";
+import { collectLintResult, loadLintingSnapshot } from "../verification";
 import { parseProjectRepoBaseArgs, findProjectArg } from "../git-utils";
 import { collectDriftSummary } from "./drift";
 import { collectRefreshFromGit } from "./_shared";

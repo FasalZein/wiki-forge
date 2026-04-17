@@ -6,7 +6,7 @@ import { appendLogEntry } from "../lib/log";
 import { exists, readText } from "../lib/fs";
 import { readVerificationLevel } from "../lib/verification";
 import { sliceDocPaths } from "../lib/slices";
-import { collectBacklog } from "../hierarchy/backlog";
+import { collectBacklog } from "../hierarchy";
 
 export type DoneSliceRepair = {
   project: string;

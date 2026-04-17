@@ -1,5 +1,6 @@
 export { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeModule } from "./protocol/project-setup";
-export { backlogCommand, addTask, moveTask, completeTask, createIssueSlice } from "./hierarchy/backlog";
+export { backlogCommand, addTask, moveTask, completeTask } from "./hierarchy/backlog";
+export { createIssueSlice } from "./slice/slice-scaffold";
 export { createFeature, createPrd, createPlan, createTestPlan } from "./hierarchy/planning";
 export { dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, discoverProject, ingestDiff } from "./maintenance";
 export { handoverProject, claimSlice, noteProject, nextProject, startSlice, verifySlice, closeSlice, exportPrompt, resumeProject } from "./slice/coordination";

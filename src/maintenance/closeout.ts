@@ -1,6 +1,6 @@
 import { parseProjectRepoBaseArgs } from "../git-utils";
-import { collectLintResult, collectSemanticLintResult } from "../verification/linting";
-import type { LintingSnapshot } from "../verification/linting";
+import { collectLintResult, collectSemanticLintResult } from "../verification";
+import type { LintingSnapshot } from "../verification";
 import {
   loadProjectSnapshot,
   projectSnapshotToLintingSnapshot,

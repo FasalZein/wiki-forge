@@ -1,5 +1,5 @@
 import { CODE_FILE_PATTERN } from "../constants";
-import { slugify } from "../hierarchy/planning";
+import { slugify } from "../hierarchy";
 
 // Normalize file basenames for matching: strip conventional suffixes
 // (both dotted like ".service" and hyphenated like "-service") and

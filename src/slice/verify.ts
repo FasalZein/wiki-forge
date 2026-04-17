@@ -4,7 +4,7 @@ import { requireValue } from "../cli-shared";
 import { appendLogEntry } from "../lib/log";
 import { extractShellCommandBlocks, readSliceTestPlan } from "../lib/slices";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
-import { applyVerificationLevel } from "../verification/verification-shared";
+import { applyVerificationLevel } from "../verification";
 
 export async function verifySlice(args: string[]) {
   const project = args[0];

@@ -6,12 +6,16 @@ import { appendLogEntry } from "../lib/log";
 import { readSliceHub, readSlicePlan, readSliceTestPlan } from "../lib/slices";
 import { readVerificationLevel } from "../lib/verification";
 import { projectTaskHubPath } from "../lib/structure";
-import { collectTaskContextForId, moveTaskToSection } from "../hierarchy/backlog";
+import {
+  collectTaskContextForId,
+  moveTaskToSection,
+  writeProjectIndex,
+  computeEntityStatus,
+  lifecycleClose,
+} from "../hierarchy";
 import { collectGate, compactDoctorForJson, collectCloseout, isTestFile } from "../maintenance";
 import { resolveDefaultBase } from "../git-utils";
-import { writeProjectIndex } from "../hierarchy/index-log";
-import { applyVerificationLevel } from "../verification/verification-shared";
-import { computeEntityStatus, lifecycleClose } from "../hierarchy";
+import { applyVerificationLevel } from "../verification";
 
 export async function closeSlice(args: string[]) {
   const project = args[0];

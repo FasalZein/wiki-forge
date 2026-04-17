@@ -12,9 +12,20 @@ export { closeFeature } from "./close-feature";
 export { startPrd } from "./start-prd";
 export { closePrd } from "./close-prd";
 
-export { backlogCommand, addTask, moveTask, completeTask, createIssueSlice } from "./backlog";
-export { createFeature, createPrd, createPlan, createTestPlan } from "./planning";
+export {
+  backlogCommand,
+  addTask,
+  moveTask,
+  completeTask,
+  collectBacklog,
+  collectTaskContextForId,
+  collectBacklogFocus,
+  moveTaskToSection,
+} from "./backlog";
+export type { BacklogItem, TaskDocState, BacklogTaskContext, BacklogFocus } from "./backlog";
+export { appendTaskToBacklog, parseTaskArgs } from "./backlog-io";
+export { createFeature, createPrd, createPlan, createTestPlan, slugify } from "./planning";
 export { dependencyGraph } from "./dependency-graph";
-export { updateIndex } from "./index-log";
+export { updateIndex, writeProjectIndex, collectStaleIndexTargets, writeNavigationIndex } from "./index-log";
 export { summaryProject } from "./summary";
 export { createLayerPage, lintVault, scaffoldLayer } from "./layers";

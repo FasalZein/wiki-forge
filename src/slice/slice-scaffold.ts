@@ -7,8 +7,7 @@ import { appendLogEntry } from "../lib/log";
 import { isCanonicalPrdId, projectPrdsDir, projectTaskDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath, toVaultWikilinkPath } from "../lib/structure";
 import { assertKnownAgent } from "../lib/agents";
 import { exists } from "../lib/fs";
-import { writeProjectIndex } from "../hierarchy/index-log";
-import { appendTaskToBacklog, parseTaskArgs } from "../hierarchy/backlog-io";
+import { writeProjectIndex, appendTaskToBacklog, parseTaskArgs } from "../hierarchy";
 
 type PrdRecord = { prdId: string; title: string; parentFeature?: string; linkPath: string; sourcePaths: string[] };
 type SliceSpecKind = "task-hub" | "plan" | "test-plan";

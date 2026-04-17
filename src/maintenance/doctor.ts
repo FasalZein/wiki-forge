@@ -1,8 +1,8 @@
 import { requireValue } from "../cli-shared";
-import { collectBacklog } from "../hierarchy/backlog";
+import { collectBacklog } from "../hierarchy";
 import { readSliceSummary } from "../lib/slices";
-import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "../verification/linting";
-import type { LintingSnapshot } from "../verification/linting";
+import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "../verification";
+import type { LintingSnapshot } from "../verification";
 import { resolveDefaultBase } from "../git-utils";
 import {
   loadProjectSnapshot,

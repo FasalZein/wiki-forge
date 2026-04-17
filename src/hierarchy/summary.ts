@@ -2,8 +2,8 @@ import { relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { projectRoot, requireValue, safeMatter } from "../cli-shared";
 import { readText } from "../lib/fs";
-import { collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "../verification/linting";
-import { collectDriftSummary } from "../verification/verification";
+import { collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "../verification";
+import { collectDriftSummary } from "../maintenance";
 import { collectBacklog, collectBacklogFocus } from "./backlog";
 import { resolveDefaultBase } from "../git-utils";
 

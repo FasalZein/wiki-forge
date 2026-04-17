@@ -5,12 +5,12 @@ import { projectRoot, assertExists, safeMatter } from "../cli-shared";
 import { readText } from "../lib/fs";
 import { readVerificationLevel, resolveRepoPath, assertGitRepo, gitDiffSummary, parseUpdatedDate } from "../lib/verification";
 import { walkMarkdown } from "../lib/vault";
-import { collectBacklogFocus } from "../hierarchy/backlog";
+import { collectBacklogFocus } from "../hierarchy";
 import { gitChangedFiles, bindingMatchesFile, gitLastShaForPath, worktreeChangedFiles, worktreeModifiedAt, parseEntryUpdated } from "../git-utils";
-import { listCodeFiles, listRepoMarkdownDocs, readCodePaths } from "../protocol/repo-scan";
+import { listCodeFiles, listRepoMarkdownDocs, readCodePaths } from "../protocol";
 import { collectChangedTestHealth, isCodeFile } from "./test-health";
-import { isHistoricalDoneSlicePage } from "../slice/slice-repair";
-import type { LintingSnapshot } from "../verification/linting";
+import { isHistoricalDoneSlicePage } from "../slice";
+import type { LintingSnapshot } from "../verification";
 
 export type ProjectSnapshot = {
   project: string;

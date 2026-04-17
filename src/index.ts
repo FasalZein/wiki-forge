@@ -7,7 +7,8 @@ import { closeFeature, closePrd, featureStatusCommand, startFeature, startPrd } 
 import { pipelineCommand } from "./slice/pipeline";
 import { askProject, fileAnswer, fileResearch } from "./retrieval/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "./retrieval/qmd-commands";
-import { bindSourcePaths, driftCheck, migrateVerification, verifyPage } from "./verification/verification";
+import { bindSourcePaths, migrateVerification, verifyPage } from "./verification";
+import { driftCheck } from "./maintenance";
 import { acknowledgeImpact } from "./verification/acknowledge-impact";
 import { obsidianCommand } from "./protocol/obsidian";
 import { setupShell } from "./protocol/setup";

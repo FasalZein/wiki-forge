@@ -17,13 +17,19 @@
   "scripts": {
     "wiki": "bun src/index.ts",
     "sync:local": "bun scripts/sync-local.ts",
-    "check": "tsc --noEmit",
+    "lint": "eslint src/",
+    "check": "tsc --noEmit && eslint src/ --max-warnings 50",
     "test": "bun test",
     "bench:qmd": "bun scripts/qmd-bench.ts",
     "bench:maint": "bun scripts/wiki-maintenance-bench.ts"
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "8.58.2",
+    "@typescript-eslint/parser": "8.58.2",
     "bun-types": "1.3.11",
+    "eslint": "10.2.0",
+    "eslint-import-resolver-typescript": "4.4.4",
+    "eslint-plugin-boundaries": "6.0.2",
     "typescript": "^5.9.2"
   },
   "dependencies": {

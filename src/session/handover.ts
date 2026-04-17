@@ -2,7 +2,7 @@ import { relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { parseProjectRepoBaseArgs } from "../git-utils";
 import { collectSessionActivity, resolveSessionId } from "../lib/tracker";
-import { collectBacklog } from "../hierarchy/backlog";
+import { collectBacklog } from "../hierarchy";
 import { collectMaintenancePlan } from "../maintenance";
 import {
   collectDirtyRepoStatus,

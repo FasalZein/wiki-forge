@@ -7,7 +7,7 @@ import { agentNamesEqual } from "../lib/agents";
 import { readSliceDependencies, readSliceHub, readSliceSourcePaths, readSliceStatus } from "../lib/slices";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
 import { projectSlicesDir, projectTaskHubPath } from "../lib/structure";
-import { collectBacklog, collectTaskContextForId } from "../hierarchy/backlog";
+import { collectBacklog, collectTaskContextForId } from "../hierarchy";
 
 export type ClaimConflict = {
   taskId: string;

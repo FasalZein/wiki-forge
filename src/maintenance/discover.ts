@@ -6,10 +6,9 @@ import { appendLogEntry } from "../lib/log";
 import { tailLog } from "../lib/log";
 import { classifyProjectDocPath } from "../lib/structure";
 import { findProjectArg, parseProjectRepoBaseArgs } from "../git-utils";
-import { loadLintingSnapshot, collectStatusRow, collectVerifySummary } from "../verification/linting";
+import { loadLintingSnapshot, collectStatusRow, collectVerifySummary } from "../verification";
 import { collectDriftSummary } from "./drift";
-import { buildDirectoryTree, listCodeFiles, listRepoMarkdownDocs, readCodePaths } from "../protocol/repo-scan";
-import { createModuleInternal } from "../protocol/project-setup";
+import { buildDirectoryTree, listCodeFiles, listRepoMarkdownDocs, readCodePaths, createModuleInternal } from "../protocol";
 import { guessModuleName } from "./test-health";
 import {
   loadProjectSnapshot,
