@@ -15,6 +15,10 @@ function resolveVaultRoot(): string | null {
   return existsSync(fallback) ? fallback : null;
 }
 
+const VAULT_ROOT = resolveVaultRoot();
+const PROJECT_ROOT = VAULT_ROOT ? join(VAULT_ROOT, "projects", "wiki-forge") : null;
+const VAULT_READY = Boolean(PROJECT_ROOT && existsSync(PROJECT_ROOT));
+
 function walk(dir: string): string[] {
   const out: string[] = [];
   for (const name of readdirSync(dir)) {
@@ -27,10 +31,8 @@ function walk(dir: string): string[] {
 }
 
 function collectBindings() {
-  const vault = resolveVaultRoot();
-  if (!vault) return null;
-  const projectRoot = join(vault, "projects", "wiki-forge");
-  if (!existsSync(projectRoot)) return null;
+  const projectRoot = PROJECT_ROOT as string;
+  const vaultRoot = VAULT_ROOT as string;
   const repoRoot = resolve(import.meta.dir, "..");
   const rows: Array<{ page: string; path: string }> = [];
   for (const page of walk(projectRoot)) {
@@ -39,23 +41,26 @@ function collectBindings() {
     if (!Array.isArray(sp)) continue;
     for (const entry of sp) {
       if (typeof entry !== "string" || !entry.trim()) continue;
-      rows.push({ page: page.slice(vault.length + 1), path: entry.trim() });
+      rows.push({ page: page.slice(vaultRoot.length + 1), path: entry.trim() });
     }
   }
   return { rows, repoRoot };
 }
 
-describe("WIKI-FORGE-115 wiki source_paths binding integrity", () => {
+describe.skipIf(!VAULT_READY)("WIKI-FORGE-115 wiki source_paths binding integrity", () => {
+  test("vault fixture yields at least one bound page", () => {
+    const data = collectBindings();
+    expect(data.rows.length).toBeGreaterThan(0);
+  });
+
   test("every bound path resolves to an existing file or directory on disk", () => {
     const data = collectBindings();
-    if (!data) return;
     const missing = data.rows.filter((row) => !existsSync(join(data.repoRoot, row.path)));
     expect(missing).toEqual([]);
   });
 
   test("no wiki page still references the removed src/commands/ layout", () => {
     const data = collectBindings();
-    if (!data) return;
     const stragglers = data.rows.filter((row) => row.path === "src/commands" || row.path.startsWith("src/commands/"));
     expect(stragglers).toEqual([]);
   });

@@ -5,4 +5,3 @@ export { ingestSource } from "./source-ingest";
 export { lintResearch, collectResearchLintResult } from "./lint";
 export { auditResearch } from "./audit";
 export { createResearchPage } from "./file";
-export { ensureResearchTopic } from "./_shared";

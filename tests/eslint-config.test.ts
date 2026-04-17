@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import { ESLint } from "eslint";
-import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const REPO_ROOT = resolve(import.meta.dir, "..");
@@ -11,14 +10,6 @@ async function newESLint() {
 }
 
 describe("WIKI-FORGE-114 eslint config", () => {
-  test("eslint.config.js exists and declares the three required rules", async () => {
-    const source = await readFile(CONFIG_PATH, "utf8");
-    expect(source).toContain("max-lines");
-    expect(source).toContain("no-restricted-syntax");
-    expect(source).toContain("ExportAllDeclaration");
-    expect(source).toContain("boundaries");
-  });
-
   test("a synthetic export * fails lint with no-restricted-syntax", async () => {
     const eslint = await newESLint();
     const [result] = await eslint.lintText(
@@ -40,5 +31,16 @@ describe("WIKI-FORGE-114 eslint config", () => {
     const hasBoundaryViolation = ruleIds.some((id) => id && id.startsWith("boundaries/"));
     expect(hasBoundaryViolation).toBe(true);
     expect(result.errorCount).toBeGreaterThan(0);
+  });
+
+  test("a file over 500 non-blank non-comment lines warns with max-lines", async () => {
+    const eslint = await newESLint();
+    const body = Array.from({ length: 600 }, (_, i) => `export const v${i} = ${i};`).join("\n");
+    const [result] = await eslint.lintText(body + "\n", {
+      filePath: resolve(REPO_ROOT, "src/slice/__eslint_synthetic_max_lines__.ts"),
+    });
+    const ruleIds = result.messages.map((m) => m.ruleId);
+    expect(ruleIds).toContain("max-lines");
+    expect(result.warningCount).toBeGreaterThan(0);
   });
 });
