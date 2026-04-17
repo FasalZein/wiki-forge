@@ -202,10 +202,16 @@ export async function handoverProject(args: string[]) {
     return;
   }
   console.log(`handover for ${options.project}:`);
-  // --- next session prompt (top, so truncation can't eat it) ---
-  console.log("");
-  console.log("--- next session prompt ---");
-  console.log(nextSessionPrompt);
+  // --- top pointer: survives `| head -N` truncation ---
+  // Agents default to piping through `tail -N`, which keeps the END. But `head -N`
+  // users still need a recovery hint, so the first lines name where the prompt is
+  // and point at the durable file.
+  const handoverRel = handoverPath ? relative(VAULT_ROOT, handoverPath) : null;
+  console.log(
+    handoverRel
+      ? `→ NEXT SESSION PROMPT appears at the END of this output. If truncated, cat ${handoverRel}`
+      : `→ NEXT SESSION PROMPT appears at the END of this output. Re-run with --json to parse it programmatically.`,
+  );
   console.log("");
   console.log("--- session context ---");
   console.log(`- repo: ${result.repo}`);
@@ -238,7 +244,11 @@ export async function handoverProject(args: string[]) {
     console.log(`- agent notes:`);
     for (const entry of recentNotes) console.log(`    ${compactLogEntry(entry)}`);
   }
-  if (handoverPath) console.log(`\nhandover written: ${relative(VAULT_ROOT, handoverPath)}`);
+  // --- next session prompt (end, so `| tail -N` keeps it) ---
+  console.log("");
+  console.log("--- next session prompt ---");
+  console.log(nextSessionPrompt);
+  if (handoverRel) console.log(`\nhandover written: ${handoverRel}`);
 }
 
 async function writeHandoverFile(

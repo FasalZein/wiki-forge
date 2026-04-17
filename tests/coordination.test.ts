@@ -179,6 +179,40 @@ describe("wiki coordination commands", () => {
     expect(summaryIdx).toBeGreaterThan(priorityIdx);
   });
 
+  test("handover stdout survives tail -N: pointer at top, prompt at end, path as last line", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+
+    const result = runWiki(["handover", "demo", "--repo", repo, "--base", "HEAD~1"], env);
+    expect(result.exitCode).toBe(0);
+    const stdout = result.stdout.toString();
+    const lines = stdout.split("\n");
+    const nonEmpty = lines.filter((l) => l.trim().length > 0);
+
+    // Top pointer: within the first few non-empty lines, there must be a pointer
+    // naming the prompt's end location so `| head -N` users still know how to recover.
+    const topBlock = nonEmpty.slice(0, 5).join("\n");
+    expect(topBlock).toContain("NEXT SESSION PROMPT");
+
+    // Prompt block must appear AFTER session context (so `| tail -N` keeps it).
+    const contextIdx = stdout.indexOf("--- session context ---");
+    const promptIdx = stdout.indexOf("--- next session prompt ---");
+    expect(contextIdx).toBeGreaterThan(-1);
+    expect(promptIdx).toBeGreaterThan(contextIdx);
+
+    // Prompt block is printed exactly once.
+    const promptCount = (stdout.match(/--- next session prompt ---/g) || []).length;
+    expect(promptCount).toBe(1);
+
+    // Last non-empty line is the handover file path — so even aggressive truncation
+    // leaves an actionable recovery hint (`cat <that path>`).
+    const lastLine = nonEmpty[nonEmpty.length - 1];
+    expect(lastLine).toMatch(/^handover written: /);
+    expect(lastLine).toContain("handovers/");
+  });
+
   test("handover with --no-write does not create a file", () => {
     const { vault, repo } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
