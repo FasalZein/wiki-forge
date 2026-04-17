@@ -3,7 +3,6 @@ import { dirname, join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { exists, listDirs, readText, writeText } from "../lib/fs";
-import { tailLog, appendLogEntry } from "../lib/log";
 import { projectSpecsIndexPath, projectSpecViewIndexPath, workspaceIndexPath, workspaceProjectsDashboardPath } from "../lib/structure";
 import { collectBacklogFocus } from "./backlog-collect";
 import { collectStatusRow, loadLintingSnapshot } from "../verification/linting";
@@ -54,30 +53,6 @@ export async function updateIndex(args: string[]) {
     console.log(`${write ? "updated" : "would update"} ${result.targets.length} index file(s)`);
     for (const target of result.targets) console.log(`- ${target.path}`);
   }
-}
-
-export async function logCommand(args: string[]) {
-  const subcommand = args[0] ?? "tail";
-  if (subcommand === "append") {
-    const kind = args[1];
-    const title = args[2];
-    requireValue(kind, "kind");
-    requireValue(title, "title");
-    const projectIndex = args.indexOf("--project");
-    const detailsIndex = args.indexOf("--details");
-    appendLogEntry(kind, title, {
-      project: projectIndex >= 0 ? args[projectIndex + 1] : undefined,
-      details: detailsIndex >= 0 ? [args.slice(detailsIndex + 1).join(" ").trim()].filter(Boolean) : [],
-    });
-    return console.log(`appended log entry: ${kind} | ${title}`);
-  }
-  let count: number;
-  if (subcommand === "tail") {
-    count = Number.parseInt(args[1] ?? "10", 10);
-  } else {
-    count = 10;
-  }
-  for (const entry of await tailLog(Number.isFinite(count) && count > 0 ? count : 10)) console.log(`${entry}\n`);
 }
 
 async function buildIndexPlan(project: string | undefined, all: boolean) {

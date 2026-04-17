@@ -61,5 +61,5 @@ export { startSlice } from "./start";
 export { claimSlice } from "./claim";
 export { verifySlice } from "./verify";
 export { closeSlice } from "./close";
-export { nextProject, handoverProject, resumeProject } from "../commands/session";
-export { noteProject, exportPrompt, summarizePlan, renderExecutionPrompt, firstMeaningfulLine, firstSectionLine } from "../session/note-export";
+export { nextProject, handoverProject, resumeProject } from "../session";
+export { noteProject, exportPrompt, summarizePlan, renderExecutionPrompt, firstMeaningfulLine, firstSectionLine } from "../session";

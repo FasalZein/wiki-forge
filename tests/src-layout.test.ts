@@ -18,7 +18,6 @@ const DOMAIN_FOLDERS = [
 ] as const;
 
 const GOD_FILES_STILL_IN_COMMANDS = [
-  "session.ts",
   "maintenance.ts",
   "maintenance-commands.ts",
   "snapshot.ts",
@@ -41,7 +40,7 @@ const MOVED_FILE_TARGETS: ReadonlyArray<readonly [string, string]> = [
   ["index-log.ts", "hierarchy"],
   ["layers.ts", "hierarchy"],
   ["linting.ts", "verification"],
-  ["note-export.ts", "session"],
+  ["note.ts", "session"],
   ["obsidian.ts", "protocol"],
   ["pipeline.ts", "slice"],
   ["planning.ts", "hierarchy"],
@@ -196,5 +195,37 @@ describe("WIKI-FORGE-110 research split by subcommand", () => {
 
   test("src/commands/research.ts is gone", () => {
     expect(existsSync(join(commandsRoot, "research.ts"))).toBe(false);
+  });
+});
+
+describe("WIKI-FORGE-111 session split by concern", () => {
+  const sessionRoot = join(srcRoot, "session");
+  const verbFiles = ["resume.ts", "handover.ts", "note.ts", "log.ts"] as const;
+
+  test("src/session/ has resume, handover, note, log files", () => {
+    for (const file of verbFiles) {
+      const path = join(sessionRoot, file);
+      expect(existsSync(path), `expected src/session/${file}`).toBe(true);
+      expect(statSync(path).isFile()).toBe(true);
+    }
+  });
+
+  test("no session file exceeds 250 LOC", () => {
+    for (const file of verbFiles) {
+      const path = join(sessionRoot, file);
+      const lines = readFileSync(path, "utf8").split("\n").length;
+      expect(lines, `${file} has ${lines} lines`).toBeLessThanOrEqual(250);
+    }
+  });
+
+  test("src/session/index.ts has no export *", () => {
+    const indexPath = join(sessionRoot, "index.ts");
+    expect(existsSync(indexPath)).toBe(true);
+    const content = readFileSync(indexPath, "utf8");
+    expect(content).not.toMatch(/export\s+\*/u);
+  });
+
+  test("src/commands/session.ts is gone", () => {
+    expect(existsSync(join(commandsRoot, "session.ts"))).toBe(false);
   });
 });
