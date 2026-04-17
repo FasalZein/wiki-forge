@@ -18,7 +18,6 @@ const DOMAIN_FOLDERS = [
 ] as const;
 
 const GOD_FILES_STILL_IN_COMMANDS = [
-  "slice-lifecycle.ts",
   "session.ts",
   "research.ts",
   "maintenance.ts",
@@ -130,5 +129,33 @@ describe("WIKI-FORGE-108 leaf-file moves into domain folders", () => {
       .filter((f) => f.endsWith(".ts"))
       .sort();
     expect(remaining).toEqual([...GOD_FILES_STILL_IN_COMMANDS].sort());
+  });
+});
+
+describe("WIKI-FORGE-109 slice-lifecycle split into verb files", () => {
+  const sliceRoot = join(srcRoot, "slice");
+  const verbFiles = ["start.ts", "verify.ts", "close.ts", "claim.ts"] as const;
+
+  test("src/slice/ has start, verify, close, claim files", () => {
+    for (const file of verbFiles) {
+      const path = join(sliceRoot, file);
+      expect(existsSync(path), `expected src/slice/${file}`).toBe(true);
+      expect(statSync(path).isFile()).toBe(true);
+    }
+  });
+
+  test("no slice verb file exceeds 300 LOC", () => {
+    for (const file of verbFiles) {
+      const path = join(sliceRoot, file);
+      const lines = readFileSync(path, "utf8").split("\n").length;
+      expect(lines, `${file} has ${lines} lines`).toBeLessThanOrEqual(300);
+    }
+  });
+
+  test("src/slice/index.ts has no export *", () => {
+    const indexPath = join(sliceRoot, "index.ts");
+    expect(existsSync(indexPath)).toBe(true);
+    const content = readFileSync(indexPath, "utf8");
+    expect(content).not.toMatch(/export\s+\*/u);
   });
 });
