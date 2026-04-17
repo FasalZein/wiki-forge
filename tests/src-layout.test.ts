@@ -18,23 +18,18 @@ const DOMAIN_FOLDERS = [
 ] as const;
 
 const GOD_FILES_STILL_IN_COMMANDS = [
-  "maintenance.ts",
-  "maintenance-commands.ts",
-  "snapshot.ts",
   "hierarchy-commands.ts",
 ] as const;
 
 const MOVED_FILE_TARGETS: ReadonlyArray<readonly [string, string]> = [
   ["acknowledge-impact.ts", "verification"],
   ["answers.ts", "retrieval"],
-  ["automation.ts", "maintenance"],
   ["backlog-collect.ts", "hierarchy"],
   ["backlog-commands.ts", "hierarchy"],
   ["backlog-io.ts", "hierarchy"],
   ["backlog.ts", "hierarchy"],
   ["coordination.ts", "slice"],
   ["dependency-graph.ts", "hierarchy"],
-  ["diagnostics.ts", "maintenance"],
   ["index-log-markdown.ts", "hierarchy"],
   ["index-log-relationships.ts", "hierarchy"],
   ["index-log.ts", "hierarchy"],
@@ -52,8 +47,6 @@ const MOVED_FILE_TARGETS: ReadonlyArray<readonly [string, string]> = [
   ["slice-repair.ts", "slice"],
   ["slice-scaffold.ts", "slice"],
   ["summary.ts", "hierarchy"],
-  ["test-health.ts", "verification"],
-  ["verification-drift.ts", "verification"],
   ["verification-pages.ts", "verification"],
   ["verification-shared.ts", "verification"],
 ];
@@ -227,5 +220,51 @@ describe("WIKI-FORGE-111 session split by concern", () => {
 
   test("src/commands/session.ts is gone", () => {
     expect(existsSync(join(commandsRoot, "session.ts"))).toBe(false);
+  });
+});
+
+describe("WIKI-FORGE-112 maintenance + snapshot + drift + test-health split", () => {
+  const maintenanceRoot = join(srcRoot, "maintenance");
+  const verbFiles = [
+    "refresh.ts",
+    "closeout.ts",
+    "gate.ts",
+    "maintain.ts",
+    "checkpoint.ts",
+    "drift.ts",
+    "doctor.ts",
+    "commit-check.ts",
+  ] as const;
+
+  test("src/maintenance/ has verb-per-file layout", () => {
+    for (const file of verbFiles) {
+      const path = join(maintenanceRoot, file);
+      expect(existsSync(path), `expected src/maintenance/${file}`).toBe(true);
+      expect(statSync(path).isFile()).toBe(true);
+    }
+  });
+
+  test("no maintenance file exceeds 300 LOC", () => {
+    const allFiles = readdirSync(maintenanceRoot).filter((f) => f.endsWith(".ts"));
+    for (const file of allFiles) {
+      const path = join(maintenanceRoot, file);
+      const lines = readFileSync(path, "utf8").split("\n").length;
+      expect(lines, `${file} has ${lines} lines`).toBeLessThanOrEqual(300);
+    }
+  });
+
+  test("src/maintenance/index.ts has no export *", () => {
+    const indexPath = join(maintenanceRoot, "index.ts");
+    expect(existsSync(indexPath)).toBe(true);
+    const content = readFileSync(indexPath, "utf8");
+    expect(content).not.toMatch(/export\s+\*/u);
+  });
+
+  test("old god files are gone", () => {
+    expect(existsSync(join(commandsRoot, "maintenance.ts"))).toBe(false);
+    expect(existsSync(join(commandsRoot, "maintenance-commands.ts"))).toBe(false);
+    expect(existsSync(join(commandsRoot, "snapshot.ts"))).toBe(false);
+    expect(existsSync(join(srcRoot, "verification", "verification-drift.ts"))).toBe(false);
+    expect(existsSync(join(srcRoot, "verification", "test-health.ts"))).toBe(false);
   });
 });

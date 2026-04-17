@@ -1,7 +1,8 @@
 import { requireValue } from "../cli-shared";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
 import { collectBacklogFocus } from "../hierarchy/backlog";
-import { collectMaintenancePlan, resolveDefaultBase } from "../commands/maintenance";
+import { collectMaintenancePlan } from "../maintenance";
+import { resolveDefaultBase } from "../git-utils";
 
 export async function nextProject(args: string[]) {
   const project = args[0];

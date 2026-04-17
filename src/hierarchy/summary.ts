@@ -5,7 +5,7 @@ import { readText } from "../lib/fs";
 import { collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "../verification/linting";
 import { collectDriftSummary } from "../verification/verification";
 import { collectBacklog, collectBacklogFocus } from "./backlog";
-import { resolveDefaultBase } from "../commands/maintenance";
+import { resolveDefaultBase } from "../git-utils";
 
 export async function summaryProject(args: string[]) {
   const project = args.find((arg) => !arg.startsWith("--"));

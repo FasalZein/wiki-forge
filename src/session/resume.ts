@@ -6,7 +6,7 @@ import { parseProjectRepoBaseArgs } from "../git-utils";
 import { exists, readText } from "../lib/fs";
 import { collectSessionActivity, resolveSessionId } from "../lib/tracker";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
-import { collectMaintenancePlan } from "../commands/maintenance";
+import { collectMaintenancePlan } from "../maintenance";
 import { collectDriftSummary } from "../verification/verification";
 import {
   collectDirtyRepoStatus,

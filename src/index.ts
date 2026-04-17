@@ -2,7 +2,7 @@
 
 import type { CommandHandler } from "./types";
 import { printHelp, scaffoldProject, addTask, backlogCommand, moveTask, completeTask, createIssueSlice, createFeature, createPrd, createPlan, createTestPlan, createModule, onboardProject, onboardPlan, normalizeModule, dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, discoverProject, ingestDiff, handoverProject, claimSlice, noteProject, nextProject, startSlice, verifySlice, closeSlice, exportPrompt, resumeProject, commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo, syncProtocol, auditProtocol, dependencyGraph, updateIndex, logCommand, statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch } from "./system";
-import { doctorProject, gateProject } from "./maintenance/diagnostics";
+import { doctorProject, gateProject } from "./maintenance";
 import { closeFeature, closePrd, featureStatusCommand, startFeature, startPrd } from "./commands/hierarchy-commands";
 import { pipelineCommand } from "./slice/pipeline";
 import { askProject, fileAnswer, fileResearch } from "./retrieval/answers";

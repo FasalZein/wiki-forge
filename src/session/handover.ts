@@ -3,7 +3,7 @@ import { VAULT_ROOT } from "../constants";
 import { parseProjectRepoBaseArgs } from "../git-utils";
 import { collectSessionActivity, resolveSessionId } from "../lib/tracker";
 import { collectBacklog } from "../hierarchy/backlog";
-import { collectMaintenancePlan } from "../commands/maintenance";
+import { collectMaintenancePlan } from "../maintenance";
 import {
   collectDirtyRepoStatus,
   collectRecentCommits,

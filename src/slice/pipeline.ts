@@ -1,5 +1,5 @@
 import { requireValue } from "../cli-shared";
-import { resolveDefaultBase } from "../commands/maintenance";
+import { resolveDefaultBase } from "../git-utils";
 import { runPipeline, type PipelinePhase } from "../lib/pipeline";
 
 export async function pipelineCommand(args: string[]) {

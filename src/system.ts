@@ -1,9 +1,9 @@
 export { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeModule } from "./protocol/project-setup";
 export { backlogCommand, addTask, moveTask, completeTask, createIssueSlice } from "./hierarchy/backlog";
 export { createFeature, createPrd, createPlan, createTestPlan } from "./hierarchy/planning";
-export { dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, discoverProject, ingestDiff } from "./commands/maintenance";
+export { dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, discoverProject, ingestDiff } from "./maintenance";
 export { handoverProject, claimSlice, noteProject, nextProject, startSlice, verifySlice, closeSlice, exportPrompt, resumeProject } from "./slice/coordination";
-export { commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo } from "./maintenance/automation";
+export { commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo } from "./maintenance";
 export { syncProtocol, auditProtocol } from "./protocol/protocol";
 export { dependencyGraph } from "./hierarchy/dependency-graph";
 export { updateIndex } from "./hierarchy/index-log";
