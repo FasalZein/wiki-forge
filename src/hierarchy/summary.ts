@@ -2,10 +2,10 @@ import { relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { projectRoot, requireValue, safeMatter } from "../cli-shared";
 import { readText } from "../lib/fs";
-import { collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "./linting";
-import { collectDriftSummary } from "./verification";
+import { collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "../verification/linting";
+import { collectDriftSummary } from "../verification/verification";
 import { collectBacklog, collectBacklogFocus } from "./backlog";
-import { resolveDefaultBase } from "./maintenance";
+import { resolveDefaultBase } from "../commands/maintenance";
 
 export async function summaryProject(args: string[]) {
   const project = args.find((arg) => !arg.startsWith("--"));

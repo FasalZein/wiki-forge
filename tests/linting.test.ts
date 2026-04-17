@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { collectSemanticLintResult, type LintingSnapshot } from "../src/commands/linting";
+import { collectSemanticLintResult, type LintingSnapshot } from "../src/verification/linting";
 
 function makeSnapshot(entries: Array<{ relPath: string; raw: string }>): LintingSnapshot {
   return {

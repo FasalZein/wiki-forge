@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { isAllowedRepoMarkdownDoc, listRepoMarkdownDocs } from "../src/commands/repo-scan";
+import { isAllowedRepoMarkdownDoc, listRepoMarkdownDocs } from "../src/protocol/repo-scan";
 import { cleanupTempPaths, runGit, tempDir } from "./test-helpers";
 
 afterEach(() => {

@@ -1,7 +1,7 @@
 import { join } from "node:path";
-import { projectRoot, requireValue, safeMatter } from "../cli-shared";
-import { exists, readText } from "../lib/fs";
-import { resolveRepoPath } from "../lib/verification";
+import { projectRoot, requireValue, safeMatter } from "./cli-shared";
+import { exists, readText } from "./lib/fs";
+import { resolveRepoPath } from "./lib/verification";
 
 export type ProjectRepoArgs = {
   project: string;

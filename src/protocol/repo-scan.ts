@@ -4,7 +4,7 @@ import { projectRoot } from "../cli-shared";
 import { safeMatter } from "../cli-shared";
 import { fileFingerprint, readCache, writeCache } from "../lib/cache";
 import { exists, readText } from "../lib/fs";
-import { gitMarkdownStatusFingerprint } from "./git-utils";
+import { gitMarkdownStatusFingerprint } from "../git-utils";
 
 export const SCAFFOLD_DIRS = new Set(["src", "lib", "app", "apps", "packages", "services", "workers", "server", "api", "functions", "cmd", "internal"]);
 

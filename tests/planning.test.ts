@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { slugify, parsePrdArgs, parseProjectAndName } from "../src/commands/planning";
+import { slugify, parsePrdArgs, parseProjectAndName } from "../src/hierarchy/planning";
 
 describe("slugify", () => {
   test("lowercases input", () => {

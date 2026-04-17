@@ -9,12 +9,12 @@ import { extractShellCommandBlocks, readSliceDependencies, readSliceHub, readSli
 import { readVerificationLevel } from "../lib/verification";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
 import { projectSlicesDir, projectTaskHubPath } from "../lib/structure";
-import { collectBacklog, collectTaskContextForId, moveTaskToSection } from "./backlog";
-import { collectGate, compactDoctorForJson } from "./diagnostics";
+import { collectBacklog, collectTaskContextForId, moveTaskToSection } from "../hierarchy/backlog";
+import { collectGate, compactDoctorForJson } from "../maintenance/diagnostics";
 import { collectCloseout, isTestFile, resolveDefaultBase } from "./maintenance";
-import { writeProjectIndex } from "./index-log";
-import { applyVerificationLevel } from "./verification-shared";
-import { summarizePlan } from "./note-export";
+import { writeProjectIndex } from "../hierarchy/index-log";
+import { applyVerificationLevel } from "../verification/verification-shared";
+import { summarizePlan } from "../session/note-export";
 import { computeEntityStatus, lifecycleClose, lifecycleOpen } from "./hierarchy-commands";
 
 type ClaimConflict = {

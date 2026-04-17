@@ -3,15 +3,15 @@ import { VAULT_ROOT } from "../constants";
 import { requireValue, projectRoot, mkdirIfMissing } from "../cli-shared";
 import { appendLogEntry } from "../lib/log";
 import { exists, readText, writeText } from "../lib/fs";
-import { collectLintResult } from "./linting";
-import { collectDriftSummary } from "./verification";
-import { loadLintingSnapshot } from "./linting";
-import { parseProjectRepoBaseArgs, findProjectArg } from "./git-utils";
-import { buildDirectoryTree } from "./repo-scan";
-import { repairHistoricalDoneSlices } from "./slice-repair";
-import { guessModuleName } from "./test-health";
-import { createModuleInternal } from "./project-setup";
-import { collectStaleIndexTargets, writeNavigationIndex } from "./index-log";
+import { collectLintResult } from "../verification/linting";
+import { collectDriftSummary } from "../verification/verification";
+import { loadLintingSnapshot } from "../verification/linting";
+import { parseProjectRepoBaseArgs, findProjectArg } from "../git-utils";
+import { buildDirectoryTree } from "../protocol/repo-scan";
+import { repairHistoricalDoneSlices } from "../slice/slice-repair";
+import { guessModuleName } from "../verification/test-health";
+import { createModuleInternal } from "../protocol/project-setup";
+import { collectStaleIndexTargets, writeNavigationIndex } from "../hierarchy/index-log";
 import {
   collectDashboard,
   collectMaintenancePlan,

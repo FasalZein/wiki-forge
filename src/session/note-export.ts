@@ -4,7 +4,7 @@ import { nowIso, requireValue } from "../cli-shared";
 import { exists, readText } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
 import { extractShellCommandBlocks, readSliceHub, readSlicePlan, readSliceSourcePaths, readSliceTestPlan } from "../lib/slices";
-import { collectTaskContextForId } from "./backlog";
+import { collectTaskContextForId } from "../hierarchy/backlog";
 
 function defaultAgentName() {
   return process.env.PI_AGENT_NAME || process.env.CLAUDE_AGENT_NAME || process.env.USER || "agent";

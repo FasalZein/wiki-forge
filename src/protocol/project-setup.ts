@@ -20,7 +20,7 @@ import {
   normalizeTableSpacing,
 } from "../module-format";
 import { syncProtocolForProject } from "./protocol";
-import { writeProjectIndex } from "./index-log";
+import { writeProjectIndex } from "../hierarchy/index-log";
 
 export async function scaffoldProject(project: string | undefined) {
   requireValue(project, "project");

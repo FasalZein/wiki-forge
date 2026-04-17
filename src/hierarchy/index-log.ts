@@ -6,7 +6,7 @@ import { exists, listDirs, readText, writeText } from "../lib/fs";
 import { tailLog, appendLogEntry } from "../lib/log";
 import { projectSpecsIndexPath, projectSpecViewIndexPath, workspaceIndexPath, workspaceProjectsDashboardPath } from "../lib/structure";
 import { collectBacklogFocus } from "./backlog-collect";
-import { collectStatusRow, loadLintingSnapshot } from "./linting";
+import { collectStatusRow, loadLintingSnapshot } from "../verification/linting";
 import {
   buildProjectPageIndex,
   collectProjectPageRows,

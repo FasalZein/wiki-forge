@@ -2,14 +2,14 @@ import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter } from "../cli-shared";
-import { parseProjectRepoBaseArgs } from "./git-utils";
+import { parseProjectRepoBaseArgs } from "../git-utils";
 import { ensureDir, exists, readText, writeText } from "../lib/fs";
 import { tailLog } from "../lib/log";
 import { collectSessionActivity, resolveAgent, resolveSessionId } from "../lib/tracker";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
-import { collectBacklog, collectBacklogFocus } from "./backlog";
+import { collectBacklog, collectBacklogFocus } from "../hierarchy/backlog";
 import { collectMaintenancePlan, resolveDefaultBase } from "./maintenance";
-import { collectDriftSummary } from "./verification";
+import { collectDriftSummary } from "../verification/verification";
 
 type DirtyRepoStatus = {
   modifiedFiles: string[];

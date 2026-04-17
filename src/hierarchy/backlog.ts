@@ -4,4 +4,4 @@ export { moveTaskToSection } from "./backlog-io";
 export type { TaskDocState, BacklogTaskContext, BacklogFocus } from "./backlog-collect";
 export { collectBacklog, collectBacklogView, collectBacklogFocus, collectTaskContextForId } from "./backlog-collect";
 export { backlogCommand, addTask, moveTask, completeTask } from "./backlog-commands";
-export { createIssueSlice } from "./slice-scaffold";
+export { createIssueSlice } from "../slice/slice-scaffold";

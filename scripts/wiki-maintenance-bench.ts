@@ -17,7 +17,7 @@ export const DEFAULT_BENCH_COMMANDS = [
 
 const DEFAULT_REPO = "/Users/tothemoon/Dev/Code Forge/knowledge-wiki-system";
 const DEFAULT_BIND_PAGE = "specs/slices/WIKI-FORGE-023/index.md";
-const DEFAULT_BIND_SOURCE = "src/commands/index-log.ts";
+const DEFAULT_BIND_SOURCE = "src/hierarchy/index-log.ts";
 const DEFAULT_VERIFY_PAGE = "specs/slices/WIKI-FORGE-023/index.md";
 
 type BenchName = typeof DEFAULT_BENCH_COMMANDS[number];

@@ -6,7 +6,7 @@ export type DirtyRepoStatus = {
   stagedFiles: string[];
 };
 
-export { parseProjectRepoBaseArgs } from "./git-utils";
+export { parseProjectRepoBaseArgs } from "../git-utils";
 
 export function defaultAgentName() {
   return process.env.PI_AGENT_NAME || process.env.CLAUDE_AGENT_NAME || process.env.USER || "agent";
@@ -57,6 +57,6 @@ export function compactLogEntry(entry: string) {
   return [header, ...details].join(" | ");
 }
 
-export { startSlice, claimSlice, verifySlice, closeSlice } from "./slice-lifecycle";
-export { nextProject, handoverProject, resumeProject } from "./session";
-export { noteProject, exportPrompt, summarizePlan, renderExecutionPrompt, firstMeaningfulLine, firstSectionLine } from "./note-export";
+export { startSlice, claimSlice, verifySlice, closeSlice } from "../commands/slice-lifecycle";
+export { nextProject, handoverProject, resumeProject } from "../commands/session";
+export { noteProject, exportPrompt, summarizePlan, renderExecutionPrompt, firstMeaningfulLine, firstSectionLine } from "../session/note-export";

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { findProjectArg, parseProjectRepoBaseArgs, normalizeRelPath, bindingMatchesFile } from "../src/commands/git-utils";
+import { findProjectArg, parseProjectRepoBaseArgs, normalizeRelPath, bindingMatchesFile } from "../src/git-utils";
 
 describe("git-utils helpers", () => {
   test("findProjectArg returns first positional argument", () => {

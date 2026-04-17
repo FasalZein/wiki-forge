@@ -4,7 +4,7 @@ import { nowIso, projectRoot, requireValue, safeMatter, writeNormalizedPage } fr
 import { readText } from "../lib/fs";
 import { resolveRepoPath, assertGitRepo } from "../lib/verification";
 import { appendLogEntry } from "../lib/log";
-import { gitHeadSha } from "./git-utils";
+import { gitHeadSha } from "../git-utils";
 import { resolveWikiPagePath } from "./verification-shared";
 
 /**

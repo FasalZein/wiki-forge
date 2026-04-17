@@ -1,15 +1,15 @@
 
 import { join } from "node:path";
 import { requireValue } from "../cli-shared";
-import { collectBacklog } from "./backlog";
+import { collectBacklog } from "../hierarchy/backlog";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
-import { isTestFile } from "./maintenance";
+import { isTestFile } from "../commands/maintenance";
 import { readSliceSummary } from "../lib/slices";
-import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "./linting";
-import type { LintingSnapshot } from "./linting";
-import { collectCloseout, collectMaintenancePlan, collectRefreshFromGit, collectRefreshFromWorktree, loadProjectSnapshot, resolveDefaultBase } from "./maintenance";
-import type { ProjectSnapshot } from "./maintenance";
-import { collectDriftSummary } from "./verification";
+import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "../verification/linting";
+import type { LintingSnapshot } from "../verification/linting";
+import { collectCloseout, collectMaintenancePlan, collectRefreshFromGit, collectRefreshFromWorktree, loadProjectSnapshot, resolveDefaultBase } from "../commands/maintenance";
+import type { ProjectSnapshot } from "../commands/maintenance";
+import { collectDriftSummary } from "../verification/verification";
 import { exists, readText } from "../lib/fs";
 
 export async function doctorProject(args: string[]) {

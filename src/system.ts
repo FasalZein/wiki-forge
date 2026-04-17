@@ -1,0 +1,12 @@
+export { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeModule } from "./protocol/project-setup";
+export { backlogCommand, addTask, moveTask, completeTask, createIssueSlice } from "./hierarchy/backlog";
+export { createFeature, createPrd, createPlan, createTestPlan } from "./hierarchy/planning";
+export { dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, discoverProject, ingestDiff } from "./commands/maintenance";
+export { handoverProject, claimSlice, noteProject, nextProject, startSlice, verifySlice, closeSlice, exportPrompt, resumeProject } from "./slice/coordination";
+export { commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo } from "./maintenance/automation";
+export { syncProtocol, auditProtocol } from "./protocol/protocol";
+export { dependencyGraph } from "./hierarchy/dependency-graph";
+export { updateIndex, logCommand } from "./hierarchy/index-log";
+export { statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear } from "./verification/linting";
+export { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch } from "./commands/research";
+export { printHelp } from "./cli-shared";

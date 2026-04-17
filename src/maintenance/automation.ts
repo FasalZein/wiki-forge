@@ -5,9 +5,9 @@ import { fail, requireValue } from "../cli-shared";
 import { exists } from "../lib/fs";
 import { parseUpdatedDate, resolveRepoPath, assertGitRepo } from "../lib/verification";
 import { collectGate } from "./diagnostics";
-import { collectRefreshFromGit, loadProjectSnapshot } from "./maintenance";
-import { parseProjectRepoArgs, parseProjectRepoBaseArgs, gitLines, normalizeRelPath, bindingMatchesFile } from "./git-utils";
-import { collectDriftSummary } from "./verification";
+import { collectRefreshFromGit, loadProjectSnapshot } from "../commands/maintenance";
+import { parseProjectRepoArgs, parseProjectRepoBaseArgs, gitLines, normalizeRelPath, bindingMatchesFile } from "../git-utils";
+import { collectDriftSummary } from "../verification/verification";
 
 export async function commitCheck(args: string[]) {
   const options = parseProjectRepoArgs(args);
