@@ -150,17 +150,7 @@ create slice -> start-slice -> fill plan + test-plan -> /tdd -> /wiki closeout -
 
 `/improve-codebase-architecture` runs at the end of a PRD or batch of slices (weekly at minimum) and turns any accepted deepening refactor into a new feature+PRD+slices of its own — not a silent rewrite mid-slice. `/desloppify` is the final line-level quality gate.
 
-The `/wiki` closeout sequence after each slice:
-- `wiki checkpoint <project> --repo <path>`
-- `wiki lint-repo <project> --repo <path>`
-- `wiki maintain <project> --repo <path> --base <rev>`
-- update impacted pages from code/tests
-- `wiki update-index <project> --write` (if navigation or planning links changed)
-- `wiki verify-page <project> <page> code-verified`
-- `wiki verify-slice <project> <slice-id> --repo <path>`
-- `wiki closeout <project> --repo <path> --base <rev>`
-- `wiki gate <project> --repo <path> --base <rev>`
-- `wiki close-slice <project> <slice-id> --repo <path> --base <rev>`
+After each slice, run the canonical 13-step closeout sequence from `/forge` under "Canonical Code-Driven Closeout Sequence". Do not maintain a parallel copy here — the forge sequence is the source of truth and includes `verify-page test-verified` promotion plus `feature-status` reconciliation, which abbreviated lists routinely miss.
 
 ## When to use GitHub Issues instead
 

@@ -109,7 +109,7 @@ For active slice work, use one canonical order:
 11. `wiki closeout <project> --repo <path> --base <rev>`
 12. `wiki gate <project> --repo <path> --base <rev>`
 13. `wiki close-slice <project> <slice-id> --repo <path> --base <rev>`
-14. `wiki handover <project> --repo <path> --base <rev>` (at session end — leave context for next agent)
+14. `wiki handover <project> --repo <path> --base <rev>` — **only when the user explicitly asks** for a handover. Do NOT run handover automatically at end-of-task, after a commit, or on your own judgment; the user decides when a session is done. `wiki resume` at session start is read-only and safe to auto-run.
 
 ## Default project setup
 

@@ -120,3 +120,7 @@ For focused changes that still need a PRD but don't need full research:
 - Do not skip Prior Research. File research first, link it in the PRD.
 - Do not include file paths or code snippets — they rot. Describe modules and interfaces.
 - Do not create PRDs for trivial changes. Bug fixes under ~50 lines skip straight to `/tdd`.
+
+## What Happens Next
+
+After `wiki create-prd` succeeds and `wiki update-index <project> --write` refreshes navigation, hand off to `/prd-to-slices` to decompose the PRD into vertical slices. Do NOT begin implementation from just a PRD — slices gate the TDD loop and the wiki closeout. Skipping straight to code bypasses the hard gate that "no production code change is complete without a slice with tests."

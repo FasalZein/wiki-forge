@@ -95,6 +95,7 @@ Do not silently skip missing skills. If a required skill is unavailable, say so 
 ## Default completion flow
 
 For active slice work, use one canonical order:
+0. `wiki resume <project> --repo <path> --base <rev>` (at session start — read what happened before; safe to auto-run)
 1. `wiki start-slice <project> <slice-id> --agent <name> --repo <path>`
 2. fill `plan.md` and `test-plan.md`
 3. implement with tests
@@ -108,6 +109,7 @@ For active slice work, use one canonical order:
 11. `wiki closeout <project> --repo <path> --base <rev>`
 12. `wiki gate <project> --repo <path> --base <rev>`
 13. `wiki close-slice <project> <slice-id> --repo <path> --base <rev>`
+14. `wiki handover <project> --repo <path> --base <rev>` — **only when the user explicitly asks** for a handover. Do NOT run handover automatically at end-of-task, after a commit, or on your own judgment; the user decides when a session is done. `wiki resume` at session start is read-only and safe to auto-run.
 
 ## Default project setup
 

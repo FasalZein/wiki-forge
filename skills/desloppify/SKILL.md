@@ -102,10 +102,10 @@ bun test                                  # TDD gate: all tests still pass
 
 ## Integration with Wiki
 
-After desloppify fixes, if any source files changed:
+Desloppify runs **after** `wiki gate` in the canonical forge closeout sequence (step 12 → desloppify). After desloppify fixes, if any source files changed:
 - Tests must still pass (non-negotiable)
-- `wiki gate` must still pass
-- No need to re-run the full wiki closeout — desloppify is a quality polish, not a behavior change
+- `wiki gate` must still pass — if desloppify rewrote anything test-observable, re-run gate; if a fix touched page-bound source, also re-run the affected `wiki verify-page`
+- You do NOT need to re-run `wiki checkpoint` / `wiki maintain` / full closeout unless desloppify introduced behavior changes (desloppify is line-level polish, not a behavior refactor)
 
 ## Suppression
 

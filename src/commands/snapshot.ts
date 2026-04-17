@@ -260,6 +260,16 @@ export async function collectCloseout(project: string, base: string, explicitRep
   const outsideActiveHierarchyFiles = options.worktree && "outsideActiveHierarchyFiles" in refreshFromGit ? (refreshFromGit as { outsideActiveHierarchyFiles: string[] }).outsideActiveHierarchyFiles : [];
   if (suppressedPages.length > 0) warnings.push(`${suppressedPages.length} non-actionable planning page(s) suppressed from stale check`);
   if (outsideActiveHierarchyFiles.length > 0) warnings.push(`${outsideActiveHierarchyFiles.length} changed code file(s) belong to non-actionable planning pages outside the active slice hierarchy`);
+  const nextSteps: string[] = [];
+  if (staleImpactedPages.length > 0) {
+    nextSteps.push(`update impacted wiki pages from code`);
+    nextSteps.push(`wiki verify-page ${project} <page...> <level>`);
+    nextSteps.push(
+      options.worktree
+        ? `re-run wiki closeout ${project} --repo ${refreshFromGit.repo} --worktree`
+        : `re-run wiki closeout ${project} --repo ${refreshFromGit.repo} --base ${base}`,
+    );
+  }
   return {
     project,
     repo: refreshFromGit.repo,
@@ -274,13 +284,7 @@ export async function collectCloseout(project: string, base: string, explicitRep
     semanticLint,
     blockers,
     warnings,
-    nextSteps: [
-      `update impacted wiki pages from code`,
-      `wiki verify-page ${project} <page...> <level>`,
-      options.worktree
-        ? `re-run wiki closeout ${project} --repo ${refreshFromGit.repo} --worktree`
-        : `re-run wiki closeout ${project} --repo ${refreshFromGit.repo} --base ${base}`,
-    ],
+    nextSteps,
   };
 }
 

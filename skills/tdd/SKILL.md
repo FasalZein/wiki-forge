@@ -61,18 +61,7 @@ Before starting:
 3. Read the source code that will be modified
 4. Confirm the interface design with the user
 
-After TDD is complete, hand off to the `/wiki` closeout:
-```bash
-wiki checkpoint <project> --repo <path>
-wiki lint-repo <project> --repo <path>
-wiki maintain <project> --repo <path> --base <rev>
-# update impacted wiki pages from code and tests
-wiki verify-page <project> <page> code-verified
-wiki verify-slice <project> <slice-id> --repo <path>
-wiki closeout <project> --repo <path> --base <rev>
-wiki gate <project> --repo <path> --base <rev>
-wiki close-slice <project> <slice-id> --repo <path> --base <rev>
-```
+After TDD is complete, hand off to the canonical 13-step closeout sequence from `/forge` under "Canonical Code-Driven Closeout Sequence". Do not maintain a parallel copy here — the forge sequence is the source of truth and includes `verify-page test-verified` promotion plus `feature-status` reconciliation, which abbreviated lists routinely miss.
 
 ### Small scope (bug fix / focused refactor)
 

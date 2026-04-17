@@ -15,8 +15,21 @@ Forge is the workflow layer. It coordinates separate companion layers:
 Every non-trivial change follows this order. No exceptions.
 
 ```text
-research -> grill-me -> PRD -> slices -> TDD -> wiki verify
+research -> grill-me -> PRD -> slices -> TDD -> wiki verify -> improve-codebase-architecture (cadence) -> desloppify
 ```
+
+The `improve-codebase-architecture` step runs at cadence boundaries (end of a PRD, batch of slices, or weekly minimum) — not after every slice. `desloppify` is the final line-level quality gate and is not optional for non-trivial work.
+
+## Protocol Start Checklist
+
+Run this **before** issuing any `wiki` CLI command when the skill loads:
+
+1. **Audit the managed protocol block.** Read the block between `<!-- *:agent-protocol:start -->` and `<!-- *:agent-protocol:end -->` in the repo's `AGENTS.md` / `CLAUDE.md`. It must name the `/wiki`+`/forge` split and point at `wiki protocol sync`. If missing, malformed, or stale, run `wiki protocol audit <project> --repo <path>` and report the diff to the user before continuing. Never hand-edit the managed block; use `wiki protocol sync`.
+2. **Reconcile skill vs. repo policy.** Scan the un-managed `# CLAUDE` / `# AGENTS` section for the completion flow and hard gates. If a rule contradicts this skill, **the repo instruction file wins** and you must surface the conflict explicitly instead of silently following one side.
+3. **Sub-agent rule.** When delegating any wiki/forge lifecycle step (closeout, verification, research filing, drift), the sub-agent prompt must start with `Skill({ skill: "wiki" })` (or `/forge` for workflow work). Sub-agents do not inherit the parent's loaded skills.
+4. **Resume, don't handover.** `wiki resume` at session start is read-only and safe to auto-run. `wiki handover` at session end is **user-invoked only** — see Hard Gates #10.
+
+Skip only when the task is pure read-only retrieval.
 
 ## Invocation Model
 
@@ -176,7 +189,7 @@ Do not silently downgrade a slice continuation into `/wiki` maintenance mode jus
 7. **No unmaintainable code.** If a slice passes tests but worsens maintainability, refactor before closing.
 8. **Never create `.md` documentation inside project repos** except `README.md`, `CHANGELOG.md`, `AGENTS.md`, `CLAUDE.md`, `SETUP.md`, and `skills/*/SKILL.md`. Specs, research, architecture notes, and maintained docs belong in the wiki vault.
 9. **Use protocol sync for repo agent instructions.** Install/update repo `AGENTS.md` / `CLAUDE.md` via `wiki protocol sync <project> --repo <path>` instead of hand-editing the managed protocol block.
-10. **Use `wiki handover` for session transitions.** Run `wiki handover <project> --repo <path> --base <rev>` at session end — it auto-captures activity, commits, state, and priorities, and writes a durable `.md` file to `projects/<project>/handovers/`. Use `--harness <name>` to tag the handover and `--no-write` to skip file creation. Run `wiki resume <project> --repo <path> --base <rev>` at session start (it reads the latest handover file). Do not create ad hoc HANDOVER.md files.
+10. **`wiki handover` is user-invoked, never automatic.** Run `wiki handover <project> --repo <path> --base <rev>` only when the user explicitly asks for a handover ("handover", "end session", "write handover for next agent"). It auto-captures activity, commits, state, and priorities, and writes a durable `.md` file to `projects/<project>/handovers/`. Use `--harness <name>` to tag and `--no-write` to skip file creation. Do NOT run it as a default end-of-task step, after a merge, or on your own judgment — the user decides when a session is done. `wiki resume <project> --repo <path> --base <rev>` is read-only and safe to auto-run at session start. Do not create ad hoc HANDOVER.md files.
 
 ## Definition of Done
 

@@ -129,6 +129,11 @@ describe("wiki CLI smoke", () => {
     expect(maintainVerbose.exitCode).toBe(0);
     expect(maintainVerbose.stdout.toString()).toContain("closeout:");
     expect(maintainVerbose.stdout.toString()).toContain("wiki verify-page demo <page...> <level>");
+    // WIKI-FORGE-106: when closeout state is clean, nextSteps is empty and status is "PASS — ready to close"
+    const cleanCloseout = runWiki(["closeout", "demo", "--repo", repo, "--base", "HEAD"], env);
+    expect(cleanCloseout.exitCode).toBe(0);
+    expect(cleanCloseout.stdout.toString()).toContain("PASS — ready to close");
+    expect(cleanCloseout.stdout.toString()).not.toContain("manual steps before closing");
 
     const refreshFromGit = runWiki(["refresh-from-git", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
     expect(refreshFromGit.exitCode).toBe(0);

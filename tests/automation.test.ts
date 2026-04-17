@@ -128,6 +128,32 @@ describe("wiki automation commands", () => {
     expect(Array.isArray(json.nextSteps)).toBe(true);
   });
 
+  test("closeout emits PASS — ready to close when state is clean", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "gated"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "gated");
+    expect(runWiki(["create-module", "gated", "payments", "--source", "src/payments.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["verify-page", "gated", "modules/payments/spec", "code-verified"], env).exitCode).toBe(0);
+
+    const jsonResult = runWiki(["closeout", "gated", "--repo", repo, "--base", "HEAD", "--json"], env);
+    expect(jsonResult.exitCode).toBe(0);
+    const json = JSON.parse(jsonResult.stdout.toString());
+    expect(json.ok).toBe(true);
+    expect(json.blockers.length).toBe(0);
+    expect(json.staleImpactedPages.length).toBe(0);
+    expect(json.refreshFromGit.impactedPages.length).toBe(0);
+    expect(json.nextSteps.length).toBe(0);
+
+    const rendered = runWiki(["closeout", "gated", "--repo", repo, "--base", "HEAD"], env);
+    expect(rendered.exitCode).toBe(0);
+    const stdout = rendered.stdout.toString();
+    expect(stdout).toContain("PASS — ready to close");
+    expect(stdout).not.toContain("REVIEW PASS");
+    expect(stdout).not.toContain("manual steps before closing");
+  });
+
   test("maintain closeout and gate can inspect dirty worktree edits", () => {
     const { vault, repo } = setupPassingRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };

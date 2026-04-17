@@ -116,8 +116,8 @@ thinks about the problem while the sub-agents work in parallel.
 ### 5. Design multiple interfaces (parallel)
 
 Spawn 3+ sub-agents in parallel using the Agent tool (`subagent_type:
-"general-purpose"`). Each must produce a **radically different** interface for
-the deepened module.
+"general-purpose"`, `model: "sonnet"`). Each must produce a **radically different** interface for
+the deepened module. Always pass `model: "sonnet"` — sub-agents do not inherit the parent model.
 
 Give each agent a separate technical brief (file paths, coupling details,
 dependency category, what's being hidden). This brief is independent of the

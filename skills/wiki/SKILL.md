@@ -9,9 +9,22 @@ description: >
 
 # Wiki
 
+> **Scope:** memory, retrieval, verification, research filing, drift. For active implementation (feature/PRD/slice, cross-module refactor), load `/forge` instead — `/wiki` is not the workflow driver.
+
 The wiki is compiled memory maintained by agents. Sources of truth live outside the wiki — in code, in filed research, in primary documents. The wiki records what was learned and keeps it honest as the sources change.
 
 When sources change, the wiki updates. When the wiki drifts, the CLI catches it.
+
+## Protocol Start Checklist
+
+Run this **before** any wiki CLI call when the skill loads. It takes under 5 seconds and prevents silent drift.
+
+1. **Confirm managed protocol is in sync.** Read the top block (between `<!-- *:agent-protocol:start -->` and `<!-- *:agent-protocol:end -->`) of the repo's `AGENTS.md` or `CLAUDE.md`. Verify it mentions: (a) `/wiki` and `/forge` split, (b) `wiki protocol sync` ownership of that block. If the block is missing, malformed, or looks stale vs. the current skill, run `wiki protocol audit <project> --repo <path>` before proceeding and surface the diff to the user. Do NOT hand-edit the managed block — use `wiki protocol sync` to re-install.
+2. **Reconcile skill vs. protocol policy.** Scan the repo's un-managed `# CLAUDE` / `# AGENTS` section for the completion flow, hard gates, and handover rules. If any rule contradicts this skill (for example: a step marked "auto-run" here that the repo marks "user-only", or vice versa), the **repo instruction file wins for that project**, and you should name the conflict explicitly to the user rather than silently following one side.
+3. **Record the entry point.** If the user is resuming an active slice, run `wiki resume <project> --repo <path> --base <rev>` to read the last handover/log state. Resume is read-only and safe to auto-run. Handover at session end is **user-invoked only** — see Operating Guidelines.
+4. **When spawning sub-agents for wiki work, load `/wiki` in the sub-agent prompt.** Sub-agents do not inherit the parent's loaded skills. Without an explicit `Skill({ skill: "wiki" })` (or equivalent) at the top of the sub-agent prompt, the sub-agent will miss closeout sequencing, verification levels, and drift rules — producing silent gaps. This applies to closeout, verification, research filing, drift detection, or any other wiki lifecycle delegation.
+
+Skip steps 1–2 only for pure retrieval (`wiki search`, `wiki query`, `wiki ask`, `wiki file-answer`) where no state is written.
 
 ## Invocation Model
 
@@ -23,6 +36,8 @@ Escalate to `/forge` when the task is non-trivial software implementation (featu
 
 When a harness uses different skill syntax, keep the same task boundary and still drive the work through the `wiki` CLI.
 If a harness has no slash-skill syntax, run the equivalent `wiki` CLI lifecycle directly.
+
+Sub-agent delegation rule lives in the Protocol Start Checklist above — follow it whenever this skill spawns agents.
 
 Trigger this skill for requests like:
 - "wiki refresh" / "wiki closeout"
@@ -156,14 +171,18 @@ Use this when the user asks to update a project wiki, run wiki maintenance, or r
 
 If the user is really asking to start or continue non-trivial implementation work, escalate to `/forge` before using this refresh flow.
 
+For active slice work, run the canonical 13-step sequence documented in `/forge` under "Canonical Code-Driven Closeout Sequence" — do not maintain a parallel copy here. For a refresh-only flow (no slice transition), the minimum is:
+
 ```text
 1. wiki maintain <project> --base <rev>
 2. wiki checkpoint <project> --repo <path>
 3. For each impacted/stale page: read source, update wiki, verify-page.
 4. If navigation changed: wiki update-index <project> --write
-5. wiki closeout <project> --repo <path> --base <rev>
+5. wiki closeout <project> --repo <path> --base <rev>   # review-only; expect "REVIEW PASS" if no slice is active
 6. wiki gate <project> --repo <path> --base <rev>
 ```
+
+If closeout surfaces slice work, switch to the canonical forge sequence — do not patch the slice state from inside a refresh.
 
 ### 3. Retrieval
 
@@ -175,7 +194,15 @@ Project Q&A         → wiki ask <project> "where is approval implemented"
 Verbose Q&A         → wiki ask <project> --verbose "where is approval implemented"
 Save answer brief   → wiki file-answer <project> "question"
 Resume session      → wiki resume <project> --repo <path> --base <rev>
-End session         → wiki handover <project> --repo <path> --base <rev>
+End session         → wiki handover <project> --repo <path> --base <rev>  (only when the user asks)
+```
+
+Concrete examples:
+```text
+wiki search "auth middleware"
+wiki query "how does approval work"
+wiki ask wiki-forge --verbose "where is approval implemented"
+wiki file-answer wiki-forge "what does closeout promote to test-verified"
 ```
 
 ### 4. File Research
@@ -235,7 +262,7 @@ The CLI operates on 4 data planes. Understanding these helps agents predict what
 - **Prefer `test-verified`** for critical pages once code and tests are both checked.
 - **Keep navigation and derived relationship sections current.** `wiki update-index <project> --write` after creating/moving pages or rebinding source paths.
 - **Use the log.** `wiki note <project> <message>` writes durable agent-to-agent context. `wiki log tail` shows recent entries.
-- **Always handover.** Run `wiki handover <project> --repo <path> --base <rev>` at session end.
-- **Always resume.** Run `wiki resume <project> --repo <path> --base <rev>` at session start.
+- **Handover is user-invoked, never automatic.** Run `wiki handover <project> --repo <path> --base <rev>` only when the user explicitly asks for a handover (e.g. "handover", "end the session", "write a handover for the next agent"). Do not run it opportunistically at the end of a task, after a commit, or on your own judgment — the user decides when a session is done.
+- **Resume is safe to auto-run at session start.** `wiki resume <project> --repo <path> --base <rev>` only reads state; run it to read prior context without waiting for a prompt.
 - **Don't invent CLI features.** If a command isn't listed here, it doesn't exist.
 - **Do not invent document layouts.** Use the CLI-generated structure and fill it in; improve the generators when the structure is weak.

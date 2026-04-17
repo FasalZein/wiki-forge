@@ -92,3 +92,4 @@ In the `/forge` pipeline, grill-me sits between research and PRD writing:
 - Keep the session focused. Follow tangents only if they affect the core design.
 - Push back when the plan is overcomplicated. Simpler is better until proven otherwise.
 - If the user can't answer a question, that's a finding — record it as an open question for research.
+- If grilling reveals the scope is larger than a single PRD (multiple user-visible surfaces, multi-sprint effort, or crosses two+ existing features), stop and route to `/forge` to create a new feature first. Do not silently expand a PRD to swallow feature-sized work.
