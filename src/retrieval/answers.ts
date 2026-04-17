@@ -8,7 +8,7 @@ import { buildLexicalSearchQuery, normalizeSemanticQueryText, resolveRetrievalMo
 import { appendLogEntry } from "../lib/log";
 import { sdkHybridAvailable, searchKnowledgeExpandedSdk, searchKnowledgeLexicalSdk, searchKnowledgeStructuredSdk } from "../lib/qmd-sdk";
 import { questionTokens } from "../lib/research";
-import { createResearchPage } from "../commands/research";
+import { createResearchPage } from "../research";
 import type { AnswerBrief, AnswerSource, AskOptions, NoteIndex, NoteQualitySignals, QmdResult } from "../types";
 
 export const DEFAULT_ASK_MAX_RESULTS = 4;

@@ -8,5 +8,5 @@ export { syncProtocol, auditProtocol } from "./protocol/protocol";
 export { dependencyGraph } from "./hierarchy/dependency-graph";
 export { updateIndex, logCommand } from "./hierarchy/index-log";
 export { statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear } from "./verification/linting";
-export { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch } from "./commands/research";
+export { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch } from "./research";
 export { printHelp } from "./cli-shared";

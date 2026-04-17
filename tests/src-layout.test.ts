@@ -19,7 +19,6 @@ const DOMAIN_FOLDERS = [
 
 const GOD_FILES_STILL_IN_COMMANDS = [
   "session.ts",
-  "research.ts",
   "maintenance.ts",
   "maintenance-commands.ts",
   "snapshot.ts",
@@ -157,5 +156,45 @@ describe("WIKI-FORGE-109 slice-lifecycle split into verb files", () => {
     expect(existsSync(indexPath)).toBe(true);
     const content = readFileSync(indexPath, "utf8");
     expect(content).not.toMatch(/export\s+\*/u);
+  });
+});
+
+describe("WIKI-FORGE-110 research split by subcommand", () => {
+  const researchRoot = join(srcRoot, "research");
+  const verbFiles = [
+    "scaffold.ts",
+    "status.ts",
+    "ingest.ts",
+    "audit.ts",
+    "file.ts",
+    "lint.ts",
+    "source-ingest.ts",
+  ] as const;
+
+  test("src/research/ has one file per subcommand", () => {
+    for (const file of verbFiles) {
+      const path = join(researchRoot, file);
+      expect(existsSync(path), `expected src/research/${file}`).toBe(true);
+      expect(statSync(path).isFile()).toBe(true);
+    }
+  });
+
+  test("no research file exceeds 250 LOC", () => {
+    for (const file of verbFiles) {
+      const path = join(researchRoot, file);
+      const lines = readFileSync(path, "utf8").split("\n").length;
+      expect(lines, `${file} has ${lines} lines`).toBeLessThanOrEqual(250);
+    }
+  });
+
+  test("src/research/index.ts has no export *", () => {
+    const indexPath = join(researchRoot, "index.ts");
+    expect(existsSync(indexPath)).toBe(true);
+    const content = readFileSync(indexPath, "utf8");
+    expect(content).not.toMatch(/export\s+\*/u);
+  });
+
+  test("src/commands/research.ts is gone", () => {
+    expect(existsSync(join(commandsRoot, "research.ts"))).toBe(false);
   });
 });
