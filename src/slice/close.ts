@@ -11,7 +11,7 @@ import { collectGate, compactDoctorForJson, collectCloseout, isTestFile } from "
 import { resolveDefaultBase } from "../git-utils";
 import { writeProjectIndex } from "../hierarchy/index-log";
 import { applyVerificationLevel } from "../verification/verification-shared";
-import { computeEntityStatus, lifecycleClose } from "../commands/hierarchy-commands";
+import { computeEntityStatus, lifecycleClose } from "../hierarchy";
 
 export async function closeSlice(args: string[]) {
   const project = args[0];

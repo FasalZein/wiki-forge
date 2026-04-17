@@ -6,7 +6,7 @@ import { appendLogEntry } from "../lib/log";
 import { readSliceHub, readSlicePlan, readSliceSourcePaths } from "../lib/slices";
 import { projectTaskHubPath } from "../lib/structure";
 import { collectTaskContextForId, moveTaskToSection } from "../hierarchy/backlog";
-import { lifecycleOpen } from "../commands/hierarchy-commands";
+import { lifecycleOpen } from "../hierarchy";
 import { summarizePlan } from "../session";
 import { collectClaimResult, collectDependencyStatuses, defaultAgentName, writeClaimMetadata } from "./_shared";
 

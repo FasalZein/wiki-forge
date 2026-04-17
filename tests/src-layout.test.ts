@@ -17,9 +17,7 @@ const DOMAIN_FOLDERS = [
   "protocol",
 ] as const;
 
-const GOD_FILES_STILL_IN_COMMANDS = [
-  "hierarchy-commands.ts",
-] as const;
+const GOD_FILES_STILL_IN_COMMANDS = [] as const;
 
 const MOVED_FILE_TARGETS: ReadonlyArray<readonly [string, string]> = [
   ["acknowledge-impact.ts", "verification"],
@@ -115,7 +113,11 @@ describe("WIKI-FORGE-108 leaf-file moves into domain folders", () => {
   });
 
   test("no ghost files left in src/commands — only the god-file whitelist remains", () => {
-    expect(existsSync(commandsRoot)).toBe(true);
+    if (!existsSync(commandsRoot)) {
+      // slice 113 removes the final god file; src/commands is fully gone after that slice lands
+      expect(GOD_FILES_STILL_IN_COMMANDS).toEqual([]);
+      return;
+    }
     const remaining = readdirSync(commandsRoot)
       .filter((f) => f.endsWith(".ts"))
       .sort();
@@ -266,5 +268,53 @@ describe("WIKI-FORGE-112 maintenance + snapshot + drift + test-health split", ()
     expect(existsSync(join(commandsRoot, "snapshot.ts"))).toBe(false);
     expect(existsSync(join(srcRoot, "verification", "verification-drift.ts"))).toBe(false);
     expect(existsSync(join(srcRoot, "verification", "test-health.ts"))).toBe(false);
+  });
+});
+
+describe("WIKI-FORGE-113 hierarchy-commands split + curated domain barrels", () => {
+  const hierarchyRoot = join(srcRoot, "hierarchy");
+  const hierarchyVerbFiles = [
+    "feature-status.ts",
+    "start-feature.ts",
+    "close-feature.ts",
+    "start-prd.ts",
+    "close-prd.ts",
+    "lifecycle.ts",
+  ] as const;
+
+  test("src/hierarchy/ has verb files for the lifecycle split", () => {
+    for (const file of hierarchyVerbFiles) {
+      const path = join(hierarchyRoot, file);
+      expect(existsSync(path), `expected src/hierarchy/${file}`).toBe(true);
+      expect(statSync(path).isFile()).toBe(true);
+    }
+  });
+
+  test("new hierarchy lifecycle files stay under 250 LOC", () => {
+    for (const file of hierarchyVerbFiles) {
+      const path = join(hierarchyRoot, file);
+      const lines = readFileSync(path, "utf8").split("\n").length;
+      expect(lines, `${file} has ${lines} lines`).toBeLessThanOrEqual(250);
+    }
+  });
+
+  test("src/commands/hierarchy-commands.ts is gone", () => {
+    expect(existsSync(join(commandsRoot, "hierarchy-commands.ts"))).toBe(false);
+  });
+
+  test("src/commands/ is empty after slice 113", () => {
+    if (!existsSync(commandsRoot)) return;
+    const remaining = readdirSync(commandsRoot).filter((f) => f.endsWith(".ts"));
+    expect(remaining).toEqual([]);
+  });
+
+  const curatedBarrelDomains = ["hierarchy", "verification", "retrieval", "protocol"] as const;
+  test("each target domain has an index.ts without export *", () => {
+    for (const domain of curatedBarrelDomains) {
+      const indexPath = join(srcRoot, domain, "index.ts");
+      expect(existsSync(indexPath), `expected src/${domain}/index.ts`).toBe(true);
+      const content = readFileSync(indexPath, "utf8");
+      expect(content, `src/${domain}/index.ts must not use export *`).not.toMatch(/export\s+\*/u);
+    }
   });
 });

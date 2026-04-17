@@ -4,7 +4,7 @@ import { collectLintResult, collectSemanticLintResult } from "../verification/li
 import type { LintingSnapshot } from "../verification/linting";
 import { parseProjectRepoBaseArgs } from "../git-utils";
 import { repairHistoricalDoneSlices } from "../slice/slice-repair";
-import { collectHierarchyStatusActions, collectLifecycleDriftActions } from "../commands/hierarchy-commands";
+import { collectHierarchyStatusActions, collectLifecycleDriftActions } from "../hierarchy";
 import { collectStaleIndexTargets, writeNavigationIndex } from "../hierarchy/index-log";
 import { collectBacklogFocus } from "../hierarchy/backlog";
 import {
