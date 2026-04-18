@@ -34,6 +34,7 @@ export async function forgeCheck(args: string[]) {
     base: parsed.base,
     dryRun: parsed.dryRun,
     worktree: parsed.worktree,
+    sliceLocal: true,
   });
   const review = parsed.dryRun
     ? null
@@ -1014,4 +1015,3 @@ export async function forgeRun(args: string[]) {
 
   await writeProgress(true);
 }
-
