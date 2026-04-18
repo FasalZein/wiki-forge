@@ -18,6 +18,7 @@ export {
   moveTask,
   completeTask,
   collectBacklog,
+  collectBacklogView,
   collectTaskContextForId,
   collectBacklogFocus,
   detectTaskDocState,

@@ -164,6 +164,45 @@ describe("wiki forge thin surface", () => {
     expect(backlog.sections["In Progress"][0].id).toBe("NEWPROJ-001");
   });
 
+  test("forge plan creates multiple slices with --slices flag", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "multiproj"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "multiproj");
+
+    const plan = runWiki(
+      ["forge", "plan", "multiproj", "Multi Feature", "--slices", "slice one,slice two,slice three", "--agent", "codex", "--repo", repo],
+      env,
+    );
+    expect(plan.exitCode).toBe(0);
+    const out = plan.stdout.toString();
+    expect(out).toContain("created feature FEAT-001");
+    expect(out).toContain("created prd PRD-001");
+    expect(out).toContain("created slice MULTIPROJ-001");
+    expect(out).toContain("created slice MULTIPROJ-002");
+    expect(out).toContain("created slice MULTIPROJ-003");
+    expect(out).toContain("started MULTIPROJ-001");
+    expect(out).toContain("MULTIPROJ-002");
+    expect(out).toContain("MULTIPROJ-003");
+
+    // First slice should be in-progress (started)
+    const backlog = JSON.parse(runWiki(["backlog", "multiproj", "--json"], env).stdout.toString());
+    expect(backlog.sections["In Progress"][0].id).toBe("MULTIPROJ-001");
+    // Remaining slices stay in Todo
+    const todoIds = (backlog.sections["Todo"] ?? []).map((t: { id: string }) => t.id);
+    expect(todoIds).toContain("MULTIPROJ-002");
+    expect(todoIds).toContain("MULTIPROJ-003");
+
+    // All slice plans should have status ready
+    for (const sliceId of ["MULTIPROJ-001", "MULTIPROJ-002", "MULTIPROJ-003"]) {
+      const planPath = join(vault, "projects", "multiproj", "specs", "slices", sliceId, "plan.md");
+      const testPlanPath = join(vault, "projects", "multiproj", "specs", "slices", sliceId, "test-plan.md");
+      expect(readFileSync(planPath, "utf8")).toContain("status: ready");
+      expect(readFileSync(testPlanPath, "utf8")).toContain("status: ready");
+    }
+  });
+
   test("forge next returns triage for the active or recommended slice", () => {
     const { vault, repo } = setupPassingRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
@@ -196,6 +235,30 @@ describe("wiki forge thin surface", () => {
     expect(afterJson.active).toBe(true);
     expect(afterJson.targetSlice).toBe("NXPROJ-001");
     expect(afterJson.triage.kind).toBe("close-slice");
+  });
+
+  test("forge next --prompt-json outputs sliceId, project, and non-empty planSummary", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "pjproj"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "pjproj");
+    expect(runWiki(["create-issue-slice", "pjproj", "auth slice"], env).exitCode).toBe(0);
+
+    const planPath = join(vault, "projects", "pjproj", "specs", "slices", "PJPROJ-001", "plan.md");
+    const testPlanPath = join(vault, "projects", "pjproj", "specs", "slices", "PJPROJ-001", "test-plan.md");
+    writeFileSync(planPath, "---\ntitle: PJPROJ-001 auth slice\ntype: spec\nspec_kind: plan\nproject: pjproj\ntask_id: PJPROJ-001\nupdated: 2026-04-13\nstatus: ready\n---\n\n# PJPROJ-001 auth slice\n\n## Scope\n\n- Ship the auth change\n\n## Acceptance Criteria\n\n- [ ] Auth works\n", "utf8");
+    writeFileSync(testPlanPath, "---\ntitle: PJPROJ-001 auth slice\ntype: spec\nspec_kind: test-plan\nproject: pjproj\ntask_id: PJPROJ-001\nupdated: 2026-04-13\nstatus: ready\n---\n\n# PJPROJ-001 auth slice\n\n## Red Tests\n\n- [x] Auth behavior is covered through the public API.\n\n## Verification Commands\n\n```bash\nbun test tests/payments.test.ts\n```\n", "utf8");
+
+    const result = runWiki(["forge", "next", "pjproj", "--prompt-json"], env);
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.sliceId).toBe("PJPROJ-001");
+    expect(json.project).toBe("pjproj");
+    expect(json.planSummary.length).toBeGreaterThan(0);
+    expect(json.testPlanSummary.length).toBeGreaterThan(0);
+    expect(json.commands).toBeInstanceOf(Array);
+    expect(json.commands.length).toBeGreaterThan(0);
   });
 
   test("forge check and close keep parent drift as warnings instead of slice blockers", () => {

@@ -11,14 +11,14 @@ export function printHelp() {
   console.log(`wiki CLI — Use forge commands for normal workflow. Lower-level commands are for repair/debugging.
 
 Forge Workflow (primary surface):
-  wiki forge plan <project> <feature-name> [--feature FEAT-xxx] [--prd-name <name>] [--title <slice-title>] [--agent <name>] [--repo <path>]
+  wiki forge plan <project> <feature-name> [--feature FEAT-xxx] [--prd-name <name>] [--title <slice-title>] [--slices "title1,title2,..."] [--agent <name>] [--repo <path>]
   wiki forge start <project> [slice-id] [--agent <name>] [--repo <path>] [--json]
   wiki forge open <project> [slice-id] [--agent <name>] [--repo <path>] [--json]
   wiki forge check <project> [slice-id] [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
   wiki forge run <project> [slice-id] [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
   wiki forge close <project> [slice-id] [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
   wiki forge status <project> [slice-id] [--json]
-  wiki forge next <project> [--json]
+  wiki forge next <project> [--json] [--prompt] [--prompt-json] [--all --prompt-json]
 
 Session:
   wiki resume <project> [--repo <path>] [--base <rev>] [--json]

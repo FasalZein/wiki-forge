@@ -1,15 +1,16 @@
 import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
-import { nowIso, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
+import { nowIso, orderFrontmatter, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { VAULT_ROOT } from "../constants";
-import { readVerificationLevel } from "../lib/verification";
+import { readVerificationLevel, resolveRepoPath } from "../lib/verification";
 import { readFlagValue } from "../lib/cli-utils";
 import { exists, readText } from "../lib/fs";
 import { runPipeline } from "../lib/pipeline";
 import { collectCloseout, collectGate } from "../maintenance";
 import { type ForgeWorkflowLedger, validateForgeWorkflowLedger } from "../lib/forge-ledger";
 import { projectPrdsDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath } from "../lib/structure";
-import { collectBacklogFocus, collectTaskContextForId, detectTaskDocState, createFeatureReturningId, createPrdReturningId } from "../hierarchy";
+import { collectBacklogFocus, collectBacklogView, collectTaskContextForId, detectTaskDocState, createFeatureReturningId, createPrdReturningId } from "../hierarchy";
+import type { BacklogTaskContext } from "../hierarchy";
 import { createIssueSlice } from "./slice-scaffold";
 import { startSlice } from "./start";
 
@@ -336,7 +337,7 @@ export async function forgePlan(args: string[]) {
   const parsed = parseForgePlanArgs(args);
   let createdFeatureId: string | undefined;
   let createdPrdId: string | undefined;
-  let createdSliceId: string | undefined;
+  const createdSliceIds: string[] = [];
   let lastStep = "parse";
   try {
     lastStep = "create-feature";
@@ -354,38 +355,91 @@ export async function forgePlan(args: string[]) {
     const { specId: prdId } = await createPrdReturningId(parsed.project, prdName!, featureId);
     console.log(`created prd ${prdId}`);
     createdPrdId = prdId;
-    lastStep = "create-slice";
-    const sliceTitle = parsed.title ?? prdName!;
-    const sliceArgs = [
-      parsed.project,
-      sliceTitle,
-      "--prd", prdId,
-      ...(parsed.agent ? ["--assignee", parsed.agent] : []),
-    ];
-    const slice = await createIssueSlice(sliceArgs);
-    if (!slice) throw new Error("createIssueSlice did not return a result");
-    console.log(`created slice ${slice.taskId}`);
-    createdSliceId = slice.taskId;
-    lastStep = "start-slice";
-    await startSlice([
-      parsed.project,
-      slice.taskId,
-      ...(parsed.agent ? ["--agent", parsed.agent] : []),
-      ...(parsed.repo ? ["--repo", parsed.repo] : []),
-    ]);
-    lastStep = "autofill-docs";
-    await autoFillSliceDocs(parsed.project, slice.taskId, prdId);
+
+    if (parsed.slices.length > 0) {
+      // Multi-slice path
+      for (let i = 0; i < parsed.slices.length; i += 1) {
+        const sliceTitle = parsed.slices[i];
+        lastStep = `create-slice-${i + 1}`;
+        const sliceArgs = [
+          parsed.project,
+          sliceTitle,
+          "--prd", prdId,
+          ...(parsed.agent ? ["--assignee", parsed.agent] : []),
+        ];
+        const slice = await createIssueSlice(sliceArgs);
+        if (!slice) throw new Error(`createIssueSlice did not return a result for slice ${i + 1}`);
+        console.log(`created slice ${slice.taskId}`);
+        createdSliceIds.push(slice.taskId);
+
+        if (i > 0) {
+          const previousSliceId = createdSliceIds[i - 1];
+          await patchSliceDependsOn(parsed.project, slice.taskId, previousSliceId);
+        }
+
+        if (i === 0) {
+          lastStep = "start-slice";
+          await startSlice([
+            parsed.project,
+            slice.taskId,
+            ...(parsed.agent ? ["--agent", parsed.agent] : []),
+            ...(parsed.repo ? ["--repo", parsed.repo] : []),
+          ]);
+        }
+
+        lastStep = `autofill-docs-${i + 1}`;
+        await autoFillSliceDocs(parsed.project, slice.taskId, prdId);
+      }
+      const [startedId, ...pendingIds] = createdSliceIds;
+      const pendingSummary = pendingIds.length ? `; pending: ${pendingIds.join(", ")}` : "";
+      console.log(`started ${startedId}${pendingSummary}`);
+    } else {
+      // Single-slice path (original behavior)
+      lastStep = "create-slice";
+      const sliceTitle = parsed.title ?? prdName!;
+      const sliceArgs = [
+        parsed.project,
+        sliceTitle,
+        "--prd", prdId,
+        ...(parsed.agent ? ["--assignee", parsed.agent] : []),
+      ];
+      const slice = await createIssueSlice(sliceArgs);
+      if (!slice) throw new Error("createIssueSlice did not return a result");
+      console.log(`created slice ${slice.taskId}`);
+      createdSliceIds.push(slice.taskId);
+      lastStep = "start-slice";
+      await startSlice([
+        parsed.project,
+        slice.taskId,
+        ...(parsed.agent ? ["--agent", parsed.agent] : []),
+        ...(parsed.repo ? ["--repo", parsed.repo] : []),
+      ]);
+      lastStep = "autofill-docs";
+      await autoFillSliceDocs(parsed.project, slice.taskId, prdId);
+    }
   } catch (error) {
     const artifacts: string[] = [];
     if (createdFeatureId) artifacts.push(`  feature: ${createdFeatureId}`);
     if (createdPrdId) artifacts.push(`  prd: ${createdPrdId}`);
-    if (createdSliceId) artifacts.push(`  slice: ${createdSliceId}`);
+    for (const sliceId of createdSliceIds) artifacts.push(`  slice: ${sliceId}`);
     if (artifacts.length) {
       console.error(`forge plan failed at ${lastStep}. Already created:\n${artifacts.join("\n")}`);
-      if (createdSliceId) console.error(`Use: wiki forge start ${parsed.project} ${createdSliceId} to retry from start-slice`);
+      if (createdSliceIds.length) console.error(`Use: wiki forge start ${parsed.project} ${createdSliceIds[0]} to retry from start-slice`);
     }
     throw error;
   }
+}
+
+async function patchSliceDependsOn(project: string, sliceId: string, dependsOnSliceId: string): Promise<void> {
+  const indexPath = projectTaskHubPath(project, sliceId);
+  const raw = await readText(indexPath);
+  const parsed = safeMatter(relative(VAULT_ROOT, indexPath), raw, { silent: true });
+  if (!parsed) return;
+  const updatedData = orderFrontmatter(
+    { ...parsed.data, depends_on: [dependsOnSliceId], updated: nowIso() },
+    ["title", "type", "spec_kind", "project", "source_paths", "assignee", "task_id", "depends_on", "parent_prd", "parent_feature", "created_at", "updated", "status"],
+  );
+  writeNormalizedPage(indexPath, parsed.content, updatedData);
 }
 
 type ForgePlanArgs = {
@@ -394,6 +448,7 @@ type ForgePlanArgs = {
   featureId: string | undefined;
   prdName: string | undefined;
   title: string | undefined;
+  slices: string[];
   agent: string | undefined;
   repo: string | undefined;
 };
@@ -404,6 +459,7 @@ function parseForgePlanArgs(args: string[]): ForgePlanArgs {
   let featureId: string | undefined;
   let prdName: string | undefined;
   let title: string | undefined;
+  let slices: string[] = [];
   let agent: string | undefined;
   let repo: string | undefined;
   const nameParts: string[] = [];
@@ -422,6 +478,12 @@ function parseForgePlanArgs(args: string[]): ForgePlanArgs {
         title = args[index + 1];
         index += 1;
         break;
+      case "--slices": {
+        const raw = args[index + 1] ?? "";
+        slices = raw.split(",").map((s) => s.trim()).filter(Boolean);
+        index += 1;
+        break;
+      }
       case "--agent":
         agent = args[index + 1];
         index += 1;
@@ -437,7 +499,7 @@ function parseForgePlanArgs(args: string[]): ForgePlanArgs {
   }
   const featureName = nameParts.join(" ").trim() || undefined;
   if (!featureId && !featureName) throw new Error("feature-name (positional) or --feature FEAT-xxx is required");
-  return { project, featureName, featureId, prdName, title, agent, repo };
+  return { project, featureName, featureId, prdName, title, slices, agent, repo };
 }
 
 export async function forgeNext(args: string[]) {
@@ -445,6 +507,19 @@ export async function forgeNext(args: string[]) {
   const project = positional[0];
   requireValue(project, "project");
   const json = args.includes("--json");
+  const promptFlag = args.includes("--prompt");
+  const promptJson = args.includes("--prompt-json");
+  const all = args.includes("--all");
+
+  if (all && !promptJson) {
+    throw new Error("--all requires --prompt-json");
+  }
+
+  if (all && promptJson) {
+    await forgeNextAll(project);
+    return;
+  }
+
   const focus = await collectBacklogFocus(project);
 
   const activeId = focus.activeTask?.id ?? null;
@@ -452,12 +527,23 @@ export async function forgeNext(args: string[]) {
   const targetId = activeId ?? recommendedId;
 
   if (!targetId) {
-    if (json) console.log(JSON.stringify({ project, targetSlice: null, action: "no ready slices" }, null, 2));
+    if (json || promptJson) console.log(JSON.stringify({ project, targetSlice: null, action: "no ready slices" }, null, 2));
     else console.log(`no ready slices for ${project}`);
     return;
   }
 
   const workflow = await collectForgeStatus(project, targetId);
+
+  if (promptJson || promptFlag) {
+    const promptData = await buildSlicePromptData(project, targetId, workflow, activeId !== null);
+    if (promptJson) {
+      console.log(JSON.stringify(promptData, null, 2));
+    } else {
+      console.log(renderSlicePrompt(promptData));
+    }
+    return;
+  }
+
   const result = {
     project,
     targetSlice: targetId,
@@ -478,6 +564,82 @@ export async function forgeNext(args: string[]) {
     console.log(`- next action: ${workflow.triage.command}`);
     console.log(`  reason: ${workflow.triage.reason}`);
   }
+}
+
+type SlicePromptData = {
+  sliceId: string;
+  project: string;
+  title: string;
+  repo: string;
+  planPath: string;
+  testPlanPath: string;
+  planSummary: string;
+  testPlanSummary: string;
+  commands: string[];
+};
+
+async function buildSlicePromptData(
+  project: string,
+  sliceId: string,
+  workflow: Awaited<ReturnType<typeof collectForgeStatus>>,
+  active: boolean,
+): Promise<SlicePromptData> {
+  const title = typeof workflow.context?.title === "string" ? workflow.context.title : sliceId;
+  const planPath = projectTaskPlanPath(project, sliceId);
+  const testPlanPath = projectTaskTestPlanPath(project, sliceId);
+  const [planDoc, testPlanDoc, repo] = await Promise.all([
+    readMatter(planPath),
+    readMatter(testPlanPath),
+    resolveRepoPath(project).catch(() => "<repo-path>"),
+  ]);
+  const planSummary = planDoc?.content.trim() ?? "";
+  const testPlanSummary = testPlanDoc?.content.trim() ?? "";
+  const commands: string[] = [
+    `wiki forge ${active ? "run" : "start"} ${project} ${sliceId} --repo ${repo}`,
+  ];
+  return { sliceId, project, title, repo, planPath, testPlanPath, planSummary, testPlanSummary, commands };
+}
+
+function renderSlicePrompt(data: SlicePromptData): string {
+  const lines: string[] = [
+    `Implement slice ${data.sliceId} for project ${data.project}.`,
+    "",
+    `Repo: ${data.repo}`,
+    `Slice: ${data.sliceId} — ${data.title}`,
+    `Plan: ${data.planSummary ? data.planSummary.split("\n")[0] : "(no plan summary)"}`,
+    `Test Plan: ${data.testPlanSummary ? data.testPlanSummary.split("\n")[0] : "(no test plan summary)"}`,
+    "",
+    "Steps:",
+    `1. Read the full plan at ${data.planPath}`,
+    `2. Read the test plan at ${data.testPlanPath}`,
+    "3. Implement using /tdd",
+    ...data.commands.map((cmd, i) => `${i + 4}. Run: ${cmd}`),
+  ];
+  return lines.join("\n");
+}
+
+async function forgeNextAll(project: string): Promise<void> {
+  const view = await collectBacklogView(project);
+  // Include both In Progress (active) and unblocked Todo slices that have docs
+  const inProgressTasks = ((view.sections["In Progress"] ?? []) as BacklogTaskContext[]).filter((task) => task.hasSliceDocs);
+  const todoTasks = ((view.sections["Todo"] ?? []) as BacklogTaskContext[]).filter((task) => task.hasSliceDocs && task.blockedBy.length === 0);
+
+  const inProgressEntries = inProgressTasks.map((task) => ({ task, active: true }));
+  const todoEntries = todoTasks.map((task) => ({ task, active: false }));
+  const candidates = [...inProgressEntries, ...todoEntries];
+
+  if (!candidates.length) {
+    console.log(JSON.stringify([], null, 2));
+    return;
+  }
+
+  const results = await Promise.all(
+    candidates.map(async ({ task, active }) => {
+      const workflow = await collectForgeStatus(project, task.id);
+      return buildSlicePromptData(project, task.id, workflow, active);
+    }),
+  );
+  console.log(JSON.stringify(results, null, 2));
 }
 
 async function autoFillSliceDocs(project: string, sliceId: string, prdId: string): Promise<void> {
