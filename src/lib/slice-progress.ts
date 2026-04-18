@@ -76,3 +76,31 @@ export async function readSliceHandoff(
     failureSummary: typeof d.failure_summary === "string" ? d.failure_summary : undefined,
   };
 }
+
+export type PipelineProgressEntry = {
+  step: string;
+  ok: boolean;
+  durationMs?: number;
+  error?: string;
+};
+
+export async function readSlicePipelineProgress(
+  project: string,
+  sliceId: string,
+): Promise<PipelineProgressEntry[] | null> {
+  const indexPath = projectTaskHubPath(project, sliceId);
+  if (!await exists(indexPath)) return null;
+  const raw = await readText(indexPath);
+  const parsed = safeMatter(relative(VAULT_ROOT, indexPath), raw, { silent: true });
+  if (!parsed) return null;
+  const rawEntries = parsed.data.pipeline_progress;
+  if (!Array.isArray(rawEntries) || rawEntries.length === 0) return null;
+  return rawEntries
+    .filter((e): e is Record<string, unknown> => e !== null && typeof e === "object")
+    .map((e) => ({
+      step: typeof e.step === "string" ? e.step : String(e.step ?? ""),
+      ok: typeof e.ok === "boolean" ? e.ok : false,
+      ...(typeof e.durationMs === "number" ? { durationMs: e.durationMs } : {}),
+      ...(typeof e.error === "string" && e.error ? { error: e.error } : {}),
+    }));
+}

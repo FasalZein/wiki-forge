@@ -227,14 +227,17 @@ function buildForgeTriage(project: string, sliceId: string, input: { activeSlice
     return {
       kind: "close-slice",
       reason: `verification level is ${input.verificationLevel ?? "missing"}`,
-      command: `wiki forge close ${project} ${sliceId} --repo <path>`,
+      command: `wiki forge run ${project} ${sliceId} --repo <path>`,
     };
   }
   if (input.activeSlice === sliceId) {
+    // Test-verified + active + not yet in Done section → close it via forge run.
+    // The workflow ledger (research/grill/prd/...) is for the full feature chain;
+    // a slice that passed verification should close, not go back to research.
     return {
-      kind: "review-parents",
-      reason: input.nextPhase ? `workflow next phase is ${input.nextPhase}` : "slice is verified; inspect parent/project follow-up",
-      command: `wiki feature-status ${project}`,
+      kind: "close-slice",
+      reason: "slice is test-verified; close it",
+      command: `wiki forge run ${project} ${sliceId} --repo <path>`,
     };
   }
   return {

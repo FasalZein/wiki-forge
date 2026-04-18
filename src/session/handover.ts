@@ -4,14 +4,24 @@ import { parseProjectRepoBaseArgs } from "../git-utils";
 import { collectSessionActivity, resolveSessionId } from "../lib/tracker";
 import { collectBacklog } from "../hierarchy";
 import { collectMaintenancePlan } from "../maintenance";
+import { closeSlice } from "../slice/close";
+import { readSliceTestPlan } from "../lib/slices";
+import { readVerificationLevel } from "../lib/verification";
+import { readSlicePipelineProgress, type PipelineProgressEntry } from "../lib/slice-progress";
 import {
   collectDirtyRepoStatus,
   collectRecentCommits,
+  collectCommitsSinceBase,
   compactLogEntry,
   projectLogEntries,
   renderSessionActivity,
   writeHandoverFile,
 } from "./_shared";
+
+type AutoCloseAttempt =
+  | { sliceId: string; attempted: true; closed: true }
+  | { sliceId: string; attempted: true; closed: false; reason: string }
+  | null;
 
 function buildNextSessionPrompt(result: {
   project: string;
@@ -22,6 +32,9 @@ function buildNextSessionPrompt(result: {
   actions: Array<{ kind: string; message: string }>;
   recentNotes: string[];
   recentCommits: string[];
+  commitsSinceBase: string[];
+  pipelineProgress: PipelineProgressEntry[] | null;
+  autoCloseAttempt: AutoCloseAttempt;
 }): string {
   const lines: string[] = [];
   lines.push(`Continue work on ${result.project}. Repo: ${result.repo}`);
@@ -29,6 +42,13 @@ function buildNextSessionPrompt(result: {
   lines.push("");
   if (result.dirty.modifiedFiles.length || result.dirty.untrackedFiles.length) {
     lines.push(`Warning: ${result.dirty.modifiedFiles.length} modified, ${result.dirty.untrackedFiles.length} untracked files — review and commit or discard before starting new work.`);
+  }
+  if (result.autoCloseAttempt?.attempted) {
+    if (result.autoCloseAttempt.closed) {
+      lines.push(`Previous session auto-closed ${result.autoCloseAttempt.sliceId}`);
+    } else {
+      lines.push(`Auto-close attempted but failed: ${result.autoCloseAttempt.reason}`);
+    }
   }
   if (result.focus.activeTask) {
     lines.push(`Active slice: ${result.focus.activeTask.id} — ${result.focus.activeTask.title}. Continue this first.`);
@@ -45,6 +65,21 @@ function buildNextSessionPrompt(result: {
     lines.push("");
     lines.push(`Previous agent note: ${result.recentNotes[0]}`);
   }
+  if (result.commitsSinceBase.length) {
+    lines.push("");
+    lines.push("Session commits:");
+    for (const commit of result.commitsSinceBase.slice(0, 10)) lines.push(`- ${commit}`);
+  }
+  if (result.pipelineProgress) {
+    lines.push("");
+    lines.push("Last pipeline run:");
+    for (const step of result.pipelineProgress) {
+      const status = step.ok ? "ok" : "fail";
+      const duration = step.durationMs !== undefined ? ` (${step.durationMs}ms)` : "";
+      const err = step.error ? ` — ${step.error}` : "";
+      lines.push(`- ${step.step}: ${status}${duration}${err}`);
+    }
+  }
   return lines.join("\n");
 }
 
@@ -54,13 +89,60 @@ export async function handoverProject(args: string[]) {
   const noWrite = args.includes("--no-write");
   const harnessIndex = args.indexOf("--harness");
   const harness = harnessIndex >= 0 ? args[harnessIndex + 1] : undefined;
-  const [maintain, backlog, sessionActivity] = await Promise.all([
+  let [maintain, backlog, sessionActivity] = await Promise.all([
     collectMaintenancePlan(options.project, options.base, options.repo),
     collectBacklog(options.project),
     collectSessionActivity(options.project, resolveSessionId()),
   ]);
+
+  // Auto-close the active slice if it is already test-verified
+  let autoCloseAttempt: AutoCloseAttempt = null;
+  const activeTask = maintain.focus.activeTask;
+  if (activeTask) {
+    let testPlanLevel: string | null = null;
+    try {
+      const testPlan = await readSliceTestPlan(options.project, activeTask.id);
+      testPlanLevel = readVerificationLevel(testPlan.data);
+    } catch {
+      // test-plan unreadable — leave testPlanLevel null, skip auto-close
+    }
+    if (testPlanLevel === "test-verified") {
+      const closeArgs = [
+        options.project,
+        activeTask.id,
+        "--repo", maintain.repo,
+        "--base", options.base,
+        "--slice-local",
+      ];
+      // Suppress closeSlice's own stdout so it doesn't corrupt --json output
+      const origLog = console.log;
+      try {
+        console.log = () => {};
+        await closeSlice(closeArgs);
+        console.log = origLog;
+        process.stderr.write(`auto-closed ${activeTask.id}\n`);
+        autoCloseAttempt = { sliceId: activeTask.id, attempted: true, closed: true };
+        // Refresh maintain and backlog so the handover reflects the new state
+        [maintain, backlog] = await Promise.all([
+          collectMaintenancePlan(options.project, options.base, options.repo),
+          collectBacklog(options.project),
+        ]);
+      } catch (err) {
+        console.log = origLog;
+        const reason = err instanceof Error ? err.message : String(err);
+        autoCloseAttempt = { sliceId: activeTask.id, attempted: true, closed: false, reason };
+      }
+    }
+  }
+
   const dirty = await collectDirtyRepoStatus(maintain.repo);
-  const recentCommits = await collectRecentCommits(maintain.repo, 5);
+  const [recentCommits, commitsSinceBase] = await Promise.all([
+    collectRecentCommits(maintain.repo, 5),
+    collectCommitsSinceBase(maintain.repo, options.base, 20),
+  ]);
+  const pipelineProgress = maintain.focus.activeTask
+    ? await readSlicePipelineProgress(options.project, maintain.focus.activeTask.id)
+    : null;
   const recentEvents = await projectLogEntries(options.project);
   const recentNotes = recentEvents.filter((e) => e.includes("] note |"));
   const lifecycleEvents = recentEvents.filter((e) => !e.includes("] note |"));
@@ -73,9 +155,12 @@ export async function handoverProject(args: string[]) {
     dirty,
     sessionActivity,
     recentCommits,
+    commitsSinceBase,
+    pipelineProgress,
     lifecycleEvents: lifecycleEvents.map(compactLogEntry),
     actions: maintain.actions.slice(0, 12),
     recentNotes: recentNotes.map(compactLogEntry),
+    autoCloseAttempt,
   };
   const nextSessionPrompt = buildNextSessionPrompt(result);
 
@@ -99,6 +184,13 @@ export async function handoverProject(args: string[]) {
   console.log("--- session context ---");
   console.log(`- repo: ${result.repo}`);
   console.log(`- base: ${result.base}`);
+  if (autoCloseAttempt?.attempted) {
+    if (autoCloseAttempt.closed) {
+      console.log(`- auto-close: ${autoCloseAttempt.sliceId} closed`);
+    } else {
+      console.log(`- auto-close: ${autoCloseAttempt.sliceId} skipped (${autoCloseAttempt.reason})`);
+    }
+  }
   if (result.focus.activeTask) console.log(`- active: ${result.focus.activeTask.id} ${result.focus.activeTask.title}`);
   else if (result.focus.recommendedTask) console.log(`- next: ${result.focus.recommendedTask.id} ${result.focus.recommendedTask.title}`);
   console.log(`- backlog: ${Object.entries(result.backlog).filter(([, n]) => (n as number) > 0).map(([k, n]) => `${k}=${n}`).join(" ")}`);
@@ -110,6 +202,10 @@ export async function handoverProject(args: string[]) {
   if (recentCommits.length) {
     console.log(`- recent commits:`);
     for (const commit of recentCommits) console.log(`    ${commit}`);
+  }
+  if (commitsSinceBase.length) {
+    console.log(`- commits since base:`);
+    for (const commit of commitsSinceBase.slice(0, 10)) console.log(`    ${commit}`);
   }
   if (lifecycleEvents.length) {
     console.log(`- recent activity:`);

@@ -16,6 +16,13 @@ export async function collectRecentCommits(repo: string, limit: number) {
   return proc.stdout.toString().replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean);
 }
 
+export async function collectCommitsSinceBase(repo: string, base: string | undefined, limit: number): Promise<string[]> {
+  if (!base) return [];
+  const proc = await Bun.$`git log --oneline ${base}..HEAD -n ${limit}`.cwd(repo).nothrow().quiet();
+  if (proc.exitCode !== 0) return [];
+  return proc.stdout.toString().replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean);
+}
+
 export async function projectLogEntries(project: string, kind?: string) {
   return (await tailLog(50))
     .filter((entry) => entry.includes(`- project: ${project}`))

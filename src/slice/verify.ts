@@ -25,7 +25,7 @@ export async function verifySlice(args: string[]) {
   for (let i = 0; i < specs.length; i++) {
     const spec = specs[i];
     if (!json) process.stderr.write(`[${i + 1}/${specs.length}] running: ${spec.label ?? spec.command}...`);
-    const result = await runVerificationCommand(repo, spec);
+    const result = await runVerificationCommand(repo, spec, !json);
     results.push(result);
     if (!json) process.stderr.write(` ${result.ok ? "pass" : "FAIL"}\n`);
   }
@@ -81,12 +81,59 @@ type VerificationRunResult = {
   failures: string[];
 };
 
-async function runVerificationCommand(repo: string, spec: VerificationCommandSpec): Promise<VerificationRunResult> {
-  const proc = await Bun.$`bash -lc ${spec.command}`.cwd(repo).nothrow().quiet();
-  const stdout = proc.stdout.toString().trim();
-  const stderr = proc.stderr.toString().trim();
+async function drainStream(stream: ReadableStream<Uint8Array>, forward: boolean): Promise<string> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  const chunks: string[] = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    chunks.push(chunk);
+    if (forward) process.stderr.write(chunk);
+  }
+  const tail = decoder.decode();
+  if (tail) {
+    chunks.push(tail);
+    if (forward) process.stderr.write(tail);
+  }
+  return chunks.join("");
+}
+
+async function runVerificationCommand(repo: string, spec: VerificationCommandSpec, streamingAllowed: boolean = true): Promise<VerificationRunResult> {
+  const proc = Bun.spawn({
+    cmd: ["bash", "-lc", spec.command],
+    cwd: repo,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+
+  const startMs = Date.now();
+  let heartbeat: ReturnType<typeof setInterval> | undefined;
+  if (streamingAllowed) {
+    heartbeat = setInterval(() => {
+      const elapsed = Math.round((Date.now() - startMs) / 1000);
+      process.stderr.write(`  … still running (${elapsed}s elapsed)\n`);
+    }, 15_000);
+  }
+
+  let rawStdout: string;
+  let rawStderr: string;
+  let exitCode: number;
+  try {
+    [rawStdout, rawStderr, exitCode] = await Promise.all([
+      drainStream(proc.stdout, streamingAllowed),
+      drainStream(proc.stderr, streamingAllowed),
+      proc.exited,
+    ]);
+  } finally {
+    if (heartbeat !== undefined) clearInterval(heartbeat);
+  }
+
+  const stdout = rawStdout.trim();
+  const stderr = rawStderr.trim();
   const failures: string[] = [];
-  if (proc.exitCode !== spec.expectedExitCode) failures.push(`expected exit ${spec.expectedExitCode}, got ${proc.exitCode}`);
+  if (exitCode !== spec.expectedExitCode) failures.push(`expected exit ${spec.expectedExitCode}, got ${exitCode}`);
   for (const expected of spec.stdoutContains) {
     if (!stdout.includes(expected)) failures.push(`stdout missing: ${expected}`);
   }
@@ -103,7 +150,7 @@ async function runVerificationCommand(repo: string, spec: VerificationCommandSpe
       stderrContains: [...spec.stderrContains],
     },
     actual: {
-      exitCode: proc.exitCode,
+      exitCode,
       stdout,
       stderr,
     },

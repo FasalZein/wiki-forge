@@ -72,7 +72,7 @@ describe("wiki forge thin surface", () => {
     const statusJson = JSON.parse(status.stdout.toString());
     expect(statusJson.context.id).toBe("GATED-001");
     expect(statusJson.triage.kind).toBe("close-slice");
-    expect(statusJson.triage.command).toContain("wiki forge close gated GATED-001");
+    expect(statusJson.triage.command).toContain("wiki forge run gated GATED-001");
     expect(Array.isArray(statusJson.workflow.validation.statuses)).toBe(true);
 
     const check = runWiki(["forge", "check", "gated", "GATED-001", "--repo", repo, "--json"], env);
@@ -391,7 +391,7 @@ describe("wiki forge thin surface", () => {
     expect(check.exitCode).toBe(0);
     const checkJson = JSON.parse(check.stdout.toString());
     expect(checkJson.review.ok).toBe(true);
-    expect(checkJson.triage.command).toContain("wiki forge close gated GATED-001");
+    expect(checkJson.triage.command).toContain("wiki forge run gated GATED-001");
     expect(checkJson.review.findings.some((finding: { scope: string; severity: string }) => finding.scope === "parent" && finding.severity === "warning")).toBe(true);
 
     const close = runWiki(["forge", "close", "gated", "GATED-001", "--repo", repo, "--json"], env);
