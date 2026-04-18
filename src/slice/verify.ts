@@ -21,7 +21,14 @@ export async function verifySlice(args: string[]) {
   const specs = extractVerificationSpecs(testPlan.content);
   if (!specs.length) throw new Error(`no verification command blocks found in ${relative(VAULT_ROOT, testPlan.path)}`);
 
-  const results = await Promise.all(specs.map((spec) => runVerificationCommand(repo, spec)));
+  const results: VerificationRunResult[] = [];
+  for (let i = 0; i < specs.length; i++) {
+    const spec = specs[i];
+    if (!json) process.stderr.write(`[${i + 1}/${specs.length}] running: ${spec.label ?? spec.command}...`);
+    const result = await runVerificationCommand(repo, spec);
+    results.push(result);
+    if (!json) process.stderr.write(` ${result.ok ? "pass" : "FAIL"}\n`);
+  }
   const ok = results.every((result) => result.ok);
   if (ok) {
     await recordVerificationEvidence(testPlan.path, testPlan.content, testPlan.data, repo, results);
