@@ -149,7 +149,7 @@ export function formatClaimConflictError(sliceId: string, conflicts: ClaimConfli
   const blocker = conflicts[0];
   const repoArg = repo ? ` --repo ${repo}` : " --repo <path>";
   lines.push("resolution:");
-  lines.push(`  - close the active slice: wiki forge close ${project} ${blocker.taskId}${repoArg}`);
+  lines.push(`  - finish the active slice: wiki forge run ${project} ${blocker.taskId}${repoArg}`);
   lines.push(`  - release the claim: wiki forge release ${project} ${blocker.taskId}`);
   lines.push(`  - force takeover: wiki forge start ${project} ${sliceId}${repoArg} --force`);
   return lines.join("\n");
