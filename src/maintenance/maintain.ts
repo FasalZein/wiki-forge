@@ -7,6 +7,7 @@ import { parseProjectRepoBaseArgs } from "../git-utils";
 import {
   collectHierarchyStatusActions,
   collectLifecycleDriftActions,
+  collectCancelledSyncActions,
   collectStaleIndexTargets,
   writeNavigationIndex,
   collectBacklogFocus,
@@ -145,13 +146,14 @@ export async function collectMaintenancePlan(project: string, base: string, expl
       ? await collectRefreshFromWorktree(project, explicitRepo, projectSnapshot)
       : await collectRefreshFromGit(project, base, explicitRepo, projectSnapshot)
   );
-  const [discover, lint, semanticLint, focus, hierarchyActions, lifecycleDriftActions] = await Promise.all([
+  const [discover, lint, semanticLint, focus, hierarchyActions, lifecycleDriftActions, cancelledSyncActions] = await Promise.all([
     collectDiscoverSummary(project, explicitRepo, projectSnapshot),
     collectLintResult(project, lintingState),
     collectSemanticLintResult(project, lintingState),
     collectBacklogFocus(project),
     collectHierarchyStatusActions(project),
     collectLifecycleDriftActions(project),
+    collectCancelledSyncActions(project),
   ]);
   const actions: MaintenanceAction[] = [];
   if (focus.activeTask) actions.push({ kind: "active-task", scope: "slice", message: `${focus.activeTask.id} ${focus.activeTask.title} (plan=${focus.activeTask.planStatus}, test-plan=${focus.activeTask.testPlanStatus})` });
@@ -164,6 +166,21 @@ export async function collectMaintenancePlan(project: string, base: string, expl
   for (const page of discover.unboundPages.slice(0, 20)) actions.push({ kind: "bind-page", scope: "project", message: `${page} has no source_paths` });
   for (const issue of lint.issues.slice(0, 20)) actions.push({ kind: "fix-structure", scope: "project", message: issue });
   for (const issue of semanticLint.issues.slice(0, 20)) actions.push({ kind: "fix-semantic", scope: "project", message: issue });
+  // Apply cascade-refresh actions (Behavior A, PRD-057): stamp updated: + verified_against:
+  // forward for pages whose source_paths all still hash to their verified_against sha.
+  // These are async _apply() closures; await each in sequence (idempotence check inside).
+  // cascadeRefreshActions is only produced by collectRefreshFromGit (not worktree).
+  const cascadeRefreshActions = "cascadeRefreshActions" in refreshFromGit
+    ? (refreshFromGit as { cascadeRefreshActions: MaintenanceAction[] }).cascadeRefreshActions
+    : [];
+  for (const action of cascadeRefreshActions) {
+    if (action._apply) await action._apply();
+  }
+  // Apply cancel-sync actions (Behavior B, PRD-057): rewrite backlog row marker to [-]
+  // for slices that are cancelled in the hub but still have an open row.
+  for (const action of cancelledSyncActions) {
+    if (action._apply) await action._apply();
+  }
   // Apply R2/R3 lifecycle drift actions first (they may affect computed_status for R1).
   // R4 escalations (no _apply) surface as operator actions.
   const anyLifecycleApplied = lifecycleDriftActions.some((a) => !!a._apply);

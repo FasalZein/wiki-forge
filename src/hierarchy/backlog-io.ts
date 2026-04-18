@@ -62,6 +62,11 @@ export async function moveTaskToSection(project: string, taskId: string, to: str
   appendLogEntry("move-task", taskId, { project, details: [`to=${to}`] });
 }
 
+// Recognizes all valid backlog checkbox variants:
+// [ ] = open, [x] = done (normalized), [>] = in-progress/deferred,
+// [/] = partial/in-progress, [-] = cancelled
+const TASK_LINE_PATTERN = /^- \[[ x>\-/]\] \*\*([A-Z0-9-]+)\*\*\s+(.*)$/;
+
 export function parseBacklog(backlog: string): ParsedBacklog {
   const lines = backlog.split("\n");
   const intro: string[] = [];
@@ -85,7 +90,7 @@ export function parseBacklog(backlog: string): ParsedBacklog {
       intro.push(line);
       continue;
     }
-    const task = line.match(/^- \[[ x]\] \*\*([A-Z0-9-]+)\*\*\s+(.*)$/);
+    const task = line.match(TASK_LINE_PATTERN);
     if (task) sections[currentSection].push({ raw: line, id: task[1], title: task[2] });
     else if (line.trim()) extras[currentSection].push(line);
   }
@@ -197,4 +202,56 @@ export function parseTaskArgs(args: string[]): TaskOptions {
   const title = titleParts.join(" ").trim();
   requireValue(title || undefined, "title");
   return { project, title, section, priority, tags, parentPrd, assignee, sourcePaths, json: args.includes("--json") };
+}
+
+// OPEN_MARKER_PATTERN matches any non-cancelled, non-done checkbox that should be
+// rewritten to [-] when a slice is cancelled.
+// Matches: [ ] (open), [>] (in-progress/deferred), [/] (partial)
+const OPEN_MARKER_PATTERN = /^(- \[)[ >/](] \*\*[A-Z0-9-]+\*\*)/;
+
+/**
+ * Rewrite the backlog row for `taskId` from an open marker ([ ], [>], [/]) to [-].
+ * Optionally appends a trailing annotation `— cancelled: <reason>` to the row.
+ *
+ * Returns true if a row was found and rewritten, false if not found or already [-].
+ * Does NOT move the row between sections (caller is responsible for that if needed).
+ */
+export async function rewriteBacklogRowMarker(
+  project: string,
+  taskId: string,
+  annotation?: string,
+): Promise<boolean> {
+  const backlogPath = await backlogPathFor(project);
+  const current = await readNormalizedText(backlogPath);
+  const lines = current.split("\n");
+  let changed = false;
+  const next = lines.map((line) => {
+    // Match the task row for this specific taskId with an open marker
+    const taskMatch = line.match(/^- \[([ >/])\] \*\*([A-Z0-9-]+)\*\*(.*)$/);
+    if (!taskMatch || taskMatch[2] !== taskId) return line;
+    // Already [-] — skip (idempotent)
+    if (taskMatch[1] === "-") return line;
+    changed = true;
+    // Strip any existing trailing annotation before re-appending
+    const body = taskMatch[3].replace(/\s*—\s*cancelled:.*$/u, "");
+    const annotationSuffix = annotation ? ` — cancelled: ${annotation}` : "";
+    return `- [-] **${taskId}**${body}${annotationSuffix}`;
+  });
+  if (!changed) return false;
+  await writeText(backlogPath, `${next.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd()}\n`);
+  return true;
+}
+
+/**
+ * Inspect a backlog row for `taskId` and return its current marker character.
+ * Returns null if the task is not found in the backlog.
+ */
+export async function getBacklogRowMarker(project: string, taskId: string): Promise<string | null> {
+  const backlogPath = await backlogPathFor(project);
+  const current = await readNormalizedText(backlogPath);
+  for (const line of current.split("\n")) {
+    const m = line.match(/^- \[([ >\-/x])\] \*\*([A-Z0-9-]+)\*\*/);
+    if (m && m[2] === taskId) return m[1];
+  }
+  return null;
 }

@@ -1,4 +1,4 @@
-import { relative } from "node:path";
+import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { nowIso, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { exists, readText } from "../lib/fs";
@@ -6,6 +6,8 @@ import { walkMarkdown } from "../lib/vault";
 import { readVerificationLevel } from "../lib/verification";
 import { projectSlicesDir } from "../lib/structure";
 import { appendLogEntry } from "../lib/log";
+import { appendAutoHealLogEntry, tailAutoHealLog } from "../lib/auto-heal-log";
+import { rewriteBacklogRowMarker, getBacklogRowMarker } from "./backlog-io";
 import type { MaintenanceAction } from "../lib/diagnostics";
 
 // ─── slice detail for R2/R3 analysis ─────────────────────────────────────────
@@ -115,4 +117,77 @@ export function buildLifecycleDriftAction(
     scope: "parent",
     message: `${entityKind} ${entityId} status=complete but computed status is inconsistent — to reopen: wiki lifecycle open ${project} ${entityId} — to cancel: wiki lifecycle close ${project} ${entityId} --force`,
   };
+}
+
+// ─── Behavior B reconciliation: cancelled hub with open backlog row ────────────
+
+/**
+ * Walk all slice hubs for a project. For each hub with status=cancelled, check
+ * whether the matching backlog row marker is still open ([ ], [>], [/]).
+ * Returns one MaintenanceAction per drifted slice, with an _apply() that:
+ *   1. Rewrites the row marker to [-].
+ *   2. Appends the annotation from superseded_by frontmatter (if present).
+ *   3. Emits one cancel-sync audit log entry (idempotent via log-dedupe).
+ *
+ * Used by wiki maintain and wiki sync to detect post-hoc drift.
+ *
+ * @param vaultRoot  Override vault root for test isolation (defaults to VAULT_ROOT).
+ */
+export async function collectCancelledSyncActions(
+  project: string,
+  vaultRoot?: string,
+): Promise<MaintenanceAction[]> {
+  const effectiveVaultRoot = vaultRoot ?? VAULT_ROOT;
+  const slicesDir = projectSlicesDir(project);
+  if (!await exists(slicesDir)) return [];
+  const sliceFiles = await walkMarkdown(slicesDir);
+  const actions: MaintenanceAction[] = [];
+  for (const file of sliceFiles) {
+    if (!file.endsWith("/index.md")) continue;
+    const relPath = relative(effectiveVaultRoot, file);
+    const raw = await readText(file);
+    const parsed = safeMatter(relPath, raw, { silent: true });
+    if (!parsed) continue;
+    const taskId = typeof parsed.data.task_id === "string" ? parsed.data.task_id : null;
+    if (!taskId) continue;
+    if (parsed.data.status !== "cancelled") continue;
+
+    // Check backlog row marker
+    // getBacklogRowMarker uses the project name to locate backlog.md in the vault.
+    // For test isolation we need to operate in the correct vault.  Since
+    // backlogPathFor resolves from projectRoot (which uses VAULT_ROOT), we reuse it
+    // at the default vault root for production and for tests we pass the project
+    // override via the environment (KNOWLEDGE_VAULT_ROOT).  The vaultRoot param here
+    // is for the audit log only; backlog reads use the resolved vault path.
+    const marker = await getBacklogRowMarker(project, taskId).catch(() => null);
+    // marker === "-" means already [-]; null means not found (no action needed)
+    if (marker === null || marker === "-") continue;
+    // Marker is still open: emit a cancel-sync action
+    const supersededBy = typeof parsed.data.superseded_by === "string" && parsed.data.superseded_by.trim()
+      ? parsed.data.superseded_by.trim()
+      : null;
+    const annotation = supersededBy ? `superseded by ${supersededBy}` : undefined;
+    const capturedTaskId = taskId;
+    const capturedProject = project;
+    const capturedVaultRoot = effectiveVaultRoot;
+    actions.push({
+      kind: "write-backlog",
+      scope: "project",
+      message: `cancel-sync ${capturedTaskId}: hub is cancelled but backlog row marker is '${marker}' — rewriting to [-]`,
+      async _apply() {
+        // Idempotence: skip if a cancel-sync entry already exists for this taskId
+        const recentEntries = await tailAutoHealLog(capturedVaultRoot, 300);
+        const alreadyEmitted = recentEntries.some(
+          (e) => e.includes(`auto-heal | cancel-sync`) && e.includes(`slice=${capturedTaskId}`),
+        );
+        if (alreadyEmitted) return;
+        await rewriteBacklogRowMarker(capturedProject, capturedTaskId, annotation);
+        appendAutoHealLogEntry(capturedVaultRoot, "cancel-sync", capturedProject, "cancel-sync", [
+          `slice=${capturedTaskId}`,
+          ...(supersededBy ? [`superseded_by=${supersededBy}`] : []),
+        ]);
+      },
+    });
+  }
+  return actions;
 }

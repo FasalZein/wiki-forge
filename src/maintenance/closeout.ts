@@ -1,5 +1,5 @@
 import { parseProjectRepoBaseArgs } from "../git-utils";
-import { collectHierarchyStatusActions, collectLifecycleDriftActions } from "../hierarchy";
+import { collectHierarchyStatusActions, collectLifecycleDriftActions, collectCancelledSyncActions } from "../hierarchy";
 import type { DiagnosticFinding, DiagnosticScope } from "../lib/diagnostics";
 import { collectSliceLocalContext, classifySliceLocalPageScope, fileMatchesSliceClaims } from "../lib/slice-local";
 import { readFlagValue } from "../lib/cli-utils";
@@ -45,13 +45,28 @@ export async function collectCloseout(project: string, base: string, explicitRep
   const refreshFromGit = options.worktree
     ? await collectRefreshFromWorktree(project, explicitRepo, projectSnapshot)
     : await collectRefreshFromGit(project, base, explicitRepo, projectSnapshot);
-  const [drift, lint, semanticLint, initialHierarchyActions, initialLifecycleDriftActions] = await Promise.all([
+  const [drift, lint, semanticLint, initialHierarchyActions, initialLifecycleDriftActions, cancelledSyncActions] = await Promise.all([
     collectDriftSummary(project, explicitRepo, lintingState),
     collectLintResult(project, lintingState),
     collectSemanticLintResult(project, lintingState),
     collectHierarchyStatusActions(project),
     collectLifecycleDriftActions(project),
+    collectCancelledSyncActions(project),
   ]);
+  // Apply cascade-refresh actions (Behavior A, PRD-057): stamp updated: + verified_against:
+  // for pages whose source_paths all still hash to their verified_against sha.
+  // cascadeRefreshActions is only produced by collectRefreshFromGit (not worktree).
+  const cascadeRefreshActions = "cascadeRefreshActions" in refreshFromGit
+    ? (refreshFromGit as { cascadeRefreshActions: import("../lib/diagnostics").MaintenanceAction[] }).cascadeRefreshActions
+    : [];
+  for (const action of cascadeRefreshActions) {
+    if (action._apply) await action._apply();
+  }
+  // Apply cancel-sync actions (Behavior B, PRD-057): rewrite backlog row marker to [-]
+  // for slices that are cancelled in the hub but still have an open row.
+  for (const action of cancelledSyncActions) {
+    if (action._apply) await action._apply();
+  }
   // Apply-then-collect ordering (PRD-055):
   //  1. Apply R2/R3 lifecycle drift actions (rewrites status/reopened_reason/superseded_by).
   //  2. Re-collect R1 (hierarchy status) with fresh closures so R1 doesn't overwrite R2's writes.

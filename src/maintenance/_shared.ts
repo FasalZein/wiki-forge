@@ -1,7 +1,7 @@
 import { join, relative } from "node:path";
 import { statSync } from "node:fs";
 import { VAULT_ROOT } from "../constants";
-import { projectRoot, assertExists, safeMatter } from "../cli-shared";
+import { nowIso, projectRoot, assertExists, safeMatter, writeNormalizedPage, orderFrontmatter } from "../cli-shared";
 import { readText } from "../lib/fs";
 import { readVerificationLevel, resolveRepoPath, assertGitRepo, gitDiffSummary, parseUpdatedDate } from "../lib/verification";
 import { walkMarkdown } from "../lib/vault";
@@ -11,6 +11,8 @@ import { listCodeFiles, listRepoMarkdownDocs, readCodePaths } from "../lib/repo-
 import { collectChangedTestHealth, isCodeFile } from "./test-health";
 import { isHistoricalDoneSlicePage } from "../lib/slice-query";
 import type { LintingSnapshot } from "../verification";
+import type { MaintenanceAction } from "../lib/diagnostics";
+import { appendAutoHealLogEntry, tailAutoHealLog } from "../lib/auto-heal-log";
 
 export type ProjectSnapshot = {
   project: string;
@@ -116,7 +118,8 @@ export async function loadProjectSnapshot(project: string, explicitRepo?: string
   };
 }
 
-export async function collectRefreshFromGit(project: string, base: string, explicitRepo?: string, snapshot?: ProjectSnapshot) {
+export async function collectRefreshFromGit(project: string, base: string, explicitRepo?: string, snapshot?: ProjectSnapshot, vaultRoot?: string) {
+  const effectiveVaultRoot = vaultRoot ?? VAULT_ROOT;
   const state = snapshot ?? await loadProjectSnapshot(project, explicitRepo);
   const changedFiles = await gitChangedFiles(state.repo, base);
   const changedFileSet = new Set(changedFiles);
@@ -125,6 +128,7 @@ export async function collectRefreshFromGit(project: string, base: string, expli
   const covered = new Set<string>();
   const lastShaCache = new Map<string, string | null>();
   const acknowledgedPages: string[] = [];
+  const cascadeRefreshActions: MaintenanceAction[] = [];
   for (const entry of state.pageEntries) {
     if (!entry.parsed) continue;
     const matchedSourcePaths = entry.sourcePaths.filter((sourcePath) => changedFileSet.has(sourcePath));
@@ -138,6 +142,43 @@ export async function collectRefreshFromGit(project: string, base: string, expli
       }
       if (stillAcknowledged) {
         acknowledgedPages.push(entry.page);
+        // Behavior A (PRD-057): emit a write-frontmatter action to stamp updated: + verified_against:
+        // forward when all source_paths still hash to verified_against (zero-change cascade).
+        // Capture closure variables now so each action closes over its own entry snapshot.
+        const capturedEntry = entry;
+        const capturedVaultRoot = effectiveVaultRoot;
+        const capturedMatchedSourcePaths = matchedSourcePaths;
+        cascadeRefreshActions.push({
+          kind: "write-frontmatter",
+          scope: "project",
+          message: `cascade-refresh ${capturedEntry.page} (sources unchanged, stamping updated + verified_against)`,
+          async _apply() {
+            // Idempotence check: skip if a cascade-refresh entry already exists in the log
+            // for this page at this verified_against sha (dedupe across runs).
+            const recentEntries = await tailAutoHealLog(capturedVaultRoot, 300);
+            const sha = capturedEntry.verifiedAgainst!;
+            const alreadyEmitted = recentEntries.some(
+              (e) =>
+                e.includes(`auto-heal | cascade-refresh`) &&
+                e.includes(`page=${capturedEntry.page}`) &&
+                e.includes(`sha=${sha}`),
+            );
+            if (alreadyEmitted) return;
+            // Stamp updated: + re-serialize verified_against: unchanged.
+            const stamped = nowIso();
+            const data = orderFrontmatter({
+              ...capturedEntry.parsed!.data,
+              updated: stamped,
+              verified_against: sha,
+            }, ["title", "type", "spec_kind", "project", "source_paths", "updated", "verified_against"]);
+            writeNormalizedPage(capturedEntry.file, capturedEntry.parsed!.content, data);
+            appendAutoHealLogEntry(capturedVaultRoot, "cascade-refresh", project, "cascade-refresh", [
+              `page=${capturedEntry.page}`,
+              `sha=${sha}`,
+              `sources=${capturedMatchedSourcePaths.join(", ")}`,
+            ]);
+          },
+        });
         continue;
       }
     }
@@ -149,7 +190,7 @@ export async function collectRefreshFromGit(project: string, base: string, expli
     impactedPages.push({ page: entry.page, matchedSourcePaths, verificationLevel: entry.verificationLevel, diffSummary });
   }
   const testHealth = collectChangedTestHealth(changedFiles);
-  return { project, repo: state.repo, base, changedFiles, impactedPages, acknowledgedPages, uncoveredFiles: changedFiles.filter((file) => isCodeFile(file) && !covered.has(file)), testHealth };
+  return { project, repo: state.repo, base, changedFiles, impactedPages, acknowledgedPages, cascadeRefreshActions, uncoveredFiles: changedFiles.filter((file) => isCodeFile(file) && !covered.has(file)), testHealth };
 }
 
 export async function collectRefreshFromWorktree(project: string, explicitRepo?: string, snapshot?: ProjectSnapshot) {

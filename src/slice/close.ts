@@ -1,14 +1,16 @@
-import { relative } from "node:path";
+import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { nowIso, orderFrontmatter, requireForceAcknowledgement, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { exists, readText } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
+import { appendAutoHealLogEntry } from "../lib/auto-heal-log";
 import { readSliceHub, readSlicePlan, readSliceTestPlan } from "../lib/slices";
 import { readVerificationLevel } from "../lib/verification";
 import { projectTaskHubPath } from "../lib/structure";
 import {
   collectTaskContextForId,
   moveTaskToSection,
+  rewriteBacklogRowMarker,
   writeProjectIndex,
   computeEntityStatus,
   lifecycleClose,
@@ -36,6 +38,17 @@ export async function closeSlice(args: string[]) {
   // --force is the superset bypass; it requires --yes-really-force as a
   // two-step acknowledgement to prevent accidental skips.
   const force = forceReview || requireForceAcknowledgement(args, "close-slice");
+
+  // Cancellation fork (Behavior B, PRD-057): --reason or --superseded-by triggers a
+  // lightweight cancel path that skips all done-flow prereq checks.
+  const reasonIndex = args.indexOf("--reason");
+  const reason = reasonIndex >= 0 ? args[reasonIndex + 1] : undefined;
+  const supersededByIndex = args.indexOf("--superseded-by");
+  const supersededBy = supersededByIndex >= 0 ? args[supersededByIndex + 1] : undefined;
+  if (reason !== undefined || supersededBy !== undefined) {
+    await cancelSlice(project, sliceId, { reason, supersededBy, json });
+    return;
+  }
 
   const context = await collectTaskContextForId(project, sliceId);
   if (!context) throw new Error(`slice not found in backlog: ${sliceId}`);
@@ -189,6 +202,38 @@ export async function closeSlice(args: string[]) {
 function formatBlockerChecklist(sliceId: string, items: string[]): string {
   const numbered = items.map((item, i) => `  ${i + 1}. ${item}`).join("\n");
   return `cannot close ${sliceId}:\nblockers:\n${numbered}`;
+}
+
+// Behavior B (PRD-057): lightweight cancellation — skip all done-flow prereqs.
+async function cancelSlice(project: string, sliceId: string, options: { reason?: string; supersededBy?: string; json: boolean }): Promise<void> {
+  const hub = await readSliceHub(project, sliceId);
+  const cancelledAt = nowIso();
+  // annotation: --reason wins; else superseded by <target>; else omit (no guessing)
+  const annotation = options.reason ?? (options.supersededBy ? `superseded by ${options.supersededBy}` : undefined);
+  const hubData = orderFrontmatter({
+    ...hub.data,
+    status: "cancelled",
+    ...(options.supersededBy ? { superseded_by: options.supersededBy } : {}),
+    updated: cancelledAt,
+  }, ["title", "type", "spec_kind", "project", "source_paths", "task_id", "depends_on", "parent_prd", "parent_feature", "created_at", "updated", "completed_at", "status", "superseded_by"]);
+  writeNormalizedPage(hub.path, hub.content, hubData);
+  const rowRewritten = await rewriteBacklogRowMarker(project, sliceId, annotation);
+  appendLogEntry("auto-heal", sliceId, {
+    project,
+    details: [
+      `trigger=cancel-sync`, `via=close-slice`,
+      ...(options.reason ? [`reason=${options.reason}`] : []),
+      ...(options.supersededBy ? [`superseded_by=${options.supersededBy}`] : []),
+      `backlog_row_rewritten=${rowRewritten}`,
+    ],
+  });
+  if (options.json) {
+    console.log(JSON.stringify({ project, sliceId, closed: false, cancelled: true, backlogRowRewritten: rowRewritten }, null, 2));
+  } else {
+    console.log(`cancelled ${sliceId}${options.reason ? ` (reason: ${options.reason})` : ""}${options.supersededBy ? ` (superseded by ${options.supersededBy})` : ""}`);
+    if (rowRewritten) console.log(`- backlog row rewritten to [-]${annotation ? ` — cancelled: ${annotation}` : ""}`);
+    else console.log(`- backlog row: not found or already [-]`);
+  }
 }
 
 function canAutoHealCloseLifecycle(data: Record<string, unknown>) {

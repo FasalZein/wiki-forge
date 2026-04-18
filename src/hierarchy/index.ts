@@ -23,9 +23,12 @@ export {
   collectBacklogFocus,
   detectTaskDocState,
   moveTaskToSection,
+  rewriteBacklogRowMarker,
+  getBacklogRowMarker,
 } from "./backlog";
 export type { BacklogItem, TaskDocState, BacklogTaskContext, BacklogFocus } from "./backlog";
 export { appendTaskToBacklog, parseTaskArgs } from "./backlog-io";
+export { collectCancelledSyncActions } from "./lifecycle-drift";
 export { createFeature, createPrd, createPlan, createTestPlan, createFeatureReturningId, createPrdReturningId, slugify } from "./planning";
 export { dependencyGraph } from "./dependency-graph";
 export { updateIndex, writeProjectIndex, collectStaleIndexTargets, writeNavigationIndex, writeNamedNavigationTargets } from "./index-log";
