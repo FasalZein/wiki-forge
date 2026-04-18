@@ -9,6 +9,7 @@ import { runPipeline } from "../lib/pipeline";
 import { collectCloseout, collectGate } from "../maintenance";
 import { type ForgeWorkflowLedger, validateForgeWorkflowLedger } from "../lib/forge-ledger";
 import { applyDerivedLedger } from "../lib/forge-ledger-detect";
+import { phaseRecommendation } from "../lib/forge-phase-commands";
 import { projectPrdsDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath } from "../lib/structure";
 import { collectBacklogFocus, collectBacklogView, collectTaskContextForId, detectTaskDocState, createFeatureReturningId, createPrdReturningId, moveTaskToSection } from "../hierarchy";
 import { appendLogEntry } from "../lib/log";
@@ -889,6 +890,35 @@ function classifyStepFailure(stepId: string, error: string | null): string {
 
 export async function forgeRun(args: string[]) {
   const parsed = await parseForgeArgs(args, "run");
+
+  // F2 workflow-gate: probe workflow readiness BEFORE claiming the slice.
+  // Consult the authoritative triage (which already reconciles plan/test-plan
+  // readiness against the ledger). Only gate on `needs-*` kinds — those are the
+  // states where `forge run` would claim-then-fail. `close-slice` / `open-slice`
+  // / `fill-docs` either drive the pipeline or have no claim side effect via run.
+  const preWorkflow = await collectForgeStatus(parsed.project, parsed.sliceId);
+  const preNextPhase = preWorkflow.workflow.validation.nextPhase;
+  if (preWorkflow.triage.kind.startsWith("needs-") && preNextPhase && preNextPhase !== "verify") {
+    const rec = phaseRecommendation(parsed.project, parsed.sliceId, preNextPhase);
+    const payload = {
+      ok: false,
+      step: "workflow-gate",
+      nextPhase: preNextPhase,
+      reason: rec.reason,
+      command: rec.command,
+      recovery: [
+        `wiki forge release ${parsed.project} ${parsed.sliceId}`,
+        `wiki close-slice ${parsed.project} ${parsed.sliceId} --reason "<reason>"`,
+      ],
+    };
+    if (parsed.json) console.log(JSON.stringify(payload, null, 2));
+    else {
+      console.log(`workflow-gate: cannot run forge on ${parsed.sliceId} — ${rec.reason}`);
+      console.log(`  next action: ${rec.command}`);
+      console.log(`  recovery: ${payload.recovery.join("  |  ")}`);
+    }
+    throw new Error(`workflow-gate: next phase is ${preNextPhase}; run \`${rec.command}\` first`);
+  }
 
   const context = await collectTaskContextForId(parsed.project, parsed.sliceId);
   if (!context || context.section !== "In Progress") {
