@@ -8,16 +8,18 @@ afterEach(() => {
 });
 
 describe("wiki forge thin surface", () => {
-  test("help includes the forge grouped command surface", () => {
+  test("help organizes commands into agent, human, and internal tiers", () => {
     const result = runWiki(["help"]);
     expect(result.exitCode).toBe(0);
     const output = result.stdout.toString();
-    expect(output).toContain("wiki forge start <project> [slice-id] [--agent <name>] [--repo <path>] [--json]");
-    expect(output).toContain("wiki forge check <project> [slice-id] [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]");
-    expect(output).toContain("wiki forge status <project> [slice-id] [--json]");
-    expect(output).toContain("wiki forge run");
+    expect(output).toContain("Agent Surface");
+    expect(output).toContain("Session & Human");
+    expect(output).toContain("Internal / Repair");
     expect(output).toContain("wiki forge plan");
-    expect(output).toContain("wiki forge next <project> [--json]");
+    expect(output).toContain("wiki forge run");
+    expect(output).toContain("wiki forge next");
+    expect(output).toContain("wiki forge start");
+    expect(output).toContain("wiki forge status");
   });
 
   test("forge run chains check then close in a single pass", () => {

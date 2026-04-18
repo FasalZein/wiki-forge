@@ -35,8 +35,9 @@ Sloppy code costs a review round-trip. Writing it right the first time is faster
 Load `/forge` for tracked slice work. Load `/wiki` for knowledge-layer work.
 The skills define all available commands. This block enforces the contract, not the command surface.
 
-Primary surface: `wiki forge plan|start|check|run|close|next|status wiki-forge`
+Agent surface (3 commands only): `wiki forge plan|run|next wiki-forge`
 Session: `wiki resume wiki-forge --repo <path> --base <rev>` at session start.
+Human/debug: `wiki forge start|check|close|status|release` for manual inspection.
 
 <!-- wiki-forge:agent-protocol:end -->
 

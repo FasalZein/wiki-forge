@@ -8,20 +8,20 @@ import type { FrontmatterData } from "./types";
 export const FORCE_CONFIRM_FLAG = "--yes-really-force";
 
 export function printHelp() {
-  console.log(`wiki CLI — Use forge commands for normal workflow. Lower-level commands are for repair/debugging.
+  console.log(`wiki CLI — Three commands for agents, everything else for humans and debugging.
 
-Forge Workflow (primary surface):
+Agent Surface (agents use only these):
   wiki forge plan <project> <feature-name> [--feature FEAT-xxx] [--prd-name <name>] [--title <slice-title>] [--slices "title1,title2,..."] [--agent <name>] [--repo <path>]
+  wiki forge run <project> [slice-id] [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
+  wiki forge next <project> [--json] [--prompt] [--prompt-json] [--all --prompt-json]
+
+Session & Human:
   wiki forge start <project> [slice-id] [--agent <name>] [--repo <path>] [--json]
   wiki forge open <project> [slice-id] [--agent <name>] [--repo <path>] [--json]
   wiki forge check <project> [slice-id] [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
-  wiki forge run <project> [slice-id] [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
   wiki forge close <project> [slice-id] [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
   wiki forge status <project> [slice-id] [--json]
-  wiki forge next <project> [--json] [--prompt] [--prompt-json] [--all --prompt-json]
   wiki forge release <project> <slice-id>
-
-Session:
   wiki resume <project> [--repo <path>] [--base <rev>] [--json]
   wiki handover <project> [--repo <path>] [--base <rev>] [--json]
   wiki next <project> [--json]
@@ -30,7 +30,7 @@ Session:
   wiki log tail [n]
   wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]
 
-Maintenance:
+Internal / Repair:
   wiki maintain <project> [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json] [--verbose]
   wiki sync <project> [--repo <path>] [--report-only] [--write] [--json]
   wiki checkpoint <project> [--repo <path>] [--json]
@@ -46,8 +46,6 @@ Maintenance:
   wiki install-git-hook <project> [--repo <path>] [--hook <name>] [--force] [--json]
   wiki refresh-on-merge <project> [--repo <path>] [--base <rev>] [--json] [--verbose]
   wiki lint-repo <project> [--repo <path>] [--json]
-
-Slice Lifecycle:
   wiki start-slice <project> <slice-id> [--agent <name>] [--repo <path>] [--json]
   wiki verify-slice <project> <slice-id> [--repo <path>] [--json]
   wiki close-slice <project> <slice-id> [--repo <path>] [--base <rev>] [--worktree] [--force] [--yes-really-force] [--json]

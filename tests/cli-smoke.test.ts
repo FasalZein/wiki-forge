@@ -741,13 +741,9 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("wiki dependency-graph <project> [--write] [--json]");
     expect(output).toContain("wiki research file <project>");
     expect(output).toContain("wiki source ingest");
-    expect(output).toContain("Forge Workflow");
+    expect(output).toContain("Agent Surface");
     expect(output).toContain("wiki forge plan");
-    expect(output).toContain("wiki forge start");
-    expect(output).toContain("wiki forge check");
     expect(output).toContain("wiki forge run");
-    expect(output).toContain("wiki forge close");
-    expect(output).toContain("wiki forge status");
     expect(output).toContain("wiki forge next");
   });
 

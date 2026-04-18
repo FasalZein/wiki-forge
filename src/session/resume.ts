@@ -4,6 +4,7 @@ import { VAULT_ROOT } from "../constants";
 import { projectRoot, safeMatter } from "../cli-shared";
 import { parseProjectRepoBaseArgs } from "../git-utils";
 import { exists, readText } from "../lib/fs";
+import { readSliceHandoff } from "../lib/slice-progress";
 import { collectSessionActivity, resolveSessionId } from "../lib/tracker";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
 import { collectMaintenancePlan } from "../maintenance";
@@ -44,6 +45,9 @@ export async function resumeProject(args: string[]) {
     collectSessionActivity(options.project, resolveSessionId()),
     findLatestHandover(options.project),
   ]);
+  const handoff = maintain.focus.activeTask
+    ? await readSliceHandoff(options.project, maintain.focus.activeTask.id)
+    : null;
   const dirty = await collectDirtyRepoStatus(repo);
   const recentCommits = await collectRecentCommits(repo, 5);
   const stalePages = drift.results.filter((row) => row.status !== "fresh").slice(0, 10).map((row) => row.wikiPage);
@@ -79,7 +83,8 @@ export async function resumeProject(args: string[]) {
     stalePages,
     recentNotes,
     actions,
-    triage: classifyResumeTriage(options.project, repo, options.base, maintain.focus.activeTask, maintain.focus.recommendedTask, actions),
+    triage: classifyResumeTriage(options.project, repo, options.base, maintain.focus.activeTask, maintain.focus.recommendedTask, actions, handoff),
+    ...(handoff ? { lastForgeRun: handoff } : {}),
     ...(handoverMeta ? { lastHandover: { path: relative(VAULT_ROOT, latestHandoverPath!), ...handoverMeta } } : {}),
   };
   if (json) {
@@ -93,6 +98,10 @@ export async function resumeProject(args: string[]) {
       console.log(`  priorities:`);
       for (const line of handoverMeta.nextPriorities.split("\n").slice(0, 8)) console.log(`    ${line}`);
     }
+  }
+  if (handoff) {
+    console.log(`Last forge run: ${handoff.lastForgeOk ? "PASS" : "FAIL"} at ${handoff.lastForgeStep} (${handoff.lastForgeRun})`);
+    if (handoff.nextAction) console.log(`  → ${handoff.nextAction}`);
   }
   console.log(`resume for ${options.project}:`);
   if (payload.activeTask) console.log(`- active: ${payload.activeTask.id} ${payload.activeTask.title}`);
@@ -118,8 +127,16 @@ function classifyResumeTriage(
   activeTask: { id: string } | null | undefined,
   nextTask: { id: string } | null | undefined,
   actions: Array<{ kind: string; message: string; scope?: string }>,
+  handoff?: { lastForgeRun?: string; lastForgeStep?: string; lastForgeOk?: boolean; nextAction?: string; failureSummary?: string } | null,
 ) {
   const baseFlag = base ? ` --base ${base}` : "";
+  if (activeTask && handoff && handoff.lastForgeOk === false && handoff.nextAction) {
+    return {
+      kind: "resume-failed-forge",
+      reason: handoff.failureSummary ?? `forge run failed at ${handoff.lastForgeStep}`,
+      command: `wiki forge run ${project} ${activeTask.id} --repo ${repo}${baseFlag}`,
+    };
+  }
   if (activeTask) {
     const sliceAction = actions.find((action) => action.scope === "slice" && action.kind !== "active-task");
     if (sliceAction) {
