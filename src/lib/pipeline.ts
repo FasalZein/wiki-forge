@@ -33,6 +33,8 @@ export interface PipelineResult {
     skipped: boolean;
     ok: boolean;
     error: string | null;
+    stdout?: string;
+    stderr?: string;
     durationMs: number | null;
   }>;
   ok: boolean;
@@ -140,7 +142,7 @@ export interface RunPipelineOptions {
   sliceLocal?: boolean;
 }
 
-export async function runPipeline(options: RunPipelineOptions, executor?: (command: string, args: string[]) => Promise<{ ok: boolean; error?: string }>, injectedState?: PipelineState): Promise<PipelineResult> {
+export async function runPipeline(options: RunPipelineOptions, executor?: (command: string, args: string[]) => Promise<{ ok: boolean; error?: string; stdout?: string; stderr?: string }>, injectedState?: PipelineState): Promise<PipelineResult> {
   const steps = pipelineSteps(options.phase);
   const ownsState = !injectedState;
   const state = injectedState ?? new PipelineState();
@@ -178,7 +180,7 @@ export async function runPipeline(options: RunPipelineOptions, executor?: (comma
       const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();
       state.record(options.project, options.sliceId, step.id, startedAt, completedAt, run.ok, run.error ?? null);
 
-      result.steps.push({ id: step.id, label: step.label, skipped: false, ok: run.ok, error: run.error ?? null, durationMs });
+      result.steps.push({ id: step.id, label: step.label, skipped: false, ok: run.ok, error: run.error ?? null, stdout: run.stdout, stderr: run.stderr, durationMs });
 
       if (!run.ok) {
         result.ok = false;
@@ -219,10 +221,11 @@ function buildStepArgs(step: PipelineStepDef, options: RunPipelineOptions): stri
   return args;
 }
 
-async function executeStep(command: string, args: string[]): Promise<{ ok: boolean; error?: string }> {
+async function executeStep(command: string, args: string[]): Promise<{ ok: boolean; error?: string; stdout?: string; stderr?: string }> {
   const wikiPath = process.argv[1];
   const proc = await Bun.$`${process.argv[0]} ${wikiPath} ${command} ${args}`.nothrow().quiet().env({ ...process.env });
-  if (proc.exitCode === 0) return { ok: true };
+  const stdout = proc.stdout.toString().trim();
   const stderr = proc.stderr.toString().trim();
-  return { ok: false, error: stderr || `exit code ${proc.exitCode}` };
+  if (proc.exitCode === 0) return { ok: true, stdout: stdout || undefined };
+  return { ok: false, error: stderr || `exit code ${proc.exitCode}`, stdout: stdout || undefined, stderr: stderr || undefined };
 }

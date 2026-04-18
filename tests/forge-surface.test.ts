@@ -261,6 +261,28 @@ describe("wiki forge thin surface", () => {
     expect(json.commands.length).toBeGreaterThan(0);
   });
 
+  test("forge next --prompt-json produces non-empty summary when headings differ from canonical names", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "pjproj2"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "pjproj2");
+    expect(runWiki(["create-issue-slice", "pjproj2", "auth slice"], env).exitCode).toBe(0);
+
+    const planPath = join(vault, "projects", "pjproj2", "specs", "slices", "PJPROJ2-001", "plan.md");
+    const testPlanPath = join(vault, "projects", "pjproj2", "specs", "slices", "PJPROJ2-001", "test-plan.md");
+    // Use non-canonical headings: "Scope and Goals" instead of "Scope", "Tests" instead of "Red Tests"
+    writeFileSync(planPath, "---\ntitle: PJPROJ2-001 auth slice\ntype: spec\nspec_kind: plan\nproject: pjproj2\ntask_id: PJPROJ2-001\nupdated: 2026-04-13\nstatus: ready\n---\n\n# PJPROJ2-001 auth slice\n\n## Scope and Goals\n\n- Ship the auth change\n\n## Acceptance Criteria\n\n- [ ] Auth works\n", "utf8");
+    writeFileSync(testPlanPath, "---\ntitle: PJPROJ2-001 auth slice\ntype: spec\nspec_kind: test-plan\nproject: pjproj2\ntask_id: PJPROJ2-001\nupdated: 2026-04-13\nstatus: ready\n---\n\n# PJPROJ2-001 auth slice\n\n## Tests\n\n- [x] Auth behavior is covered through the public API.\n\n## Verification Commands\n\n```bash\nbun test tests/payments.test.ts\n```\n", "utf8");
+
+    const result = runWiki(["forge", "next", "pjproj2", "--prompt-json"], env);
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.planSummary).not.toBe("(empty)");
+    expect(json.testPlanSummary).not.toBe("(empty)");
+    expect(json.planSummary.length).toBeGreaterThan(0);
+  });
+
   test("forge check and close keep parent drift as warnings instead of slice blockers", () => {
     const { vault, repo } = setupPassingRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };

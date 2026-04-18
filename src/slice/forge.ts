@@ -300,7 +300,16 @@ function renderForgePipeline(action: "check" | "close", workflow: Awaited<Return
     else if (step.ok) status = "ok";
     const duration = step.durationMs !== null ? ` (${step.durationMs}ms)` : "";
     console.log(`- ${step.id}: ${status}${duration}`);
-    if (step.error) console.log(`  error: ${step.error}`);
+    if (!step.ok) {
+      if (step.stdout) {
+        for (const line of step.stdout.split("\n")) console.log(`  ${line}`);
+      }
+      if (step.stderr && step.stderr !== step.error) {
+        for (const line of step.stderr.split("\n")) console.log(`  stderr: ${line}`);
+      } else if (step.error) {
+        console.log(`  error: ${step.error}`);
+      }
+    }
   }
   if (review) {
     if (review.blockers.length) console.log(`- slice-local blockers: ${review.blockers.length}`);
@@ -690,15 +699,34 @@ async function forgeNextAll(project: string): Promise<void> {
   console.log(JSON.stringify(results, null, 2));
 }
 
+function extractSectionFuzzy(markdown: string, keyword: string): string {
+  // Try all headings where the text contains the keyword (case-insensitive)
+  const pattern = new RegExp(`^##[^#].*${escapeRegex(keyword)}.*\\n([\\s\\S]*?)(?=^##\\s|$)`, "imu");
+  const match = markdown.match(pattern);
+  return match?.[1]?.trim() ?? "";
+}
+
 function compactDocSummary(content: string, sections: string[]): string {
   const lines: string[] = [];
   for (const section of sections) {
-    const extracted = extractSection(content, section).trim();
+    // First try exact match
+    let extracted = extractSection(content, section).trim();
+    // Fall back to case-insensitive partial match on any heading containing the keyword
+    if (!extracted) extracted = extractSectionFuzzy(content, section).trim();
     if (!extracted) continue;
     const sectionLines = extracted.split("\n").filter((l) => l.trim()).slice(0, 5);
     lines.push(`${section}: ${sectionLines.join(" | ")}`);
   }
-  return lines.join("\n") || "(empty)";
+  if (lines.length > 0) return lines.join("\n");
+  // Last resort: extract first 3 non-empty, non-heading, non-list-marker-only lines from body
+  const bodyLines = content
+    .split("\n")
+    .filter((l) => {
+      const t = l.trim();
+      return t.length > 0 && !/^#{1,6}\s/u.test(t) && !/^-\s*(?:\[[ x]\])?\s*$/u.test(t);
+    })
+    .slice(0, 3);
+  return bodyLines.length > 0 ? bodyLines.join(" | ") : "(empty)";
 }
 
 async function autoFillSliceDocs(project: string, sliceId: string, prdId: string): Promise<void> {
@@ -814,7 +842,10 @@ export async function forgeRun(args: string[]) {
     worktree: parsed.worktree,
     sliceLocal: true,
   });
-  if (!parsed.json) renderForgePipeline("check", workflow, checkResult);
+  const review = parsed.dryRun
+    ? null
+    : await collectForgeReview(parsed.project, parsed.sliceId, parsed.repo, parsed.base, parsed.worktree);
+  if (!parsed.json) renderForgePipeline("check", workflow, checkResult, review);
   if (!checkResult.ok) throw new Error(`forge run: check failed at ${checkResult.stoppedAt}`);
 
   const closeResult = await runPipeline({

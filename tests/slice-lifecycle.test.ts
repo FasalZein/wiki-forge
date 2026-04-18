@@ -199,4 +199,40 @@ describe("wiki slice lifecycle", () => {
     expect(result.stdout.toString()).toContain('parent PRD PRD-001 computed_status="in-progress"');
     expect(result.stdout.toString()).toContain('parent feature FEAT-001 computed_status="in-progress"');
   });
+
+  test("forge release moves slice from In Progress to Todo in backlog projection", () => {
+    const { vault } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice"], env).exitCode).toBe(0);
+
+    // Simulate a started slice: move to In Progress in backlog.md and set frontmatter fields
+    expect(runWiki(["move-task", "demo", "DEMO-001", "--to", "In Progress"], env).exitCode).toBe(0);
+    const indexPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "index.md");
+    const raw = readFileSync(indexPath, "utf8");
+    writeFileSync(
+      indexPath,
+      raw.replace("status: draft", "status: in-progress\nclaimed_by: test-agent\nclaimed_at: 2026-04-18T00:00:00.000Z\nstarted_at: 2026-04-18T00:00:00.000Z"),
+      "utf8",
+    );
+
+    // Release the slice
+    const releaseResult = runWiki(["forge", "release", "demo", "DEMO-001"], env);
+    expect(releaseResult.exitCode).toBe(0);
+
+    // Frontmatter should say status: todo
+    const afterRelease = readFileSync(indexPath, "utf8");
+    expect(afterRelease).toContain("status: todo");
+    expect(afterRelease).not.toContain("claimed_by");
+
+    // Backlog projection should show slice under Todo, not In Progress
+    const backlogResult = runWiki(["backlog", "demo", "--json"], env);
+    expect(backlogResult.exitCode).toBe(0);
+    const backlog = JSON.parse(backlogResult.stdout.toString());
+    const inProgressIds = (backlog.sections["In Progress"] ?? []).map((item: { id: string }) => item.id);
+    const todoIds = (backlog.sections["Todo"] ?? []).map((item: { id: string }) => item.id);
+    expect(inProgressIds).not.toContain("DEMO-001");
+    expect(todoIds).toContain("DEMO-001");
+  });
 });
