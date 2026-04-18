@@ -164,8 +164,21 @@ export async function collectMaintenancePlan(project: string, base: string, expl
   for (const page of discover.unboundPages.slice(0, 20)) actions.push({ kind: "bind-page", scope: "project", message: `${page} has no source_paths` });
   for (const issue of lint.issues.slice(0, 20)) actions.push({ kind: "fix-structure", scope: "project", message: issue });
   for (const issue of semanticLint.issues.slice(0, 20)) actions.push({ kind: "fix-semantic", scope: "project", message: issue });
-  for (const action of hierarchyActions) actions.push({ kind: action.kind, scope: action.scope, message: action.message });
-  for (const action of lifecycleDriftActions) actions.push({ kind: action.kind, scope: action.scope, message: action.message });
-  for (const action of hierarchyActions) action._apply?.();
+  // Apply R2/R3 lifecycle drift actions first (they may affect computed_status for R1).
+  // R4 escalations (no _apply) surface as operator actions.
+  const anyLifecycleApplied = lifecycleDriftActions.some((a) => !!a._apply);
+  for (const action of lifecycleDriftActions) {
+    if (action._apply) {
+      action._apply();
+    } else {
+      // R4 escalations have no _apply — include in actions for operator visibility
+      actions.push({ kind: action.kind, scope: action.scope, message: action.message });
+    }
+  }
+  // Re-collect R1 (hierarchy status) AFTER R2/R3 applied so closures use fresh frontmatter.
+  // Only re-collect when R2/R3 actually ran (to avoid a redundant vault walk in the common case).
+  const freshHierarchyActions = anyLifecycleApplied ? await collectHierarchyStatusActions(project) : hierarchyActions;
+  // Apply R1 (write computed_status); exclude applied from actions
+  for (const action of freshHierarchyActions) action._apply?.();
   return { project, repo: refreshFromGit.repo, base: options.worktree ? "WORKTREE" : base, focus, refreshFromGit, discover, lint, semanticLint, actions };
 }

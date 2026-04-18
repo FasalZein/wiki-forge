@@ -25,7 +25,7 @@ describe("closeout diagnostics", () => {
     expect(json.findings.some((finding: { scope: string; severity: string }) => finding.scope === "slice" && finding.severity === "blocker")).toBe(true);
   });
 
-  test("surfaces lifecycle drift as parent-scoped warnings", () => {
+  test("surfaces ambiguous lifecycle drift as parent-scoped R4 escalation warning", () => {
     const { vault, repo } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
 
@@ -41,11 +41,16 @@ describe("closeout diagnostics", () => {
 
     writeFileSync(featurePath, readFileSync(featurePath, "utf8").replace("status: draft", "status: complete"), "utf8");
     writeFileSync(prdPath, readFileSync(prdPath, "utf8").replace("status: draft", "status: complete"), "utf8");
+    // Slice is done but only code-verified (computed = needs-verification, not complete and not cancelled/non-terminal)
+    // This triggers R4 escalation (not R2/R3) because no deterministic resolution applies
     writeFileSync(slicePath, readFileSync(slicePath, "utf8").replace("status: draft", "status: done\nverification_level: code-verified"), "utf8");
 
     const result = runWiki(["closeout", "demo", "--repo", repo, "--worktree", "--json"], env);
     expect(result.exitCode).toBe(0);
     const json = JSON.parse(result.stdout.toString());
-    expect(json.findings.some((finding: { scope: string; severity: string; message: string }) => finding.scope === "parent" && finding.severity === "warning" && finding.message.includes("computed="))).toBe(true);
+    // R4 escalation: parent drift is surfaced with inverse commands
+    expect(json.findings.some((finding: { scope: string; severity: string; message: string }) =>
+      finding.scope === "parent" && finding.severity === "warning" && finding.message.includes("wiki lifecycle")
+    )).toBe(true);
   });
 });

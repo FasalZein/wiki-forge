@@ -23,7 +23,7 @@ describe("gate diagnostics", () => {
     expect(json.findings.some((finding: { scope: string; severity: string; message: string }) => finding.scope === "project" && finding.severity === "warning" && finding.message.includes("repo markdown doc"))).toBe(true);
   });
 
-  test("surfaces parent-scoped warnings for hierarchy drift", () => {
+  test("surfaces parent-scoped R4 escalation warning for ambiguous lifecycle drift", () => {
     const { vault, repo } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
 
@@ -39,12 +39,17 @@ describe("gate diagnostics", () => {
 
     writeFileSync(featurePath, readFileSync(featurePath, "utf8").replace("status: draft", "status: complete"), "utf8");
     writeFileSync(prdPath, readFileSync(prdPath, "utf8").replace("status: draft", "status: complete"), "utf8");
+    // Slice is done but only code-verified — not cancelled/non-terminal, so no deterministic R2/R3 applies.
+    // Falls through to R4: parent drift is escalated with inverse commands (not auto-healed).
     writeFileSync(slicePath, readFileSync(slicePath, "utf8").replace("status: draft", "status: done\nverification_level: code-verified"), "utf8");
 
     const result = runWiki(["gate", "demo", "--repo", repo, "--worktree", "--json"], env);
     expect(result.exitCode).toBe(0);
     const json = JSON.parse(result.stdout.toString());
-    expect(json.findings.some((finding: { scope: string; severity: string; message: string }) => finding.scope === "parent" && finding.severity === "warning" && finding.message.includes("computed="))).toBe(true);
+    // R4 escalation: parent-scoped warning with inverse commands (wiki lifecycle open/close)
+    expect(json.findings.some((finding: { scope: string; severity: string; message: string }) =>
+      finding.scope === "parent" && finding.severity === "warning" && finding.message.includes("wiki lifecycle")
+    )).toBe(true);
   });
 });
 

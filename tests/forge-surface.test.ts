@@ -364,7 +364,7 @@ describe("wiki forge thin surface", () => {
     expect(indexContent).toContain("last_forge_ok:");
   });
 
-  test("forge check and close keep parent drift as warnings instead of slice blockers", () => {
+  test("forge check auto-heals parent reopen drift (R2) and keeps review passing", () => {
     const { vault, repo } = setupPassingRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
 
@@ -392,7 +392,11 @@ describe("wiki forge thin surface", () => {
     const checkJson = JSON.parse(check.stdout.toString());
     expect(checkJson.review.ok).toBe(true);
     expect(checkJson.triage.command).toContain("wiki forge run gated GATED-001");
-    expect(checkJson.review.findings.some((finding: { scope: string; severity: string }) => finding.scope === "parent" && finding.severity === "warning")).toBe(true);
+    // R2 auto-heal: parent drift is healed (not surfaced as a warning)
+    expect(checkJson.review.findings.some((finding: { scope: string; severity: string }) => finding.scope === "parent" && finding.severity === "warning" && finding.message?.includes("status=complete"))).toBe(false);
+    // Feature and PRD were reopened by R2
+    expect(readFileSync(featurePath, "utf8")).toContain("reopened_reason:");
+    expect(readFileSync(prdPath, "utf8")).toContain("reopened_reason:");
 
     const close = runWiki(["forge", "close", "gated", "GATED-001", "--repo", repo, "--json"], env);
     expect(close.exitCode).toBe(0);

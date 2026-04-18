@@ -10,6 +10,7 @@ import { computeStatus, type HierarchyStatus, type SliceState } from "../lib/hie
 import { appendLogEntry } from "../lib/log";
 import type { MaintenanceAction } from "../lib/diagnostics";
 import { collectFeatureStatuses } from "./feature-status";
+import { collectSliceDetails, buildLifecycleDriftAction } from "./lifecycle-drift";
 
 async function findEntityFile(project: string, entityId: string, entityType: "feature" | "prd"): Promise<string | null> {
   const dir = entityType === "feature" ? projectFeaturesDir(project) : projectPrdsDir(project);
@@ -80,8 +81,12 @@ export async function lifecycleClose(project: string, entityId: string, entityTy
   appendLogEntry(`close-${entityType}`, entityId, { project, details: [`completed_at=${completedAt}`, ...(force ? ["force=true"] : [])] });
 }
 
+
 export async function collectLifecycleDriftActions(project: string): Promise<MaintenanceAction[]> {
-  const rows = await collectFeatureStatuses(project);
+  const [rows, { byPrd, byFeature }] = await Promise.all([
+    collectFeatureStatuses(project),
+    collectSliceDetails(project),
+  ]);
   const actions: MaintenanceAction[] = [];
   for (const row of rows) {
     const relPath = relative(VAULT_ROOT, row.file);
@@ -90,11 +95,8 @@ export async function collectLifecycleDriftActions(project: string): Promise<Mai
     if (!parsed) continue;
     const recordedStatus = typeof parsed.data.status === "string" ? parsed.data.status : null;
     if (recordedStatus === "complete" && row.computedStatus !== "complete") {
-      actions.push({
-        kind: "lifecycle-drift",
-        scope: "parent",
-        message: `feature ${row.featureId} status=complete but computed=${row.computedStatus} — reopen or re-verify slices`,
-      });
+      const slices = byFeature.get(row.featureId) ?? [];
+      actions.push(buildLifecycleDriftAction("feature", row.featureId, row.file, parsed, slices, project));
     }
     for (const prd of row.prds) {
       const prdRelPath = relative(VAULT_ROOT, prd.file);
@@ -103,11 +105,8 @@ export async function collectLifecycleDriftActions(project: string): Promise<Mai
       if (!prdParsed) continue;
       const prdRecordedStatus = typeof prdParsed.data.status === "string" ? prdParsed.data.status : null;
       if (prdRecordedStatus === "complete" && prd.computedStatus !== "complete") {
-        actions.push({
-          kind: "lifecycle-drift",
-          scope: "parent",
-          message: `prd ${prd.prdId} status=complete but computed=${prd.computedStatus} — reopen or re-verify slices`,
-        });
+        const slices = byPrd.get(prd.prdId) ?? [];
+        actions.push(buildLifecycleDriftAction("prd", prd.prdId, prd.file, prdParsed, slices, project));
       }
     }
   }
@@ -135,6 +134,7 @@ export async function collectHierarchyStatusActions(project: string): Promise<Ma
         message: `update computed_status for ${row.featureId}: ${current ?? "(none)"} -> ${capturedStatus}`,
         _apply() {
           writeNormalizedPage(capturedFile, capturedParsed.content, { ...capturedParsed.data, computed_status: capturedStatus });
+          appendLogEntry("auto-heal", row.featureId, { project, details: [`rule=R1`, `before=${current ?? "(none)"}`, `after=${capturedStatus}`, `trigger=write-frontmatter`] });
         },
       });
     }
@@ -156,6 +156,7 @@ export async function collectHierarchyStatusActions(project: string): Promise<Ma
           message: `update computed_status for ${prd.prdId}: ${prdCurrent ?? "(none)"} -> ${capturedPrdStatus}`,
           _apply() {
             writeNormalizedPage(capturedPrdFile, capturedPrdParsed.content, { ...capturedPrdParsed.data, computed_status: capturedPrdStatus });
+            appendLogEntry("auto-heal", prd.prdId, { project, details: [`rule=R1`, `before=${prdCurrent ?? "(none)"}`, `after=${capturedPrdStatus}`, `trigger=write-frontmatter`] });
           },
         });
       }
