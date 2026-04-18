@@ -92,6 +92,16 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
   for (const warning of doctor.backlogConsistencyWarnings) findings.push({ scope: "history", severity: "warning", message: warning });
   for (const action of doctor.maintain.actions.filter((action) => action.scope === "parent")) findings.push({ scope: "parent", severity: "warning", message: action.message });
   if (structuralRefactor?.ok) findings.push({ scope: "slice", severity: "warning", message: `structural refactor exception: ${doctor.counts.missingTests} changed code file(s) skipped direct changed-test matching; typecheck/build/test parity remained intact` });
+  if (!options.structuralRefactor) {
+    const repoChecks = await resolveRepoScriptChecks(repo);
+    const typecheckCheck = repoChecks.find((c) => c.label === "typecheck");
+    if (typecheckCheck) {
+      const result = await runRepoCheck(repo, typecheckCheck);
+      if (!result.ok) {
+        findings.push({ scope: "slice", severity: "blocker", message: "typecheck failed" });
+      }
+    }
+  }
   const blockers = findings.filter((finding) => finding.severity === "blocker").map((finding) => finding.message);
   const warnings = findings.filter((finding) => finding.severity === "warning").map((finding) => finding.message);
   return {
