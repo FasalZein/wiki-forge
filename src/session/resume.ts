@@ -13,7 +13,6 @@ import { loadLintingSnapshot } from "../verification";
 import { applyDerivedLedger } from "../lib/forge-ledger-detect";
 import { validateForgeWorkflowLedger, type ForgePhase } from "../lib/forge-ledger";
 import { phaseRecommendation } from "../lib/forge-phase-commands";
-import { collectForgeStatus } from "../slice/forge";
 import {
   collectDirtyRepoStatus,
   collectRecentCommits,
@@ -57,7 +56,6 @@ export async function resumeProject(args: string[]) {
   // Degrades gracefully — never throws; null means detection was skipped or failed.
   const focusSliceId = maintain.focus.activeTask?.id ?? maintain.focus.recommendedTask?.id ?? null;
   let workflowNextPhase: string | null = null;
-  let focusTriageKind: string | null = null;
   if (focusSliceId) {
     try {
       const { merged } = await applyDerivedLedger({}, options.project, focusSliceId);
@@ -65,14 +63,12 @@ export async function resumeProject(args: string[]) {
     } catch {
       // Detection failure is non-fatal; workflowNextPhase stays null
     }
-    // Consult the authoritative triage kind so resume agrees with forge status / forge next.
-    try {
-      const forgeStatus = await collectForgeStatus(options.project, focusSliceId);
-      focusTriageKind = forgeStatus.triage.kind;
-    } catch {
-      // Non-fatal — fall back to legacy resume triage
-    }
   }
+  // Docs-readiness mirrors buildForgeTriage's earlyPhase rule: a slice whose plan
+  // or test-plan is not yet ready should not be run regardless of the ledger.
+  const focusTask = maintain.focus.activeTask ?? maintain.focus.recommendedTask;
+  const earlyPhase =
+    focusTask && (focusTask.planStatus !== "ready" || focusTask.testPlanStatus !== "ready");
 
   const dirty = await collectDirtyRepoStatus(repo);
   const recentCommits = await collectRecentCommits(repo, 5);
@@ -120,7 +116,7 @@ export async function resumeProject(args: string[]) {
     handoverStale,
     noHandoverButBreadcrumb,
     ...(workflowNextPhase !== null ? { workflowNextPhase } : {}),
-    triage: classifyResumeTriage(options.project, repo, options.base, maintain.focus.activeTask, maintain.focus.recommendedTask, actions, handoff, workflowNextPhase, focusTriageKind),
+    triage: classifyResumeTriage(options.project, repo, options.base, maintain.focus.activeTask, maintain.focus.recommendedTask, actions, handoff, workflowNextPhase, earlyPhase),
     ...(handoff ? { lastForgeRun: handoff } : {}),
     ...(handoverMeta ? { lastHandover: { path: relative(VAULT_ROOT, latestHandoverPath!), ...handoverMeta } } : {}),
   };
@@ -186,7 +182,7 @@ function classifyResumeTriage(
   actions: Array<{ kind: string; message: string; scope?: string }>,
   handoff?: { lastForgeRun?: string; lastForgeStep?: string; lastForgeOk?: boolean; nextAction?: string; failureSummary?: string } | null,
   workflowNextPhase?: string | null,
-  focusTriageKind?: string | null,
+  earlyPhase?: boolean | null,
 ) {
   const baseFlag = base ? ` --base ${base}` : "";
   const focusTask = activeTask ?? nextTask;
@@ -199,16 +195,11 @@ function classifyResumeTriage(
       command: `wiki forge run ${project} ${activeTask.id} --repo ${repo}${baseFlag}`,
     };
   }
-  // Workflow-phase gate: if the authoritative triage (same one `forge status` / `forge next`
-  // use) says the slice needs an earlier phase, recommending `wiki forge run` would
-  // claim+fail. Route to the phase-appropriate command. Only gate on `needs-*` kinds.
-  if (
-    focusTask &&
-    workflowNextPhase &&
-    workflowNextPhase !== "verify" &&
-    focusTriageKind &&
-    focusTriageKind.startsWith("needs-")
-  ) {
+  // Workflow-phase gate: if plan/test-plan aren't ready AND the ledger says an
+  // earlier phase is incomplete, recommending `wiki forge run` would claim+fail.
+  // Route to the phase-appropriate command. This mirrors buildForgeTriage's
+  // `needs-*` paths so resume, forge status, and forge next agree.
+  if (focusTask && earlyPhase && workflowNextPhase && workflowNextPhase !== "verify") {
     const rec = phaseRecommendation(project, focusTask.id, workflowNextPhase as ForgePhase);
     return { kind: rec.kind, reason: rec.reason, command: rec.command };
   }
