@@ -212,5 +212,7 @@ function stableId(value: string) {
 }
 
 function sortKind(kind: GraphNode["kind"]) {
-  return kind === "feature" ? "0" : kind === "prd" ? "1" : "2";
+  if (kind === "feature") return "0";
+  if (kind === "prd") return "1";
+  return "2";
 }

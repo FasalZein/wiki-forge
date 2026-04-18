@@ -41,7 +41,8 @@ brew install sqlite   # macOS — required for Bun SDK hybrid retrieval
 ## Local Sync
 
 ```bash
-bun run sync:local                      # relink CLI, refresh qmd, reinstall all 7 repo skills
+bun run sync:local                      # relink CLI, refresh qmd, reinstall every repo-owned skill discovered under skills/*/SKILL.md
+bun run sync:local -- --audit           # detect installed repo-skill drift before or after syncing
 ```
 
 Use this after pulling repo changes or editing `skills/*/SKILL.md`. Restart the agent session after syncing so it reloads the updated installed skills.
@@ -120,20 +121,40 @@ wiki source ingest https://example.com/article             # raw source -> raw/ 
 
 Features, PRDs, standalone planning docs, and vertical slices with task-scoped spec hubs — zero API calls.
 
+Thin forge happy path:
+
 ```bash
 wiki create-feature my-app "user onboarding"               # -> specs/features/FEAT-001-user-onboarding.md
 wiki create-prd my-app --feature FEAT-001 "email signup"   # -> specs/prds/PRD-001-email-signup.md
+wiki create-issue-slice my-app "email verification" --prd PRD-001 --assignee Codex --source src/auth.ts
+wiki next my-app
+wiki forge start my-app MY-APP-001 --agent Codex --repo ~/Dev/my-app
+wiki forge check my-app MY-APP-001 --repo ~/Dev/my-app
+wiki forge close my-app MY-APP-001 --repo ~/Dev/my-app
+wiki forge status my-app MY-APP-001
+```
+
+Lower-level planning and repair primitives remain available when you need explicit control:
+
+```bash
 wiki create-plan my-app "rollout checklist"                # -> specs/plan-rollout-checklist.md
 wiki create-test-plan my-app "rollout checklist"           # -> specs/test-plan-rollout-checklist.md
-wiki create-issue-slice my-app "email verification" --prd PRD-001 --assignee Codex --source src/auth.ts  # owner + explicit slice bindings
 # optional: add agents: [Codex, Claude, pi] to _summary.md frontmatter to validate assignees
 wiki backlog my-app --assignee Codex                      # list tracked tasks for one agent
-wiki next my-app                                          # pick the active or next ready slice
-wiki start-slice my-app MY-APP-001 --agent Codex --repo ~/Dev/my-app  # dependency check + claim + backlog move + started_at
-wiki verify-slice my-app MY-APP-001 --repo ~/Dev/my-app  # run bash/sh code fences from slice test-plan.md
+wiki start-slice my-app MY-APP-001 --agent Codex --repo ~/Dev/my-app
+wiki verify-slice my-app MY-APP-001 --repo ~/Dev/my-app
 wiki export-prompt my-app MY-APP-001 --agent pi          # print a self-contained execution prompt
 wiki resume my-app --repo ~/Dev/my-app --base main       # pick up an interrupted session fast
 wiki close-slice my-app MY-APP-001 --repo ~/Dev/my-app --base main
+```
+
+The grouped forge surface stays the default operator path over those primitives:
+
+```bash
+wiki forge start my-app MY-APP-001 --agent Codex --repo ~/Dev/my-app
+wiki forge check my-app MY-APP-001 --repo ~/Dev/my-app   # defaults to worktree scope when --base is omitted
+wiki forge close my-app MY-APP-001 --repo ~/Dev/my-app
+wiki forge status my-app MY-APP-001
 ```
 
 `create-plan` and `create-test-plan` stay visible under `specs/index.md` as planning docs.
@@ -210,7 +231,7 @@ Compact map:
 | Protocol | `wiki protocol sync`, `wiki protocol audit` |
 | Planning | `wiki create-feature`, `wiki create-prd`, `wiki create-issue-slice`, `wiki backlog`, `wiki next` |
 | Hierarchy | `wiki feature-status`, `wiki start-feature`, `wiki close-feature`, `wiki start-prd`, `wiki close-prd` |
-| Lifecycle | `wiki start-slice`, `wiki verify-slice`, `wiki close-slice` |
+| Lifecycle | `wiki forge start/check/close/status`, `wiki start-slice`, `wiki verify-slice`, `wiki close-slice` |
 | Active work checks | `wiki checkpoint`, `wiki lint-repo`, `wiki commit-check` |
 | Closeout | `wiki verify-page`, `wiki closeout`, `wiki gate` |
 | Handoff | `wiki export-prompt`, `wiki resume`, `wiki handover`, `wiki note`, `wiki claim` |
@@ -222,7 +243,7 @@ Compact map:
 |-------|-----------|-------------|
 | **Wiki** | Maintained project memory in `~/Knowledge` | `wiki` CLI |
 | **Research** | Filed evidence and source-backed notes under `research/` and `raw/` | `/research` skill + `wiki research` commands |
-| **Forge** | Optional workflow layer: research -> grill -> PRD -> slices -> TDD -> verify -> desloppify | `/forge` skill |
+| **Forge** | Optional workflow layer: research -> grill -> PRD -> slices -> TDD -> verify -> desloppify; exposed in the CLI as `wiki forge start/check/close/status` over the lower-level primitives | `/forge` skill |
 
 These are separate concerns. The wiki is the knowledge store. Research is evidence. Forge is the software-development workflow layer over that memory.
 
@@ -325,10 +346,10 @@ Propagation rule:
 
 ## Skills
 
-All 7 workflow skills are repo-owned and installed via the local sync script:
+Repo-owned skills are installed via the local sync script and auto-discovered from `skills/*/SKILL.md`:
 
 ```bash
-bun run sync:local   # installs all skills globally
+bun run sync:local   # installs all repo-owned skills globally
 ```
 
 Or install individually:

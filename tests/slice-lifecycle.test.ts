@@ -59,7 +59,7 @@ describe("wiki slice lifecycle", () => {
     expect(result.stdout.toString()).toContain("blockedBy");
   });
 
-  test("verify-slice runs test-plan commands and promotes the test plan", () => {
+  test("verify-slice supports expected nonzero exits and output assertions", () => {
     const { vault, repo } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
 
@@ -67,17 +67,22 @@ describe("wiki slice lifecycle", () => {
     setRepoFrontmatter(vault, repo);
     expect(runWiki(["create-issue-slice", "demo", "auth slice"], env).exitCode).toBe(0);
     const testPlanPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "test-plan.md");
-    writeFileSync(testPlanPath, "---\ntitle: DEMO-001 auth slice\ntype: spec\nspec_kind: test-plan\nproject: demo\ntask_id: DEMO-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# DEMO-001 auth slice\n\n## Verification Commands\n\n```bash\nbun test tests/other.test.ts\n```\n", "utf8");
+    writeFileSync(testPlanPath, "---\ntitle: DEMO-001 auth slice\ntype: spec\nspec_kind: test-plan\nproject: demo\ntask_id: DEMO-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# DEMO-001 auth slice\n\n## Verification Commands\n\n```bash\n# label: expected nonzero\n# expect-exit-code: 3\n# expect-stdout-contains: hello\n# expect-stderr-contains: expected failure\necho hello\necho expected failure >&2\nexit 3\n```\n", "utf8");
 
     const result = runWiki(["verify-slice", "demo", "DEMO-001", "--repo", repo, "--json"], env);
     expect(result.exitCode).toBe(0);
     const json = JSON.parse(result.stdout.toString());
     expect(json.ok).toBe(true);
     expect(json.commands[0].ok).toBe(true);
-    expect(readFileSync(testPlanPath, "utf8")).toContain("verification_level: test-verified");
+    expect(json.commands[0].expected.exitCode).toBe(3);
+    expect(json.commands[0].actual.exitCode).toBe(3);
+    const updated = readFileSync(testPlanPath, "utf8");
+    expect(updated).toContain("verification_level: test-verified");
+    expect(updated).toContain("verification_commands:");
+    expect(updated).toContain("verified_against:");
   });
 
-  test("verify-slice returns failing command details", () => {
+  test("verify-slice returns failing output assertion details", () => {
     const { vault, repo } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
 
@@ -85,13 +90,14 @@ describe("wiki slice lifecycle", () => {
     setRepoFrontmatter(vault, repo);
     expect(runWiki(["create-issue-slice", "demo", "auth slice"], env).exitCode).toBe(0);
     const testPlanPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "test-plan.md");
-    writeFileSync(testPlanPath, "---\ntitle: DEMO-001 auth slice\ntype: spec\nspec_kind: test-plan\nproject: demo\ntask_id: DEMO-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# DEMO-001 auth slice\n\n## Verification Commands\n\n```bash\nbun test tests/missing.test.ts\n```\n", "utf8");
+    writeFileSync(testPlanPath, "---\ntitle: DEMO-001 auth slice\ntype: spec\nspec_kind: test-plan\nproject: demo\ntask_id: DEMO-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# DEMO-001 auth slice\n\n## Verification Commands\n\n```bash\n# expect-stdout-contains: missing text\necho hello\n```\n", "utf8");
 
     const result = runWiki(["verify-slice", "demo", "DEMO-001", "--repo", repo, "--json"], env);
     expect(result.exitCode).toBe(1);
     const json = JSON.parse(result.stdout.toString());
     expect(json.ok).toBe(false);
     expect(json.commands[0].ok).toBe(false);
+    expect(json.commands[0].failures).toContain("stdout missing: missing text");
   });
 
   test("backlog parser accepts both checked and unchecked checkboxes", () => {

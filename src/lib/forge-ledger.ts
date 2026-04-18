@@ -1,0 +1,127 @@
+export const FORGE_PHASES = ["research", "grill", "prd", "slices", "tdd", "verify"] as const;
+export type ForgePhase = (typeof FORGE_PHASES)[number];
+
+export type ForgeWorkflowLedger = {
+  project: string;
+  sliceId: string;
+  parentPrd?: string;
+  research?: {
+    completedAt?: string;
+    researchRefs?: string[];
+  };
+  grill?: {
+    completedAt?: string;
+    decisionRefs?: string[];
+  };
+  prd?: {
+    completedAt?: string;
+    prdRef?: string;
+    parentPrd?: string;
+  };
+  slices?: {
+    completedAt?: string;
+    sliceRefs?: string[];
+  };
+  tdd?: {
+    completedAt?: string;
+    tddEvidence?: string[];
+  };
+  verify?: {
+    completedAt?: string;
+    verificationCommands?: string[];
+  };
+};
+
+export type ForgePhaseStatus = {
+  phase: ForgePhase;
+  completed: boolean;
+  ready: boolean;
+  missing: string[];
+  blockedBy: ForgePhase[];
+};
+
+export type ForgeWorkflowValidation = {
+  ok: boolean;
+  nextPhase: ForgePhase | null;
+  statuses: ForgePhaseStatus[];
+};
+
+const PHASE_REQUIREMENTS: Record<ForgePhase, (ledger: ForgeWorkflowLedger) => string[]> = {
+  research: (ledger) => {
+    const missing: string[] = [];
+    if (!ledger.research?.completedAt) missing.push("research.completedAt");
+    if (!ledger.research?.researchRefs?.length) missing.push("research.researchRefs");
+    return missing;
+  },
+  grill: (ledger) => {
+    const missing: string[] = [];
+    if (!ledger.grill?.completedAt) missing.push("grill.completedAt");
+    if (!ledger.grill?.decisionRefs?.length) missing.push("grill.decisionRefs");
+    return missing;
+  },
+  prd: (ledger) => {
+    const missing: string[] = [];
+    if (!ledger.prd?.completedAt) missing.push("prd.completedAt");
+    if (!ledger.prd?.prdRef) missing.push("prd.prdRef");
+    if (!(ledger.prd?.parentPrd ?? ledger.parentPrd)) missing.push("prd.parentPrd");
+    return missing;
+  },
+  slices: (ledger) => {
+    const missing: string[] = [];
+    if (!ledger.slices?.completedAt) missing.push("slices.completedAt");
+    if (!ledger.slices?.sliceRefs?.length) missing.push("slices.sliceRefs");
+    return missing;
+  },
+  tdd: (ledger) => {
+    const missing: string[] = [];
+    if (!ledger.tdd?.completedAt) missing.push("tdd.completedAt");
+    if (!ledger.tdd?.tddEvidence?.length) missing.push("tdd.tddEvidence");
+    return missing;
+  },
+  verify: (ledger) => {
+    const missing: string[] = [];
+    if (!ledger.verify?.completedAt) missing.push("verify.completedAt");
+    if (!ledger.verify?.verificationCommands?.length) missing.push("verify.verificationCommands");
+    return missing;
+  },
+};
+
+export function validateForgeWorkflowLedger(ledger: ForgeWorkflowLedger): ForgeWorkflowValidation {
+  const statuses: ForgePhaseStatus[] = [];
+  let previousIncomplete: ForgePhase[] = [];
+
+  for (const phase of FORGE_PHASES) {
+    const missing = PHASE_REQUIREMENTS[phase](ledger);
+    const completed = missing.length === 0 && previousIncomplete.length === 0;
+    const ready = previousIncomplete.length === 0;
+    const status: ForgePhaseStatus = {
+      phase,
+      completed,
+      ready,
+      missing,
+      blockedBy: [...previousIncomplete],
+    };
+    statuses.push(status);
+    if (!completed) previousIncomplete = [...previousIncomplete, phase];
+  }
+
+  return {
+    ok: statuses.every((status) => status.completed),
+    nextPhase: statuses.find((status) => !status.completed)?.phase ?? null,
+    statuses,
+  };
+}
+
+export function canAdvanceForgePhase(ledger: ForgeWorkflowLedger, phase: ForgePhase) {
+  const validation = validateForgeWorkflowLedger(ledger);
+  const status = validation.statuses.find((entry) => entry.phase === phase);
+  if (!status) {
+    return { ok: false, phase, missing: ["unknown phase"], blockedBy: [] as ForgePhase[] };
+  }
+  return {
+    ok: status.ready && status.missing.length === 0,
+    phase,
+    missing: status.missing,
+    blockedBy: status.blockedBy,
+  };
+}

@@ -85,3 +85,15 @@ describe("create-layer-page", () => {
     expect(result.stderr.toString()).toContain("unknown layer");
   });
 });
+
+describe("skill layer separation", () => {
+  test("wiki skill does not reintroduce SDLC command catalogs or closeout policy", () => {
+    const wikiSkill = readFileSync(join(process.cwd(), "skills", "wiki", "SKILL.md"), "utf8");
+    expect(wikiSkill).not.toContain("## Canonical Code-Driven Closeout Sequence");
+    expect(wikiSkill).not.toContain("## Definition of Done");
+    expect(wikiSkill).not.toContain("## Greenfield Project");
+    expect(wikiSkill).not.toContain("computed_status");
+    expect(wikiSkill).not.toContain("create-feature`, `create-prd`, `create-issue-slice`, `start-slice`");
+    expect(wikiSkill).not.toContain("start-feature`, `close-feature`, `start-prd`, `close-prd`");
+  });
+});

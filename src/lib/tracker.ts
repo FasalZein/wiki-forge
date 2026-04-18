@@ -28,7 +28,7 @@ const MAX_BYTES = 512 * 1024;
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_FALLBACK_WINDOW_MS = 4 * 60 * 60 * 1000;
 
-const SLICE_COMMANDS = new Set(["claim", "start-slice", "verify-slice", "close-slice"]);
+const SLICE_COMMANDS = new Set(["claim", "start-slice", "verify-slice", "close-slice", "forge:start", "forge:open", "forge:check", "forge:close", "forge:status"]);
 
 const NO_PROJECT_COMMANDS = new Set([
   "help", "cache-clear", "log", "obsidian", "setup-shell", "lint-vault",
@@ -49,15 +49,20 @@ function projectActivityPath(project: string): string {
 
 // --- public sync functions (called from index.ts finally block) ---
 
+function readEnvTrimmed(...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = process.env[key]?.trim();
+    if (value) return value;
+  }
+  return;
+}
+
 export function resolveSessionId(): string {
-  return process.env.WIKI_SESSION_ID?.trim() || `${process.ppid}-${new Date().toISOString().slice(0, 10)}`;
+  return readEnvTrimmed("WIKI_SESSION_ID") || `${process.ppid}-${new Date().toISOString().slice(0, 10)}`;
 }
 
 export function resolveAgent(): string | undefined {
-  return process.env.WIKI_AGENT_NAME?.trim()
-    || process.env.CLAUDE_AGENT_NAME?.trim()
-    || process.env.USER?.trim()
-    || undefined;
+  return readEnvTrimmed("WIKI_AGENT_NAME", "CLAUDE_AGENT_NAME", "USER");
 }
 
 export function extractProject(cmd: string, args: string[]): string | undefined {

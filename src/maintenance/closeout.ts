@@ -1,4 +1,7 @@
 import { parseProjectRepoBaseArgs } from "../git-utils";
+import { collectHierarchyStatusActions, collectLifecycleDriftActions } from "../hierarchy";
+import type { DiagnosticFinding, DiagnosticScope } from "../lib/diagnostics";
+import { collectSliceLocalContext, classifySliceLocalPageScope, fileMatchesSliceClaims } from "../lib/slice-local";
 import { collectLintResult, collectSemanticLintResult } from "../verification";
 import type { LintingSnapshot } from "../verification";
 import {
@@ -19,8 +22,10 @@ export async function closeoutProject(args: string[]) {
   const verbose = args.includes("--verbose");
   const worktree = args.includes("--worktree");
   const dryRun = args.includes("--dry-run");
+  const sliceLocal = args.includes("--slice-local");
+  const sliceId = readFlagValue(args, "--slice-id");
   const indexRefresh = await autoRefreshIndex(options.project, { dryRun });
-  const result = await collectCloseout(options.project, options.base, options.repo, undefined, undefined, { worktree });
+  const result = await collectCloseout(options.project, options.base, options.repo, undefined, undefined, { worktree, sliceLocal, sliceId });
   if (json) console.log(JSON.stringify({ ...compactCloseoutForJson(result), indexRefresh }, null, 2));
   else {
     renderCloseout(result, verbose);
@@ -33,35 +38,49 @@ export async function closeoutProject(args: string[]) {
   if (!result.ok) throw new Error(`closeout failed for ${options.project}`);
 }
 
-export async function collectCloseout(project: string, base: string, explicitRepo?: string, snapshot?: ProjectSnapshot, lintingSnapshot?: LintingSnapshot, options: RefreshOptions = {}) {
+export async function collectCloseout(project: string, base: string, explicitRepo?: string, snapshot?: ProjectSnapshot, lintingSnapshot?: LintingSnapshot, options: RefreshOptions & { sliceLocal?: boolean; sliceId?: string } = {}) {
   const projectSnapshot = snapshot ?? await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
   const lintingState = lintingSnapshot ?? projectSnapshotToLintingSnapshot(projectSnapshot);
   const refreshFromGit = options.worktree
     ? await collectRefreshFromWorktree(project, explicitRepo, projectSnapshot)
     : await collectRefreshFromGit(project, base, explicitRepo, projectSnapshot);
-  const [drift, lint, semanticLint] = await Promise.all([
+  const [drift, lint, semanticLint, hierarchyActions, lifecycleDriftActions] = await Promise.all([
     collectDriftSummary(project, explicitRepo, lintingState),
     collectLintResult(project, lintingState),
     collectSemanticLintResult(project, lintingState),
+    collectHierarchyStatusActions(project),
+    collectLifecycleDriftActions(project),
   ]);
   const impacted = new Set(refreshFromGit.impactedPages.map((page) => page.page));
+  const sliceLocalContext = options.worktree && options.sliceLocal && options.sliceId
+    ? await collectSliceLocalContext(project, options.sliceId, projectSnapshot.pageEntries)
+    : null;
   const staleImpactedPages = options.worktree
     ? (refreshFromGit.impactedPages as WorktreeImpactedPage[])
       .filter((page) => "stale" in page && page.stale)
       .map((page) => ({ wikiPage: page.page, status: "stale", pageUpdated: page.pageUpdated, lastSourceChange: page.lastSourceChange }))
     : drift.results.filter((row) => impacted.has(row.wikiPage) && row.status !== "fresh");
-  const blockers: string[] = [];
-  if (refreshFromGit.testHealth.codeFilesWithoutChangedTests.length > 0) blockers.push(`${refreshFromGit.testHealth.codeFilesWithoutChangedTests.length} changed code file(s) have no matching changed tests`);
-  if (options.worktree && staleImpactedPages.length > 0) blockers.push(`${staleImpactedPages.length} impacted page(s) are stale or otherwise drifted`);
-  const warnings: string[] = [];
-  if (lint.issues.length > 0) warnings.push(`${lint.issues.length} structural lint issue(s)`);
-  if (semanticLint.issues.length > 0) warnings.push(`${semanticLint.issues.length} semantic lint issue(s)`);
-  if (!options.worktree && staleImpactedPages.length > 0) warnings.push(`${staleImpactedPages.length} impacted page(s) are stale or otherwise drifted`);
-  if (refreshFromGit.uncoveredFiles.length > 0) warnings.push(`${refreshFromGit.uncoveredFiles.length} changed file(s) are not covered by wiki bindings`);
+  const findings: DiagnosticFinding[] = [];
+  if (sliceLocalContext) {
+    pushScopedFileFindings(findings, refreshFromGit.testHealth.codeFilesWithoutChangedTests, sliceLocalContext, "changed code file(s) have no matching changed tests", "blocker");
+    pushScopedStalePageFindings(findings, staleImpactedPages, sliceLocalContext);
+  } else {
+    if (refreshFromGit.testHealth.codeFilesWithoutChangedTests.length > 0) findings.push({ scope: "slice", severity: "blocker", message: `${refreshFromGit.testHealth.codeFilesWithoutChangedTests.length} changed code file(s) have no matching changed tests` });
+    if (options.worktree && staleImpactedPages.length > 0) findings.push({ scope: "slice", severity: "blocker", message: `${staleImpactedPages.length} impacted page(s) are stale or otherwise drifted` });
+  }
+  if (lint.issues.length > 0) findings.push({ scope: "project", severity: "warning", message: `${lint.issues.length} structural lint issue(s)` });
+  if (semanticLint.issues.length > 0) findings.push({ scope: "project", severity: "warning", message: `${semanticLint.issues.length} semantic lint issue(s)` });
+  if (!options.worktree && staleImpactedPages.length > 0) findings.push({ scope: "slice", severity: "warning", message: `${staleImpactedPages.length} impacted page(s) are stale or otherwise drifted` });
+  if (sliceLocalContext) pushScopedFileFindings(findings, refreshFromGit.uncoveredFiles, sliceLocalContext, "changed file(s) are not covered by wiki bindings", "warning");
+  else if (refreshFromGit.uncoveredFiles.length > 0) findings.push({ scope: "slice", severity: "warning", message: `${refreshFromGit.uncoveredFiles.length} changed file(s) are not covered by wiki bindings` });
   const suppressedPages = options.worktree && "suppressedPages" in refreshFromGit ? (refreshFromGit as { suppressedPages: WorktreeImpactedPage[] }).suppressedPages : [];
   const outsideActiveHierarchyFiles = options.worktree && "outsideActiveHierarchyFiles" in refreshFromGit ? (refreshFromGit as { outsideActiveHierarchyFiles: string[] }).outsideActiveHierarchyFiles : [];
-  if (suppressedPages.length > 0) warnings.push(`${suppressedPages.length} non-actionable planning page(s) suppressed from stale check`);
-  if (outsideActiveHierarchyFiles.length > 0) warnings.push(`${outsideActiveHierarchyFiles.length} changed code file(s) belong to non-actionable planning pages outside the active slice hierarchy`);
+  if (suppressedPages.length > 0) findings.push({ scope: "history", severity: "warning", message: `${suppressedPages.length} non-actionable planning page(s) suppressed from stale check` });
+  if (outsideActiveHierarchyFiles.length > 0) findings.push({ scope: "history", severity: "warning", message: `${outsideActiveHierarchyFiles.length} changed code file(s) belong to non-actionable planning pages outside the active slice hierarchy` });
+  for (const action of hierarchyActions) findings.push({ scope: "parent", severity: "warning", message: action.message });
+  for (const action of lifecycleDriftActions) findings.push({ scope: "parent", severity: "warning", message: action.message });
+  const blockers = findings.filter((finding) => finding.severity === "blocker").map((finding) => finding.message);
+  const warnings = findings.filter((finding) => finding.severity === "warning").map((finding) => finding.message);
   const nextSteps: string[] = [];
   if (staleImpactedPages.length > 0) {
     nextSteps.push(`update impacted wiki pages from code`);
@@ -84,6 +103,7 @@ export async function collectCloseout(project: string, base: string, explicitRep
     outsideActiveHierarchyFiles,
     lint,
     semanticLint,
+    findings,
     blockers,
     warnings,
     nextSteps,
@@ -102,6 +122,44 @@ export function compactCloseoutForJson(result: Awaited<ReturnType<typeof collect
       ...(truncatedDrift ? { truncated: true, totalDrifted: driftedRows.length } : {}),
     },
   };
+}
+
+function readFlagValue(args: string[], flag: string) {
+  const index = args.indexOf(flag);
+  if (index < 0) return undefined;
+  const value = args[index + 1];
+  return value && !value.startsWith("--") ? value : undefined;
+}
+
+function pushScopedFileFindings(
+  findings: DiagnosticFinding[],
+  files: string[],
+  context: Awaited<ReturnType<typeof collectSliceLocalContext>>,
+  messageSuffix: string,
+  sliceSeverity: "blocker" | "warning",
+) {
+  const sliceFiles = files.filter((file) => fileMatchesSliceClaims(file, context));
+  const historyFiles = files.filter((file) => !fileMatchesSliceClaims(file, context));
+  if (sliceFiles.length > 0) findings.push({ scope: "slice", severity: sliceSeverity, message: `${sliceFiles.length} ${messageSuffix}` });
+  if (historyFiles.length > 0) findings.push({ scope: "history", severity: "warning", message: `${historyFiles.length} changed file(s) outside the active slice also need attention` });
+}
+
+function pushScopedStalePageFindings(
+  findings: DiagnosticFinding[],
+  stalePages: Array<{ wikiPage: string }>,
+  context: Awaited<ReturnType<typeof collectSliceLocalContext>>,
+) {
+  const counts = new Map<DiagnosticScope, number>();
+  for (const page of stalePages) {
+    const scope = classifySliceLocalPageScope(page.wikiPage, context);
+    counts.set(scope, (counts.get(scope) ?? 0) + 1);
+  }
+  const sliceCount = counts.get("slice") ?? 0;
+  const parentCount = counts.get("parent") ?? 0;
+  const projectCount = counts.get("project") ?? 0;
+  if (sliceCount > 0) findings.push({ scope: "slice", severity: "blocker", message: `${sliceCount} impacted slice page(s) are stale or otherwise drifted` });
+  if (parentCount > 0) findings.push({ scope: "parent", severity: "warning", message: `${parentCount} impacted parent page(s) are stale or otherwise drifted` });
+  if (projectCount > 0) findings.push({ scope: "project", severity: "warning", message: `${projectCount} impacted project page(s) are stale or otherwise drifted` });
 }
 
 export function renderCloseout(result: Awaited<ReturnType<typeof collectCloseout>>, verbose: boolean) {
@@ -127,8 +185,7 @@ export function renderCloseout(result: Awaited<ReturnType<typeof collectCloseout
   console.log(`- missing tests: ${result.refreshFromGit.testHealth.codeFilesWithoutChangedTests.length}`);
   if (verbose || !result.ok) {
     for (const page of result.refreshFromGit.impactedPages.slice(0, 20)) console.log(`  - impacted: ${page.page} <= ${page.matchedSourcePaths.join(", ")}`);
-    for (const blocker of result.blockers) console.log(`  - blocker: ${blocker}`);
-    for (const warning of result.warnings) console.log(`  - warning: ${warning}`);
+    for (const finding of result.findings) console.log(`  - [${finding.scope}][${finding.severity}] ${finding.message}`);
   }
   if (result.nextSteps.length) {
     console.log(`- manual steps before closing:`);

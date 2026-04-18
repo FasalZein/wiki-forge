@@ -1,4 +1,5 @@
 import { requireValue } from "../cli-shared";
+import { formatMaintenanceActionLabel, type MaintenanceAction } from "../lib/diagnostics";
 import { appendLogEntry } from "../lib/log";
 import { collectLintResult, collectSemanticLintResult } from "../verification";
 import type { LintingSnapshot } from "../verification";
@@ -81,7 +82,7 @@ export async function maintainProject(args: string[], repair?: MaintainRepairInp
     console.log(`- GATE: ${gateOk ? "PASS" : `FAIL — ${missingTests} code file(s) without tests`}`);
     console.log(`- actions:`);
     if (verbose) {
-      for (const action of result.actions) console.log(`  - [${action.kind}] ${action.message}`);
+      for (const action of result.actions) console.log(`  - ${formatMaintenanceActionLabel(action)} ${action.message}`);
     } else {
       for (const line of collapseActions(result.actions)) console.log(`  - ${line}`);
     }
@@ -102,23 +103,25 @@ export async function maintainProject(args: string[], repair?: MaintainRepairInp
   }
 }
 
-export function collapseActions(actions: Array<{ kind: string; message: string }>): string[] {
-  const buckets = new Map<string, Array<{ kind: string; message: string }>>();
+export function collapseActions(actions: Array<Pick<MaintenanceAction, "kind" | "message" | "scope">>): string[] {
+  const buckets = new Map<string, Array<Pick<MaintenanceAction, "kind" | "message" | "scope">>>();
   const order: string[] = [];
   for (const action of actions) {
-    if (!buckets.has(action.kind)) {
-      buckets.set(action.kind, []);
-      order.push(action.kind);
+    const key = `${action.scope ?? ""}::${action.kind}`;
+    if (!buckets.has(key)) {
+      buckets.set(key, []);
+      order.push(key);
     }
-    buckets.get(action.kind)!.push(action);
+    buckets.get(key)!.push(action);
   }
   const out: string[] = [];
-  for (const kind of order) {
-    const group = buckets.get(kind)!;
+  for (const key of order) {
+    const group = buckets.get(key)!;
+    const label = formatMaintenanceActionLabel(group[0]!);
     if (group.length === 1) {
-      out.push(`[${kind}] ${group[0].message}`);
+      out.push(`${label} ${group[0].message}`);
     } else {
-      out.push(`[${kind}] ${group.length} items (first: ${group[0].message})`);
+      out.push(`${label} ${group.length} items (first: ${group[0].message})`);
     }
   }
   return out;
@@ -150,19 +153,19 @@ export async function collectMaintenancePlan(project: string, base: string, expl
     collectHierarchyStatusActions(project),
     collectLifecycleDriftActions(project),
   ]);
-  const actions: Array<{ kind: string; message: string }> = [];
-  if (focus.activeTask) actions.push({ kind: "active-task", message: `${focus.activeTask.id} ${focus.activeTask.title} (plan=${focus.activeTask.planStatus}, test-plan=${focus.activeTask.testPlanStatus})` });
-  else if (focus.recommendedTask) actions.push({ kind: "next-task", message: `${focus.recommendedTask.id} ${focus.recommendedTask.title}` });
-  for (const warning of focus.warnings) actions.push({ kind: "backlog-warning", message: warning });
-  for (const impacted of refreshFromGit.impactedPages) actions.push({ kind: "review-page", message: `${impacted.page} impacted by ${impacted.matchedSourcePaths.join(", ")}` });
-  for (const file of refreshFromGit.uncoveredFiles.slice(0, 20)) actions.push({ kind: "create-or-bind", message: `cover changed file ${file}` });
-  for (const file of refreshFromGit.testHealth.codeFilesWithoutChangedTests.slice(0, 20)) actions.push({ kind: "add-tests", message: `changed code without changed tests: ${file}` });
-  for (const file of discover.repoDocFiles.slice(0, 20)) actions.push({ kind: "move-doc-to-wiki", message: `repo markdown doc should live in wiki: ${file}` });
-  for (const page of discover.unboundPages.slice(0, 20)) actions.push({ kind: "bind-page", message: `${page} has no source_paths` });
-  for (const issue of lint.issues.slice(0, 20)) actions.push({ kind: "fix-structure", message: issue });
-  for (const issue of semanticLint.issues.slice(0, 20)) actions.push({ kind: "fix-semantic", message: issue });
-  for (const action of hierarchyActions) actions.push({ kind: action.kind, message: action.message });
-  for (const action of lifecycleDriftActions) actions.push({ kind: action.kind, message: action.message });
+  const actions: MaintenanceAction[] = [];
+  if (focus.activeTask) actions.push({ kind: "active-task", scope: "slice", message: `${focus.activeTask.id} ${focus.activeTask.title} (plan=${focus.activeTask.planStatus}, test-plan=${focus.activeTask.testPlanStatus})` });
+  else if (focus.recommendedTask) actions.push({ kind: "next-task", scope: "slice", message: `${focus.recommendedTask.id} ${focus.recommendedTask.title}` });
+  for (const warning of focus.warnings) actions.push({ kind: "backlog-warning", scope: "history", message: warning });
+  for (const impacted of refreshFromGit.impactedPages) actions.push({ kind: "review-page", scope: "slice", message: `${impacted.page} impacted by ${impacted.matchedSourcePaths.join(", ")}` });
+  for (const file of refreshFromGit.uncoveredFiles.slice(0, 20)) actions.push({ kind: "create-or-bind", scope: "slice", message: `cover changed file ${file}` });
+  for (const file of refreshFromGit.testHealth.codeFilesWithoutChangedTests.slice(0, 20)) actions.push({ kind: "add-tests", scope: "slice", message: `changed code without changed tests: ${file}` });
+  for (const file of discover.repoDocFiles.slice(0, 20)) actions.push({ kind: "move-doc-to-wiki", scope: "project", message: `repo markdown doc should live in wiki: ${file}` });
+  for (const page of discover.unboundPages.slice(0, 20)) actions.push({ kind: "bind-page", scope: "project", message: `${page} has no source_paths` });
+  for (const issue of lint.issues.slice(0, 20)) actions.push({ kind: "fix-structure", scope: "project", message: issue });
+  for (const issue of semanticLint.issues.slice(0, 20)) actions.push({ kind: "fix-semantic", scope: "project", message: issue });
+  for (const action of hierarchyActions) actions.push({ kind: action.kind, scope: action.scope, message: action.message });
+  for (const action of lifecycleDriftActions) actions.push({ kind: action.kind, scope: action.scope, message: action.message });
   for (const action of hierarchyActions) action._apply?.();
   return { project, repo: refreshFromGit.repo, base: options.worktree ? "WORKTREE" : base, focus, refreshFromGit, discover, lint, semanticLint, actions };
 }

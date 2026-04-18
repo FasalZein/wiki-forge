@@ -65,6 +65,11 @@ Usage:
   wiki start-slice <project> <slice-id> [--agent <name>] [--repo <path>] [--json]
   wiki verify-slice <project> <slice-id> [--repo <path>] [--json]
   wiki close-slice <project> <slice-id> [--repo <path>] [--base <rev>] [--worktree] [--force] [--yes-really-force] [--json]
+  wiki forge start <project> [slice-id] [--agent <name>] [--repo <path>] [--json]
+  wiki forge open <project> [slice-id] [--agent <name>] [--repo <path>] [--json]
+  wiki forge check <project> [slice-id] [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
+  wiki forge close <project> [slice-id] [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
+  wiki forge status <project> [slice-id] [--json]
   wiki pipeline <project> <slice-id> --phase <close|verify> [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
   wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]
   wiki resume <project> [--repo <path>] [--base <rev>] [--json]
@@ -73,6 +78,7 @@ Usage:
   wiki maintain <project> [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json] [--verbose]
   wiki refresh <project> [--repo <path>] [--json]
   wiki refresh-from-git <project> [--repo <path>] [--base <rev>] [--json]
+  wiki sync <project> [--repo <path>] [--report-only] [--write] [--json]
   wiki discover <project> [--repo <path>] [--tree] [--json]
   wiki ingest-diff <project> [--repo <path>] [--base <rev>] [--json]
   wiki update-index <project>|--all [--write] [--json]
@@ -92,8 +98,8 @@ Usage:
   wiki search [--hybrid] <query...>
   wiki bind <project> <module-or-page> <source-path...> [--mode replace|merge] [--dry-run]
   wiki drift-check <project> [--repo <path>] [--show-unbound] [--fix] [--json]
-  wiki verify-page <project> <module-or-page...> <level> [--dry-run]
-  wiki verify-page <project> --all <level> [--dry-run]
+  wiki verify-page <project> <module-or-page...> <level> [--dry-run] [--allow-downgrade]
+  wiki verify-page <project> --all <level> [--dry-run] [--allow-downgrade]
   wiki acknowledge-impact <project> <page...> [--repo <path>] [--json]
   wiki migrate-verification <project>
   wiki cache-clear
@@ -133,7 +139,8 @@ Notes:
   - note appends a durable agent-to-agent message to the global wiki log with project/slice metadata
   - next recommends the highest-priority active or ready slice, skipping slices blocked by depends_on
   - start-slice is the lifecycle entry point: it checks dependencies, registers the claim, moves the backlog item to In Progress, stamps started_at, and prints a compact plan summary
-  - verify-slice runs shell command blocks from a slice test-plan and promotes the test-plan to test-verified on success
+  - wiki forge start/open/check/close/status is the thin forge workflow surface over start-slice, maintenance/closeout/gate, close-slice, and the forge workflow ledger; omit slice-id to target the active or recommended slice
+  - verify-slice runs structured verification command blocks from a slice test-plan, records evidence, and promotes the test-plan to test-verified on success
   - close-slice runs the project gate, marks slice docs done, records completed_at, moves the slice to Done, and refreshes navigation indexes; use --worktree to close against dirty agent changes before commit; --force is intentionally two-step and requires --yes-really-force so agents pause before skipping gate/closeout blockers from unrelated cross-slice work (slice-level prerequisites are still enforced)
   - pipeline automates mechanical workflow steps so agents only fill content; --phase close runs checkpoint, lint-repo, maintain, update-index; --phase verify runs verify-slice, closeout, gate, close-slice; steps are tracked in sqlite and skipped on re-run; --dry-run shows what would execute
   - export-prompt prints a self-contained execution prompt for codex, claude, or pi without writing into the project repo
@@ -142,6 +149,7 @@ Notes:
   - gate is a pass/fail completion check for missing tests, lint, uncovered changed files, and backlog/slice consistency warnings; --worktree evaluates the live dirty worktree instead of committed diff ranges, and --structural-refactor relaxes direct changed-test matching only when typecheck/build/test parity still holds
   - maintain composes refresh-from-git, discover, lint, and semantic lint into a task queue; --worktree switches the refresh surface to the live worktree; automatically repairs done-slice metadata drift
   - refresh-from-git maps recent code changes to impacted wiki pages and uncovered files
+  - sync is the report-first reconciliation entry point: it surfaces dirty authored wiki pages, stale navigation indexes, stale/missing protocol render targets, and current worktree impact; add --write to apply only the scoped derived writes it planned
   - ingest-diff applies a first-pass sync: appends change digests to impacted pages and scaffolds missing module pages for uncovered changed files
   - discover surfaces uncovered repo files, unbound pages, and placeholder-heavy pages
   - update-index maintains generated workspace/project index views, including root project navigation and projects/_dashboard.md, and refreshes code-driven relationship sections across planning docs, modules, and freeform project zones (dry-run by default)
@@ -176,7 +184,7 @@ Notes:
   - drift-check --fix auto-demotes stale/deleted pages to verification_level: stale in frontmatter
   - refresh-from-git includes compact git diff summaries for impacted pages
   - lint-semantic flags orphan pages, dead-end pages, unbound module pages, placeholder-heavy pages, and orphaned slices (task-hub with no parent_prd)
-  - verify-page promotes a page to a verification level (scaffold|inferred|code-verified|runtime-verified|test-verified)
+  - verify-page promotes a page to a verification level (scaffold|inferred|code-verified|runtime-verified|test-verified); stronger levels are preserved unless --allow-downgrade is passed
   - cache-clear removes .cache/wiki-cli/
   - setup-shell adds KNOWLEDGE_VAULT_ROOT to your shell config (zsh/bash/fish)
   - migrate-verification converts old verified_code/runtime/tests booleans to verification_level

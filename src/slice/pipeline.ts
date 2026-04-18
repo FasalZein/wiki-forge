@@ -33,7 +33,9 @@ export async function pipelineCommand(args: string[]) {
   } else {
     console.log(`pipeline ${phase} for ${project}/${sliceId}${dryRun ? " (dry-run)" : ""}:`);
     for (const step of result.steps) {
-      const status = step.skipped ? "skipped" : step.ok ? "ok" : "FAILED";
+      let status = "FAILED";
+      if (step.skipped) status = "skipped";
+      else if (step.ok) status = "ok";
       const duration = step.durationMs !== null ? ` (${step.durationMs}ms)` : "";
       console.log(`  ${step.id}: ${status}${duration}`);
       if (step.error) console.log(`    error: ${step.error}`);

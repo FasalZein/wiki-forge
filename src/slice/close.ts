@@ -29,6 +29,7 @@ export async function closeSlice(args: string[]) {
   if (baseIndex >= 0) requireValue(base, "base");
   const json = args.includes("--json");
   const worktree = args.includes("--worktree");
+  const sliceLocal = args.includes("--slice-local");
   const forceReview = args.includes("--force-review");
   // --force-review is a narrower bypass for closeout REVIEW PASS only; it is
   // already intentionally explicit, so no second-step is required.
@@ -39,13 +40,18 @@ export async function closeSlice(args: string[]) {
   const context = await collectTaskContextForId(project, sliceId);
   if (!context) throw new Error(`slice not found in backlog: ${sliceId}`);
   if (!context.hasSliceDocs) throw new Error(`slice docs missing for ${sliceId}`);
+  const hub = await readSliceHub(project, sliceId);
   if (context.section !== "In Progress") {
-    throw new Error(`slice must be In Progress before closeout: ${sliceId} is in ${context.section}`);
+    if (canAutoHealCloseLifecycle(hub.data)) {
+      await moveTaskToSection(project, sliceId, "In Progress");
+      appendLogEntry("close-slice-autoheal", sliceId, { project, details: [`from=${context.section}`, "to=In Progress"] });
+    } else {
+      throw new Error(`slice must be In Progress before closeout: ${sliceId} is in ${context.section}`);
+    }
   }
   if (context.planStatus !== "ready" || context.testPlanStatus !== "ready") {
     throw new Error(`slice docs are not ready for closeout: plan=${context.planStatus} test-plan=${context.testPlanStatus}`);
   }
-  const hub = await readSliceHub(project, sliceId);
   const closeSliceParentPrd = typeof hub.data.parent_prd === "string" ? hub.data.parent_prd : null;
   const closeSliceParentFeature = typeof hub.data.parent_feature === "string" ? hub.data.parent_feature : null;
   const testPlan = await readSliceTestPlan(project, sliceId);
@@ -53,14 +59,17 @@ export async function closeSlice(args: string[]) {
   if (testPlanLevel !== "test-verified") {
     throw new Error(`slice test-plan must be test-verified before closeout: ${sliceId}`);
   }
+  if (!hasStructuredVerificationEvidence(testPlan.data)) {
+    throw new Error(`slice test-plan is missing structured verification evidence before closeout: ${sliceId}`);
+  }
 
-  const closeout = await collectCloseout(project, base, repo, undefined, undefined, { worktree });
+  const closeout = await collectCloseout(project, base, repo, undefined, undefined, { worktree, sliceLocal, sliceId });
   const uncoveredChangedCodeFiles = closeout.refreshFromGit.uncoveredFiles.filter((file) => !isTestFile(file));
   const reviewPassPending = closeout.ok && closeout.staleImpactedPages.length > 0;
   const closeoutBlockers = [
     ...closeout.blockers,
     ...(!worktree && closeout.staleImpactedPages.length ? [`${closeout.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted (closeout: REVIEW PASS — run: ${closeout.nextSteps.join(" && ")})`] : []),
-    ...(uncoveredChangedCodeFiles.length ? [`${uncoveredChangedCodeFiles.length} changed code file(s) are not covered by wiki bindings`] : []),
+    ...(!sliceLocal && uncoveredChangedCodeFiles.length ? [`${uncoveredChangedCodeFiles.length} changed code file(s) are not covered by wiki bindings`] : []),
   ];
   if (closeoutBlockers.length > 0 && !force) {
     const failed = {
@@ -83,7 +92,7 @@ export async function closeSlice(args: string[]) {
   }
   let compactGate: Record<string, unknown> | null = null;
   if (!force) {
-    const gate = await collectGate(project, base, repo, { worktree, precomputedCloseout: closeout });
+    const gate = await collectGate(project, base, repo, { worktree, precomputedCloseout: closeout, sliceLocal, sliceId });
     compactGate = { ...gate, doctor: compactDoctorForJson(gate.doctor) };
     if (!gate.ok) {
       const failed = { project, sliceId, closed: false, gate: compactGate, previousSection: context.section };
@@ -145,6 +154,15 @@ export async function closeSlice(args: string[]) {
       console.log(`  5. wiki feature-status ${project}  # verify computed_status = complete`);
     }
   }
+}
+
+function canAutoHealCloseLifecycle(data: Record<string, unknown>) {
+  const status = typeof data.status === "string" ? data.status : null;
+  return status === "in-progress" || status === "done" || typeof data.started_at === "string" || typeof data.completed_at === "string";
+}
+
+function hasStructuredVerificationEvidence(data: Record<string, unknown>) {
+  return Array.isArray(data.verification_commands) && data.verification_commands.length > 0 && typeof data.verified_against === "string" && data.verified_against.trim().length > 0;
 }
 
 async function clearClaimMetadata(project: string, sliceId: string) {

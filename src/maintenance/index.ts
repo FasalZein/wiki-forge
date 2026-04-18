@@ -1,6 +1,7 @@
 export { maintainProject, collectMaintenancePlan, collapseActions, compactMaintainForJson, autoRefreshIndex } from "./maintain";
 export { closeoutProject, collectCloseout, compactCloseoutForJson, renderCloseout } from "./closeout";
 export { refreshProject, refreshFromGit, refreshOnMerge } from "./refresh";
+export { syncProject, collectSyncPlan } from "./sync";
 export { discoverProject, collectDiscoverSummary, collectIngestDiff, ingestDiff } from "./discover";
 export { dashboardProject, collectDashboard } from "./dashboard";
 export { checkpoint, collectCheckpoint } from "./checkpoint";

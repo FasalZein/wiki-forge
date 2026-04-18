@@ -36,13 +36,13 @@ export function listCodeFiles(repo: string, customPaths?: string[]) {
 export async function listRepoMarkdownDocs(repo: string) {
   const fingerprint = `${fileFingerprint(join(repo, ".git", "index"))}:${fileFingerprint(join(repo, ".git", "HEAD"))}:${await gitMarkdownStatusFingerprint(repo)}`;
   const cacheKey = `repo-docs:${repo}`;
-  const cached = await readCache<string[]>("repo-scan", cacheKey, "3", fingerprint);
+  const cached = await readCache<string[]>("repo-scan", cacheKey, "4", fingerprint);
   if (cached) return cached;
 
   const files = new Set<string>();
   const visit = (dir: string, prefix = "") => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (entry.name === ".git" || entry.name === ".claude" || entry.name === "node_modules" || entry.name === "dist" || entry.name === "build" || entry.name === "coverage" || entry.name === ".next" || entry.name === "skills") continue;
+      if (entry.name === ".git" || entry.name === ".claude" || entry.name === ".desloppify" || entry.name === "node_modules" || entry.name === "dist" || entry.name === "build" || entry.name === "coverage" || entry.name === ".next" || entry.name === "skills") continue;
       const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
       const absolute = join(dir, entry.name);
       if (entry.isDirectory()) {
@@ -58,7 +58,7 @@ export async function listRepoMarkdownDocs(repo: string) {
   visit(repo);
 
   const result = [...files].sort();
-  void writeCache("repo-scan", cacheKey, "3", fingerprint, result);
+  void writeCache("repo-scan", cacheKey, "4", fingerprint, result);
   return result;
 }
 

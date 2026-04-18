@@ -1,4 +1,5 @@
 import { requireValue } from "../cli-shared";
+import { formatMaintenanceActionLabel } from "../lib/diagnostics";
 import { collectBacklog } from "../hierarchy";
 import { readSliceSummary } from "../lib/slices";
 import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "../verification";
@@ -43,7 +44,7 @@ export async function doctorProject(args: string[]) {
     for (const warning of result.backlogWarnings) console.log(`  - ${warning}`);
   }
   console.log(`- top actions:`);
-  for (const action of result.topActions) console.log(`  - [${action.kind}] ${action.message}`);
+  for (const action of result.topActions) console.log(`  - ${formatMaintenanceActionLabel(action)} ${action.message}`);
 }
 
 export async function collectDoctor(project: string, base: string, explicitRepo?: string, options: { worktree?: boolean; projectSnapshot?: ProjectSnapshot; lintingSnapshot?: LintingSnapshot; precomputedRefreshFromGit?: Awaited<ReturnType<typeof collectRefreshFromGit>> | Awaited<ReturnType<typeof collectRefreshFromWorktree>> } = {}) {

@@ -2,7 +2,7 @@ export { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeMo
 export { backlogCommand, addTask, moveTask, completeTask } from "./hierarchy/backlog";
 export { createIssueSlice } from "./slice/slice-scaffold";
 export { createFeature, createPrd, createPlan, createTestPlan } from "./hierarchy/planning";
-export { dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, discoverProject, ingestDiff } from "./maintenance";
+export { dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, syncProject, discoverProject, ingestDiff } from "./maintenance";
 export { handoverProject, claimSlice, noteProject, nextProject, startSlice, verifySlice, closeSlice, exportPrompt, resumeProject } from "./slice/coordination";
 export { commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo } from "./maintenance";
 export { syncProtocol, auditProtocol } from "./protocol/protocol";

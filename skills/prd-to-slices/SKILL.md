@@ -145,12 +145,12 @@ At this point the slice docs are planned, not implemented. Do **not** mark them 
 After verification, the slices are ready for `/tdd`. The lifecycle is:
 
 ```text
-create slice -> start-slice -> fill plan + test-plan -> /tdd -> /wiki closeout -> close-slice -> /improve-codebase-architecture (cadence) -> /desloppify
+create slice -> wiki forge start -> fill plan + test-plan -> /tdd -> wiki forge check -> wiki forge close -> /improve-codebase-architecture (cadence) -> /desloppify
 ```
 
 `/improve-codebase-architecture` runs at the end of a PRD or batch of slices (weekly at minimum) and turns any accepted deepening refactor into a new feature+PRD+slices of its own — not a silent rewrite mid-slice. `/desloppify` is the final line-level quality gate.
 
-After each slice, run the canonical 13-step closeout sequence from `/forge` under "Canonical Code-Driven Closeout Sequence". Do not maintain a parallel copy here — the forge sequence is the source of truth and includes `verify-page test-verified` promotion plus `feature-status` reconciliation, which abbreviated lists routinely miss.
+After each slice, use the grouped forge close path from `/forge`: `wiki forge check`, fix anything it reports, then `wiki forge close`. Drop to lower-level wiki verbs only for repair/debug cases; `/forge` is the source of truth for the normal operator path.
 
 ## When to use GitHub Issues instead
 

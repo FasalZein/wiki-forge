@@ -20,12 +20,13 @@ export {
   collectBacklog,
   collectTaskContextForId,
   collectBacklogFocus,
+  detectTaskDocState,
   moveTaskToSection,
 } from "./backlog";
 export type { BacklogItem, TaskDocState, BacklogTaskContext, BacklogFocus } from "./backlog";
 export { appendTaskToBacklog, parseTaskArgs } from "./backlog-io";
 export { createFeature, createPrd, createPlan, createTestPlan, slugify } from "./planning";
 export { dependencyGraph } from "./dependency-graph";
-export { updateIndex, writeProjectIndex, collectStaleIndexTargets, writeNavigationIndex } from "./index-log";
+export { updateIndex, writeProjectIndex, collectStaleIndexTargets, writeNavigationIndex, writeNamedNavigationTargets } from "./index-log";
 export { summaryProject } from "./summary";
 export { createLayerPage, lintVault, scaffoldLayer } from "./layers";

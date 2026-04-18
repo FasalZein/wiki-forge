@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 
 import type { CommandHandler } from "./types";
-import { printHelp, scaffoldProject, addTask, backlogCommand, moveTask, completeTask, createIssueSlice, createFeature, createPrd, createPlan, createTestPlan, createModule, onboardProject, onboardPlan, normalizeModule, dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, discoverProject, ingestDiff, handoverProject, claimSlice, noteProject, nextProject, startSlice, verifySlice, closeSlice, exportPrompt, resumeProject, commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo, syncProtocol, auditProtocol, dependencyGraph, updateIndex, logCommand, statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch } from "./system";
+import { printHelp, scaffoldProject, addTask, backlogCommand, moveTask, completeTask, createIssueSlice, createFeature, createPrd, createPlan, createTestPlan, createModule, onboardProject, onboardPlan, normalizeModule, dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, syncProject, discoverProject, ingestDiff, handoverProject, claimSlice, noteProject, nextProject, startSlice, verifySlice, closeSlice, exportPrompt, resumeProject, commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo, syncProtocol, auditProtocol, dependencyGraph, updateIndex, logCommand, statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch } from "./system";
+import { forgeCheck, forgeClose, forgeOpen, forgeStart, forgeStatus } from "./slice/forge";
 import { doctorProject, gateProject } from "./maintenance";
 import { closeFeature, closePrd, featureStatusCommand, startFeature, startPrd } from "./hierarchy";
 import { pipelineCommand } from "./slice/pipeline";
@@ -63,6 +64,7 @@ const commands: Record<string, CommandHandler> = {
   },
   refresh: (args) => refreshProject(args),
   "refresh-from-git": (args) => refreshFromGit(args),
+  sync: (args) => syncProject(args),
   discover: (args) => discoverProject(args),
   "ingest-diff": (args) => ingestDiff(args),
   "update-index": (args) => updateIndex(args),
@@ -103,6 +105,11 @@ const commands: Record<string, CommandHandler> = {
   "close-feature": (args) => closeFeature(args),
   "start-prd": (args) => startPrd(args),
   "close-prd": (args) => closePrd(args),
+  "forge:start": (args) => forgeStart(args),
+  "forge:open": (args) => forgeOpen(args),
+  "forge:check": (args) => forgeCheck(args),
+  "forge:close": (args) => forgeClose(args),
+  "forge:status": (args) => forgeStatus(args),
 };
 
 const rawArgs = process.argv.slice(2);
@@ -184,6 +191,19 @@ function resolveCommand(rawArgs: string[]) {
       audit: "protocol:audit",
     }[subcommand as "sync" | "audit"];
     if (!mapped) throw new Error(`unknown protocol subcommand: ${subcommand}. Run 'wiki help' for usage.`);
+    return { command: mapped, args: subArgs };
+  }
+  if (command === "forge") {
+    const [subcommand, ...subArgs] = rest;
+    if (!subcommand || subcommand === "help") throw new Error("missing forge subcommand. Run 'wiki help' for usage.");
+    const mapped = {
+      start: "forge:start",
+      open: "forge:open",
+      check: "forge:check",
+      close: "forge:close",
+      status: "forge:status",
+    }[subcommand as "start" | "open" | "check" | "close" | "status"];
+    if (!mapped) throw new Error(`unknown forge subcommand: ${subcommand}. Run 'wiki help' for usage.`);
     return { command: mapped, args: subArgs };
   }
   return { command, args: rest };

@@ -132,6 +132,14 @@ export async function writeNavigationIndex(project: string) {
   return targets;
 }
 
+export async function writeNamedNavigationTargets(project: string, targetPaths: string[]) {
+  const wanted = new Set(targetPaths);
+  const plan = await buildIndexPlan(project, false);
+  const targets = plan.targets.filter((target) => isNavigationIndexPath(target.path) && wanted.has(target.path));
+  await applyIndexPlan({ targets });
+  return targets;
+}
+
 function normalizeBody(text: string) {
   return text.replace(/\r\n/g, "\n").trimEnd();
 }

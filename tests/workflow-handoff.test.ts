@@ -60,7 +60,7 @@ describe("wiki workflow handoff improvements", () => {
     expect(json.sections.Todo.some((item: { blockedBy: string[] }) => JSON.stringify(item.blockedBy) === JSON.stringify(["DEMO-001"]))).toBe(true);
   });
 
-  test("gate warns about backlog consistency drift and supports structural refactor mode", () => {
+  test("gate relies on slice lifecycle truth and supports structural refactor mode", () => {
     const vault = tempDir("wiki-vault");
     const repo = tempDir("wiki-repo-structural");
     initVault(vault);
@@ -87,7 +87,7 @@ describe("wiki workflow handoff improvements", () => {
     expect(failing.exitCode).toBe(1);
     const failingJson = JSON.parse(failing.stdout.toString());
     expect(failingJson.blockers[0]).toContain("changed code file(s)");
-    expect(failingJson.warnings.some((warning: string) => warning.includes("marked done in slice docs"))).toBe(true);
+    expect(failingJson.warnings.some((warning: string) => warning.includes("marked done in slice docs"))).toBe(false);
 
     const structural = runWiki(["gate", "demo", "--repo", repo, "--base", "HEAD~1", "--structural-refactor", "--json"], env);
     expect(structural.exitCode).toBe(0);
@@ -139,11 +139,16 @@ describe("wiki workflow handoff improvements", () => {
     expect(prompt.exitCode).toBe(0);
     expect(prompt.stdout.toString()).toContain("You are pi continuing a tracked wiki-forge slice.");
     expect(prompt.stdout.toString()).toContain("src/auth.ts");
+    expect(prompt.stdout.toString()).toContain("Protocol reminders:");
+    expect(prompt.stdout.toString()).toContain("Use `/forge` for non-trivial implementation work.");
+    expect(prompt.stdout.toString()).toContain("wiki start-slice demo <slice-id> --agent <name> --repo <path>");
 
     const resume = runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
     expect(resume.exitCode).toBe(0);
     const json = JSON.parse(resume.stdout.toString());
     expect(json.activeTask.id).toBe("DEMO-001");
+    expect(json.triage.kind).toBe("repair-slice-local");
+    expect(json.triage.command).toContain("wiki forge check demo DEMO-001");
     expect(json.dirty.modifiedFiles).toContain("src/auth.ts");
     expect(json.recentCommits.length).toBeGreaterThan(0);
   });

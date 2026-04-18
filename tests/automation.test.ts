@@ -172,6 +172,7 @@ describe("wiki automation commands", () => {
     expect(maintainJson.refreshFromGit.changedFiles).toContain("src/payments.ts");
     expect(maintainJson.refreshFromGit.changedFiles).toContain("tests/payments.test.ts");
     expect(maintainJson.refreshFromGit.impactedPages[0].page).toBe("modules/payments/spec.md");
+    expect(maintainJson.actions.some((action: { kind: string; scope?: string }) => action.kind === "review-page" && action.scope === "slice")).toBe(true);
 
     const closeout = runWiki(["closeout", "gated", "--repo", repo, "--worktree", "--json"], env);
     expect(closeout.exitCode).toBe(1);
@@ -398,7 +399,7 @@ describe("wiki automation commands", () => {
     expect(verbose.stdout.toString()).toContain("impacted: modules/payments/spec.md");
   });
 
-  test("verify-page --all preserves stronger verification levels", () => {
+  test("verify-page preserves stronger verification levels unless downgrade is explicit", () => {
     const vault = tempDir("wiki-vault");
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
 
@@ -409,12 +410,22 @@ describe("wiki automation commands", () => {
     const before = readFileSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "test-plan.md"), "utf8");
     expect(before).toContain("verification_level: test-verified");
 
-    const result = runWiki(["verify-page", "demo", "--all", "code-verified"], env);
-    expect(result.exitCode).toBe(0);
-    expect(result.stdout.toString()).toContain("skipped projects/demo/specs/slices/DEMO-001/test-plan.md (kept stronger verification_level: test-verified)");
+    const bulkResult = runWiki(["verify-page", "demo", "--all", "code-verified"], env);
+    expect(bulkResult.exitCode).toBe(0);
+    expect(bulkResult.stdout.toString()).toContain("skipped projects/demo/specs/slices/DEMO-001/test-plan.md (kept stronger verification_level: test-verified)");
+
+    const singleResult = runWiki(["verify-page", "demo", "specs/slices/DEMO-001/test-plan.md", "code-verified"], env);
+    expect(singleResult.exitCode).toBe(0);
+    expect(singleResult.stdout.toString()).toContain("kept stronger verification_level: test-verified");
+
+    const preserved = readFileSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "test-plan.md"), "utf8");
+    expect(preserved).toContain("verification_level: test-verified");
+
+    const downgradeResult = runWiki(["verify-page", "demo", "--allow-downgrade", "specs/slices/DEMO-001/test-plan.md", "code-verified"], env);
+    expect(downgradeResult.exitCode).toBe(0);
 
     const after = readFileSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "test-plan.md"), "utf8");
-    expect(after).toContain("verification_level: test-verified");
+    expect(after).toContain("verification_level: code-verified");
     const summary = readFileSync(join(vault, "projects", "demo", "_summary.md"), "utf8");
     expect(summary).toContain("verification_level: code-verified");
   });

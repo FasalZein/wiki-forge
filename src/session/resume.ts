@@ -66,6 +66,7 @@ export async function resumeProject(args: string[]) {
     }
   }
 
+  const actions = maintain.actions.slice(0, 8);
   const payload = {
     project: options.project,
     repo,
@@ -77,7 +78,8 @@ export async function resumeProject(args: string[]) {
     recentCommits,
     stalePages,
     recentNotes,
-    actions: maintain.actions.slice(0, 8),
+    actions,
+    triage: classifyResumeTriage(options.project, repo, maintain.focus.activeTask, maintain.focus.recommendedTask, actions),
     ...(handoverMeta ? { lastHandover: { path: relative(VAULT_ROOT, latestHandoverPath!), ...handoverMeta } } : {}),
   };
   if (json) {
@@ -101,8 +103,54 @@ export async function resumeProject(args: string[]) {
   renderSessionActivity(sessionActivity);
   for (const page of stalePages) console.log(`- stale: ${page}`);
   for (const note of recentNotes) console.log(`- note: ${compactLogEntry(note)}`);
+  console.log(`- triage: ${payload.triage.kind} -> ${payload.triage.command}`);
+  console.log(`  reason: ${payload.triage.reason}`);
   if (payload.actions.length) {
     console.log(`- next actions:`);
-    for (const action of payload.actions) console.log(`  - [${action.kind}] ${action.message}`);
+    for (const action of payload.actions) console.log(`  - [${action.scope ?? "unspecified"}][${action.kind}] ${action.message}`);
   }
+}
+
+function classifyResumeTriage(
+  project: string,
+  repo: string,
+  activeTask: { id: string } | null | undefined,
+  nextTask: { id: string } | null | undefined,
+  actions: Array<{ kind: string; message: string; scope?: string }>,
+) {
+  if (activeTask) {
+    const sliceAction = actions.find((action) => action.scope === "slice" && action.kind !== "active-task");
+    if (sliceAction) {
+      return {
+        kind: "repair-slice-local",
+        reason: sliceAction.message,
+        command: `wiki forge check ${project} ${activeTask.id} --repo ${repo}`,
+      };
+    }
+    const parentAction = actions.find((action) => action.scope === "parent");
+    if (parentAction) {
+      return {
+        kind: "repair-parent",
+        reason: parentAction.message,
+        command: `wiki forge close ${project} ${activeTask.id} --repo ${repo}`,
+      };
+    }
+    return {
+      kind: "continue-active-slice",
+      reason: `active slice ${activeTask.id} is the current focus`,
+      command: `wiki forge check ${project} ${activeTask.id} --repo ${repo}`,
+    };
+  }
+  if (nextTask) {
+    return {
+      kind: "start-next-slice",
+      reason: `no slice is active; ${nextTask.id} is the next ready slice`,
+      command: `wiki forge start ${project} ${nextTask.id} --repo ${repo}`,
+    };
+  }
+  return {
+    kind: "maintain-project",
+    reason: "no active or ready slice was found",
+    command: `wiki maintain ${project} --repo ${repo} --base HEAD`,
+  };
 }

@@ -47,10 +47,10 @@ RIGHT (vertical):
 When implementing a wiki-tracked slice, TDD runs after slice docs are filled:
 
 ```text
-wiki start-slice <project> <slice-id> --agent <name> --repo <path>
+wiki forge start <project> <slice-id> --agent <name> --repo <path>
   -> fill plan.md and test-plan.md
   -> /tdd (this skill)
-  -> /wiki closeout sequence
+  -> wiki forge check / wiki forge close
 ```
 
 The test-plan.md provides the initial red tests. Use it as input but don't be rigid — the TDD loop may discover behaviors not anticipated in the plan.
@@ -61,7 +61,7 @@ Before starting:
 3. Read the source code that will be modified
 4. Confirm the interface design with the user
 
-After TDD is complete, hand off to the canonical 13-step closeout sequence from `/forge` under "Canonical Code-Driven Closeout Sequence". Do not maintain a parallel copy here — the forge sequence is the source of truth and includes `verify-page test-verified` promotion plus `feature-status` reconciliation, which abbreviated lists routinely miss.
+After TDD is complete, hand off to the grouped forge close path from `/forge`: `wiki forge check`, fix anything it reports, then `wiki forge close`. Drop to lower-level wiki verbs only for repair/debug cases; `/forge` remains the source of truth for the happy path.
 
 ### Small scope (bug fix / focused refactor)
 

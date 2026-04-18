@@ -1,5 +1,7 @@
 import { join } from "node:path";
 import { requireValue } from "../cli-shared";
+import type { DiagnosticFinding } from "../lib/diagnostics";
+import { collectSliceLocalContext, fileMatchesSliceClaims } from "../lib/slice-local";
 import { exists, readText } from "../lib/fs";
 import { resolveRepoPath, assertGitRepo } from "../lib/verification";
 import { resolveDefaultBase } from "../git-utils";
@@ -18,7 +20,9 @@ export async function gateProject(args: string[]) {
   const json = args.includes("--json");
   const structuralRefactor = args.includes("--structural-refactor");
   const worktree = args.includes("--worktree");
-  const result = await collectGate(project, base, repo, { structuralRefactor, worktree });
+  const sliceLocal = args.includes("--slice-local");
+  const sliceId = readFlagValue(args, "--slice-id");
+  const result = await collectGate(project, base, repo, { structuralRefactor, worktree, sliceLocal, sliceId });
   if (json) {
     console.log(JSON.stringify({ ...result, doctor: compactDoctorForJson(result.doctor) }, null, 2));
   } else {
@@ -29,53 +33,72 @@ export async function gateProject(args: string[]) {
     console.log(`- uncovered changed files: ${result.counts.uncoveredChangedFiles}`);
     if (result.blockers.length) {
       console.log(`- blockers:`);
-      for (const blocker of result.blockers) console.log(`  - ${blocker}`);
+      for (const finding of result.findings.filter((entry) => entry.severity === "blocker")) console.log(`  - [${finding.scope}] ${finding.message}`);
     }
     if (result.warnings.length) {
       console.log(`- warnings:`);
-      for (const warning of result.warnings) console.log(`  - ${warning}`);
+      for (const finding of result.findings.filter((entry) => entry.severity === "warning")) console.log(`  - [${finding.scope}] ${finding.message}`);
     }
   }
   if (!result.ok) throw new Error(`gate failed for ${project}`);
 }
 
-export async function collectGate(project: string, base: string, explicitRepo?: string, options: { structuralRefactor?: boolean; worktree?: boolean; precomputedCloseout?: Awaited<ReturnType<typeof collectCloseout>> } = {}) {
+export async function collectGate(project: string, base: string, explicitRepo?: string, options: { structuralRefactor?: boolean; worktree?: boolean; precomputedCloseout?: Awaited<ReturnType<typeof collectCloseout>>; sliceLocal?: boolean; sliceId?: string } = {}) {
   const doctor = await collectDoctor(project, base, explicitRepo, { worktree: options.worktree, precomputedRefreshFromGit: options.precomputedCloseout?.refreshFromGit });
   const repo = await resolveRepoPath(project, explicitRepo);
   await assertGitRepo(repo);
-  const blockers: string[] = [];
+  const findings: DiagnosticFinding[] = [];
+  const sliceLocalContext = options.sliceLocal && options.sliceId ? await collectSliceLocalContext(project, options.sliceId) : null;
   let structuralRefactor: Awaited<ReturnType<typeof collectStructuralRefactorStatus>> | null = null;
   if (doctor.counts.missingTests > 0) {
     if (options.structuralRefactor) {
       structuralRefactor = await collectStructuralRefactorStatus(repo, base);
       if (!structuralRefactor.ok) {
-        blockers.push(...structuralRefactor.blockers);
+        for (const blocker of structuralRefactor.blockers) findings.push({ scope: "slice", severity: "blocker", message: blocker });
       }
+    } else if (sliceLocalContext) {
+      const sliceMissingTests = doctor.maintain.refreshFromGit.testHealth.codeFilesWithoutChangedTests.filter((file) => fileMatchesSliceClaims(file, sliceLocalContext));
+      const otherMissingTests = doctor.maintain.refreshFromGit.testHealth.codeFilesWithoutChangedTests.filter((file) => !fileMatchesSliceClaims(file, sliceLocalContext));
+      if (sliceMissingTests.length > 0) findings.push({ scope: "slice", severity: "blocker", message: `${sliceMissingTests.length} changed code file(s) have no matching changed tests` });
+      if (otherMissingTests.length > 0) findings.push({ scope: "history", severity: "warning", message: `${otherMissingTests.length} changed file(s) outside the active slice also need test coverage` });
     } else {
-      blockers.push(`${doctor.counts.missingTests} changed code file(s) have no matching changed tests`);
+      findings.push({ scope: "slice", severity: "blocker", message: `${doctor.counts.missingTests} changed code file(s) have no matching changed tests` });
     }
   }
   let closeout;
   if (options.precomputedCloseout) {
     closeout = options.precomputedCloseout;
   } else if (options.worktree) {
-    closeout = await collectCloseout(project, base, explicitRepo, undefined, undefined, { worktree: true });
+    closeout = await collectCloseout(project, base, explicitRepo, undefined, undefined, { worktree: true, sliceLocal: options.sliceLocal, sliceId: options.sliceId });
   } else {
     closeout = null;
   }
-  if (closeout?.staleImpactedPages.length) blockers.push(`${closeout.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted`);
-  const warnings: string[] = [];
-  if (doctor.counts.lint > 0) warnings.push(`${doctor.counts.lint} structural lint issue(s)`);
-  if (doctor.counts.semantic > 0) warnings.push(`${doctor.counts.semantic} semantic lint issue(s)`);
-  if (!options.worktree && doctor.drift.stale > 0) warnings.push(`${doctor.drift.stale} impacted/bound page(s) are stale — run refresh, update docs, and verify-page before closeout`);
-  if (doctor.maintain.refreshFromGit.uncoveredFiles.length > 0) warnings.push(`${doctor.maintain.refreshFromGit.uncoveredFiles.length} changed file(s) are not covered by wiki bindings`);
-  if (doctor.counts.repoDocs > 0) warnings.push(`${doctor.counts.repoDocs} repo markdown doc(s) should live in the wiki vault`);
-  for (const warning of doctor.backlogConsistencyWarnings) warnings.push(warning);
-  if (structuralRefactor?.ok) warnings.push(`structural refactor exception: ${doctor.counts.missingTests} changed code file(s) skipped direct changed-test matching; typecheck/build/test parity remained intact`);
+  if (closeout?.staleImpactedPages.length && !options.sliceLocal) findings.push({ scope: "slice", severity: "blocker", message: `${closeout.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted` });
+  if (closeout && options.sliceLocal) {
+    for (const finding of closeout.findings.filter((finding) => finding.scope !== "slice" || finding.severity !== "blocker")) {
+      findings.push(finding);
+    }
+  }
+  if (doctor.counts.lint > 0) findings.push({ scope: "project", severity: "warning", message: `${doctor.counts.lint} structural lint issue(s)` });
+  if (doctor.counts.semantic > 0) findings.push({ scope: "project", severity: "warning", message: `${doctor.counts.semantic} semantic lint issue(s)` });
+  if (!options.worktree && doctor.drift.stale > 0) findings.push({ scope: "project", severity: "warning", message: `${doctor.drift.stale} impacted/bound page(s) are stale — run refresh, update docs, and verify-page before closeout` });
+  if (sliceLocalContext) {
+    const sliceUncovered = doctor.maintain.refreshFromGit.uncoveredFiles.filter((file) => fileMatchesSliceClaims(file, sliceLocalContext));
+    const otherUncovered = doctor.maintain.refreshFromGit.uncoveredFiles.filter((file) => !fileMatchesSliceClaims(file, sliceLocalContext));
+    if (sliceUncovered.length > 0) findings.push({ scope: "slice", severity: "warning", message: `${sliceUncovered.length} changed file(s) are not covered by wiki bindings` });
+    if (otherUncovered.length > 0) findings.push({ scope: "history", severity: "warning", message: `${otherUncovered.length} changed file(s) outside the active slice are not covered by wiki bindings` });
+  } else if (doctor.maintain.refreshFromGit.uncoveredFiles.length > 0) findings.push({ scope: "slice", severity: "warning", message: `${doctor.maintain.refreshFromGit.uncoveredFiles.length} changed file(s) are not covered by wiki bindings` });
+  if (doctor.counts.repoDocs > 0) findings.push({ scope: "project", severity: "warning", message: `${doctor.counts.repoDocs} repo markdown doc(s) should live in the wiki vault` });
+  for (const warning of doctor.backlogConsistencyWarnings) findings.push({ scope: "history", severity: "warning", message: warning });
+  for (const action of doctor.maintain.actions.filter((action) => action.scope === "parent")) findings.push({ scope: "parent", severity: "warning", message: action.message });
+  if (structuralRefactor?.ok) findings.push({ scope: "slice", severity: "warning", message: `structural refactor exception: ${doctor.counts.missingTests} changed code file(s) skipped direct changed-test matching; typecheck/build/test parity remained intact` });
+  const blockers = findings.filter((finding) => finding.severity === "blocker").map((finding) => finding.message);
+  const warnings = findings.filter((finding) => finding.severity === "warning").map((finding) => finding.message);
   return {
     project,
     base,
     ok: blockers.length === 0,
+    findings,
     blockers,
     warnings,
     counts: {
@@ -89,6 +112,13 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
     ...(closeout ? { closeout } : {}),
     ...(structuralRefactor ? { structuralRefactor } : {}),
   };
+}
+
+function readFlagValue(args: string[], flag: string) {
+  const index = args.indexOf(flag);
+  if (index < 0) return undefined;
+  const value = args[index + 1];
+  return value && !value.startsWith("--") ? value : undefined;
 }
 
 async function collectStructuralRefactorStatus(repo: string, base: string) {

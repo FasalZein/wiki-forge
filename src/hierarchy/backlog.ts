@@ -2,5 +2,5 @@
 export type { BacklogItem } from "./backlog-io";
 export { moveTaskToSection } from "./backlog-io";
 export type { TaskDocState, BacklogTaskContext, BacklogFocus } from "./backlog-collect";
-export { collectBacklog, collectBacklogView, collectBacklogFocus, collectTaskContextForId } from "./backlog-collect";
+export { collectBacklog, collectBacklogView, collectBacklogFocus, collectTaskContextForId, detectTaskDocState } from "./backlog-collect";
 export { backlogCommand, addTask, moveTask, completeTask } from "./backlog-commands";

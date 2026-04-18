@@ -2,6 +2,7 @@ import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { nowIso, orderFrontmatter, projectRoot, safeMatter } from "../cli-shared";
 import { ensureDir, exists, readText, writeText } from "../lib/fs";
+import { renderHandoverAlignmentReminder } from "../lib/protocol-source";
 import { tailLog } from "../lib/log";
 import { type SessionSummary, resolveAgent, resolveSessionId } from "../lib/tracker";
 import { assertGitRepo } from "../lib/verification";
@@ -127,7 +128,7 @@ export async function writeHandoverFile(result: HandoverResult, nextSessionPromp
   lines.push(`# Handover — ${date}`);
   lines.push("");
   lines.push("> [!note] Agent alignment");
-  lines.push("> Read **Next Session Priorities** below BEFORE the session-state sections. If this file is truncated, the priorities block is the minimum you need to resume work. Then load `/wiki` and `/forge` skills before continuing.");
+  lines.push(`> ${renderHandoverAlignmentReminder(result.project)}`);
   lines.push("");
   lines.push("## Next Session Priorities");
   lines.push("");

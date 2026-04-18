@@ -3,6 +3,7 @@ import { VAULT_ROOT } from "../constants";
 import { nowIso, requireValue } from "../cli-shared";
 import { exists, readText } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
+import { renderPromptProtocolReminders } from "../lib/protocol-source";
 import { extractShellCommandBlocks, readSliceHub, readSlicePlan, readSliceSourcePaths, readSliceTestPlan } from "../lib/slices";
 import { collectTaskContextForId } from "../hierarchy";
 
@@ -136,6 +137,7 @@ export function renderExecutionPrompt(input: {
   const title = typeof input.hub.data.title === "string" ? input.hub.data.title : input.sliceId;
   const assignee = typeof input.hub.data.assignee === "string" ? input.hub.data.assignee : null;
   const summaryBody = input.summary.replace(/^---[\s\S]*?---\s*/u, "").trim();
+  const protocolReminders = renderPromptProtocolReminders(input.project);
   const baseSections = [
     `Task: ${title}`,
     `Project: ${input.project}`,
@@ -158,6 +160,9 @@ export function renderExecutionPrompt(input: {
     "",
     "Verification:",
     ...(input.commands.length ? input.commands.map((command) => `- ${command}`) : ["- Fill verification commands before implementation ends."]),
+    "",
+    "Protocol reminders:",
+    ...protocolReminders.map((line) => `- ${line}`),
     "",
     "Rules:",
     "- Do not write ad hoc markdown into the project repo.",

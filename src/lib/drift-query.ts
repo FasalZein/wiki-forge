@@ -61,7 +61,11 @@ export async function collectDriftSummary(project: string, explicitRepo: string 
       if (!gitDate) { errors.push(`no git history for: ${sourcePath}`); continue; }
       if (gitDate > entry.wikiUpdated) driftedSources.push({ path: sourcePath, lastModified: gitDate.toISOString().slice(0, 10) });
     }
-    const status: DriftRow["status"] = renamedSources.length > 0 ? "renamed" : deletedSources.length > 0 ? "deleted" : errors.length > 0 && driftedSources.length === 0 ? "unknown" : driftedSources.length > 0 ? "stale" : "fresh";
+    let status: DriftRow["status"] = "fresh";
+    if (renamedSources.length > 0) status = "renamed";
+    else if (deletedSources.length > 0) status = "deleted";
+    else if (errors.length > 0 && driftedSources.length === 0) status = "unknown";
+    else if (driftedSources.length > 0) status = "stale";
     if (status === "stale") staleCount += 1; else if (status === "fresh") freshCount += 1; else if (status === "deleted") deletedCount += 1; else if (status === "renamed") renamedCount += 1; else unknownCount += 1;
     results.push({ wikiPage: entry.relPath, absolutePath: entry.file, updated: entry.wikiUpdated.toISOString().slice(0, 10), sourcePaths: entry.sourcePaths, currentLevel: entry.currentLevel, status, driftedSources, renamedSources, deletedSources, errors });
   }

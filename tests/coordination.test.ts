@@ -281,6 +281,53 @@ describe("wiki coordination commands", () => {
     expect(backlogJson.sections.Done[0].id).toBe("GATED-001");
   });
 
+  test("close-slice --slice-local ignores parent drift warnings", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "gated"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "gated");
+    expect(runWiki(["create-feature", "gated", "Payments"], env).exitCode).toBe(0);
+    expect(runWiki(["create-prd", "gated", "--feature", "FEAT-001", "Payments"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "gated", "payments slice", "--prd", "PRD-001"], env).exitCode).toBe(0);
+    const featurePath = join(vault, "projects", "gated", "specs", "features", "FEAT-001-payments.md");
+    const prdPath = join(vault, "projects", "gated", "specs", "prds", "PRD-001-payments.md");
+    writeFileSync(featurePath, readFileSync(featurePath, "utf8").replace("status: draft", "status: complete"), "utf8");
+    writeFileSync(prdPath, readFileSync(prdPath, "utf8").replace("status: draft", "status: complete"), "utf8");
+    writeFileSync(join(vault, "projects", "gated", "specs", "slices", "GATED-001", "plan.md"), "---\ntitle: GATED-001 payments slice\ntype: spec\nspec_kind: plan\nproject: gated\ntask_id: GATED-001\nparent_prd: PRD-001\nparent_feature: FEAT-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# GATED-001 payments slice\n\n## Scope\n\n- Ship the payments change\n", "utf8");
+    writeFileSync(join(vault, "projects", "gated", "specs", "slices", "GATED-001", "test-plan.md"), "---\ntitle: GATED-001 payments slice\ntype: spec\nspec_kind: test-plan\nproject: gated\ntask_id: GATED-001\nparent_prd: PRD-001\nparent_feature: FEAT-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# GATED-001 payments slice\n\n## Verification Commands\n\n```bash\n# label: payments tests\nbun test tests/payments.test.ts\n```\n", "utf8");
+    expect(runWiki(["bind", "gated", "specs/slices/GATED-001/index.md", "src/payments.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["move-task", "gated", "GATED-001", "--to", "In Progress"], env).exitCode).toBe(0);
+    expect(runWiki(["verify-slice", "gated", "GATED-001", "--repo", repo], env).exitCode).toBe(0);
+
+    const result = runWiki(["close-slice", "gated", "GATED-001", "--repo", repo, "--worktree", "--slice-local", "--json"], env);
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.closed).toBe(true);
+  });
+
+  test("close-slice auto-heals backlog drift from canonical slice state", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "gated"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "gated");
+    expect(runWiki(["create-issue-slice", "gated", "payments slice"], env).exitCode).toBe(0);
+    writeFileSync(join(vault, "projects", "gated", "specs", "slices", "GATED-001", "index.md"), readFileSync(join(vault, "projects", "gated", "specs", "slices", "GATED-001", "index.md"), "utf8").replace("status: draft", "status: in-progress\nstarted_at: 2026-04-17T00:00:00.000Z"), "utf8");
+    writeFileSync(join(vault, "projects", "gated", "specs", "slices", "GATED-001", "plan.md"), "---\ntitle: GATED-001 payments slice\ntype: spec\nspec_kind: plan\nproject: gated\ntask_id: GATED-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# GATED-001 payments slice\n\n## Scope\n\n- Ship the payments change\n", "utf8");
+    writeFileSync(join(vault, "projects", "gated", "specs", "slices", "GATED-001", "test-plan.md"), "---\ntitle: GATED-001 payments slice\ntype: spec\nspec_kind: test-plan\nproject: gated\ntask_id: GATED-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# GATED-001 payments slice\n\n## Verification Commands\n\n```bash\n# label: payments tests\nbun test tests/payments.test.ts\n```\n", "utf8");
+    expect(runWiki(["bind", "gated", "specs/slices/GATED-001/index.md", "src/payments.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["verify-slice", "gated", "GATED-001", "--repo", repo], env).exitCode).toBe(0);
+
+    const result = runWiki(["close-slice", "gated", "GATED-001", "--repo", repo, "--worktree", "--json"], env);
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.closed).toBe(true);
+
+    const backlog = JSON.parse(runWiki(["backlog", "gated", "--json"], env).stdout.toString());
+    expect(backlog.sections.Done[0].id).toBe("GATED-001");
+  });
+
   test("close-slice blocks when verified code changes again in the worktree", () => {
     const { vault, repo } = setupPassingRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
@@ -319,5 +366,23 @@ describe("wiki coordination commands", () => {
     const result = runWiki(["close-slice", "gated", "GATED-001", "--repo", repo, "--base", "HEAD~1", "--json"], env);
     expect(result.exitCode).toBe(1);
     expect(result.stderr.toString()).toContain("test-plan must be test-verified");
+  });
+
+  test("close-slice requires structured verification evidence", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "gated"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "gated");
+    expect(runWiki(["create-issue-slice", "gated", "payments slice"], env).exitCode).toBe(0);
+    writeFileSync(join(vault, "projects", "gated", "specs", "slices", "GATED-001", "plan.md"), "---\ntitle: GATED-001 payments slice\ntype: spec\nspec_kind: plan\nproject: gated\ntask_id: GATED-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# GATED-001 payments slice\n\n## Scope\n\n- Ship the payments change\n", "utf8");
+    writeFileSync(join(vault, "projects", "gated", "specs", "slices", "GATED-001", "test-plan.md"), "---\ntitle: GATED-001 payments slice\ntype: spec\nspec_kind: test-plan\nproject: gated\ntask_id: GATED-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# GATED-001 payments slice\n\n## Verification Commands\n\n```bash\nbun test tests/payments.test.ts\n```\n", "utf8");
+    expect(runWiki(["bind", "gated", "specs/slices/GATED-001/index.md", "src/payments.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["move-task", "gated", "GATED-001", "--to", "In Progress"], env).exitCode).toBe(0);
+    expect(runWiki(["verify-page", "gated", "specs/slices/GATED-001/test-plan.md", "test-verified"], env).exitCode).toBe(0);
+
+    const result = runWiki(["close-slice", "gated", "GATED-001", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr.toString()).toContain("missing structured verification evidence");
   });
 });

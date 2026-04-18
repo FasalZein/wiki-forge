@@ -38,7 +38,28 @@ export type BacklogFocus = {
 export async function collectBacklog(project: string) {
   const backlogPath = await backlogPathFor(project);
   const parsed = parseBacklog(await readNormalizedText(backlogPath));
-  return { project, backlogPath: relative(VAULT_ROOT, backlogPath), sections: parsed.sections };
+  const sections = await projectBacklogSections(project, parsed.sections);
+  return { project, backlogPath: relative(VAULT_ROOT, backlogPath), sections };
+}
+
+async function projectBacklogSections(project: string, sections: Record<string, BacklogItem[]>) {
+  const projected: Record<string, BacklogItem[]> = {};
+  for (const section of Object.keys(sections)) projected[section] = [];
+  const entries = Object.entries(sections).flatMap(([section, items]) => items.map((item) => ({ section, item })));
+  const summaries = await Promise.all(entries.map(({ item }) => readSliceSummary(project, item.id)));
+  for (let index = 0; index < entries.length; index += 1) {
+    const { section, item } = entries[index];
+    const projectedSection = projectTaskSectionFromSliceSummary(section, summaries[index]?.status ?? null, summaries[index]?.completedAt ?? null);
+    projected[projectedSection] = projected[projectedSection] ?? [];
+    projected[projectedSection].push(item);
+  }
+  return projected;
+}
+
+function projectTaskSectionFromSliceSummary(section: string, status: string | null, completedAt: string | null) {
+  if (status === "done" || completedAt) return "Done";
+  if (status === "in-progress") return "In Progress";
+  return section;
 }
 
 export async function collectBacklogView(project: string, assignee?: string) {

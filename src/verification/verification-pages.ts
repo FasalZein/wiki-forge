@@ -69,7 +69,8 @@ function normalizeSourcePaths(sourcePaths: string[]) {
 
 export async function verifyPage(args: string[]) {
   const dryRun = args.includes("--dry-run");
-  const filteredArgs = args.filter((arg) => arg !== "--dry-run");
+  const allowDowngrade = args.includes("--allow-downgrade");
+  const filteredArgs = args.filter((arg) => arg !== "--dry-run" && arg !== "--allow-downgrade");
   const project = filteredArgs[0];
   requireValue(project, "project");
   if (filteredArgs[1] === "--all") {
@@ -79,7 +80,7 @@ export async function verifyPage(args: string[]) {
     const pages = await walkMarkdown(projectRoot(project));
     let updatedCount = 0;
     for (const page of pages) {
-      if (await applyVerificationLevel(page, levelArg, dryRun, relative(VAULT_ROOT, page), false, { preserveStrongerLevels: true })) updatedCount += 1;
+      if (await applyVerificationLevel(page, levelArg, dryRun, relative(VAULT_ROOT, page), false, { allowDowngrade })) updatedCount += 1;
     }
     return console.log(`${dryRun ? "would update" : "updated"} ${updatedCount} page(s) for ${project}`);
   }
@@ -92,7 +93,7 @@ export async function verifyPage(args: string[]) {
   for (const pageArg of pageArgs) {
     const wikiFilePath = await resolveWikiPagePath(projectRoot(project), pageArg);
     await assertExists(wikiFilePath, `wiki page not found: ${relative(VAULT_ROOT, wikiFilePath)}`);
-    if (await applyVerificationLevel(wikiFilePath, level, dryRun, relative(VAULT_ROOT, wikiFilePath))) updatedCount += 1;
+    if (await applyVerificationLevel(wikiFilePath, level, dryRun, relative(VAULT_ROOT, wikiFilePath), false, { allowDowngrade })) updatedCount += 1;
   }
   if (pageArgs.length > 1) console.log(`${dryRun ? "would update" : "updated"} ${updatedCount} page(s) for ${project}`);
 }

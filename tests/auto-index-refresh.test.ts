@@ -63,10 +63,14 @@ describe("maintain + closeout auto-refresh navigation index (WIKI-FORGE-105)", (
     writeFileSync(specIndex, raw.replace(/^# .*$/m, "# STALE HEADING"), "utf8");
 
     const closeout = runWiki(["closeout", "autoidx3", "--repo", repo, "--base", "HEAD~1", "--json"], env);
-    // closeout may fail on other signals; we just care about indexRefresh presence
+    // closeout may fail on other signals; we just care about the index refresh result
     const closeoutJson = JSON.parse(closeout.stdout.toString());
-    expect(closeoutJson.indexRefresh).toBeDefined();
-    expect(closeoutJson.indexRefresh.written).toContain("projects/autoidx3/specs/index.md");
+    expect(closeoutJson.indexRefresh.stale).toEqual(expect.arrayContaining([
+      "projects/autoidx3/specs/index.md",
+    ]));
+    expect(closeoutJson.indexRefresh.written).toEqual(expect.arrayContaining([
+      "projects/autoidx3/specs/index.md",
+    ]));
     expect(readFileSync(specIndex, "utf8")).toContain("# autoidx3 Index");
   });
 

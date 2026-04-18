@@ -9,11 +9,13 @@ afterEach(() => {
 });
 
 describe("repo markdown allowlist", () => {
-  test("listRepoMarkdownDocs skips skills/ subtree entirely", async () => {
+  test("listRepoMarkdownDocs skips skills/ and .desloppify/ subtrees", async () => {
     const repo = tempDir("wiki-repo-skills");
     mkdirSync(join(repo, "skills", "tdd"), { recursive: true });
     writeFileSync(join(repo, "skills", "tdd", "SKILL.md"), "# skill\n", "utf8");
     writeFileSync(join(repo, "skills", "tdd", "companion.md"), "# companion\n", "utf8");
+    mkdirSync(join(repo, ".desloppify", "reports"), { recursive: true });
+    writeFileSync(join(repo, ".desloppify", "reports", "latest.report.md"), "# report\n", "utf8");
     mkdirSync(join(repo, "docs"), { recursive: true });
     writeFileSync(join(repo, "docs", "guide.md"), "# guide\n", "utf8");
     runGit(repo, ["init", "-q"]);
@@ -22,6 +24,7 @@ describe("repo markdown allowlist", () => {
 
     const docs = await listRepoMarkdownDocs(repo);
     expect(docs.some((p) => p.startsWith("skills/"))).toBe(false);
+    expect(docs.some((p) => p.startsWith(".desloppify/"))).toBe(false);
     expect(docs).toContain("docs/guide.md");
   });
 

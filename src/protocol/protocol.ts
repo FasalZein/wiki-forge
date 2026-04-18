@@ -1,15 +1,10 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { orderFrontmatter, projectRoot, requireValue } from "../cli-shared";
+import { projectRoot, requireValue, safeMatter } from "../cli-shared";
 import { VAULT_ROOT } from "../constants";
-import { safeMatter } from "../cli-shared";
-import { resolveRepoPath } from "../lib/verification";
 import { exists, readText } from "../lib/fs";
-
-type ProtocolScope = {
-  path: string;
-  scope: string;
-};
+import { type ProtocolScope, PROTOCOL_FILES, START_MARKER, END_MARKER, renderProtocolSurface } from "../lib/protocol-source";
+import { resolveRepoPath } from "../lib/verification";
 
 type ProtocolAuditRow = {
   scope: string;
@@ -18,10 +13,6 @@ type ProtocolAuditRow = {
   status: "ok" | "missing" | "stale";
 };
 
-const PROTOCOL_FILES = ["AGENTS.md", "CLAUDE.md"] as const;
-const START_MARKER = "<!-- wiki-forge:agent-protocol:start -->";
-const END_MARKER = "<!-- wiki-forge:agent-protocol:end -->";
-const PROTOCOL_VERSION = 2;
 
 export async function syncProtocol(args: string[]) {
   const project = args[0];
@@ -36,7 +27,7 @@ export async function syncProtocol(args: string[]) {
     for (const file of PROTOCOL_FILES) {
       const path = protocolFilePath(repo, scope.path, file);
       mkdirSync(dirname(path), { recursive: true });
-      const next = renderProtocolFile(project, scope);
+      const next = renderProtocolSurface(project, scope);
       const current = await exists(path) ? await readText(path) : "";
       const remainder = current ? extractRemainder(current) : "";
       const output = `${next}${remainder ? `\n\n${remainder.trimStart()}` : ""}`.trimEnd() + "\n";
@@ -64,7 +55,7 @@ export async function auditProtocol(args: string[]) {
   const rows: ProtocolAuditRow[] = [];
 
   for (const scope of scopes) {
-    const expected = renderProtocolFile(project, scope);
+    const expected = renderProtocolSurface(project, scope);
     for (const file of PROTOCOL_FILES) {
       const path = protocolFilePath(repo, scope.path, file);
       const rel = relative(repo, path).replaceAll("\\", "/") || file;
@@ -132,72 +123,6 @@ function normalizeScopePath(path: string) {
 
 function protocolFilePath(repo: string, scopePath: string, file: string) {
   return join(repo, scopePath === "." ? "" : scopePath, file);
-}
-
-function renderProtocolFile(project: string, scope: ProtocolScope) {
-  const data = orderFrontmatter({
-    managed_by: "wiki-forge",
-    protocol_version: PROTOCOL_VERSION,
-    project,
-    scope: scope.scope,
-    applies_to: scope.path,
-  }, ["managed_by", "protocol_version", "project", "scope", "applies_to"]);
-  const frontmatter = [
-    "---",
-    ...Object.entries(data).flatMap(([key, value]) => Array.isArray(value)
-      ? [`${key}:`, ...value.map((item) => `  - ${item}`)]
-      : [`${key}: ${String(value)}`]),
-    "---",
-    "",
-  ].join("\n");
-  const scopeLine = scope.scope === "root" ? "Scope: repo root" : `Scope: ${scope.scope}`;
-  return [
-    frontmatter.trimEnd(),
-    START_MARKER,
-    "# Agent Protocol",
-    "",
-    "> Managed by wiki-forge. Keep local repo-specific notes below the managed block.",
-    "> `AGENTS.md` and `CLAUDE.md` carry the same sync-managed protocol block. Do not treat them as separate policy sources.",
-    "",
-    `${scopeLine}`,
-    "",
-    "Use `/forge` for non-trivial implementation work.",
-    "Use `/wiki` for retrieval, refresh, drift, verification, and closeout review.",
-    "If slash-skill aliases are unavailable, run the equivalent `wiki` CLI lifecycle directly.",
-    "`wiki protocol sync` only syncs this managed block; it does not enforce behavior or sync skill policy.",
-    "",
-    "## Code Quality",
-    "",
-    "Codex (GPT-5-class reviewer) reviews every change before it merges. Write as if a stricter reviewer is watching:",
-    "- Smaller, more focused diffs. Every changed line should trace to the task.",
-    "- Honest names. No `foo`, no `handleStuff`, no vague `utils`.",
-    "- Tight types. No `any`, no unchecked casts, no silent `as unknown as T`.",
-    "- Real error handling. No bare `catch {}`, no swallowed promises, no `throw new Error(\"TODO\")`.",
-    "- Tests that describe behavior, not implementation. Delete shallow tests you replace.",
-    "- Match the surrounding style even when you'd design differently.",
-    "",
-    "Sloppy code costs a review round-trip. Writing it right the first time is faster than arguing with a reviewer.",
-    "",
-    "## Wiki Protocol",
-    "",
-    "Before starting slice work:",
-    `- \`wiki start-slice ${project} <slice-id> --agent <name> --repo <path>\``,
-    "",
-    "During work:",
-    `- \`wiki checkpoint ${project} --repo <path>\``,
-    `- \`wiki lint-repo ${project} --repo <path>\``,
-    "",
-    "Before completion:",
-    `- \`wiki maintain ${project} --repo <path> --base <rev>\``,
-    `- update impacted wiki pages from code and tests`,
-    `- \`wiki verify-page ${project} <page...> <level>\``,
-    `- \`wiki verify-slice ${project} <slice-id> --repo <path>\``,
-    `- \`wiki closeout ${project} --repo <path> --base <rev>\``,
-    `- \`wiki gate ${project} --repo <path> --base <rev>\``,
-    `- \`wiki close-slice ${project} <slice-id> --repo <path> --base <rev>\``,
-    "",
-    END_MARKER,
-  ].join("\n");
 }
 
 function extractManagedBlock(content: string) {
