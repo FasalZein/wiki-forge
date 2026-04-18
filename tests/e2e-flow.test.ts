@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { cleanupTempPaths, runWiki, setRepoFrontmatter, setupPassingRepo } from "./test-helpers";
+import matter from "gray-matter";
+import { cleanupTempPaths, runGit, runWiki, setRepoFrontmatter, setupPassingRepo } from "./test-helpers";
 
 afterEach(() => {
   cleanupTempPaths();
@@ -222,5 +223,182 @@ describe("e2e full lifecycle", () => {
     const indexPath = join(vault, "projects", "autofull", "specs", "slices", "AUTOFULL-001", "index.md");
     const indexContent = readFileSync(indexPath, "utf8");
     expect(indexContent).toContain("pipeline_progress:");
+  });
+});
+
+describe("non-blocking workflow improvements", () => {
+  function setupSliceWithDocs(vault: string, repo: string, project: string, sliceId: string, env: Record<string, string>) {
+    const planPath = join(vault, "projects", project, "specs", "slices", sliceId, "plan.md");
+    const testPlanPath = join(vault, "projects", project, "specs", "slices", sliceId, "test-plan.md");
+    writeFileSync(planPath, `---\ntitle: ${sliceId}\ntype: spec\nspec_kind: plan\nproject: ${project}\ntask_id: ${sliceId}\nupdated: 2026-04-18\nstatus: current\n---\n\n# ${sliceId}\n\n## Scope\n\n- Ship the change\n`, "utf8");
+    writeFileSync(testPlanPath, `---\ntitle: ${sliceId}\ntype: spec\nspec_kind: test-plan\nproject: ${project}\ntask_id: ${sliceId}\nupdated: 2026-04-18\nstatus: current\n---\n\n# ${sliceId}\n\n## Red Tests\n\n- [x] Covered.\n\n## Verification Commands\n\n\`\`\`bash\n# label: payments tests\nbun test tests/payments.test.ts\n\`\`\`\n`, "utf8");
+    expect(runWiki(["bind", project, `specs/slices/${sliceId}/index.md`, "src/payments.ts"], env).exitCode).toBe(0);
+  }
+
+  test("slice-local scoping: vault-wide staleness does not block forge run", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "scopetest"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "scopetest");
+    expect(runWiki(["create-issue-slice", "scopetest", "scoped slice"], env).exitCode).toBe(0);
+    setupSliceWithDocs(vault, repo, "scopetest", "SCOPETEST-001", env);
+
+    // Create a stale wiki page unrelated to the slice
+    const unrelatedPath = join(vault, "projects", "scopetest", "modules");
+    mkdirSync(unrelatedPath, { recursive: true });
+    writeFileSync(join(unrelatedPath, "unrelated-module.md"), `---\ntitle: unrelated module\ntype: module\nproject: scopetest\nsource_paths:\n  - src/unrelated.ts\nupdated: '2020-01-01'\nverification_level: code-verified\n---\n\n# Unrelated Module\n\nThis page is stale — its source_paths point to files that don't exist.\n`, "utf8");
+
+    // forge run should succeed despite the stale unrelated page
+    const run = runWiki(["forge", "run", "scopetest", "SCOPETEST-001", "--repo", repo, "--json"], env);
+    expect(run.exitCode).toBe(0);
+    const json = JSON.parse(run.stdout.toString());
+    expect(json.check.ok).toBe(true);
+    expect(json.close.ok).toBe(true);
+
+    const backlog = JSON.parse(runWiki(["backlog", "scopetest", "--json"], env).stdout.toString());
+    expect(backlog.sections.Done[0].id).toBe("SCOPETEST-001");
+  });
+
+  test("test_exemptions: non-testable files do not block closeout", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    // Add a type-definitions file with no matching test
+    writeFileSync(join(repo, "src", "types.ts"), "export type PaymentStatus = 'pending' | 'paid'\n", "utf8");
+    runGit(repo, ["add", "."]);
+    runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "add types"]);
+
+    expect(runWiki(["scaffold-project", "exempttest"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "exempttest");
+    expect(runWiki(["create-issue-slice", "exempttest", "types slice"], env).exitCode).toBe(0);
+    setupSliceWithDocs(vault, repo, "exempttest", "EXEMPTTEST-001", env);
+
+    // Add test_exemptions to the slice index.md
+    const indexPath = join(vault, "projects", "exempttest", "specs", "slices", "EXEMPTTEST-001", "index.md");
+    const raw = readFileSync(indexPath, "utf8");
+    writeFileSync(indexPath, raw.replace("source_paths:", "test_exemptions:\n  - src/types.ts\nsource_paths:"), "utf8");
+
+    // Also bind types.ts so it's in the slice's claimed paths
+    expect(runWiki(["bind", "exempttest", "specs/slices/EXEMPTTEST-001/index.md", "src/types.ts"], env).exitCode).toBe(0);
+
+    // forge run should succeed — types.ts is exempt from test requirements
+    const run = runWiki(["forge", "run", "exempttest", "EXEMPTTEST-001", "--repo", repo, "--json"], env);
+    expect(run.exitCode).toBe(0);
+    const json = JSON.parse(run.stdout.toString());
+    expect(json.close.ok).toBe(true);
+  });
+
+  test("pipeline progress persists across forge run for session handoff", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "progresstest"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "progresstest");
+    expect(runWiki(["create-issue-slice", "progresstest", "progress slice"], env).exitCode).toBe(0);
+    setupSliceWithDocs(vault, repo, "progresstest", "PROGRESSTEST-001", env);
+
+    const run = runWiki(["forge", "run", "progresstest", "PROGRESSTEST-001", "--repo", repo, "--json"], env);
+    expect(run.exitCode).toBe(0);
+
+    // Read index.md and verify pipeline progress fields
+    const indexPath = join(vault, "projects", "progresstest", "specs", "slices", "PROGRESSTEST-001", "index.md");
+    const parsed = matter(readFileSync(indexPath, "utf8"));
+
+    expect(parsed.data.last_forge_ok).toBe(true);
+    expect(typeof parsed.data.last_forge_run).toBe("string");
+    expect(typeof parsed.data.last_forge_step).toBe("string");
+    expect(Array.isArray(parsed.data.pipeline_progress)).toBe(true);
+
+    const steps = parsed.data.pipeline_progress as Array<{ step: string; ok: boolean }>;
+    expect(steps.length).toBeGreaterThan(0);
+    expect(steps.every((s) => s.ok)).toBe(true);
+    expect(steps.some((s) => s.step === "checkpoint")).toBe(true);
+    expect(steps.some((s) => s.step === "close-slice")).toBe(true);
+  });
+
+  test("resume reads forge handoff data from previous pipeline run", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "resumetest"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "resumetest");
+    expect(runWiki(["create-issue-slice", "resumetest", "resume slice"], env).exitCode).toBe(0);
+    setupSliceWithDocs(vault, repo, "resumetest", "RESUMETEST-001", env);
+
+    // Run forge run to create handoff data
+    expect(runWiki(["forge", "run", "resumetest", "RESUMETEST-001", "--repo", repo], env).exitCode).toBe(0);
+
+    // Resume should show the last forge run status
+    const resume = runWiki(["resume", "resumetest", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(resume.exitCode).toBe(0);
+    const json = JSON.parse(resume.stdout.toString());
+    // The slice is done, so triage should reflect that
+    expect(json.project).toBe("resumetest");
+  });
+
+  test("forge status JSON is compact — no vault paths leaked", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "compacttest"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "compacttest");
+    expect(runWiki(["create-issue-slice", "compacttest", "compact slice"], env).exitCode).toBe(0);
+
+    const status = runWiki(["forge", "status", "compacttest", "COMPACTTEST-001", "--json"], env);
+    expect(status.exitCode).toBe(0);
+    const json = JSON.parse(status.stdout.toString());
+
+    // context should be compacted — no internal paths
+    expect(json.context).not.toHaveProperty("taskHubPath");
+    expect(json.context).not.toHaveProperty("planPath");
+    expect(json.context).not.toHaveProperty("testPlanPath");
+    expect(json.context).not.toHaveProperty("hasSliceDocs");
+    // but should have the useful fields
+    expect(json.context.id).toBe("COMPACTTEST-001");
+    expect(json.context).toHaveProperty("section");
+    expect(json.context).toHaveProperty("planStatus");
+    expect(json.context).toHaveProperty("testPlanStatus");
+  });
+
+  test("help output shows three-tier structure with no human-in-the-loop language", () => {
+    const result = runWiki(["help"]);
+    expect(result.exitCode).toBe(0);
+    const output = result.stdout.toString();
+
+    // Agent surface tier exists
+    expect(output).toContain("Agent Surface");
+    expect(output).toContain("wiki forge plan");
+    expect(output).toContain("wiki forge run");
+    expect(output).toContain("wiki forge next");
+
+    // No "human" language anywhere in help
+    expect(output).not.toContain("Human");
+    expect(output).not.toContain("human");
+
+    // Internal/Repair tier exists with debug commands
+    expect(output).toContain("Internal / Repair");
+    expect(output).toContain("wiki forge start");
+    expect(output).toContain("wiki forge check");
+
+    // Agent surface does NOT include start/check/close
+    const agentSection = output.split("Session:")[0];
+    expect(agentSection).not.toContain("wiki forge start");
+    expect(agentSection).not.toContain("wiki forge check");
+    expect(agentSection).not.toContain("wiki forge close");
+  });
+
+  test("protocol block contains only 3-command agent surface", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "prototest"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "prototest");
+    expect(runWiki(["protocol", "sync", "prototest", "--repo", repo], env).exitCode).toBe(0);
+
+    const agents = readFileSync(join(repo, "AGENTS.md"), "utf8");
+    expect(agents).toContain("wiki forge plan|run|next prototest");
+    expect(agents).not.toContain("start|check");
+    expect(agents).not.toContain("close|next|status");
   });
 });
