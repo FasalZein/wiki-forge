@@ -640,8 +640,8 @@ async function buildSlicePromptData(
     readMatter(testPlanPath),
     resolveRepoPath(project).catch(() => "<repo-path>"),
   ]);
-  const planSummary = planDoc?.content.trim() ?? "";
-  const testPlanSummary = testPlanDoc?.content.trim() ?? "";
+  const planSummary = compactDocSummary(planDoc?.content ?? "", ["Scope", "Acceptance Criteria"]);
+  const testPlanSummary = compactDocSummary(testPlanDoc?.content ?? "", ["Red Tests", "Verification Commands"]);
   const commands: string[] = [
     `wiki forge ${active ? "run" : "start"} ${project} ${sliceId} --repo ${repo}`,
   ];
@@ -688,6 +688,17 @@ async function forgeNextAll(project: string): Promise<void> {
     }),
   );
   console.log(JSON.stringify(results, null, 2));
+}
+
+function compactDocSummary(content: string, sections: string[]): string {
+  const lines: string[] = [];
+  for (const section of sections) {
+    const extracted = extractSection(content, section).trim();
+    if (!extracted) continue;
+    const sectionLines = extracted.split("\n").filter((l) => l.trim()).slice(0, 5);
+    lines.push(`${section}: ${sectionLines.join(" | ")}`);
+  }
+  return lines.join("\n") || "(empty)";
 }
 
 async function autoFillSliceDocs(project: string, sliceId: string, prdId: string): Promise<void> {

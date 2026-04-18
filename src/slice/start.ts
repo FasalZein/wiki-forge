@@ -117,7 +117,11 @@ export async function startSlice(args: string[]) {
   }
   console.log(`Started ${sliceId} (assignee: ${agent})`);
   console.log(`Dependencies: ${dependencySummary}`);
-  console.log(`Claim registered: ${sourcePaths.length ? sourcePaths.join(", ") : "none"}`);
+  if (sourcePaths.length) {
+    console.log(`Claim registered: ${sourcePaths.join(", ")}`);
+  } else {
+    console.log(`Claim: no source_paths bound — bind with: wiki bind ${project} specs/slices/${sliceId}/index.md <source-file>`);
+  }
   console.log("---");
   console.log(planSummary);
 }
