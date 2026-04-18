@@ -36,7 +36,17 @@ export async function collectCheckpoint(project: string, explicitRepo?: string, 
   const unboundFiles = new Set<string>();
   const pageStatuses = new Map<string, { page: string; matchedSourcePaths: Set<string>; lastSourceChangeMs: number; pageUpdatedMs: number | null; pageUpdated: string }>();
 
+  // F3: under --slice-local, only files owned by the slice's source_paths drive
+  // staleness. Without this, a broad-binding page (e.g. `architecture/src-layout.md`
+  // bound to every file in `src/`) amplifies any in-tree modification into a stale
+  // finding for every slice that overlaps `src/`.
+  const fileInScope = (file: string) => {
+    if (!sliceSourcePaths) return true;
+    return sliceSourcePaths.some((sliceSp) => bindingMatchesFile(sliceSp, file) || bindingMatchesFile(file, sliceSp));
+  };
+
   for (const file of snapshot.repoFiles ?? []) {
+    if (!fileInScope(file)) continue;
     const absolutePath = join(snapshot.repo, file);
     let mtimeMs = 0;
     try {
