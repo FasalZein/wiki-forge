@@ -8,6 +8,7 @@ import { exists, readText } from "../lib/fs";
 import { runPipeline } from "../lib/pipeline";
 import { collectCloseout, collectGate } from "../maintenance";
 import { type ForgeWorkflowLedger, validateForgeWorkflowLedger } from "../lib/forge-ledger";
+import { applyDerivedLedger } from "../lib/forge-ledger-detect";
 import { projectPrdsDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath } from "../lib/structure";
 import { collectBacklogFocus, collectBacklogView, collectTaskContextForId, detectTaskDocState, createFeatureReturningId, createPrdReturningId, moveTaskToSection } from "../hierarchy";
 import { appendLogEntry } from "../lib/log";
@@ -146,7 +147,7 @@ export async function collectForgeStatus(project: string, sliceId: string) {
       .filter((value): value is string => Boolean(value))
     : [];
   const tddReady = await detectTaskDocState(projectTaskTestPlanPath(project, sliceId)) === "ready" && Boolean(testPlan?.content.includes("## Red Tests"));
-  const ledger: ForgeWorkflowLedger = {
+  const authoredLedger: Partial<ForgeWorkflowLedger> = {
     project,
     sliceId,
     ...(parentPrd ? { parentPrd } : {}),
@@ -157,7 +158,17 @@ export async function collectForgeStatus(project: string, sliceId: string) {
     ...(tddReady ? { tdd: { completedAt: readUpdated(testPlan?.data), tddEvidence: [`projects/${project}/specs/slices/${sliceId}/test-plan.md#red-tests`] } } : {}),
     ...(verificationCommands.length ? { verify: { completedAt: readUpdated(testPlan?.data), verificationCommands } } : {}),
   };
-  const validation = validateForgeWorkflowLedger(ledger);
+  // PRD-056: merge artifact-detected ledger fields; authored fields win, derived fills gaps.
+  // applyDerivedLedger is safe even if detection fails (degrades gracefully).
+  let ledger: Partial<ForgeWorkflowLedger>;
+  try {
+    const { merged } = await applyDerivedLedger(authoredLedger, project, sliceId);
+    ledger = merged;
+  } catch {
+    // Detection failure degrades gracefully — fall back to authored ledger
+    ledger = authoredLedger;
+  }
+  const validation = validateForgeWorkflowLedger(ledger as ForgeWorkflowLedger);
   const verificationLevel = testPlan ? readVerificationLevel(testPlan.data) : null;
   return {
     project,
@@ -326,7 +337,7 @@ function renderForgePipeline(action: "check" | "close", workflow: Awaited<Return
   }
   if (review) {
     if (review.blockers.length) console.log(`- slice-local blockers: ${review.blockers.length}`);
-    for (const finding of review.findings.filter((finding) => finding.scope !== "slice" || finding.severity !== "blocker")) {
+    for (const finding of review.findings) {
       console.log(`- [${finding.scope}][${finding.severity}] ${finding.message}`);
     }
   }

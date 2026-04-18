@@ -10,6 +10,8 @@ import { assertGitRepo, resolveRepoPath } from "../lib/verification";
 import { collectMaintenancePlan } from "../maintenance";
 import { collectDriftSummary } from "../lib/drift-query";
 import { loadLintingSnapshot } from "../verification";
+import { applyDerivedLedger } from "../lib/forge-ledger-detect";
+import { validateForgeWorkflowLedger } from "../lib/forge-ledger";
 import {
   collectDirtyRepoStatus,
   collectRecentCommits,
@@ -48,6 +50,20 @@ export async function resumeProject(args: string[]) {
   const handoff = maintain.focus.activeTask
     ? await readSliceHandoff(options.project, maintain.focus.activeTask.id)
     : null;
+
+  // PRD-056: detect workflow next phase via artifact detection for the active/next slice.
+  // Degrades gracefully — never throws; null means detection was skipped or failed.
+  const focusSliceId = maintain.focus.activeTask?.id ?? maintain.focus.recommendedTask?.id ?? null;
+  let workflowNextPhase: string | null = null;
+  if (focusSliceId) {
+    try {
+      const { merged } = await applyDerivedLedger({}, options.project, focusSliceId);
+      workflowNextPhase = validateForgeWorkflowLedger({ project: options.project, sliceId: focusSliceId, ...merged }).nextPhase;
+    } catch {
+      // Detection failure is non-fatal; workflowNextPhase stays null
+    }
+  }
+
   const dirty = await collectDirtyRepoStatus(repo);
   const recentCommits = await collectRecentCommits(repo, 5);
   const stalePages = drift.results.filter((row) => row.status !== "fresh").slice(0, 10).map((row) => row.wikiPage);
@@ -93,6 +109,7 @@ export async function resumeProject(args: string[]) {
     actions,
     handoverStale,
     noHandoverButBreadcrumb,
+    ...(workflowNextPhase !== null ? { workflowNextPhase } : {}),
     triage: classifyResumeTriage(options.project, repo, options.base, maintain.focus.activeTask, maintain.focus.recommendedTask, actions, handoff),
     ...(handoff ? { lastForgeRun: handoff } : {}),
     ...(handoverMeta ? { lastHandover: { path: relative(VAULT_ROOT, latestHandoverPath!), ...handoverMeta } } : {}),
@@ -116,6 +133,9 @@ export async function resumeProject(args: string[]) {
   console.log(`resume for ${options.project}:`);
   if (payload.activeTask) console.log(`- active: ${payload.activeTask.id} ${payload.activeTask.title}`);
   else if (payload.nextTask) console.log(`- next: ${payload.nextTask.id} ${payload.nextTask.title}`);
+  if (payload.workflowNextPhase !== undefined) {
+    console.log(`- workflow next phase: ${payload.workflowNextPhase ?? "complete"}`);
+  }
   if (handoff) {
     console.log(`- last forge run: ${handoff.lastForgeOk ? "PASS" : "FAIL"} at ${handoff.lastForgeStep} (${handoff.lastForgeRun})`);
   }
