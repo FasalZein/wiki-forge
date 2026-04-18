@@ -26,8 +26,14 @@ async function findEntityFile(project: string, entityId: string, entityType: "fe
 }
 
 export async function computeEntityStatus(project: string, entityId: string, entityType: "feature" | "prd"): Promise<HierarchyStatus> {
+  let authoredStatus: string | null = null;
+  const entityFile = await findEntityFile(project, entityId, entityType);
+  if (entityFile) {
+    const parsedEntity = safeMatter(relative(VAULT_ROOT, entityFile), await readText(entityFile), { silent: true });
+    if (parsedEntity && typeof parsedEntity.data.status === "string") authoredStatus = parsedEntity.data.status;
+  }
   const slicesDir = projectSlicesDir(project);
-  if (!await exists(slicesDir)) return "not-started";
+  if (!await exists(slicesDir)) return computeStatus([], authoredStatus);
   const sliceFiles = await walkMarkdown(slicesDir);
   const slices: SliceState[] = [];
   for (const file of sliceFiles) {
@@ -44,7 +50,7 @@ export async function computeEntityStatus(project: string, entityId: string, ent
     const verificationLevel = readVerificationLevel(parsed.data);
     slices.push({ taskId, status, verificationLevel });
   }
-  return computeStatus(slices);
+  return computeStatus(slices, authoredStatus);
 }
 
 export async function lifecycleOpen(project: string, entityId: string, entityType: "feature" | "prd"): Promise<void> {

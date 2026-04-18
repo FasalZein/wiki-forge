@@ -33,12 +33,14 @@ type PrdEntry = {
   file: string;
   parentFeature: string | null;
   currentComputedStatus: string | null;
+  authoredStatus: string | null;
 };
 
 type FeatureEntry = {
   featureId: string;
   file: string;
   currentComputedStatus: string | null;
+  authoredStatus: string | null;
 };
 
 export async function collectFeatureStatuses(project: string): Promise<FeatureStatusRow[]> {
@@ -61,7 +63,8 @@ export async function collectFeatureStatuses(project: string): Promise<FeatureSt
     const featureId = typeof parsed.data.feature_id === "string" ? parsed.data.feature_id : null;
     if (!featureId) continue;
     const currentComputedStatus = typeof parsed.data.computed_status === "string" ? parsed.data.computed_status : null;
-    features.set(featureId, { featureId, file, currentComputedStatus });
+    const authoredStatus = typeof parsed.data.status === "string" ? parsed.data.status : null;
+    features.set(featureId, { featureId, file, currentComputedStatus, authoredStatus });
   }
 
   const prds = new Map<string, PrdEntry>();
@@ -74,7 +77,8 @@ export async function collectFeatureStatuses(project: string): Promise<FeatureSt
     if (!prdId) continue;
     const parentFeature = typeof parsed.data.parent_feature === "string" ? parsed.data.parent_feature : null;
     const currentComputedStatus = typeof parsed.data.computed_status === "string" ? parsed.data.computed_status : null;
-    prds.set(prdId, { prdId, file, parentFeature, currentComputedStatus });
+    const authoredStatus = typeof parsed.data.status === "string" ? parsed.data.status : null;
+    prds.set(prdId, { prdId, file, parentFeature, currentComputedStatus, authoredStatus });
   }
 
   const slices: SliceEntry[] = [];
@@ -121,11 +125,11 @@ export async function collectFeatureStatuses(project: string): Promise<FeatureSt
       return {
         prdId: prd.prdId,
         file: prd.file,
-        computedStatus: computeStatus(prdSlices),
+        computedStatus: computeStatus(prdSlices, prd.authoredStatus),
       };
     });
     const featureSlices = slicesByFeature.get(feature.featureId) ?? [];
-    const featureStatus = computeStatus(featureSlices);
+    const featureStatus = computeStatus(featureSlices, feature.authoredStatus);
     rows.push({ featureId: feature.featureId, file: feature.file, computedStatus: featureStatus, prds: prdRows });
   }
 

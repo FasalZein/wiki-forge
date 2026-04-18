@@ -113,9 +113,9 @@ They still exist, but they are not the primary operator surface anymore.
 `wiki forge run` handles the full closeout automatically. No manual steps needed.
 
 If you must drop lower for debugging:
-1. `wiki maintain`
-2. update impacted pages from code/tests
-3. `wiki verify-page`
+1. `wiki maintain` — also auto-resolves mechanical drift (FEAT-028): stamps `computed_status` on parent feature/PRD, cascade-refreshes pages whose `source_paths` still hash to `verified_against`, flips the backlog row of a cancelled slice to `[-]`, and advances the forge ledger phase from detected artifacts. Audit trail goes to `log.md` under `auto-heal | …`.
+2. update impacted pages from code/tests (only when sources genuinely changed — unchanged-source cascade is auto-handled above)
+3. `wiki verify-page` (when content actually drifted)
 4. `wiki verify-slice`
 5. `wiki closeout`
 6. `wiki gate`
@@ -125,7 +125,8 @@ Remember:
 - `closeout` is review, not completion by itself
 - `gate` must pass before declaring done
 - stronger verification levels are preserved unless explicitly downgraded
-- parent `computed_status` is derived, not manually authored truth
+- parent `computed_status` is derived, not manually authored truth — let `wiki maintain` persist it
+- ambiguous drift (e.g. children partly cancelled partly in-progress with a complete parent) still escalates as a `scope: parent` warning with inverse command hints; that one is intentionally agent-resolved, not auto-healed
 
 ## Hard Gates
 

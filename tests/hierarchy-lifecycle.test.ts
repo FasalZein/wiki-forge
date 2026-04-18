@@ -160,7 +160,9 @@ describe("wiki close-feature", () => {
     const result = runWiki(["close-feature", "proj", "FEAT-001", "--force", "--yes-really-force"], env);
     expect(result.exitCode).toBe(0);
     expect(result.stdout.toString()).toContain("closed feature FEAT-001 (forced)");
-    expect(result.stdout.toString()).toContain('computed_status="not-started"');
+    // Authored status is "in-progress" and there are no child slices yet —
+    // computed_status reflects the authored status (PRD-055 authored-wins semantics).
+    expect(result.stdout.toString()).toContain('computed_status="in-progress"');
 
     const content = readFileSync(join(featuresDir, "FEAT-001-alpha.md"), "utf8");
     expect(content).toContain("status: complete");
@@ -290,7 +292,9 @@ describe("wiki close-prd", () => {
     const result = runWiki(["close-prd", "proj", "PRD-001", "--force", "--yes-really-force"], env);
     expect(result.exitCode).toBe(0);
     expect(result.stdout.toString()).toContain("closed prd PRD-001 (forced)");
-    expect(result.stdout.toString()).toContain('computed_status="not-started"');
+    // Authored status is "in-progress" and there are no child slices yet —
+    // computed_status reflects the authored status (PRD-055 authored-wins semantics).
+    expect(result.stdout.toString()).toContain('computed_status="in-progress"');
 
     const content = readFileSync(join(prdsDir, "PRD-001-alpha.md"), "utf8");
     expect(content).toContain("status: complete");
