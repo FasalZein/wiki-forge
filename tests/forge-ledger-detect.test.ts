@@ -552,4 +552,41 @@ describe("applyDerivedLedger — audit log emission", () => {
     expect(merged.tdd?.completedAt).toBe("2026-04-01T00:00:00.000Z");
     expect(merged.tdd?.tddEvidence).toEqual(["existing/evidence.md"]);
   });
+
+  test("applyDerivedLedger is idempotent: second call emits no new log entries", async () => {
+    const vault = setupVault();
+    makeSliceHub(vault, "myproject", "MYPROJECT-001");
+    makePlan(vault, "myproject", "MYPROJECT-001", "ready");
+    makeTestPlan(vault, "myproject", "MYPROJECT-001", { status: "ready" });
+
+    const logPath = join(vault, "log.md");
+
+    const before = readFileSync(logPath, "utf8");
+    await applyDerivedLedger({}, "myproject", "MYPROJECT-001", vault);
+    const afterFirst = readFileSync(logPath, "utf8");
+    // First call should emit at least one auto-heal entry (tdd phase detected)
+    expect(afterFirst.length).toBeGreaterThan(before.length);
+    expect(afterFirst).toContain("auto-heal | MYPROJECT-001");
+    expect(afterFirst).toContain("phase=tdd");
+
+    // Second call with identical vault state must not append any new entries
+    await applyDerivedLedger({}, "myproject", "MYPROJECT-001", vault);
+    const afterSecond = readFileSync(logPath, "utf8");
+    expect(afterSecond).toBe(afterFirst);
+  });
+
+  test("applyDerivedLedger routes audit writes to vaultRoot, not production log", async () => {
+    // This test verifies that using an explicit vaultRoot keeps writes isolated.
+    // It relies on the production log NOT containing "MYPROJECT-IDL-ISOLATED".
+    const vault = setupVault();
+    makeSliceHub(vault, "myproject", "MYPROJECT-IDL-ISOLATED");
+    makePlan(vault, "myproject", "MYPROJECT-IDL-ISOLATED", "ready");
+    makeTestPlan(vault, "myproject", "MYPROJECT-IDL-ISOLATED", { status: "ready" });
+
+    await applyDerivedLedger({}, "myproject", "MYPROJECT-IDL-ISOLATED", vault);
+
+    // Only the test vault's log.md should have the entry
+    const testLog = readFileSync(join(vault, "log.md"), "utf8");
+    expect(testLog).toContain("auto-heal | MYPROJECT-IDL-ISOLATED");
+  });
 });

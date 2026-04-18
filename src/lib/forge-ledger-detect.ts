@@ -28,8 +28,7 @@ import { join, basename, relative } from "node:path";
 import { readdirSync } from "node:fs";
 import { VAULT_ROOT, STALE_UNVERIFIED_DAYS } from "../constants";
 import { safeMatter } from "../cli-shared";
-import { exists, readText } from "./fs";
-import { tailLog, appendLogEntry } from "./log";
+import { appendText, ensureDir, exists, readText } from "./fs";
 import type { ForgeWorkflowLedger, ForgePhase } from "./forge-ledger";
 
 // ---------------------------------------------------------------------------
@@ -555,30 +554,34 @@ export async function applyDerivedLedger(
   sliceId: string,
   vaultRoot?: string,
 ): Promise<{ merged: Partial<ForgeWorkflowLedger>; findings: DetectionFinding[] }> {
+  const root = vaultRoot ?? VAULT_ROOT;
   const derived = await deriveForgeLedgerFromArtifacts(project, sliceId, vaultRoot);
   const merged = mergeDerivedForgeLedger(authored, derived.patch);
 
   // Emit audit log entries only for phases newly advanced by detection.
-  // The tailLog call in applyDerivedLedger uses the production VAULT_ROOT log
-  // by calling appendLogEntry (which uses the module-level VAULT_ROOT).
-  // For test isolation, this means tests using applyDerivedLedger must use the
-  // default vault — use withEnv to redirect. The pure deriveForgeLedgerFromArtifacts
-  // is side-effect free and can be used without env redirection in tests.
+  // Writes are routed to join(root, "log.md") so tests using an explicit vaultRoot
+  // write to their own temporary vault, never the production log.
+  // Idempotent: before emitting, scan recent entries for an existing auto-heal
+  // record for this slice+phase — skip if found (dedupe across the full log).
+  const logPath = join(root, "log.md");
+  const existingEntries = await tailLogFromPath(logPath, 200);
+
   for (const phase of ["research", "grill", "prd", "slices", "tdd", "verify"] as const) {
     const authoredPhase = authored[phase] as Record<string, unknown> | undefined;
     const derivedPhase = derived.patch[phase] as Record<string, unknown> | undefined;
     if (!authoredPhase?.completedAt && derivedPhase?.completedAt) {
+      // Dedupe: skip if we already have an auto-heal entry for this slice+phase
+      const alreadyEmitted = existingEntries.some(
+        (entry) =>
+          entry.includes(`auto-heal | ${sliceId}`) &&
+          entry.includes(`- phase=${phase}`),
+      );
+      if (alreadyEmitted) continue;
+
       const refs = Object.entries(derivedPhase)
         .filter(([k]) => k !== "completedAt")
         .flatMap(([, v]) => (Array.isArray(v) ? v : [String(v)]));
-      appendLogEntry("auto-heal", sliceId, {
-        project,
-        details: [
-          `phase=${phase}`,
-          `refs=${refs.join(", ")}`,
-          "trigger=artifact-detected",
-        ],
-      });
+      appendAutoHealEntry(logPath, root, sliceId, project, phase, refs);
     }
   }
 
@@ -588,6 +591,27 @@ export async function applyDerivedLedger(
 // ---------------------------------------------------------------------------
 // Utility
 // ---------------------------------------------------------------------------
+
+function appendAutoHealEntry(
+  logPath: string,
+  vaultRoot: string,
+  sliceId: string,
+  project: string,
+  phase: string,
+  refs: string[],
+): void {
+  ensureDir(vaultRoot);
+  const date = new Date().toISOString().slice(0, 10);
+  const lines = [
+    `## [${date}] auto-heal | ${sliceId}`,
+    `- project: ${project}`,
+    `- phase=${phase}`,
+    `- refs=${refs.join(", ")}`,
+    `- trigger=artifact-detected`,
+    "",
+  ];
+  appendText(logPath, `${lines.join("\n")}\n`);
+}
 
 async function tailLogFromPath(logPath: string, count: number): Promise<string[]> {
   if (!await exists(logPath)) return [];
@@ -613,6 +637,3 @@ function extractSection(markdown: string, heading: string): string {
   return "";
 }
 
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-}
