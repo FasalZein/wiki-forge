@@ -53,7 +53,7 @@ function buildNextSessionPrompt(result: {
   if (result.focus.activeTask) {
     lines.push(`Active slice: ${result.focus.activeTask.id} — ${result.focus.activeTask.title}. Continue this first.`);
   } else if (result.focus.recommendedTask) {
-    lines.push(`Next slice: ${result.focus.recommendedTask.id} — ${result.focus.recommendedTask.title}. Start with wiki start-slice.`);
+    lines.push(`Next slice: ${result.focus.recommendedTask.id} — ${result.focus.recommendedTask.title}. Start with: wiki forge run ${result.project} ${result.focus.recommendedTask.id} --repo ${result.repo}`);
   }
   const priorityActions = result.actions.filter((a) => !a.kind.startsWith("move-doc")).slice(0, 3);
   if (priorityActions.length) {
@@ -103,8 +103,9 @@ export async function handoverProject(args: string[]) {
     try {
       const testPlan = await readSliceTestPlan(options.project, activeTask.id);
       testPlanLevel = readVerificationLevel(testPlan.data);
-    } catch {
-      // test-plan unreadable — leave testPlanLevel null, skip auto-close
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`handover: could not read test-plan for ${activeTask.id}: ${reason}\n`);
     }
     if (testPlanLevel === "test-verified") {
       const closeArgs = [
@@ -114,12 +115,20 @@ export async function handoverProject(args: string[]) {
         "--base", options.base,
         "--slice-local",
       ];
-      // Suppress closeSlice's own stdout so it doesn't corrupt --json output
+      // Suppress closeSlice's own stdout so it doesn't corrupt --json output.
+      // Hook both console.log and process.stdout.write — closeSlice uses the
+      // former today, but anything it delegates to could use the latter.
       const origLog = console.log;
+      const origWrite = process.stdout.write.bind(process.stdout);
+      const restore = () => {
+        console.log = origLog;
+        process.stdout.write = origWrite;
+      };
       try {
         console.log = () => {};
+        process.stdout.write = (() => true) as typeof process.stdout.write;
         await closeSlice(closeArgs);
-        console.log = origLog;
+        restore();
         process.stderr.write(`auto-closed ${activeTask.id}\n`);
         autoCloseAttempt = { sliceId: activeTask.id, attempted: true, closed: true };
         // Refresh maintain and backlog so the handover reflects the new state
@@ -128,7 +137,7 @@ export async function handoverProject(args: string[]) {
           collectBacklog(options.project),
         ]);
       } catch (err) {
-        console.log = origLog;
+        restore();
         const reason = err instanceof Error ? err.message : String(err);
         autoCloseAttempt = { sliceId: activeTask.id, attempted: true, closed: false, reason };
       }

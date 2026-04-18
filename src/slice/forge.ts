@@ -243,7 +243,7 @@ function buildForgeTriage(project: string, sliceId: string, input: { activeSlice
   return {
     kind: "open-slice",
     reason: `slice ${sliceId} is not the active slice`,
-    command: `wiki forge start ${project} ${sliceId} --repo <path>`,
+    command: `wiki forge run ${project} ${sliceId} --repo <path>`,
   };
 }
 

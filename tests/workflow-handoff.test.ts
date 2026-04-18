@@ -152,4 +152,55 @@ describe("wiki workflow handoff improvements", () => {
     expect(json.dirty.modifiedFiles).toContain("src/auth.ts");
     expect(json.recentCommits.length).toBeGreaterThan(0);
   });
+
+  test("resume routes to resume-failed-forge when breadcrumb reports a failed pipeline step", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice", "--assignee", "Pi"], env).exitCode).toBe(0);
+    expect(runWiki(["move-task", "demo", "DEMO-001", "--to", "In Progress"], env).exitCode).toBe(0);
+
+    const indexPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "index.md");
+    const indexRaw = readFileSync(indexPath, "utf8");
+    const withBreadcrumb = indexRaw.replace(
+      /^---\n/,
+      "---\nlast_forge_run: '2026-04-18T10:00:00.000Z'\nlast_forge_step: verify-slice\nlast_forge_ok: false\nnext_action: rerun verify-slice\nfailure_summary: verify-slice exited 1\n",
+    );
+    writeFileSync(indexPath, withBreadcrumb, "utf8");
+
+    const resume = runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(resume.exitCode).toBe(0);
+    const json = JSON.parse(resume.stdout.toString());
+    expect(json.triage.kind).toBe("resume-failed-forge");
+    expect(json.triage.reason).toContain("verify-slice");
+    expect(json.triage.command).toContain("wiki forge run demo DEMO-001");
+    expect(json.lastForgeRun.failureSummary).toBe("verify-slice exited 1");
+  });
+
+  test("resume warns when a pipeline breadcrumb exists but no handover file was written", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice"], env).exitCode).toBe(0);
+    expect(runWiki(["move-task", "demo", "DEMO-001", "--to", "In Progress"], env).exitCode).toBe(0);
+
+    const indexPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "index.md");
+    const withBreadcrumb = readFileSync(indexPath, "utf8").replace(
+      /^---\n/,
+      "---\nlast_forge_run: '2026-04-18T12:00:00.000Z'\nlast_forge_step: verify-slice\nlast_forge_ok: true\n",
+    );
+    writeFileSync(indexPath, withBreadcrumb, "utf8");
+
+    const json = JSON.parse(runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env).stdout.toString());
+    expect(json.noHandoverButBreadcrumb).toBe(true);
+    expect(json.lastForgeRun).toBeDefined();
+
+    const text = runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD~1"], env);
+    expect(text.exitCode).toBe(0);
+    expect(text.stdout.toString()).toContain("no handover file");
+  });
 });
