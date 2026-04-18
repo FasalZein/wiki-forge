@@ -210,7 +210,7 @@ function buildStepArgs(step: PipelineStepDef, options: RunPipelineOptions): stri
   if (options.repo) args.push("--repo", options.repo);
   if (options.base && !["update-index"].includes(step.command)) args.push("--base", options.base);
   if (options.worktree) args.push("--worktree");
-  if (options.sliceLocal && ["closeout", "gate", "close-slice"].includes(step.command)) {
+  if (options.sliceLocal && ["checkpoint", "closeout", "gate", "close-slice"].includes(step.command)) {
     args.push("--slice-local");
     if (step.command !== "close-slice") args.push("--slice-id", options.sliceId);
   }

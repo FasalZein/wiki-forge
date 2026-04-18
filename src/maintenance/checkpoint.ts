@@ -3,19 +3,33 @@ import { statSync } from "node:fs";
 import { fail } from "../cli-shared";
 import { parseUpdatedDate } from "../lib/verification";
 import { parseProjectRepoArgs, bindingMatchesFile } from "../git-utils";
+import { readFlagValue } from "../lib/cli-utils";
+import { readSliceSourcePaths } from "../lib/slices";
 import { loadProjectSnapshot } from "./_shared";
 
 export async function checkpoint(args: string[]) {
   const options = parseProjectRepoArgs(args);
   const json = args.includes("--json");
-  const result = await collectCheckpoint(options.project, options.repo);
+  const sliceLocal = args.includes("--slice-local");
+  const sliceId = readFlagValue(args, "--slice-id");
+  const result = await collectCheckpoint(options.project, options.repo, sliceLocal && sliceId ? { sliceId } : undefined);
   if (json) console.log(JSON.stringify(result, null, 2));
   else renderCheckpoint(result);
   if (!result.clean) fail(`checkpoint found ${result.stalePages.length} stale page(s) for ${options.project}`);
 }
 
-export async function collectCheckpoint(project: string, explicitRepo?: string) {
+export async function collectCheckpoint(project: string, explicitRepo?: string, sliceFilter?: { sliceId: string }) {
   const snapshot = await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
+  const sliceSourcePaths = sliceFilter
+    ? await readSliceSourcePaths(project, sliceFilter.sliceId)
+    : null;
+  const pageEntries = sliceSourcePaths
+    ? snapshot.pageEntries.filter((entry) =>
+        entry.sourcePaths.some((sp) =>
+          sliceSourcePaths.some((sliceSp) => bindingMatchesFile(sliceSp, sp) || bindingMatchesFile(sp, sliceSp)),
+        ),
+      )
+    : snapshot.pageEntries;
   const summaryEntry = snapshot.pageEntries.find((entry) => entry.relPath === "_summary.md");
   const projectUpdated = parseUpdatedDate(summaryEntry?.rawUpdated) ?? new Date(0);
   const modifiedFiles = new Set<string>();
@@ -30,7 +44,7 @@ export async function collectCheckpoint(project: string, explicitRepo?: string) 
     } catch {
       continue;
     }
-    const matchedEntries = snapshot.pageEntries.filter((entry) => entry.parsed && entry.sourcePaths.some((sourcePath) => bindingMatchesFile(sourcePath, file)));
+    const matchedEntries = pageEntries.filter((entry) => entry.parsed && entry.sourcePaths.some((sourcePath) => bindingMatchesFile(sourcePath, file)));
     if (mtimeMs > projectUpdated.getTime()) modifiedFiles.add(file);
     if (!matchedEntries.length) {
       if (mtimeMs > projectUpdated.getTime()) unboundFiles.add(file);

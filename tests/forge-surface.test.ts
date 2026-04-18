@@ -110,6 +110,41 @@ describe("wiki forge thin surface", () => {
     expect(backlog.sections["In Progress"][0].id).toBe("NEWPROJ-001");
   });
 
+  test("forge plan auto-fills plan.md and test-plan.md with status ready", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "newproj"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "newproj");
+
+    const plan = runWiki(["forge", "plan", "newproj", "Billing", "--agent", "codex", "--repo", repo], env);
+    expect(plan.exitCode).toBe(0);
+
+    const planPath = join(vault, "projects", "newproj", "specs", "slices", "NEWPROJ-001", "plan.md");
+    const testPlanPath = join(vault, "projects", "newproj", "specs", "slices", "NEWPROJ-001", "test-plan.md");
+    const planContent = readFileSync(planPath, "utf8");
+    const testPlanContent = readFileSync(testPlanPath, "utf8");
+
+    expect(planContent).toContain("status: ready");
+    expect(planContent).toContain("## Scope");
+    expect(planContent).toContain("## Acceptance Criteria");
+    expect(planContent).toContain("## Vertical Slice");
+
+    expect(testPlanContent).toContain("status: ready");
+    expect(testPlanContent).toContain("## Red Tests");
+    expect(testPlanContent).toContain("## Green Criteria");
+    expect(testPlanContent).toContain("All red tests pass");
+    expect(testPlanContent).toContain("bun test");
+    expect(testPlanContent).toContain("npx tsc --noEmit");
+
+    const statusResult = runWiki(["forge", "status", "newproj", "NEWPROJ-001", "--json"], env);
+    expect(statusResult.exitCode).toBe(0);
+    const statusJson = JSON.parse(statusResult.stdout.toString());
+    expect(statusJson.planStatus).toBe("ready");
+    expect(statusJson.testPlanStatus).toBe("ready");
+    expect(statusJson.triage.kind).not.toBe("fill-docs");
+  });
+
   test("forge plan accepts --feature to skip feature creation", () => {
     const { vault, repo } = setupPassingRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };

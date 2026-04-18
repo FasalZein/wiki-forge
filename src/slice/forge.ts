@@ -1,6 +1,6 @@
 import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
-import { requireValue, safeMatter } from "../cli-shared";
+import { nowIso, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { VAULT_ROOT } from "../constants";
 import { readVerificationLevel } from "../lib/verification";
 import { readFlagValue } from "../lib/cli-utils";
@@ -373,6 +373,8 @@ export async function forgePlan(args: string[]) {
       ...(parsed.agent ? ["--agent", parsed.agent] : []),
       ...(parsed.repo ? ["--repo", parsed.repo] : []),
     ]);
+    lastStep = "autofill-docs";
+    await autoFillSliceDocs(parsed.project, slice.taskId, prdId);
   } catch (error) {
     const artifacts: string[] = [];
     if (createdFeatureId) artifacts.push(`  feature: ${createdFeatureId}`);
@@ -478,6 +480,106 @@ export async function forgeNext(args: string[]) {
   }
 }
 
+async function autoFillSliceDocs(project: string, sliceId: string, prdId: string): Promise<void> {
+  const prdDoc = await readPlanningDoc(projectPrdsDir(project), prdId);
+  if (!prdDoc) {
+    console.warn(`[warn] PRD ${prdId} not found; skipping auto-fill for ${sliceId}`);
+    return;
+  }
+
+  const goals = extractSection(prdDoc.content, "Goals");
+  const userStories = extractSection(prdDoc.content, "User Stories");
+  const acceptance = extractSection(prdDoc.content, "Acceptance Criteria");
+  const problem = extractSection(prdDoc.content, "Problem");
+
+  const prdTitle = typeof prdDoc.data.title === "string" ? prdDoc.data.title.trim() : prdId;
+
+  // Build scope summary from PRD problem + title
+  const scopeBody = problem.trim()
+    ? `- ${prdTitle}: ${problem.split("\n").find((line) => line.trim()) ?? problem.trim()}`
+    : `- ${prdTitle}`;
+
+  // Build acceptance criteria from PRD acceptance criteria, then user stories, then goals as fallback
+  let criteriaLines: string[] = [];
+  if (acceptance.trim()) {
+    criteriaLines = acceptance.split("\n").filter((line) => line.trim());
+  } else if (userStories.trim()) {
+    criteriaLines = userStories
+      .split("\n")
+      .filter((line) => /^-\s+/u.test(line.trim()))
+      .map((line) => `- [ ] ${line.replace(/^-\s*/u, "").trim()}`);
+  } else if (goals.trim()) {
+    criteriaLines = goals
+      .split("\n")
+      .filter((line) => /^-\s+/u.test(line.trim()))
+      .map((line) => `- [ ] ${line.replace(/^-\s*/u, "").trim()}`);
+  }
+
+  if (!criteriaLines.length) criteriaLines = [`- [ ] implement requirements from ${prdTitle}`];
+
+  // Build vertical slice steps from acceptance criteria count
+  const stepCount = Math.min(Math.max(criteriaLines.length, 3), 5);
+  const verticalSliceLines = Array.from({ length: stepCount }, (_, i) => `${i + 1}. (fill in during TDD)`);
+
+  // Build red test placeholders from acceptance criteria
+  const redTestLines = criteriaLines.map((line) => {
+    const text = line.replace(/^-\s*\[[ x]\]\s*/u, "").replace(/^-\s*/u, "").trim();
+    return `- [ ] ${text}`;
+  });
+
+  await fillPlanDoc(project, sliceId, scopeBody, verticalSliceLines, criteriaLines);
+  await fillTestPlanDoc(project, sliceId, redTestLines);
+}
+
+async function fillPlanDoc(project: string, sliceId: string, scopeBody: string, verticalSliceLines: string[], criteriaLines: string[]): Promise<void> {
+  const planPath = projectTaskPlanPath(project, sliceId);
+  const raw = await readText(planPath);
+  const parsed = safeMatter(relative(VAULT_ROOT, planPath), raw, { silent: true });
+  if (!parsed) return;
+
+  let content = parsed.content;
+  content = replaceSection(content, "Scope", scopeBody);
+  content = replaceSection(content, "Vertical Slice", verticalSliceLines.join("\n"));
+  content = replaceSection(content, "Acceptance Criteria", criteriaLines.join("\n"));
+
+  const updatedData = { ...parsed.data, status: "ready", updated: nowIso() };
+  writeNormalizedPage(planPath, content, updatedData);
+}
+
+async function fillTestPlanDoc(project: string, sliceId: string, redTestLines: string[]): Promise<void> {
+  const testPlanPath = projectTaskTestPlanPath(project, sliceId);
+  const raw = await readText(testPlanPath);
+  const parsed = safeMatter(relative(VAULT_ROOT, testPlanPath), raw, { silent: true });
+  if (!parsed) return;
+
+  let content = parsed.content;
+  content = replaceSection(content, "Red Tests", redTestLines.join("\n"));
+  content = replaceSection(content, "Green Criteria", "- [ ] All red tests pass\n- [ ] No regressions in existing test suite");
+  content = replaceSection(content, "Refactor Checks", "- [ ] confirm no regressions in adjacent code paths");
+  content = replaceSection(content, "Verification Commands", "```bash\nbun test\nnpx tsc --noEmit\n```");
+
+  const updatedData = { ...parsed.data, status: "ready", updated: nowIso() };
+  writeNormalizedPage(testPlanPath, content, updatedData);
+}
+
+function replaceSection(markdown: string, heading: string, newBody: string): string {
+  // Split on ## headings, replace the matching section body, then rejoin.
+  const headingMarker = `## ${heading}`;
+  const sectionStart = markdown.indexOf(`\n${headingMarker}\n`);
+  if (sectionStart === -1) return markdown;
+
+  const bodyStart = sectionStart + headingMarker.length + 2; // skip \n## Heading\n
+  // Find the next ## heading after bodyStart
+  const nextHeading = markdown.indexOf("\n## ", bodyStart);
+  const bodyEnd = nextHeading === -1 ? markdown.length : nextHeading;
+
+  return (
+    markdown.slice(0, bodyStart) +
+    `${newBody.trim()}\n\n` +
+    markdown.slice(bodyEnd)
+  );
+}
+
 export async function forgeRun(args: string[]) {
   const parsed = await parseForgeArgs(args, "check");
   const workflow = await collectForgeStatus(parsed.project, parsed.sliceId);
@@ -489,6 +591,7 @@ export async function forgeRun(args: string[]) {
     base: parsed.base,
     dryRun: parsed.dryRun,
     worktree: parsed.worktree,
+    sliceLocal: true,
   });
   if (!parsed.json) renderForgePipeline("check", workflow, checkResult);
   if (!checkResult.ok) throw new Error(`forge run: check failed at ${checkResult.stoppedAt}`);
