@@ -313,6 +313,57 @@ describe("wiki forge thin surface", () => {
     expect(json.planSummary.length).toBeGreaterThan(0);
   });
 
+  test("forge run auto-starts an unstarted slice", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "autostart"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "autostart");
+    expect(runWiki(["create-issue-slice", "autostart", "payments slice"], env).exitCode).toBe(0);
+
+    const planPath = join(vault, "projects", "autostart", "specs", "slices", "AUTOSTART-001", "plan.md");
+    const testPlanPath = join(vault, "projects", "autostart", "specs", "slices", "AUTOSTART-001", "test-plan.md");
+    writeFileSync(planPath, "---\ntitle: AUTOSTART-001 payments slice\ntype: spec\nspec_kind: plan\nproject: autostart\ntask_id: AUTOSTART-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# AUTOSTART-001 payments slice\n\n## Scope\n\n- Ship the payments change\n", "utf8");
+    writeFileSync(testPlanPath, "---\ntitle: AUTOSTART-001 payments slice\ntype: spec\nspec_kind: test-plan\nproject: autostart\ntask_id: AUTOSTART-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# AUTOSTART-001 payments slice\n\n## Red Tests\n\n- [x] Payments behavior is covered through the public API.\n\n## Verification Commands\n\n```bash\n# label: payments tests\nbun test tests/payments.test.ts\n```\n", "utf8");
+    expect(runWiki(["bind", "autostart", "specs/slices/AUTOSTART-001/index.md", "src/payments.ts"], env).exitCode).toBe(0);
+    // Do NOT call forge start — forgeRun should auto-start the slice
+
+    const run = runWiki(["forge", "run", "autostart", "AUTOSTART-001", "--repo", repo, "--json"], env);
+    expect(run.exitCode).toBe(0);
+    const json = JSON.parse(run.stdout.toString());
+    expect(json.check.ok).toBe(true);
+    expect(json.close.ok).toBe(true);
+    expect(json.check.phase).toBe("close");
+    expect(json.close.phase).toBe("verify");
+
+    const backlog = JSON.parse(runWiki(["backlog", "autostart", "--json"], env).stdout.toString());
+    expect(backlog.sections.Done[0].id).toBe("AUTOSTART-001");
+  });
+
+  test("forge run writes pipeline_progress to index.md", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "progproj"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "progproj");
+    expect(runWiki(["create-issue-slice", "progproj", "payments slice"], env).exitCode).toBe(0);
+
+    const planPath = join(vault, "projects", "progproj", "specs", "slices", "PROGPROJ-001", "plan.md");
+    const testPlanPath = join(vault, "projects", "progproj", "specs", "slices", "PROGPROJ-001", "test-plan.md");
+    writeFileSync(planPath, "---\ntitle: PROGPROJ-001 payments slice\ntype: spec\nspec_kind: plan\nproject: progproj\ntask_id: PROGPROJ-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# PROGPROJ-001 payments slice\n\n## Scope\n\n- Ship the payments change\n", "utf8");
+    writeFileSync(testPlanPath, "---\ntitle: PROGPROJ-001 payments slice\ntype: spec\nspec_kind: test-plan\nproject: progproj\ntask_id: PROGPROJ-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# PROGPROJ-001 payments slice\n\n## Red Tests\n\n- [x] Payments behavior is covered through the public API.\n\n## Verification Commands\n\n```bash\n# label: payments tests\nbun test tests/payments.test.ts\n```\n", "utf8");
+    expect(runWiki(["bind", "progproj", "specs/slices/PROGPROJ-001/index.md", "src/payments.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["forge", "start", "progproj", "PROGPROJ-001", "--agent", "codex", "--repo", repo], env).exitCode).toBe(0);
+
+    const run = runWiki(["forge", "run", "progproj", "PROGPROJ-001", "--repo", repo], env);
+    expect(run.exitCode).toBe(0);
+
+    const indexPath = join(vault, "projects", "progproj", "specs", "slices", "PROGPROJ-001", "index.md");
+    const indexContent = readFileSync(indexPath, "utf8");
+    expect(indexContent).toContain("last_forge_run:");
+    expect(indexContent).toContain("last_forge_ok:");
+  });
+
   test("forge check and close keep parent drift as warnings instead of slice blockers", () => {
     const { vault, repo } = setupPassingRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };

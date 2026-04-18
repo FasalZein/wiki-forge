@@ -3,7 +3,7 @@ import { join, relative } from "node:path";
 import { nowIso, orderFrontmatter, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { VAULT_ROOT } from "../constants";
 import { readVerificationLevel, resolveRepoPath } from "../lib/verification";
-import { readFlagValue } from "../lib/cli-utils";
+import { readFlagValue, defaultAgentName } from "../lib/cli-utils";
 import { exists, readText } from "../lib/fs";
 import { runPipeline } from "../lib/pipeline";
 import { collectCloseout, collectGate } from "../maintenance";
@@ -13,7 +13,8 @@ import { collectBacklogFocus, collectBacklogView, collectTaskContextForId, detec
 import { appendLogEntry } from "../lib/log";
 import type { BacklogTaskContext } from "../hierarchy";
 import { createIssueSlice } from "./slice-scaffold";
-import { startSlice } from "./start";
+import { startSlice, startSliceCore } from "./start";
+import { writeSliceProgress, type SlicePipelineProgress, type PipelineStepProgress } from "../lib/slice-progress";
 
 export async function forgeStart(args: string[]) {
   const parsed = await parseForgeArgs(args, "start");
@@ -66,7 +67,7 @@ export async function forgeStatus(args: string[]) {
   else renderForgeStatus(workflow);
 }
 
-type ForgeMode = "start" | "check" | "close" | "status";
+type ForgeMode = "start" | "check" | "close" | "status" | "run";
 
 type ParsedForgeArgs = {
   project: string;
@@ -858,9 +859,66 @@ function replaceSection(markdown: string, heading: string, newBody: string): str
   );
 }
 
+function classifyStepFailure(stepId: string, error: string | null): string {
+  if (!error) return "Check pipeline output for details";
+  switch (stepId) {
+    case "checkpoint": return "Update stale wiki pages related to this slice";
+    case "lint-repo": return "Move disallowed repo markdown files to wiki vault";
+    case "maintain": return "Run wiki maintain manually for diagnostics";
+    case "verify-slice": return `Fix failing verification commands: ${error}`;
+    case "closeout": return "Update impacted wiki pages and re-verify";
+    case "gate": return "Add tests for changed code files or add test_exemptions";
+    case "close-slice": return error;
+    default: return error;
+  }
+}
+
 export async function forgeRun(args: string[]) {
-  const parsed = await parseForgeArgs(args, "check");
+  const parsed = await parseForgeArgs(args, "run");
   const workflow = await collectForgeStatus(parsed.project, parsed.sliceId);
+
+  const context = await collectTaskContextForId(parsed.project, parsed.sliceId);
+  if (!context || context.section !== "In Progress") {
+    const startResult = await startSliceCore(parsed.project, parsed.sliceId, defaultAgentName(), parsed.repo);
+    if (!startResult.ok) {
+      const errorPayload = {
+        ok: false,
+        step: "auto-start",
+        error: startResult.error ?? "start failed",
+        status: startResult.status,
+        ...(startResult.conflicts?.length ? { conflicts: startResult.conflicts } : {}),
+        ...(startResult.blocking?.length ? { blocking: startResult.blocking } : {}),
+      };
+      if (parsed.json) console.log(JSON.stringify(errorPayload, null, 2));
+      throw new Error(`forge run: auto-start failed: ${startResult.error}`);
+    }
+    if (!parsed.json) console.log(`auto-started ${parsed.sliceId} (agent: ${startResult.agent})`);
+  }
+
+  const progressSteps: PipelineStepProgress[] = [];
+  const onStepComplete = async (step: { id: string; label: string; ok: boolean; error: string | null; durationMs: number | null }) => {
+    progressSteps.push({
+      id: step.id,
+      ok: step.ok,
+      completedAt: new Date().toISOString(),
+      durationMs: step.durationMs,
+      ...(step.error ? { error: step.error } : {}),
+    });
+  };
+
+  const writeProgress = async (pipelineOk: boolean, nextAction?: string, failureSummary?: string) => {
+    const progress: SlicePipelineProgress = {
+      steps: progressSteps,
+      lastStep: progressSteps[progressSteps.length - 1]?.id ?? "none",
+      lastStepOk: progressSteps[progressSteps.length - 1]?.ok ?? false,
+      pipelineOk,
+      lastRunAt: new Date().toISOString(),
+      ...(nextAction ? { nextAction } : {}),
+      ...(failureSummary ? { failureSummary } : {}),
+    };
+    await writeSliceProgress(parsed.project, parsed.sliceId, progress);
+  };
+
   const checkResult = await runPipeline({
     project: parsed.project,
     sliceId: parsed.sliceId,
@@ -870,13 +928,23 @@ export async function forgeRun(args: string[]) {
     dryRun: parsed.dryRun,
     worktree: parsed.worktree,
     sliceLocal: true,
+    onStepComplete,
   });
   const review = parsed.dryRun
     ? null
     : await collectForgeReview(parsed.project, parsed.sliceId, parsed.repo, parsed.base, parsed.worktree);
   if (!parsed.json) renderForgePipeline("check", workflow, checkResult, review);
-  if (!checkResult.ok) throw new Error(`forge run: check failed at ${checkResult.stoppedAt}`);
-  if (review && !review.ok) throw new Error("forge run: check found slice-local blockers");
+  if (!checkResult.ok) {
+    const failedStep = checkResult.stoppedAt ?? "unknown";
+    const failedStepError = checkResult.steps.find((s) => s.id === failedStep)?.error ?? null;
+    const nextAction = classifyStepFailure(failedStep, failedStepError);
+    await writeProgress(false, nextAction, `check failed at ${failedStep}`);
+    throw new Error(`forge run: check failed at ${failedStep}`);
+  }
+  if (review && !review.ok) {
+    await writeProgress(false, "Resolve slice-local blockers reported by forge check", "check found slice-local blockers");
+    throw new Error("forge run: check found slice-local blockers");
+  }
 
   const closeResult = await runPipeline({
     project: parsed.project,
@@ -887,9 +955,18 @@ export async function forgeRun(args: string[]) {
     dryRun: parsed.dryRun,
     worktree: parsed.worktree,
     sliceLocal: true,
+    onStepComplete,
   });
   if (parsed.json) console.log(JSON.stringify({ ...workflow, check: checkResult, close: closeResult }, null, 2));
   else renderForgePipeline("close", workflow, closeResult);
-  if (!closeResult.ok) throw new Error(`forge run: close failed at ${closeResult.stoppedAt}`);
+  if (!closeResult.ok) {
+    const failedStep = closeResult.stoppedAt ?? "unknown";
+    const failedStepError = closeResult.steps.find((s) => s.id === failedStep)?.error ?? null;
+    const nextAction = classifyStepFailure(failedStep, failedStepError);
+    await writeProgress(false, nextAction, `close failed at ${failedStep}`);
+    throw new Error(`forge run: close failed at ${failedStep}`);
+  }
+
+  await writeProgress(true);
 }
 
