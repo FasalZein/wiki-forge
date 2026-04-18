@@ -12,9 +12,8 @@ describe("protocol source library", () => {
     const rendered = renderProtocolSurface("demo", { path: ".", scope: "root" });
 
     expect(source.workflowLines).toContain("Use `/forge` for non-trivial implementation work.");
-    expect(source.lifecycle.beforeStarting[0]).toContain("wiki start-slice demo <slice-id>");
-    expect(rendered).toContain("## Wiki Protocol");
-    expect(rendered).toContain(source.lifecycle.beforeCompletion[5]);
+    expect(rendered).toContain("## Workflow Enforcement");
+    expect(rendered).toContain("wiki forge plan|start|check|run|close|next|status demo");
   });
 
   test("renders prompt and handover reminders from the same source", () => {

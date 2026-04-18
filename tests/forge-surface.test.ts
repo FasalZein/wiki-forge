@@ -1,29 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { cleanupTempPaths, initVault, runGit, runWiki, setRepoFrontmatter, tempDir } from "./test-helpers";
+import { cleanupTempPaths, runWiki, setRepoFrontmatter, setupPassingRepo } from "./test-helpers";
 
 afterEach(() => {
   cleanupTempPaths();
 });
-
-function setupPassingRepo() {
-  const vault = tempDir("wiki-vault");
-  const repo = tempDir("wiki-repo-pass");
-  initVault(vault);
-  mkdirSync(join(repo, "src"), { recursive: true });
-  mkdirSync(join(repo, "tests"), { recursive: true });
-  writeFileSync(join(repo, "src", "payments.ts"), "export const total = 1\n", "utf8");
-  writeFileSync(join(repo, "tests", "payments.test.ts"), "import { expect, test } from 'bun:test'\nimport { total } from '../src/payments'\ntest('total', () => expect(total).toBe(1))\n", "utf8");
-  runGit(repo, ["init", "-q"]);
-  runGit(repo, ["add", "."]);
-  runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
-  writeFileSync(join(repo, "src", "payments.ts"), "export const total = 2\n", "utf8");
-  writeFileSync(join(repo, "tests", "payments.test.ts"), "import { expect, test } from 'bun:test'\nimport { total } from '../src/payments'\ntest('total', () => expect(total).toBe(2))\n", "utf8");
-  runGit(repo, ["add", "."]);
-  runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "second"]);
-  return { vault, repo };
-}
 
 describe("wiki forge thin surface", () => {
   test("help includes the forge grouped command surface", () => {

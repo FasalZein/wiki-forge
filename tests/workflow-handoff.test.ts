@@ -141,7 +141,7 @@ describe("wiki workflow handoff improvements", () => {
     expect(prompt.stdout.toString()).toContain("src/auth.ts");
     expect(prompt.stdout.toString()).toContain("Protocol reminders:");
     expect(prompt.stdout.toString()).toContain("Use `/forge` for non-trivial implementation work.");
-    expect(prompt.stdout.toString()).toContain("wiki start-slice demo <slice-id> --agent <name> --repo <path>");
+    expect(prompt.stdout.toString()).toContain("wiki forge plan demo");
 
     const resume = runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
     expect(resume.exitCode).toBe(0);

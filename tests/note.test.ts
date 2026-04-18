@@ -19,7 +19,7 @@ describe("session note prompt rendering", () => {
     expect(prompt).toContain("You are pi continuing a tracked wiki-forge slice.");
     expect(prompt).toContain("Protocol reminders:");
     expect(prompt).toContain("Use `/forge` for non-trivial implementation work.");
-    expect(prompt).toContain("wiki start-slice demo <slice-id> --agent <name> --repo <path>");
-    expect(prompt).toContain("wiki verify-slice demo <slice-id> --repo <path>");
+    expect(prompt).toContain("wiki forge plan demo");
+    expect(prompt).toContain("wiki forge run demo");
   });
 });

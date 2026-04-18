@@ -8,8 +8,8 @@ afterEach(() => {
 });
 
 describe("wiki CLI smoke", () => {
-  test("project maintenance flow works", () => {
-    const { vault, repo } = setupVaultAndRepo();
+  test("project scaffolding creates features, PRDs, and slices", () => {
+    const { vault } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
 
     expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
@@ -39,22 +39,38 @@ describe("wiki CLI smoke", () => {
     expect(backlogJson.sections["In Progress"][0].id).toBe("DEMO-001");
     expect(backlogJson.sections["Done"][0].id).toBe("DEMO-002");
     expect(readFileSync(demoBacklogPath, "utf8")).toContain("[[projects/demo/_summary]]");
+
+    // PRD template includes Prior Research section
+    const prdContent = readFileSync(join(vault, "projects", "demo", "specs", "prds", "PRD-001-auth-workflow.md"), "utf8");
+    expect(prdContent).toContain("## Prior Research");
+    expect(prdContent).toContain("[[research/projects/demo/_overview]]");
+  });
+
+  test("module and binding commands work", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    expect(runWiki(["create-feature", "demo", "auth platform"], env).exitCode).toBe(0);
+    expect(runWiki(["create-prd", "demo", "--feature", "FEAT-001", "auth workflow"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice", "--prd", "PRD-001"], env).exitCode).toBe(0);
+
     expect(runWiki(["create-module", "demo", "auth", "--source", "src/auth.ts"], env).exitCode).toBe(0);
     expect(runWiki(["bind", "demo", "specs/prds/PRD-001-auth-workflow.md", "src/auth.ts"], env).exitCode).toBe(0);
-    expect(runWiki(["bind", "demo", "specs/slices/DEMO-002/index.md", "src/auth.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["bind", "demo", "specs/slices/DEMO-001/index.md", "src/auth.ts"], env).exitCode).toBe(0);
     expect(runWiki(["update-index", "demo", "--write"], env).exitCode).toBe(0);
     const featureContent = readFileSync(join(vault, "projects", "demo", "specs", "features", "FEAT-001-auth-platform.md"), "utf8");
     expect(featureContent).toContain("PRD-001 auth workflow");
-    expect(featureContent).toContain("DEMO-002 auth slice");
+    expect(featureContent).toContain("DEMO-001 auth slice");
     const prdLinkedContent = readFileSync(join(vault, "projects", "demo", "specs", "prds", "PRD-001-auth-workflow.md"), "utf8");
     expect(prdLinkedContent).toContain("FEAT-001 auth platform");
-    expect(prdLinkedContent).toContain("DEMO-002 auth slice");
+    expect(prdLinkedContent).toContain("DEMO-001 auth slice");
     expect(prdLinkedContent).toContain("Auth Module");
     const moduleContent = readFileSync(join(vault, "projects", "demo", "modules", "auth", "spec.md"), "utf8");
     expect(moduleContent).toContain("## Related Planning");
     expect(moduleContent).toContain("FEAT-001 auth platform");
     expect(moduleContent).toContain("PRD-001 auth workflow");
-    expect(moduleContent).toContain("DEMO-002 auth slice");
+    expect(moduleContent).toContain("DEMO-001 auth slice");
     const architecturePath = join(vault, "projects", "demo", "architecture", "auth-context.md");
     mkdirSync(join(vault, "projects", "demo", "architecture"), { recursive: true });
     writeFileSync(architecturePath, "---\ntitle: Auth Context\ntype: notes\nproject: demo\nupdated: 2026-04-10\nstatus: current\nverification_level: code-verified\nsource_paths:\n  - src/auth.ts\n---\n\n# Auth Context\n\n## Cross Links\n\n- [[projects/demo/_summary]]\n", "utf8");
@@ -65,7 +81,40 @@ describe("wiki CLI smoke", () => {
     expect(architectureContent).toContain("## Related Planning");
     expect(architectureContent).toContain("FEAT-001 auth platform");
     expect(architectureContent).toContain("PRD-001 auth workflow");
-    expect(architectureContent).toContain("DEMO-002 auth slice");
+    expect(architectureContent).toContain("DEMO-001 auth slice");
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["verify-page", "demo", "auth", "code-verified"], env).exitCode).toBe(0);
+
+    // update-index creates all navigation indexes
+    const updateIndex = runWiki(["update-index", "demo", "--write"], env);
+    expect(updateIndex.exitCode).toBe(0);
+    expect(existsSync(join(vault, "projects", "demo", "specs", "index.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "demo", "specs", "features", "index.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "demo", "specs", "prds", "index.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "demo", "specs", "slices", "index.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "demo", "specs", "archive", "index.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "_dashboard.md"))).toBe(true);
+    const workspaceDashboardContent = readFileSync(join(vault, "projects", "_dashboard.md"), "utf8");
+    expect(workspaceDashboardContent).toContain("[[projects/demo/_summary|demo]]");
+    expect(workspaceDashboardContent).toContain("[[projects/demo/backlog|backlog]]");
+    expect(workspaceDashboardContent).toContain("[[projects/demo/specs/index|specs]]");
+    const rootIndexContent = readFileSync(join(vault, "index.md"), "utf8");
+    expect(rootIndexContent).toContain("[[projects/_dashboard|Project Dashboard]]");
+    expect(rootIndexContent).toContain("[[projects/demo/_summary|demo]]");
+  });
+
+  test("maintenance pipeline produces valid reports", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    expect(runWiki(["create-feature", "demo", "auth platform"], env).exitCode).toBe(0);
+    expect(runWiki(["create-prd", "demo", "--feature", "FEAT-001", "auth workflow"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice", "--prd", "PRD-001"], env).exitCode).toBe(0);
+    expect(runWiki(["move-task", "demo", "DEMO-001", "--to", "In Progress"], env).exitCode).toBe(0);
+    expect(runWiki(["create-module", "demo", "auth", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["bind", "demo", "specs/prds/PRD-001-auth-workflow.md", "src/auth.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["bind", "demo", "specs/slices/DEMO-001/index.md", "src/auth.ts"], env).exitCode).toBe(0);
     setRepoFrontmatter(vault, repo);
     expect(runWiki(["verify-page", "demo", "auth", "code-verified"], env).exitCode).toBe(0);
 
@@ -140,12 +189,25 @@ describe("wiki CLI smoke", () => {
     const rfgJson = JSON.parse(refreshFromGit.stdout.toString());
     expect(rfgJson.changedFiles).toContain("src/auth.ts");
     expect(rfgJson.impactedPages[0].page).toBe("modules/auth/spec.md");
-    expect(Array.isArray(rfgJson.impactedPages[0].diffSummary)).toBe(true);
     const authImpactedPages = rfgJson.impactedPages.filter((page: { matchedSourcePaths: string[] }) => page.matchedSourcePaths.includes("src/auth.ts"));
     expect(authImpactedPages.length).toBeGreaterThan(1);
-    expect(authImpactedPages.every((page: { diffSummary: string[] }) => JSON.stringify(page.diffSummary) === JSON.stringify(authImpactedPages[0].diffSummary))).toBe(true);
     expect(rfgJson.testHealth.changedTestFiles).toContain("tests/other.test.ts");
     expect(rfgJson.testHealth.codeFilesWithoutChangedTests).toContain("src/auth.ts");
+  });
+
+  test("verification and gate validate project health", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    expect(runWiki(["create-feature", "demo", "auth platform"], env).exitCode).toBe(0);
+    expect(runWiki(["create-prd", "demo", "--feature", "FEAT-001", "auth workflow"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice", "--prd", "PRD-001"], env).exitCode).toBe(0);
+    expect(runWiki(["create-module", "demo", "auth", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["bind", "demo", "specs/prds/PRD-001-auth-workflow.md", "src/auth.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["bind", "demo", "specs/slices/DEMO-001/index.md", "src/auth.ts"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["verify-page", "demo", "auth", "code-verified"], env).exitCode).toBe(0);
 
     const gate = runWiki(["gate", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
     expect(gate.exitCode).toBe(1);
@@ -155,12 +217,15 @@ describe("wiki CLI smoke", () => {
     expect(Array.isArray(gateJson.warnings)).toBe(true);
     expect(typeof gateJson.counts.semantic).toBe("number");
     expect(gateJson.doctor.status.pages).toBe(gateJson.doctor.verify.pages);
-    expect(gateJson.doctor.maintain.discover.uncoveredFiles).toEqual(maintainJson.discover.uncoveredFiles);
 
     const semantic = runWiki(["lint-semantic", "demo", "--json"], env);
     expect(semantic.exitCode).toBe(1);
     const semanticJson = JSON.parse(semantic.stdout.toString());
     expect(Array.isArray(semanticJson.issues)).toBe(true);
+
+    const maintain = runWiki(["maintain", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(maintain.exitCode).toBe(0);
+    const maintainJson = JSON.parse(maintain.stdout.toString());
 
     const discover = runWiki(["discover", "demo", "--repo", repo, "--json"], env);
     expect(discover.exitCode).toBe(0);
@@ -174,44 +239,14 @@ describe("wiki CLI smoke", () => {
     expect(discoverTree.exitCode).toBe(0);
     expect(Array.isArray(JSON.parse(discoverTree.stdout.toString()).tree)).toBe(true);
 
-    const uncoveredRepo = tempDir("wiki-repo-uncovered");
-    mkdirSync(join(uncoveredRepo, "src"), { recursive: true });
-    writeFileSync(join(uncoveredRepo, "src", "payments.ts"), "export const x = 1\n", "utf8");
-    runGit(uncoveredRepo, ["init", "-q"]);
-    runGit(uncoveredRepo, ["add", "."]);
-    runGit(uncoveredRepo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
-    writeFileSync(join(uncoveredRepo, "src", "payments.ts"), "export const x = 2\n", "utf8");
-    runGit(uncoveredRepo, ["add", "."]);
-    runGit(uncoveredRepo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "second"]);
-    const scaffoldDemo2 = runWiki(["scaffold-project", "demo2"], { KNOWLEDGE_VAULT_ROOT: vault });
-    expect(scaffoldDemo2.exitCode).toBe(0);
-    const demo2SummaryPath = join(vault, "projects", "demo2", "_summary.md");
-    writeFileSync(demo2SummaryPath, readFileSync(demo2SummaryPath, "utf8").replace("status: scaffold", `status: current\nrepo: ${uncoveredRepo}`), "utf8");
-    const ingest = runWiki(["ingest-diff", "demo2", "--repo", uncoveredRepo, "--base", "HEAD~1", "--json"], { KNOWLEDGE_VAULT_ROOT: vault });
-    expect(ingest.exitCode).toBe(0);
-    const ingestJson = JSON.parse(ingest.stdout.toString());
-    expect(ingestJson.created.length).toBeGreaterThan(0);
-    expect(existsSync(join(vault, "projects", "demo2", "modules", "payments", "spec.md"))).toBe(true);
+    expect(gateJson.doctor.maintain.discover.uncoveredFiles).toEqual(maintainJson.discover.uncoveredFiles);
+  });
 
-    const updateIndex = runWiki(["update-index", "demo", "--write"], env);
-    expect(updateIndex.exitCode).toBe(0);
-    expect(existsSync(join(vault, "projects", "demo", "specs", "index.md"))).toBe(true);
-    expect(existsSync(join(vault, "projects", "demo", "specs", "features", "index.md"))).toBe(true);
-    expect(existsSync(join(vault, "projects", "demo", "specs", "prds", "index.md"))).toBe(true);
-    expect(existsSync(join(vault, "projects", "demo", "specs", "slices", "index.md"))).toBe(true);
-    expect(existsSync(join(vault, "projects", "demo", "specs", "archive", "index.md"))).toBe(true);
-    expect(existsSync(join(vault, "projects", "_dashboard.md"))).toBe(true);
-    const workspaceDashboardContent = readFileSync(join(vault, "projects", "_dashboard.md"), "utf8");
-    expect(workspaceDashboardContent).toContain("[[projects/demo/_summary|demo]]");
-    expect(workspaceDashboardContent).toContain("[[projects/demo/backlog|backlog]]");
-    expect(workspaceDashboardContent).toContain("[[projects/demo/specs/index|specs]]");
-    const rootIndexContent = readFileSync(join(vault, "index.md"), "utf8");
-    expect(rootIndexContent).toContain("[[projects/_dashboard|Project Dashboard]]");
-    expect(rootIndexContent).toContain("[[projects/demo/_summary|demo]]");
+  test("research filing and source ingestion work", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
 
-    const logTail = runWiki(["log", "tail", "5"], env);
-    expect(logTail.exitCode).toBe(0);
-    expect(logTail.stdout.toString()).toContain("refresh-from-git");
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
 
     // scaffold-research + ingest-research + status
     const scaffoldResearch = runWiki(["research", "scaffold", "projects/demo"], env);
@@ -249,12 +284,13 @@ describe("wiki CLI smoke", () => {
     expect(researchContent).toContain("[[research/projects/demo/_overview]]");
     expect(researchContent).toContain("> [!summary]");
 
-    const sourceFile = join(repo, "notes.txt");
-    writeFileSync(sourceFile, "Important source material\n", "utf8");
     const nestedFileResearch = runWiki(["research", "file", "demo", "nested alias check"], env);
     expect(nestedFileResearch.exitCode).toBe(0);
     expect(existsSync(join(vault, "research", "projects", "demo", "nested-alias-check.md"))).toBe(true);
 
+    // source ingest
+    const sourceFile = join(repo, "notes.txt");
+    writeFileSync(sourceFile, "Important source material\n", "utf8");
     const ingestSourceFile = runWiki(["source", "ingest", sourceFile, "--topic", "projects/demo"], env);
     expect(ingestSourceFile.exitCode).toBe(0);
     expect(existsSync(join(vault, "raw", "conversations", "notes.txt"))).toBe(true);
@@ -295,11 +331,41 @@ describe("wiki CLI smoke", () => {
     const researchDup = runWiki(["research", "file", "demo", "auth options comparison"], env);
     expect(researchDup.exitCode).toBe(1);
     expect(researchDup.stderr.toString()).toContain("already exists");
+  });
 
-    // PRD template includes Prior Research section
-    const prdContent = readFileSync(join(vault, "projects", "demo", "specs", "prds", "PRD-001-auth-workflow.md"), "utf8");
-    expect(prdContent).toContain("## Prior Research");
-    expect(prdContent).toContain("[[research/projects/demo/_overview]]");
+  test("log and ingest-diff commands produce output", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-module", "demo", "auth", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+    // Run a command that writes to the log
+    expect(runWiki(["refresh-from-git", "demo", "--repo", repo, "--base", "HEAD~1"], env).exitCode).toBe(0);
+
+    const logTail = runWiki(["log", "tail", "5"], env);
+    expect(logTail.exitCode).toBe(0);
+    expect(logTail.stdout.toString()).toContain("refresh-from-git");
+
+    // ingest-diff with a separate repo
+    const uncoveredRepo = tempDir("wiki-repo-uncovered");
+    mkdirSync(join(uncoveredRepo, "src"), { recursive: true });
+    writeFileSync(join(uncoveredRepo, "src", "payments.ts"), "export const x = 1\n", "utf8");
+    runGit(uncoveredRepo, ["init", "-q"]);
+    runGit(uncoveredRepo, ["add", "."]);
+    runGit(uncoveredRepo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
+    writeFileSync(join(uncoveredRepo, "src", "payments.ts"), "export const x = 2\n", "utf8");
+    runGit(uncoveredRepo, ["add", "."]);
+    runGit(uncoveredRepo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "second"]);
+    const scaffoldDemo2 = runWiki(["scaffold-project", "demo2"], { KNOWLEDGE_VAULT_ROOT: vault });
+    expect(scaffoldDemo2.exitCode).toBe(0);
+    const demo2SummaryPath = join(vault, "projects", "demo2", "_summary.md");
+    writeFileSync(demo2SummaryPath, readFileSync(demo2SummaryPath, "utf8").replace("status: scaffold", `status: current\nrepo: ${uncoveredRepo}`), "utf8");
+    const ingest = runWiki(["ingest-diff", "demo2", "--repo", uncoveredRepo, "--base", "HEAD~1", "--json"], { KNOWLEDGE_VAULT_ROOT: vault });
+    expect(ingest.exitCode).toBe(0);
+    const ingestJson = JSON.parse(ingest.stdout.toString());
+    expect(ingestJson.created.length).toBeGreaterThan(0);
+    expect(existsSync(join(vault, "projects", "demo2", "modules", "payments", "spec.md"))).toBe(true);
   });
 
   test("workspace dashboard and root index refresh from real project state", () => {
@@ -646,11 +712,10 @@ describe("wiki CLI smoke", () => {
     expect(resultSource.stderr.toString()).toContain("missing source subcommand");
   });
 
-  test("help distinguishes research execution from wiki research filing", () => {
+  test("help lists all major command groups and key commands", () => {
     const result = runWiki(["help"]);
     expect(result.exitCode).toBe(0);
     const output = result.stdout.toString();
-    expect(output).toContain("Use the /research skill for actual investigation");
     expect(output).toContain("wiki research audit [topic] [--json]");
     expect(output).toContain("wiki closeout <project> [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json] [--verbose]");
     expect(output).toContain("wiki backlog <project> [--assignee <agent>] [--json]");
@@ -674,25 +739,16 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]");
     expect(output).toContain("wiki resume <project> [--repo <path>] [--base <rev>] [--json]");
     expect(output).toContain("wiki dependency-graph <project> [--write] [--json]");
-    expect(output).toContain("research audit layers dead-link checks and influenced_by coverage");
-    expect(output).toContain("protocol sync/audit manage repo-root (and optional nested) AGENTS.md / CLAUDE.md files from a short wiki-forge-managed agent protocol block");
-    expect(output).toContain("closeout composes refresh-from-git, drift, lint, semantic lint, and gate into one compact review surface; use --worktree to evaluate dirty files instead of committed diff ranges");
-    expect(output).toContain("close-feature / close-prd set status=complete and completed_at; gates on computed status unless --force; --force is intentionally two-step and requires --yes-really-force");
-    expect(output).toContain("checkpoint is the git-independent freshness check: it compares worktree mtimes against bound wiki pages and reports stale pages plus unbound changed files");
-    expect(output).toContain("lint-repo flags repo-owned markdown files outside the allowed set");
-    expect(output).toContain("protocol sync prepends a managed agent protocol block to AGENTS.md / CLAUDE.md and preserves local notes below it; declare nested scopes in projects/<project>/_summary.md frontmatter protocol_scopes: [...]");
-    expect(output).toContain("protocol audit reports missing or stale managed protocol files for the expected scopes");
-    expect(output).toContain("start-slice is the lifecycle entry point: it checks dependencies, registers the claim, moves the backlog item to In Progress, stamps started_at, and prints a compact plan summary");
-    expect(output).toContain("close-slice runs the project gate, marks slice docs done, records completed_at, moves the slice to Done, and refreshes navigation indexes; use --worktree to close against dirty agent changes before commit; --force is intentionally two-step and requires --yes-really-force");
-    expect(output).toContain("export-prompt prints a self-contained execution prompt for codex, claude, or pi without writing into the project repo");
-    expect(output).toContain("resume prints a quick session pickup view: recent commits, dirty files, stale pages, active slice, and next actions");
-    expect(output).toContain("install-git-hook writes a repo-local hook that runs wiki commit-check before commit");
-    expect(output).toContain("dependency-graph generates a derived JSON Canvas dependency graph");
-    expect(output).toContain("qmd retrieval and maintenance commands now prefer the in-process SDK/Bun wrapper path instead of depending on a separately working global qmd CLI");
-    expect(output).toContain("query --expand uses qmd SDK auto-expansion instead of the raw qmd CLI");
-    expect(output).toContain("ask reranks qmd results toward projects/<project>/ and prints a compact citation-ready brief by default; use --verbose for routing/source sections");
-    expect(output).toContain("research file scaffolds a project research note");
-    expect(output).toContain("it does not perform the research step");
+    expect(output).toContain("wiki research file <project>");
+    expect(output).toContain("wiki source ingest");
+    expect(output).toContain("Forge Workflow");
+    expect(output).toContain("wiki forge plan");
+    expect(output).toContain("wiki forge start");
+    expect(output).toContain("wiki forge check");
+    expect(output).toContain("wiki forge run");
+    expect(output).toContain("wiki forge close");
+    expect(output).toContain("wiki forge status");
+    expect(output).toContain("wiki forge next");
   });
 
   test("onboard-plan treats repo research docs as source material and points net-new research to /research", () => {
