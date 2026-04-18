@@ -35,6 +35,7 @@ describe("wiki forge thin surface", () => {
     expect(output).toContain("wiki forge status <project> [slice-id] [--json]");
     expect(output).toContain("wiki forge run");
     expect(output).toContain("wiki forge plan");
+    expect(output).toContain("wiki forge next <project> [--json]");
   });
 
   test("forge run chains check then close in a single pass", () => {
@@ -144,6 +145,40 @@ describe("wiki forge thin surface", () => {
 
     const backlog = JSON.parse(runWiki(["backlog", "newproj", "--json"], env).stdout.toString());
     expect(backlog.sections["In Progress"][0].id).toBe("NEWPROJ-001");
+  });
+
+  test("forge next returns triage for the active or recommended slice", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "nxproj"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "nxproj");
+    expect(runWiki(["create-issue-slice", "nxproj", "payments slice"], env).exitCode).toBe(0);
+
+    const planPath = join(vault, "projects", "nxproj", "specs", "slices", "NXPROJ-001", "plan.md");
+    const testPlanPath = join(vault, "projects", "nxproj", "specs", "slices", "NXPROJ-001", "test-plan.md");
+    writeFileSync(planPath, "---\ntitle: NXPROJ-001 payments slice\ntype: spec\nspec_kind: plan\nproject: nxproj\ntask_id: NXPROJ-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# NXPROJ-001 payments slice\n\n## Scope\n\n- Ship the payments change\n", "utf8");
+    writeFileSync(testPlanPath, "---\ntitle: NXPROJ-001 payments slice\ntype: spec\nspec_kind: test-plan\nproject: nxproj\ntask_id: NXPROJ-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# NXPROJ-001 payments slice\n\n## Red Tests\n\n- [x] Payments behavior is covered through the public API.\n\n## Verification Commands\n\n```bash\n# label: payments tests\nbun test tests/payments.test.ts\n```\n", "utf8");
+
+    // Before start-slice: slice is recommended (not active yet)
+    const nextBefore = runWiki(["forge", "next", "nxproj", "--json"], env);
+    expect(nextBefore.exitCode).toBe(0);
+    const beforeJson = JSON.parse(nextBefore.stdout.toString());
+    expect(beforeJson.project).toBe("nxproj");
+    expect(beforeJson.targetSlice).toBe("NXPROJ-001");
+    expect(beforeJson.active).toBe(false);
+    expect(beforeJson.planStatus).toBe("ready");
+    expect(beforeJson.testPlanStatus).toBe("ready");
+    expect(beforeJson.triage.kind).toBe("close-slice");
+
+    // After start-slice: slice is active
+    expect(runWiki(["forge", "start", "nxproj", "NXPROJ-001", "--agent", "codex", "--repo", repo], env).exitCode).toBe(0);
+    const nextAfter = runWiki(["forge", "next", "nxproj", "--json"], env);
+    expect(nextAfter.exitCode).toBe(0);
+    const afterJson = JSON.parse(nextAfter.stdout.toString());
+    expect(afterJson.active).toBe(true);
+    expect(afterJson.targetSlice).toBe("NXPROJ-001");
+    expect(afterJson.triage.kind).toBe("close-slice");
   });
 
   test("forge check and close keep parent drift as warnings instead of slice blockers", () => {

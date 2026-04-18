@@ -11,7 +11,7 @@ Forge is the workflow layer.
 
 - `wiki` = knowledge, verification, drift, retrieval, filing
 - `forge` = delivery policy over those primitives
-- default agent surface = `wiki forge start|open|check|close|run|plan|status`
+- default agent surface = `wiki forge next|plan|start|check|run|close|status`
 - default reconciliation primitive = `wiki sync`
 
 The contract stays:
@@ -72,9 +72,10 @@ Prefer the thin surface first.
 ```
 
 Meaning of the grouped commands:
+- `wiki forge next` = read backlog, pick the next slice, print recommended action
 - `wiki forge plan` = create-feature + create-prd + create-issue-slice + start-slice in one step
 - `wiki forge start/open` = choose/open a single slice and register the lifecycle entry point
-- `wiki forge check` = run the slice-local verification/closeout review path
+- `wiki forge check` = run the slice-local verification/closeout review path (includes typecheck)
 - `wiki forge close` = finish the close sequence when check is clean
 - `wiki forge run` = check + close in a single pass (stops if check fails)
 - `wiki forge status` = show the current forge workflow ledger / phase state

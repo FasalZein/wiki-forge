@@ -398,6 +398,46 @@ function parseForgePlanArgs(args: string[]): ForgePlanArgs {
   return { project, featureName, featureId, prdName, title, agent, repo };
 }
 
+export async function forgeNext(args: string[]) {
+  const positional = args.filter((a) => !a.startsWith("--"));
+  const project = positional[0];
+  requireValue(project, "project");
+  const json = args.includes("--json");
+  const focus = await collectBacklogFocus(project);
+
+  const activeId = focus.activeTask?.id ?? null;
+  const recommendedId = focus.recommendedTask?.id ?? null;
+  const targetId = activeId ?? recommendedId;
+
+  if (!targetId) {
+    if (json) console.log(JSON.stringify({ project, targetSlice: null, action: "no ready slices" }, null, 2));
+    else console.log(`no ready slices for ${project}`);
+    return;
+  }
+
+  const workflow = await collectForgeStatus(project, targetId);
+  const result = {
+    project,
+    targetSlice: targetId,
+    active: activeId !== null,
+    triage: workflow.triage,
+    planStatus: workflow.planStatus,
+    testPlanStatus: workflow.testPlanStatus,
+    verificationLevel: workflow.verificationLevel,
+  };
+
+  if (json) console.log(JSON.stringify(result, null, 2));
+  else {
+    console.log(`forge next for ${project}: ${targetId}`);
+    console.log(`- ${activeId ? "active" : "recommended"} slice`);
+    console.log(`- plan: ${workflow.planStatus}`);
+    console.log(`- test-plan: ${workflow.testPlanStatus}`);
+    console.log(`- verification: ${workflow.verificationLevel ?? "none"}`);
+    console.log(`- next action: ${workflow.triage.command}`);
+    console.log(`  reason: ${workflow.triage.reason}`);
+  }
+}
+
 export async function forgeRun(args: string[]) {
   const parsed = await parseForgeArgs(args, "check");
   const workflow = await collectForgeStatus(parsed.project, parsed.sliceId);

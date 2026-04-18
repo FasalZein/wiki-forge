@@ -72,6 +72,7 @@ Usage:
   wiki forge run <project> [slice-id] [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
   wiki forge plan <project> <feature-name> [--feature FEAT-xxx] [--prd-name <name>] [--title <slice-title>] [--agent <name>] [--repo <path>]
   wiki forge status <project> [slice-id] [--json]
+  wiki forge next <project> [--json]
   wiki pipeline <project> <slice-id> --phase <close|verify> [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
   wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]
   wiki resume <project> [--repo <path>] [--base <rev>] [--json]
@@ -141,8 +142,8 @@ Notes:
   - note appends a durable agent-to-agent message to the global wiki log with project/slice metadata
   - next recommends the highest-priority active or ready slice, skipping slices blocked by depends_on
   - start-slice is the lifecycle entry point: it checks dependencies, registers the claim, moves the backlog item to In Progress, stamps started_at, and prints a compact plan summary
-  - wiki forge start/open/check/close/run/plan/status is the thin forge workflow surface over start-slice, maintenance/closeout/gate, close-slice, and the forge workflow ledger; omit slice-id to target the active or recommended slice
-  - forge run = check + close in a single pass (stops if check fails); forge plan = create-feature + create-prd + create-issue-slice + start-slice in one command
+  - wiki forge start/open/check/close/run/plan/status/next is the thin forge workflow surface over start-slice, maintenance/closeout/gate, close-slice, and the forge workflow ledger; omit slice-id to target the active or recommended slice
+  - forge run = check + close in a single pass (stops if check fails); forge plan = create-feature + create-prd + create-issue-slice + start-slice in one command; forge next = backlog focus + forge status triage in one command
   - verify-slice runs structured verification command blocks from a slice test-plan, records evidence, and promotes the test-plan to test-verified on success
   - close-slice runs the project gate, marks slice docs done, records completed_at, moves the slice to Done, and refreshes navigation indexes; use --worktree to close against dirty agent changes before commit; --force is intentionally two-step and requires --yes-really-force so agents pause before skipping gate/closeout blockers from unrelated cross-slice work (slice-level prerequisites are still enforced)
   - pipeline automates mechanical workflow steps so agents only fill content; --phase close runs checkpoint, lint-repo, maintain, update-index; --phase verify runs verify-slice, closeout, gate, close-slice; steps are tracked in sqlite and skipped on re-run; --dry-run shows what would execute

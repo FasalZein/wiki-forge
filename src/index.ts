@@ -2,7 +2,7 @@
 
 import type { CommandHandler } from "./types";
 import { printHelp, scaffoldProject, addTask, backlogCommand, moveTask, completeTask, createIssueSlice, createFeature, createPrd, createPlan, createTestPlan, createModule, onboardProject, onboardPlan, normalizeModule, dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, syncProject, discoverProject, ingestDiff, handoverProject, claimSlice, noteProject, nextProject, startSlice, verifySlice, closeSlice, exportPrompt, resumeProject, commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo, syncProtocol, auditProtocol, dependencyGraph, updateIndex, logCommand, statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch } from "./system";
-import { forgeCheck, forgeClose, forgeOpen, forgePlan, forgeRun, forgeStart, forgeStatus } from "./slice/forge";
+import { forgeCheck, forgeClose, forgeNext, forgeOpen, forgePlan, forgeRun, forgeStart, forgeStatus } from "./slice/forge";
 import { doctorProject, gateProject } from "./maintenance";
 import { closeFeature, closePrd, featureStatusCommand, startFeature, startPrd } from "./hierarchy";
 import { pipelineCommand } from "./slice/pipeline";
@@ -112,6 +112,7 @@ const commands: Record<string, CommandHandler> = {
   "forge:run": (args) => forgeRun(args),
   "forge:status": (args) => forgeStatus(args),
   "forge:plan": (args) => forgePlan(args),
+  "forge:next": (args) => forgeNext(args),
 };
 
 const rawArgs = process.argv.slice(2);
@@ -206,7 +207,8 @@ function resolveCommand(rawArgs: string[]) {
       run: "forge:run",
       status: "forge:status",
       plan: "forge:plan",
-    }[subcommand as "start" | "open" | "check" | "close" | "run" | "status" | "plan"];
+      next: "forge:next",
+    }[subcommand as "start" | "open" | "check" | "close" | "run" | "status" | "plan" | "next"];
     if (!mapped) throw new Error(`unknown forge subcommand: ${subcommand}. Run 'wiki help' for usage.`);
     return { command: mapped, args: subArgs };
   }
