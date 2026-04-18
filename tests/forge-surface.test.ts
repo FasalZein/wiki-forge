@@ -267,6 +267,22 @@ describe("wiki forge thin surface", () => {
     expect(afterJson.triage.kind).toBe("close-slice");
   });
 
+  test("forge next surfaces load-skill hints for pre-implementation phases", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "phasenext"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "phasenext");
+    expect(runWiki(["create-issue-slice", "phasenext", "first slice"], env).exitCode).toBe(0);
+    expect(runWiki(["forge", "start", "phasenext", "PHASENEXT-001", "--agent", "codex", "--repo", repo], env).exitCode).toBe(0);
+
+    const next = runWiki(["forge", "next", "phasenext"], env);
+    expect(next.exitCode).toBe(0);
+    const output = next.stdout.toString();
+    expect(output).toContain("/research");
+    expect(output).toContain("load-skill: /research");
+  });
+
   test("forge next --prompt-json outputs sliceId, project, and non-empty planSummary", () => {
     const { vault, repo } = setupPassingRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };

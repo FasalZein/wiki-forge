@@ -48,6 +48,7 @@ describe("WIKI-FORGE-141 workflow-phase gate", () => {
     expect(payload.triage.command).not.toContain("wiki forge run");
     // Triage reason should name the missing phase so the operator knows what to do.
     expect(payload.triage.reason.toLowerCase()).toContain("research");
+    expect(payload.triage.loadSkill).toBe("/research");
   });
 
   test("F1 no-regression: resume with ready plan + test-plan still recommends forge run", () => {

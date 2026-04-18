@@ -127,6 +127,9 @@ export async function resumeProject(args: string[]) {
   // Decisive format: lead with the ONE command to run. Everything else is context below.
   console.log(`→ ${payload.triage.command}`);
   console.log(`  (${payload.triage.reason})`);
+  if (payload.triage.loadSkill) {
+    console.log(`  load-skill: ${payload.triage.loadSkill}`);
+  }
   // F5: surface recovery hints inline when the triage reports a stuck slice —
   // either the workflow-gate re-route (needs-*) or a prior forge-run failure.
   const showsRecovery =
@@ -201,7 +204,7 @@ function classifyResumeTriage(
   // `needs-*` paths so resume, forge status, and forge next agree.
   if (focusTask && earlyPhase && workflowNextPhase && workflowNextPhase !== "verify") {
     const rec = phaseRecommendation(project, focusTask.id, workflowNextPhase as ForgePhase);
-    return { kind: rec.kind, reason: rec.reason, command: rec.command };
+    return { kind: rec.kind, reason: rec.reason, command: rec.command, ...(rec.loadSkill ? { loadSkill: rec.loadSkill } : {}) };
   }
   // Agent surface is 3 commands: plan, run, next. Any active slice → run it.
   if (activeTask) {

@@ -201,26 +201,8 @@ export async function collectForgeStatus(project: string, sliceId: string) {
 
 function buildForgeTriage(project: string, sliceId: string, input: { activeSlice: string | null; sliceStatus: string | null; section: string | null; planStatus: string; testPlanStatus: string; verificationLevel: string | null; nextPhase: string | null }) {
   const earlyPhase = input.planStatus !== "ready" || input.testPlanStatus !== "ready";
-  if (earlyPhase && input.nextPhase === "research") {
-    return {
-      kind: "needs-research",
-      reason: "workflow ledger shows research phase is incomplete",
-      command: `/research — gather findings and file with wiki research file ${project}`,
-    };
-  }
-  if (earlyPhase && input.nextPhase === "grill") {
-    return {
-      kind: "needs-grill",
-      reason: "workflow ledger shows the domain-model phase is incomplete",
-      command: `/domain-model — sharpen terms, record decisions in the wiki, and surface ambiguities before PRD authoring`,
-    };
-  }
-  if (earlyPhase && input.nextPhase === "prd") {
-    return {
-      kind: "needs-prd",
-      reason: "workflow ledger shows PRD phase is incomplete",
-      command: `/write-a-prd — create or complete the PRD for this feature`,
-    };
+  if (earlyPhase && input.nextPhase && ["research", "grill", "prd", "slices", "tdd", "verify"].includes(input.nextPhase)) {
+    return phaseRecommendation(project, sliceId, input.nextPhase as import("../lib/forge-ledger").ForgePhase);
   }
   if (input.planStatus !== "ready" || input.testPlanStatus !== "ready") {
     return {
@@ -666,6 +648,9 @@ export async function forgeNext(args: string[]) {
     console.log(`- verification: ${workflow.verificationLevel ?? "none"}`);
     console.log(`- next action: ${workflow.triage.command}`);
     console.log(`  reason: ${workflow.triage.reason}`);
+    if ("loadSkill" in workflow.triage && typeof workflow.triage.loadSkill === "string") {
+      console.log(`  load-skill: ${workflow.triage.loadSkill}`);
+    }
   }
 }
 
