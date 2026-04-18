@@ -11,7 +11,8 @@ Forge is the workflow layer.
 
 - `wiki` = knowledge, verification, drift, retrieval, filing
 - `forge` = delivery policy over those primitives
-- default agent surface = `wiki forge next|plan|start|check|run|close|status`
+- agent surface (3 commands) = `wiki forge plan|run|next`
+- internal/repair = `wiki forge start|check|close|status|release`
 - default reconciliation primitive = `wiki sync`
 
 The contract stays:
@@ -72,25 +73,27 @@ Prefer the thin surface first.
 1. /research
 2. /grill-me
 3. wiki forge plan <project> <feature-name> [--agent <name> --repo <path>]
-   — or manually: /write-a-prd -> /prd-to-slices -> wiki forge start
 4. fill plan.md + test-plan.md
 5. /tdd
 6. wiki forge run <project> [slice-id] --repo <path>
-   — or manually: wiki forge check -> fix -> wiki forge close
+   — auto-starts the slice, runs check + verify + close pipelines, writes progress to index.md
 7. /desloppify (final quality gate — external CLI, not a wiki subcommand)
-8. wiki forge status <project> [slice-id]
+8. wiki forge next <project>
 ```
 
 **Resuming work?** Start every session with `wiki resume <project> --repo <path> --base <rev>`, then run `wiki forge next <project>` — it prints the one command to run next.
 
-Meaning of the grouped commands:
-- `wiki forge next` = read backlog, pick the next slice, print recommended action
+Agent commands (the only 3 an agent needs):
 - `wiki forge plan` = create-feature + create-prd + create-issue-slice + start-slice in one step
-- `wiki forge start/open` = choose/open a single slice and register the lifecycle entry point
-- `wiki forge check` = run the slice-local verification/closeout review path (includes typecheck)
+- `wiki forge run` = auto-start + check + verify + close in a single pass; writes progress to slice index.md
+- `wiki forge next` = read backlog, pick the next slice, print recommended action
+
+Internal/repair (debugging only, not for normal workflow):
+- `wiki forge start/open` = manually start a single slice
+- `wiki forge check` = run slice-local verification/closeout review
 - `wiki forge close` = finish the close sequence when check is clean
-- `wiki forge run` = check + close in a single pass (stops if check fails)
 - `wiki forge status` = show the current forge workflow ledger / phase state
+- `wiki forge release` = release a claimed slice back to Todo
 
 ## Low-Level Escape Hatches
 
@@ -107,9 +110,9 @@ They still exist, but they are not the primary operator surface anymore.
 
 ## Closeout Rule
 
-Treat `wiki forge check` as the default closeout review surface.
+`wiki forge run` handles the full closeout automatically. No manual steps needed.
 
-If you must drop lower:
+If you must drop lower for debugging:
 1. `wiki maintain`
 2. update impacted pages from code/tests
 3. `wiki verify-page`

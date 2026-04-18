@@ -94,8 +94,8 @@ export function renderManagedProtocolBlock(source: CanonicalProtocolSource) {
     "Load `/forge` for tracked slice work. Load `/wiki` for knowledge-layer work.",
     "The skills define all available commands. This block enforces the contract, not the command surface.",
     "",
-    `Primary surface: \`wiki forge plan|start|check|run|close|next|status ${source.project}\``,
-    `Session: \`wiki resume ${source.project} --repo <path> --base <rev>\` at session start.`,
+    `Agent surface (3 commands): \`wiki forge plan|run|next ${source.project}\``,
+    `Session start: \`wiki resume ${source.project} --repo <path> --base <rev>\``,
     "",
     END_MARKER,
   ].join("\n");
@@ -105,8 +105,9 @@ export function renderPromptProtocolReminders(project: string) {
   const source = buildCanonicalProtocolSource(project, { path: ".", scope: "root" });
   return [
     ...source.workflowLines.slice(0, 3),
-    `Start tracked slice work with \`wiki forge plan ${project} <feature-name>\` or \`wiki forge start ${project} <slice-id>\`.`,
-    `Close tracked slice work with \`wiki forge run ${project} [slice-id] --repo <path>\` or \`wiki forge check\` then \`wiki forge close\`.`,
+    `Start work: \`wiki forge plan ${project} <feature-name>\` — creates feature + PRD + slice + starts it.`,
+    `Run pipeline: \`wiki forge run ${project} [slice-id] --repo <path>\` — auto-start + check + verify + close.`,
+    `Next slice: \`wiki forge next ${project}\``,
   ];
 }
 

@@ -13,7 +13,7 @@ describe("wiki forge thin surface", () => {
     expect(result.exitCode).toBe(0);
     const output = result.stdout.toString();
     expect(output).toContain("Agent Surface");
-    expect(output).toContain("Session & Human");
+    expect(output).toContain("Session:");
     expect(output).toContain("Internal / Repair");
     expect(output).toContain("wiki forge plan");
     expect(output).toContain("wiki forge run");

@@ -44,7 +44,7 @@ RIGHT (vertical):
 
 ### Non-trivial (inside /forge pipeline)
 
-TDD sits after slice planning and before verification. Predecessor: fill plan.md + test-plan.md. Successor: `wiki forge run` (or `wiki forge check` then fix then `wiki forge close`). See forge SKILL.md for the full pipeline.
+TDD sits after slice planning and before verification. Predecessor: fill plan.md + test-plan.md. Successor: `wiki forge run`. See forge SKILL.md for the full pipeline.
 
 The test-plan.md provides the initial red tests. Use it as input but don't be rigid — the TDD loop may discover behaviors not anticipated in the plan.
 

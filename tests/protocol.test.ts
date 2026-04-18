@@ -36,13 +36,13 @@ describe("wiki protocol commands", () => {
     expect(agents).toContain("Do not treat them as separate policy sources");
     expect(agents).toContain("## Code Quality");
     expect(agents).toContain("Codex (GPT-5-class reviewer) reviews every change before it merges");
-    expect(agents).toContain("wiki forge plan|start|check|run|close|next|status demo");
+    expect(agents).toContain("wiki forge plan|run|next demo");
     expect(agents).toContain("Workflow Enforcement");
     expect(agents).toContain("# Local Notes");
     expect(claude).toContain("managed_by: wiki-forge");
     expect(claude).toContain("protocol_version: 2");
     expect(claude).toContain("## Code Quality");
-    expect(claude).toContain("wiki forge plan|start|check|run|close|next|status demo");
+    expect(claude).toContain("wiki forge plan|run|next demo");
     expect(claude).toContain("wiki protocol sync");
   });
 
@@ -91,7 +91,7 @@ describe("canonical protocol source", () => {
     expect(source.protocolVersion).toBe(2);
     expect(rendered).toContain("managed_by: wiki-forge");
     expect(rendered).toContain(source.workflowLines[0]);
-    expect(rendered).toContain("wiki forge plan|start|check|run|close|next|status demo");
+    expect(rendered).toContain("wiki forge plan|run|next demo");
     expect(rendered).toContain("Workflow Enforcement");
   });
 

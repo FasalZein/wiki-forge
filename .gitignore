@@ -36,6 +36,7 @@ coverage/
 skills-lock.json
 specs/
 .desloppify/
+.ralph/
 
 # Salvage patches from pruned worktrees — reviewed manually, then deleted or applied.
 salvaged-*.patch

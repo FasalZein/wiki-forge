@@ -24,7 +24,7 @@ more AI-navigable, and let you test at the boundary instead of inside.
 
 - **Cadence**: run at least once a week, or after a surge of development
   (finishing a PRD, shipping a batch of slices, closing a feature).
-- **Position in the forge chain**: Architecture improvement runs at cadence boundaries (end of PRD or batch). Predecessor: `wiki forge close`. Successor: `/desloppify`. See forge SKILL.md for the full pipeline.
+- **Position in the forge chain**: Architecture improvement runs at cadence boundaries (end of PRD or batch). Predecessor: `wiki forge run`. Successor: `/desloppify`. See forge SKILL.md for the full pipeline.
 - **Do not run mid-slice.** Architecture review is a separate work item from
   slice implementation — if you find something worth doing, `/forge` it.
 

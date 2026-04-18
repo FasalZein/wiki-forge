@@ -80,7 +80,7 @@ Create slices in dependency order (blockers first) so you can reference task IDs
 
 ### 6. Fill in the plans
 
-After scaffolding, start the slice with `wiki forge start <project> <slice-id> --agent <name> --repo <path>` (or use `wiki forge plan` when the feature + PRD + slice scaffolding was not done manually). This:
+After scaffolding, use `wiki forge plan` (which auto-starts the slice) or `wiki forge run` (which auto-starts if needed). This:
 - Checks `depends_on` ordering
 - Moves the backlog item to In Progress
 - Auto-opens parent PRD and feature if they are still `not-started`
@@ -140,7 +140,7 @@ At this point the slice docs are planned, not implemented. Do **not** mark them 
 
 Slicing sits after PRD approval and before TDD. Successor: `/tdd`. See forge SKILL.md for the full pipeline.
 
-After verification, the slices are ready for `/tdd`. Start each slice with `wiki forge start`, fill plan + test-plan, then run `/tdd`.
+After verification, the slices are ready for `/tdd`. Fill plan + test-plan, then run `/tdd`, then `wiki forge run`.
 
 ## When to use GitHub Issues instead
 
