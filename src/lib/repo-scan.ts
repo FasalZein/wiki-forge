@@ -42,7 +42,7 @@ export async function listRepoMarkdownDocs(repo: string) {
   const files = new Set<string>();
   const visit = (dir: string, prefix = "") => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (entry.name === ".git" || entry.name === ".claude" || entry.name === ".desloppify" || entry.name === "node_modules" || entry.name === "dist" || entry.name === "build" || entry.name === "coverage" || entry.name === ".next" || entry.name === "skills") continue;
+      if (entry.name === ".git" || entry.name === ".claude" || entry.name === ".desloppify" || entry.name === ".ralph" || entry.name === "node_modules" || entry.name === "dist" || entry.name === "build" || entry.name === "coverage" || entry.name === ".next" || entry.name === "skills") continue;
       const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
       const absolute = join(dir, entry.name);
       if (entry.isDirectory()) {
