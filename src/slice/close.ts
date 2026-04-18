@@ -89,7 +89,7 @@ export async function closeSlice(args: string[]) {
   const reviewPassPending = closeout.ok && closeout.staleImpactedPages.length > 0;
   const closeoutBlockerMessages = [
     ...closeout.blockers.map((msg) => `${msg}\n     → run: wiki closeout ${project} --repo ${closeout.repo} --base ${base}`),
-    ...(!worktree && closeout.staleImpactedPages.length ? [
+    ...(!worktree && !sliceLocal && closeout.staleImpactedPages.length ? [
       `${closeout.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted (closeout: REVIEW PASS)\n     → run: ${closeout.nextSteps.join(" && ")}`,
     ] : []),
     ...(!sliceLocal && uncoveredChangedCodeFiles.length ? [
@@ -104,7 +104,7 @@ export async function closeSlice(args: string[]) {
       previousSection: context.section,
       closeout,
       blockers: closeout.blockers.concat(
-        ...(!worktree && closeout.staleImpactedPages.length ? [`${closeout.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted (closeout: REVIEW PASS — run: ${closeout.nextSteps.join(" && ")})`] : []),
+        ...(!worktree && !sliceLocal && closeout.staleImpactedPages.length ? [`${closeout.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted (closeout: REVIEW PASS — run: ${closeout.nextSteps.join(" && ")})`] : []),
         ...(!sliceLocal && uncoveredChangedCodeFiles.length ? [`${uncoveredChangedCodeFiles.length} changed code file(s) are not covered by wiki bindings`] : []),
       ),
       ...(reviewPassPending ? { reviewPass: true, hint: `closeout is REVIEW PASS with ${closeout.staleImpactedPages.length} stale page(s). Re-run close-slice with --force-review after manual review, or fix the pending steps first.` } : {}),
