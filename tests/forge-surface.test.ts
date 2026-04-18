@@ -92,6 +92,34 @@ describe("wiki forge thin surface", () => {
     expect(readFileSync(testPlanPath, "utf8")).toContain("verification_commands:");
   });
 
+  test("forge status triage returns completed for a done slice and compacts JSON context", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "triageproj"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "triageproj");
+    expect(runWiki(["create-issue-slice", "triageproj", "done slice"], env).exitCode).toBe(0);
+
+    const planPath = join(vault, "projects", "triageproj", "specs", "slices", "TRIAGEPROJ-001", "plan.md");
+    const testPlanPath = join(vault, "projects", "triageproj", "specs", "slices", "TRIAGEPROJ-001", "test-plan.md");
+    writeFileSync(planPath, "---\ntitle: TRIAGEPROJ-001 done slice\ntype: spec\nspec_kind: plan\nproject: triageproj\ntask_id: TRIAGEPROJ-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# TRIAGEPROJ-001 done slice\n\n## Scope\n\n- Done already\n", "utf8");
+    writeFileSync(testPlanPath, "---\ntitle: TRIAGEPROJ-001 done slice\ntype: spec\nspec_kind: test-plan\nproject: triageproj\ntask_id: TRIAGEPROJ-001\nupdated: 2026-04-13\nstatus: current\nverification_level: test-verified\n---\n\n# TRIAGEPROJ-001 done slice\n\n## Red Tests\n\n- [x] Done.\n", "utf8");
+    expect(runWiki(["move-task", "triageproj", "TRIAGEPROJ-001", "--to", "Done"], env).exitCode).toBe(0);
+
+    const indexPath = join(vault, "projects", "triageproj", "specs", "slices", "TRIAGEPROJ-001", "index.md");
+    const raw = readFileSync(indexPath, "utf8");
+    writeFileSync(indexPath, raw.replace("status: draft", "status: done"), "utf8");
+
+    const status = runWiki(["forge", "status", "triageproj", "TRIAGEPROJ-001", "--json"], env);
+    expect(status.exitCode).toBe(0);
+    const json = JSON.parse(status.stdout.toString());
+    expect(json.triage.kind).toBe("completed");
+    expect(json.triage.command).toContain("forge next");
+    expect(json.context.id).toBe("TRIAGEPROJ-001");
+    expect(json.context).not.toHaveProperty("taskHubPath");
+    expect(json.context).not.toHaveProperty("hasSliceDocs");
+  });
+
   test("forge plan scaffolds feature, prd, slice, and starts the slice", () => {
     const { vault, repo } = setupPassingRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };

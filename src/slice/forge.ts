@@ -62,7 +62,7 @@ export async function forgeClose(args: string[]) {
 export async function forgeStatus(args: string[]) {
   const parsed = await parseForgeArgs(args, "status");
   const workflow = await collectForgeStatus(parsed.project, parsed.sliceId);
-  if (parsed.json) console.log(JSON.stringify(workflow, null, 2));
+  if (parsed.json) console.log(JSON.stringify(compactForgeStatusForJson(workflow), null, 2));
   else renderForgeStatus(workflow);
 }
 
@@ -175,6 +175,8 @@ export async function collectForgeStatus(project: string, sliceId: string) {
     },
     triage: buildForgeTriage(project, sliceId, {
       activeSlice: focus.activeTask?.id ?? null,
+      sliceStatus: context?.sliceStatus ?? null,
+      section: context?.section ?? null,
       planStatus: context?.planStatus ?? "missing",
       testPlanStatus: context?.testPlanStatus ?? "missing",
       verificationLevel,
@@ -183,7 +185,7 @@ export async function collectForgeStatus(project: string, sliceId: string) {
   };
 }
 
-function buildForgeTriage(project: string, sliceId: string, input: { activeSlice: string | null; planStatus: string; testPlanStatus: string; verificationLevel: string | null; nextPhase: string | null }) {
+function buildForgeTriage(project: string, sliceId: string, input: { activeSlice: string | null; sliceStatus: string | null; section: string | null; planStatus: string; testPlanStatus: string; verificationLevel: string | null; nextPhase: string | null }) {
   const earlyPhase = input.planStatus !== "ready" || input.testPlanStatus !== "ready";
   if (earlyPhase && input.nextPhase === "research") {
     return {
@@ -211,6 +213,13 @@ function buildForgeTriage(project: string, sliceId: string, input: { activeSlice
       kind: "fill-docs",
       reason: `plan=${input.planStatus} test-plan=${input.testPlanStatus}`,
       command: `update projects/${project}/specs/slices/${sliceId}/plan.md and test-plan.md`,
+    };
+  }
+  if (input.sliceStatus === "done" || input.section === "Done") {
+    return {
+      kind: "completed",
+      reason: "slice is done",
+      command: `wiki forge next ${project}`,
     };
   }
   if (input.verificationLevel !== "test-verified") {
@@ -337,6 +346,26 @@ function renderForgeStatus(workflow: Awaited<ReturnType<typeof collectForgeStatu
     else if (status.ready) state = "ready";
     console.log(`  - ${status.phase}: ${state}${status.missing.length ? ` | missing ${status.missing.join(", ")}` : ""}`);
   }
+}
+
+function compactForgeStatusForJson(workflow: Awaited<ReturnType<typeof collectForgeStatus>>) {
+  const { context, ...rest } = workflow;
+  return {
+    ...rest,
+    context: context
+      ? {
+          id: context.id,
+          title: context.title,
+          section: context.section,
+          assignee: context.assignee,
+          sliceStatus: context.sliceStatus,
+          planStatus: context.planStatus,
+          testPlanStatus: context.testPlanStatus,
+          dependencies: context.dependencies,
+          blockedBy: context.blockedBy,
+        }
+      : null,
+  };
 }
 
 export async function forgeOpen(args: string[]) {
@@ -847,6 +876,7 @@ export async function forgeRun(args: string[]) {
     : await collectForgeReview(parsed.project, parsed.sliceId, parsed.repo, parsed.base, parsed.worktree);
   if (!parsed.json) renderForgePipeline("check", workflow, checkResult, review);
   if (!checkResult.ok) throw new Error(`forge run: check failed at ${checkResult.stoppedAt}`);
+  if (review && !review.ok) throw new Error("forge run: check found slice-local blockers");
 
   const closeResult = await runPipeline({
     project: parsed.project,

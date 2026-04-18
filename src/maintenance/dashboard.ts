@@ -36,13 +36,23 @@ export function compactDashboardForJson(result: Awaited<ReturnType<typeof collec
     ...result,
     drift: {
       ...result.drift,
-      results: driftedRows.slice(0, MAX_DRIFT_ROWS).map(({ absolutePath, ...row }) => row),
+      results: driftedRows.slice(0, MAX_DRIFT_ROWS).map(({ absolutePath, sourcePaths, driftedSources, renamedSources, deletedSources, ...row }) => ({
+        ...row,
+        sourcePathCount: sourcePaths?.length ?? 0,
+        driftedSourceCount: driftedSources?.length ?? 0,
+        renamedSourceCount: renamedSources?.length ?? 0,
+        deletedSourceCount: deletedSources?.length ?? 0,
+      })),
       ...(truncatedDrift ? { truncated: true, totalDrifted: driftedRows.length } : {}),
     },
     maintain: {
       ...result.maintain,
       refreshFromGit: {
         ...result.maintain.refreshFromGit,
+        changedFiles: result.maintain.refreshFromGit.changedFiles?.slice(0, MAX_IMPACTED),
+        ...(result.maintain.refreshFromGit.changedFiles && result.maintain.refreshFromGit.changedFiles.length > MAX_IMPACTED
+          ? { changedFilesTruncated: true, totalChangedFiles: result.maintain.refreshFromGit.changedFiles.length }
+          : {}),
         impactedPages: result.maintain.refreshFromGit.impactedPages?.slice(0, MAX_IMPACTED),
         ...(result.maintain.refreshFromGit.impactedPages
           ? { diffSummaryTruncated: result.maintain.refreshFromGit.impactedPages.length > MAX_IMPACTED }
