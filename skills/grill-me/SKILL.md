@@ -7,6 +7,9 @@ description: >
 
 # Grill Me
 
+Compatibility note: wiki-forge is moving the pre-PRD workflow phase to `/domain-model`.
+Use `/domain-model` as the primary path for forge-driven work. Keep this skill as a compatibility surface for direct user requests or older docs.
+
 Stress-test a plan, design, or PRD through structured interrogation. The goal is to surface hidden assumptions, resolve ambiguities, and reach shared understanding before committing to implementation.
 
 ## When to Use

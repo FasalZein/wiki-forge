@@ -64,7 +64,7 @@ npx skills@latest add ./skills/prd-to-slices -g
 Companion workflow skills from `mattpocock/skills`:
 
 ```bash
-npx skills@latest add mattpocock/skills/grill-me -g
+npx skills@latest add FasalZein/wiki-forge/skills/domain-model -g
 npx skills@latest add mattpocock/skills/write-a-prd -g
 npx skills@latest add mattpocock/skills/tdd -g
 ```
@@ -82,7 +82,7 @@ npx skills@latest add FasalZein/wiki-forge/skills/prd-to-slices -g
 Verify:
 
 ```bash
-npx skills list -g | grep -E "forge|wiki|prd-to-slices|grill-me|write-a-prd|tdd"
+npx skills list -g | grep -E "forge|wiki|prd-to-slices|domain-model|write-a-prd|tdd"
 ```
 
 ### 5. Sync local updates
@@ -154,7 +154,7 @@ After installing skills, Claude Code automatically picks them up. Start any non-
 ```
 
 `/forge` expects these companion skills to already be installed:
-- `/grill-me`
+- `/domain-model`
 - `/write-a-prd`
 - `/prd-to-slices`
 - `/tdd`
@@ -164,7 +164,7 @@ Or use individual skills directly:
 
 ```
 /wiki          # CLI operations reference
-/grill-me      # pressure-test the plan
+/domain-model  # sharpen terminology and decisions before the PRD
 /write-a-prd   # create the PRD
 /prd-to-slices # break a PRD into backlog items
 /tdd           # implement via red-green-refactor

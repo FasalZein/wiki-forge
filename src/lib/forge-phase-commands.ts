@@ -17,8 +17,8 @@ export function phaseRecommendation(project: string, sliceId: string, nextPhase:
     case "grill":
       return {
         kind: "needs-grill",
-        reason: "workflow ledger shows grill phase is incomplete",
-        command: `/grill-me — stress-test the design and record decisions`,
+        reason: "workflow ledger shows the domain-model phase is incomplete",
+        command: `/domain-model — sharpen terms, record decisions in the wiki, and surface ambiguities before PRD authoring`,
       };
     case "prd":
       return {

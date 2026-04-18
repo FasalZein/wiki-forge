@@ -76,7 +76,7 @@ The scaffold has these sections — fill all of them from interview and codebase
 | **User Stories** | Extensive numbered list: `As a <actor>, I want <feature>, so that <benefit>`. Cover all aspects. |
 | **Acceptance Criteria** | Checkboxes defining done. These become the basis for slice test plans. |
 | **Prior Research** | Wikilinks to filed research: `[[research/projects/<project>/<slug>]]`. At least one link required. |
-| **Open Questions** | Unresolved decisions. Address before slicing. `/grill-me` resolves these. |
+| **Open Questions** | Unresolved decisions. Address before slicing. `/domain-model` resolves terminology, decision, and ambiguity questions before PRD authoring. |
 
 Additionally, add these sections below Open Questions if implementation decisions were made:
 
@@ -96,7 +96,7 @@ wiki lint-semantic <project>
 
 ### Non-trivial (full forge pipeline)
 
-PRD writing sits after `/grill-me` and before `/prd-to-slices`. See forge SKILL.md for the full pipeline.
+PRD writing sits after `/domain-model` and before `/prd-to-slices`. See forge SKILL.md for the full pipeline.
 
 The PRD captures all decisions from research and grilling. Every claim in the PRD should trace to filed research.
 

@@ -352,7 +352,7 @@ npx skills@latest add FasalZein/wiki-forge/skills/forge -g
 npx skills@latest add FasalZein/wiki-forge/skills/wiki -g
 npx skills@latest add FasalZein/wiki-forge/skills/prd-to-slices -g
 npx skills@latest add FasalZein/wiki-forge/skills/write-a-prd -g
-npx skills@latest add FasalZein/wiki-forge/skills/grill-me -g
+npx skills@latest add FasalZein/wiki-forge/skills/domain-model -g
 npx skills@latest add FasalZein/wiki-forge/skills/tdd -g
 npx skills@latest add FasalZein/wiki-forge/skills/desloppify -g
 ```
@@ -367,7 +367,7 @@ npx skills@latest add FasalZein/wiki-forge/skills/desloppify -g
 | **forge** | `/forge` | Software-development workflow: research -> grill -> PRD -> slices -> TDD -> verify -> desloppify | Non-trivial implementation work, new features, cross-module changes, or existing slice continuation |
 | **prd-to-slices** | `/prd-to-slices` | Breaks a PRD into tracked vertical slices in the wiki backlog | After writing a PRD, before implementation |
 | **write-a-prd** | `/write-a-prd` | Wiki-vault-native PRD authoring via `wiki create-prd` | When you need formal project intent |
-| **grill-me** | `/grill-me` | Stress-tests a plan across 10 dimensions before committing | Before writing a PRD |
+| **domain-model** | `/domain-model` | Sharpens terms, records decisions in the wiki, and surfaces ambiguities before PRD authoring | Before writing a PRD |
 | **tdd** | `/tdd` | Red-green-refactor with vertical slices — no code without tests, ever | During implementation |
 | **desloppify** | `/desloppify` | Scans for AI-introduced anti-patterns, triages, fixes, verifies | Final quality gate after wiki closeout |
 
@@ -415,7 +415,7 @@ Rule of thumb:
 For non-trivial work, forge orchestrates the full pipeline:
 
 ```
-/research  ->  /grill-me  ->  /write-a-prd  ->  /prd-to-slices  ->  /tdd  ->  /wiki  ->  /desloppify
+/research  ->  /domain-model  ->  /write-a-prd  ->  /prd-to-slices  ->  /tdd  ->  /wiki  ->  /desloppify
 ```
 
 ```bash
@@ -424,7 +424,7 @@ For non-trivial work, forge orchestrates the full pipeline:
 wiki research file my-app "topic title"
 
 # 2. Stress-test the plan
-/grill-me
+/domain-model
 
 # 3. Create the parent feature + PRD
 wiki create-feature my-app "feature name"

@@ -33,7 +33,7 @@ more AI-navigable, and let you test at the boundary instead of inside.
 - Project is onboarded into the wiki: `wiki scaffold-project <project>` has
   run, `_summary.md` has `repo:` set, and modules/features/PRDs/slices exist
   in the usual layout.
-- `/research`, `/grill-me`, `/write-a-prd`, `/prd-to-slices`, `/tdd`, `/wiki`
+- `/research`, `/domain-model`, `/write-a-prd`, `/prd-to-slices`, `/tdd`, `/wiki`
   are available — we chain them for accepted refactors.
 
 ## Process

@@ -1,7 +1,7 @@
 ---
 name: forge
 description: >
-  Build with rigor. Orchestrates research -> grill -> PRD -> slices -> TDD before anything ships.
+  Build with rigor. Orchestrates research -> domain-model -> PRD -> slices -> TDD before anything ships.
   Forge is the workflow layer, not the research layer or wiki layer. It loads companion skills and checks gates. Zero API calls — everything stays in the wiki vault.
 ---
 
@@ -18,7 +18,7 @@ Forge is the workflow layer.
 The contract stays:
 
 ```text
-research -> grill-me -> PRD -> slices -> TDD -> wiki verify -> improve-codebase-architecture (cadence) -> desloppify
+research -> domain-model -> PRD -> slices -> TDD -> wiki verify -> improve-codebase-architecture (cadence) -> desloppify
 ```
 
 ## Protocol Start Checklist
@@ -55,7 +55,7 @@ Do **not** silently downgrade an active slice thread into plain `/wiki` maintena
 
 Forge assumes these repo skills exist:
 - `/research`
-- `/grill-me`
+- `/domain-model`
 - `/write-a-prd`
 - `/prd-to-slices`
 - `/tdd`
@@ -71,7 +71,7 @@ Prefer the thin surface first.
 
 ```text
 1. /research
-2. /grill-me
+2. /domain-model
 3. wiki forge plan <project> <feature-name> [--agent <name> --repo <path>]
 4. fill plan.md + test-plan.md
 5. /tdd
@@ -132,7 +132,7 @@ Remember:
 
 1. No code change without tests.
 2. No non-trivial implementation without PRD + slice tracking.
-3. Research comes before PRD; grill comes before committing the design.
+3. Research comes before PRD; domain modeling comes before committing the design.
 4. Update wiki pages from code/tests, not memory.
 5. Do not create extra repo markdown outside the allowed set.
 6. `wiki handover` is user-invoked only.
