@@ -16,11 +16,7 @@ Break a PRD into independently-grabbable vertical slices. Each slice gets a back
 
 The PRD should already exist in the wiki at `projects/<project>/specs/prds/PRD-*.md`.
 
-If the user points to a GitHub issue or external doc and there is no vault PRD yet, stop this skill and route back to `/forge`:
-1. `/research`
-2. `/grill-me`
-3. `/write-a-prd`
-4. return to `/prd-to-slices` only after the PRD exists in the vault
+If the user points to a GitHub issue or external doc and there is no vault PRD yet, stop this skill and route back to `/forge` — the PRD must exist before slicing can begin. See forge SKILL.md for the full pipeline.
 
 This skill decomposes an approved PRD. It does not replace the earlier forge steps.
 
@@ -84,7 +80,7 @@ Create slices in dependency order (blockers first) so you can reference task IDs
 
 ### 6. Fill in the plans
 
-After scaffolding, immediately run `wiki start-slice <project> <slice-id> --agent <name> --repo <path>` for the selected slice. This:
+After scaffolding, start the slice with `wiki forge start <project> <slice-id> --agent <name> --repo <path>` (or use `wiki forge plan` when the feature + PRD + slice scaffolding was not done manually). This:
 - Checks `depends_on` ordering
 - Moves the backlog item to In Progress
 - Auto-opens parent PRD and feature if they are still `not-started`
@@ -142,15 +138,9 @@ At this point the slice docs are planned, not implemented. Do **not** mark them 
 
 ### 10. Hand off to implementation
 
-After verification, the slices are ready for `/tdd`. The lifecycle is:
+Slicing sits after PRD approval and before TDD. Successor: `/tdd`. See forge SKILL.md for the full pipeline.
 
-```text
-create slice -> wiki forge start -> fill plan + test-plan -> /tdd -> wiki forge check -> wiki forge close -> /improve-codebase-architecture (cadence) -> /desloppify
-```
-
-`/improve-codebase-architecture` runs at the end of a PRD or batch of slices (weekly at minimum) and turns any accepted deepening refactor into a new feature+PRD+slices of its own — not a silent rewrite mid-slice. `/desloppify` is the final line-level quality gate.
-
-After each slice, use the grouped forge close path from `/forge`: `wiki forge check`, fix anything it reports, then `wiki forge close`. Drop to lower-level wiki verbs only for repair/debug cases; `/forge` is the source of truth for the normal operator path.
+After verification, the slices are ready for `/tdd`. Start each slice with `wiki forge start`, fill plan + test-plan, then run `/tdd`.
 
 ## When to use GitHub Issues instead
 

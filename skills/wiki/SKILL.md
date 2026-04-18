@@ -15,15 +15,18 @@ The wiki is compiled memory. Sources of truth live outside it — code, filed re
 
 ## Protocol Start Checklist
 
-Run this before write-oriented wiki work.
+Shared with `/forge`. See the forge skill for the full checklist.
 
-1. Check the managed protocol block in repo `AGENTS.md` / `CLAUDE.md`.
-2. If it looks stale or malformed, run `wiki protocol audit <project> --repo <path>` and surface the diff.
-3. If repo-local instructions conflict with this skill, the repo instruction file wins.
-4. Run `wiki resume <project> --repo <path> --base <rev>` when resuming a project session.
-5. When delegating wiki work to a sub-agent, explicitly load `/wiki` in that prompt.
+Quick reference:
+1. Check repo `AGENTS.md` / `CLAUDE.md` managed block.
+2. Run `wiki resume <project> --repo <path> --base <rev>` when resuming.
+3. When delegating, explicitly load `/wiki` in the sub-agent prompt.
 
-Skip 1–3 only for pure read-only retrieval.
+Skip for pure read-only retrieval.
+
+## Behavioral Guardrails
+
+Defined in the forge skill. Apply to all wiki sessions. Load `/forge` for the full text.
 
 ## Use Wiki For
 

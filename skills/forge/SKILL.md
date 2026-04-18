@@ -30,6 +30,15 @@ Run this before any write-oriented `wiki` command unless the task is pure read-o
 4. Run `wiki resume <project> --repo <path> --base <rev>` at session start.
 5. When delegating wiki/forge work to a sub-agent, explicitly load `/wiki` or `/forge` in that prompt.
 
+## Behavioral Guardrails
+
+These load with every forge session. They are not optional.
+
+1. **Think before coding.** State assumptions explicitly. If multiple interpretations exist, present them — don't pick silently. If something is unclear, stop and ask.
+2. **Simplicity first.** Write the minimum code that solves the problem. No speculative features, no unnecessary abstractions, no "just in case" layers. Three similar lines beat a premature helper.
+3. **Surgical changes.** Touch only what the task requires. Don't "improve" adjacent code. Match existing style. Remove only what YOUR changes made unused.
+4. **Goal-driven execution.** Define success criteria before starting. Loop until verified — typecheck, tests, gate. A task is done when the gate passes, not when the code compiles.
+
 ## When To Use Forge
 
 Use `/forge` for:
@@ -68,8 +77,11 @@ Prefer the thin surface first.
 5. /tdd
 6. wiki forge run <project> [slice-id] --repo <path>
    — or manually: wiki forge check -> fix -> wiki forge close
-7. wiki forge status <project> [slice-id]
+7. /desloppify (final quality gate — external CLI, not a wiki subcommand)
+8. wiki forge status <project> [slice-id]
 ```
+
+**Resuming work?** Start every session with `wiki resume <project> --repo <path> --base <rev>`, then run `wiki forge next <project>` — it prints the one command to run next.
 
 Meaning of the grouped commands:
 - `wiki forge next` = read backlog, pick the next slice, print recommended action

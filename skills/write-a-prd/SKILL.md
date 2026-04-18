@@ -96,11 +96,7 @@ wiki lint-semantic <project>
 
 ### Non-trivial (full forge pipeline)
 
-When part of `/forge`, this skill runs after `/research` and `/grill-me`:
-
-```text
-/research -> /grill-me -> /write-a-prd -> /prd-to-slices -> /tdd -> /wiki -> /improve-codebase-architecture -> /desloppify
-```
+PRD writing sits after `/grill-me` and before `/prd-to-slices`. See forge SKILL.md for the full pipeline.
 
 The PRD captures all decisions from research and grilling. Every claim in the PRD should trace to filed research.
 

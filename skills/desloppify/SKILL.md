@@ -12,13 +12,9 @@ CLI detects AI-introduced anti-patterns. You triage and fix. This is the **final
 
 ## Position in Pipeline
 
-```text
-/tdd -> /wiki closeout -> /improve-codebase-architecture (cadence) -> /desloppify -> done
-```
+Desloppify is the final quality gate. Predecessor: `wiki forge close`. See forge SKILL.md for the full pipeline.
 
-Desloppify is the last step for both non-trivial and small-scope workflows. No code ships with unaddressed slop.
-
-`/improve-codebase-architecture` sits directly before desloppify on non-trivial flows and runs at cadence boundaries (end of a PRD, batch of slices, weekly minimum). It catches module-shape problems; desloppify catches line-level ones. Running them in that order means desloppify evaluates a structurally sound target. Skip the architecture step for small-scope (<50 line) runs.
+No code ships with unaddressed slop. `/improve-codebase-architecture` catches module-shape problems; desloppify catches line-level ones. Running them in that order means desloppify evaluates a structurally sound target. Skip the architecture step for small-scope (<50 line) runs.
 
 ## When to Use
 
@@ -102,7 +98,7 @@ bun test                                  # TDD gate: all tests still pass
 
 ## Integration with Wiki
 
-Desloppify runs **after** `wiki gate` in the canonical forge closeout sequence (step 12 → desloppify). After desloppify fixes, if any source files changed:
+Desloppify runs after `wiki forge close` in the forge pipeline. After desloppify fixes, if any source files changed:
 - Tests must still pass (non-negotiable)
 - `wiki gate` must still pass — if desloppify rewrote anything test-observable, re-run gate; if a fix touched page-bound source, also re-run the affected `wiki verify-page`
 - You do NOT need to re-run `wiki checkpoint` / `wiki maintain` / full closeout unless desloppify introduced behavior changes (desloppify is line-level polish, not a behavior refactor)

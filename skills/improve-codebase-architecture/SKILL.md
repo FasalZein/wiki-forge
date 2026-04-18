@@ -24,11 +24,7 @@ more AI-navigable, and let you test at the boundary instead of inside.
 
 - **Cadence**: run at least once a week, or after a surge of development
   (finishing a PRD, shipping a batch of slices, closing a feature).
-- **Position in the forge chain**: after `/wiki` closeout for the current
-  slice work, before `/desloppify`. `/desloppify` scans for AI slop at the
-  line/function level; this skill scans for shape problems at the module
-  level. Running them in that order means desloppify works on a structurally
-  sound target.
+- **Position in the forge chain**: Architecture improvement runs at cadence boundaries (end of PRD or batch). Predecessor: `wiki forge close`. Successor: `/desloppify`. See forge SKILL.md for the full pipeline.
 - **Do not run mid-slice.** Architecture review is a separate work item from
   slice implementation — if you find something worth doing, `/forge` it.
 
@@ -177,8 +173,7 @@ through `/forge` — not a hidden rewrite. This preserves the "no unmaintainable
 code as the cost of speed" gate.
 
 ```bash
-wiki create-feature <project> "deepen <cluster> module"
-wiki create-prd <project> --feature FEAT-<nnn> "<chosen interface> refactor"
+wiki forge plan <project> "deepen <cluster> module" --prd-name "<chosen interface> refactor"
 # Then /prd-to-slices to split the migration into tracer-bullet slices.
 ```
 

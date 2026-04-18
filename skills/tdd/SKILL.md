@@ -44,14 +44,7 @@ RIGHT (vertical):
 
 ### Non-trivial (inside /forge pipeline)
 
-When implementing a wiki-tracked slice, TDD runs after slice docs are filled:
-
-```text
-wiki forge start <project> <slice-id> --agent <name> --repo <path>
-  -> fill plan.md and test-plan.md
-  -> /tdd (this skill)
-  -> wiki forge check / wiki forge close
-```
+TDD sits after slice planning and before verification. Predecessor: fill plan.md + test-plan.md. Successor: `wiki forge run` (or `wiki forge check` then fix then `wiki forge close`). See forge SKILL.md for the full pipeline.
 
 The test-plan.md provides the initial red tests. Use it as input but don't be rigid — the TDD loop may discover behaviors not anticipated in the plan.
 
@@ -60,8 +53,6 @@ Before starting:
 2. Read the slice's `test-plan.md` for planned red tests
 3. Read the source code that will be modified
 4. Confirm the interface design with the user
-
-After TDD is complete, hand off to the grouped forge close path from `/forge`: `wiki forge check`, fix anything it reports, then `wiki forge close`. Drop to lower-level wiki verbs only for repair/debug cases; `/forge` remains the source of truth for the happy path.
 
 ### Small scope (bug fix / focused refactor)
 
@@ -181,8 +172,4 @@ Every code change MUST have corresponding tests. This is non-negotiable:
 
 `wiki gate` enforces this — it hard-blocks on missing tests for changed files. The gate does not accept excuses.
 
-After TDD + `/wiki` closeout, run `/improve-codebase-architecture` at cadence boundaries (end of a PRD, batch of slices, or at least weekly) and then `/desloppify` to catch AI-introduced anti-patterns:
-```bash
-desloppify scan .        # detect slop
-desloppify score .       # verify no regression
-```
+After TDD + `/wiki` closeout, run `/improve-codebase-architecture` at cadence boundaries and then `/desloppify`. See forge SKILL.md for the full pipeline.
