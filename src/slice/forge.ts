@@ -875,7 +875,6 @@ function classifyStepFailure(stepId: string, error: string | null): string {
 
 export async function forgeRun(args: string[]) {
   const parsed = await parseForgeArgs(args, "run");
-  const workflow = await collectForgeStatus(parsed.project, parsed.sliceId);
 
   const context = await collectTaskContextForId(parsed.project, parsed.sliceId);
   if (!context || context.section !== "In Progress") {
@@ -894,6 +893,8 @@ export async function forgeRun(args: string[]) {
     }
     if (!parsed.json) console.log(`auto-started ${parsed.sliceId} (agent: ${startResult.agent})`);
   }
+
+  const workflow = await collectForgeStatus(parsed.project, parsed.sliceId);
 
   const progressSteps: PipelineStepProgress[] = [];
   const onStepComplete = async (step: { id: string; label: string; ok: boolean; error: string | null; durationMs: number | null }) => {
