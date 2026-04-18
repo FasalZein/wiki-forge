@@ -201,13 +201,14 @@ const SPEC_IDENTITY = {
 
 export async function createFeature(args: string[]) {
   const { project, name } = parseProjectAndName(args);
-  announceCreated(await createIndexedSpecDocument(project, "feature", name, FEATURE_TEMPLATE));
+  const { path } = await createIndexedSpecDocument(project, "feature", name, FEATURE_TEMPLATE);
+  announceCreated(path);
 }
 
 export async function createPrd(args: string[]) {
   const options = parsePrdArgs(args);
   const feature = await resolveFeatureRecord(options.project, options.featureId);
-  announceCreated(await createIndexedSpecDocument(options.project, "prd", options.name, PRD_TEMPLATE, {
+  const { path } = await createIndexedSpecDocument(options.project, "prd", options.name, PRD_TEMPLATE, {
     parentFeature: feature.featureId,
     supersedes: options.supersedes,
     splitFrom: options.splitFrom,
@@ -215,7 +216,25 @@ export async function createPrd(args: string[]) {
       feature_link: feature.linkPath,
       feature_title: feature.title,
     },
-  }));
+  });
+  announceCreated(path);
+}
+
+export async function createFeatureReturningId(project: string, name: string): Promise<{ specId: string; path: string }> {
+  return createIndexedSpecDocument(project, "feature", name, FEATURE_TEMPLATE);
+}
+
+export async function createPrdReturningId(project: string, name: string, featureId: string, supersedes?: string, splitFrom?: string): Promise<{ specId: string; path: string }> {
+  const feature = await resolveFeatureRecord(project, featureId);
+  return createIndexedSpecDocument(project, "prd", name, PRD_TEMPLATE, {
+    parentFeature: feature.featureId,
+    supersedes,
+    splitFrom,
+    extraTemplateValues: {
+      feature_link: feature.linkPath,
+      feature_title: feature.title,
+    },
+  });
 }
 
 export async function createPlan(args: string[]) {
@@ -230,7 +249,7 @@ async function createIndexedSpecDocument(project: string, kind: IndexedPlanningK
   const specId = await nextSpecId(project, kind);
   const outputPath = await createSpecDocumentInternal(project, kind, name, templateLines, kind === "feature" ? { ...options, featureId: specId } : { ...options, prdId: specId });
   await writeProjectIndex(project);
-  return outputPath;
+  return { specId, path: outputPath };
 }
 
 export async function createSpecDocumentInternal(project: string, kind: PlanningKind, name: string, templateLines: readonly string[], options: CreateSpecOptions = {}) {

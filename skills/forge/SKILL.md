@@ -11,7 +11,7 @@ Forge is the workflow layer.
 
 - `wiki` = knowledge, verification, drift, retrieval, filing
 - `forge` = delivery policy over those primitives
-- default agent surface = `wiki forge start|open|check|close|status`
+- default agent surface = `wiki forge start|open|check|close|run|plan|status`
 - default reconciliation primitive = `wiki sync`
 
 The contract stays:
@@ -62,22 +62,21 @@ Prefer the thin surface first.
 ```text
 1. /research
 2. /grill-me
-3. /write-a-prd
-4. /prd-to-slices
-5. wiki next <project>
-6. wiki forge start <project> [slice-id] --agent <name> --repo <path>
-7. fill plan.md + test-plan.md
-8. /tdd
-9. wiki forge check <project> [slice-id] --repo <path>
-10. fix anything it reports
-11. wiki forge close <project> [slice-id] --repo <path>
-12. wiki forge status <project> [slice-id]
+3. wiki forge plan <project> <feature-name> [--agent <name> --repo <path>]
+   — or manually: /write-a-prd -> /prd-to-slices -> wiki forge start
+4. fill plan.md + test-plan.md
+5. /tdd
+6. wiki forge run <project> [slice-id] --repo <path>
+   — or manually: wiki forge check -> fix -> wiki forge close
+7. wiki forge status <project> [slice-id]
 ```
 
 Meaning of the grouped commands:
-- `wiki forge start/open` = choose/open the slice and register the lifecycle entry point
+- `wiki forge plan` = create-feature + create-prd + create-issue-slice + start-slice in one step
+- `wiki forge start/open` = choose/open a single slice and register the lifecycle entry point
 - `wiki forge check` = run the slice-local verification/closeout review path
 - `wiki forge close` = finish the close sequence when check is clean
+- `wiki forge run` = check + close in a single pass (stops if check fails)
 - `wiki forge status` = show the current forge workflow ledger / phase state
 
 ## Low-Level Escape Hatches

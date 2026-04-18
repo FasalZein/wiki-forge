@@ -2,7 +2,7 @@
 
 import type { CommandHandler } from "./types";
 import { printHelp, scaffoldProject, addTask, backlogCommand, moveTask, completeTask, createIssueSlice, createFeature, createPrd, createPlan, createTestPlan, createModule, onboardProject, onboardPlan, normalizeModule, dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, syncProject, discoverProject, ingestDiff, handoverProject, claimSlice, noteProject, nextProject, startSlice, verifySlice, closeSlice, exportPrompt, resumeProject, commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo, syncProtocol, auditProtocol, dependencyGraph, updateIndex, logCommand, statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch } from "./system";
-import { forgeCheck, forgeClose, forgeOpen, forgeStart, forgeStatus } from "./slice/forge";
+import { forgeCheck, forgeClose, forgeOpen, forgePlan, forgeRun, forgeStart, forgeStatus } from "./slice/forge";
 import { doctorProject, gateProject } from "./maintenance";
 import { closeFeature, closePrd, featureStatusCommand, startFeature, startPrd } from "./hierarchy";
 import { pipelineCommand } from "./slice/pipeline";
@@ -26,7 +26,7 @@ const commands: Record<string, CommandHandler> = {
   "add-task": (args) => addTask(args),
   "move-task": (args) => moveTask(args),
   "complete-task": (args) => completeTask(args),
-  "create-issue-slice": (args) => createIssueSlice(args),
+  "create-issue-slice": async (args) => { await createIssueSlice(args); },
   "create-feature": (args) => createFeature(args),
   "create-prd": (args) => createPrd(args),
   "create-plan": (args) => createPlan(args),
@@ -109,7 +109,9 @@ const commands: Record<string, CommandHandler> = {
   "forge:open": (args) => forgeOpen(args),
   "forge:check": (args) => forgeCheck(args),
   "forge:close": (args) => forgeClose(args),
+  "forge:run": (args) => forgeRun(args),
   "forge:status": (args) => forgeStatus(args),
+  "forge:plan": (args) => forgePlan(args),
 };
 
 const rawArgs = process.argv.slice(2);
@@ -201,8 +203,10 @@ function resolveCommand(rawArgs: string[]) {
       open: "forge:open",
       check: "forge:check",
       close: "forge:close",
+      run: "forge:run",
       status: "forge:status",
-    }[subcommand as "start" | "open" | "check" | "close" | "status"];
+      plan: "forge:plan",
+    }[subcommand as "start" | "open" | "check" | "close" | "run" | "status" | "plan"];
     if (!mapped) throw new Error(`unknown forge subcommand: ${subcommand}. Run 'wiki help' for usage.`);
     return { command: mapped, args: subArgs };
   }

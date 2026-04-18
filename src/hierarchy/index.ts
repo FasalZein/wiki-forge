@@ -25,7 +25,7 @@ export {
 } from "./backlog";
 export type { BacklogItem, TaskDocState, BacklogTaskContext, BacklogFocus } from "./backlog";
 export { appendTaskToBacklog, parseTaskArgs } from "./backlog-io";
-export { createFeature, createPrd, createPlan, createTestPlan, slugify } from "./planning";
+export { createFeature, createPrd, createPlan, createTestPlan, createFeatureReturningId, createPrdReturningId, slugify } from "./planning";
 export { dependencyGraph } from "./dependency-graph";
 export { updateIndex, writeProjectIndex, collectStaleIndexTargets, writeNavigationIndex, writeNamedNavigationTargets } from "./index-log";
 export { summaryProject } from "./summary";

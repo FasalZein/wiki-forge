@@ -33,6 +33,35 @@ describe("wiki forge thin surface", () => {
     expect(output).toContain("wiki forge start <project> [slice-id] [--agent <name>] [--repo <path>] [--json]");
     expect(output).toContain("wiki forge check <project> [slice-id] [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]");
     expect(output).toContain("wiki forge status <project> [slice-id] [--json]");
+    expect(output).toContain("wiki forge run");
+    expect(output).toContain("wiki forge plan");
+  });
+
+  test("forge run chains check then close in a single pass", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "runproj"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "runproj");
+    expect(runWiki(["create-issue-slice", "runproj", "payments slice"], env).exitCode).toBe(0);
+
+    const planPath = join(vault, "projects", "runproj", "specs", "slices", "RUNPROJ-001", "plan.md");
+    const testPlanPath = join(vault, "projects", "runproj", "specs", "slices", "RUNPROJ-001", "test-plan.md");
+    writeFileSync(planPath, "---\ntitle: RUNPROJ-001 payments slice\ntype: spec\nspec_kind: plan\nproject: runproj\ntask_id: RUNPROJ-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# RUNPROJ-001 payments slice\n\n## Scope\n\n- Ship the payments change\n", "utf8");
+    writeFileSync(testPlanPath, "---\ntitle: RUNPROJ-001 payments slice\ntype: spec\nspec_kind: test-plan\nproject: runproj\ntask_id: RUNPROJ-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# RUNPROJ-001 payments slice\n\n## Red Tests\n\n- [x] Payments behavior is covered through the public API.\n\n## Verification Commands\n\n```bash\n# label: payments tests\nbun test tests/payments.test.ts\n```\n", "utf8");
+    expect(runWiki(["bind", "runproj", "specs/slices/RUNPROJ-001/index.md", "src/payments.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["forge", "start", "runproj", "RUNPROJ-001", "--agent", "codex", "--repo", repo], env).exitCode).toBe(0);
+
+    const run = runWiki(["forge", "run", "runproj", "RUNPROJ-001", "--repo", repo, "--json"], env);
+    expect(run.exitCode).toBe(0);
+    const json = JSON.parse(run.stdout.toString());
+    expect(json.check.ok).toBe(true);
+    expect(json.close.ok).toBe(true);
+    expect(json.check.phase).toBe("close");
+    expect(json.close.phase).toBe("verify");
+
+    const backlog = JSON.parse(runWiki(["backlog", "runproj", "--json"], env).stdout.toString());
+    expect(backlog.sections.Done[0].id).toBe("RUNPROJ-001");
   });
 
   test("can start, inspect, check, and close a clean slice through wiki forge", () => {
@@ -78,6 +107,43 @@ describe("wiki forge thin surface", () => {
     const backlog = JSON.parse(runWiki(["backlog", "gated", "--json"], env).stdout.toString());
     expect(backlog.sections.Done[0].id).toBe("GATED-001");
     expect(readFileSync(testPlanPath, "utf8")).toContain("verification_commands:");
+  });
+
+  test("forge plan scaffolds feature, prd, slice, and starts the slice", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "newproj"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "newproj");
+
+    const plan = runWiki(["forge", "plan", "newproj", "Billing", "--agent", "codex", "--repo", repo], env);
+    expect(plan.exitCode).toBe(0);
+    const out = plan.stdout.toString();
+    expect(out).toContain("created feature FEAT-001");
+    expect(out).toContain("created prd PRD-001");
+    expect(out).toContain("created slice NEWPROJ-001");
+
+    const backlog = JSON.parse(runWiki(["backlog", "newproj", "--json"], env).stdout.toString());
+    expect(backlog.sections["In Progress"][0].id).toBe("NEWPROJ-001");
+  });
+
+  test("forge plan accepts --feature to skip feature creation", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "newproj"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "newproj");
+    expect(runWiki(["create-feature", "newproj", "Billing"], env).exitCode).toBe(0);
+
+    const plan = runWiki(["forge", "plan", "newproj", "--feature", "FEAT-001", "--prd-name", "Billing invoices", "--title", "add invoice api", "--agent", "codex", "--repo", repo], env);
+    expect(plan.exitCode).toBe(0);
+    const out = plan.stdout.toString();
+    expect(out).not.toContain("created feature");
+    expect(out).toContain("created prd PRD-001");
+    expect(out).toContain("created slice NEWPROJ-001");
+
+    const backlog = JSON.parse(runWiki(["backlog", "newproj", "--json"], env).stdout.toString());
+    expect(backlog.sections["In Progress"][0].id).toBe("NEWPROJ-001");
   });
 
   test("forge check and close keep parent drift as warnings instead of slice blockers", () => {

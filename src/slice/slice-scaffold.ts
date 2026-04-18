@@ -73,6 +73,7 @@ export async function createIssueSlice(args: string[]) {
     console.log(`- plan: ${result.planPath}`);
     console.log(`- test-plan: ${result.testPlanPath}`);
   }
+  return result;
 }
 
 async function createSlicePaths(project: string, taskId: string): Promise<SlicePaths> {

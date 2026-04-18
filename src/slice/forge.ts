@@ -8,7 +8,8 @@ import { runPipeline } from "../lib/pipeline";
 import { collectCloseout, collectGate } from "../maintenance";
 import { type ForgeWorkflowLedger, validateForgeWorkflowLedger } from "../lib/forge-ledger";
 import { projectPrdsDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath } from "../lib/structure";
-import { collectBacklogFocus, collectTaskContextForId, detectTaskDocState } from "../hierarchy";
+import { collectBacklogFocus, collectTaskContextForId, detectTaskDocState, createFeatureReturningId, createPrdReturningId } from "../hierarchy";
+import { createIssueSlice } from "./slice-scaffold";
 import { startSlice } from "./coordination";
 
 export async function forgeStart(args: string[]) {
@@ -313,5 +314,121 @@ function renderForgeStatus(workflow: Awaited<ReturnType<typeof collectForgeStatu
 
 export async function forgeOpen(args: string[]) {
   return forgeStart(args);
+}
+
+export async function forgePlan(args: string[]) {
+  const parsed = parseForgePlanArgs(args);
+  const featureId = parsed.featureId ?? await (async () => {
+    requireValue(parsed.featureName, "feature-name (positional) or --feature FEAT-xxx");
+    const { specId } = await createFeatureReturningId(parsed.project, parsed.featureName!);
+    console.log(`created feature ${specId}`);
+    return specId;
+  })();
+  const prdName = parsed.prdName ?? parsed.featureName;
+  requireValue(prdName, "prd-name (--prd-name) or feature-name positional");
+  const { specId: prdId } = await createPrdReturningId(parsed.project, prdName!, featureId);
+  console.log(`created prd ${prdId}`);
+  const sliceTitle = parsed.title ?? prdName!;
+  const sliceArgs = [
+    parsed.project,
+    sliceTitle,
+    "--prd", prdId,
+    ...(parsed.agent ? ["--assignee", parsed.agent] : []),
+  ];
+  const slice = await createIssueSlice(sliceArgs);
+  if (!slice) throw new Error("createIssueSlice did not return a result");
+  console.log(`created slice ${slice.taskId}`);
+  await startSlice([
+    parsed.project,
+    slice.taskId,
+    ...(parsed.agent ? ["--agent", parsed.agent] : []),
+    ...(parsed.repo ? ["--repo", parsed.repo] : []),
+  ]);
+}
+
+type ForgePlanArgs = {
+  project: string;
+  featureName: string | undefined;
+  featureId: string | undefined;
+  prdName: string | undefined;
+  title: string | undefined;
+  agent: string | undefined;
+  repo: string | undefined;
+};
+
+function parseForgePlanArgs(args: string[]): ForgePlanArgs {
+  const project = args[0];
+  requireValue(project, "project");
+  let featureId: string | undefined;
+  let prdName: string | undefined;
+  let title: string | undefined;
+  let agent: string | undefined;
+  let repo: string | undefined;
+  const nameParts: string[] = [];
+  for (let index = 1; index < args.length; index += 1) {
+    const arg = args[index];
+    switch (arg) {
+      case "--feature":
+        featureId = args[index + 1];
+        index += 1;
+        break;
+      case "--prd-name":
+        prdName = args[index + 1];
+        index += 1;
+        break;
+      case "--title":
+        title = args[index + 1];
+        index += 1;
+        break;
+      case "--agent":
+        agent = args[index + 1];
+        index += 1;
+        break;
+      case "--repo":
+        repo = args[index + 1];
+        index += 1;
+        break;
+      default:
+        if (!arg.startsWith("--")) nameParts.push(arg);
+        break;
+    }
+  }
+  const featureName = nameParts.join(" ").trim() || undefined;
+  if (!featureId && !featureName) throw new Error("feature-name (positional) or --feature FEAT-xxx is required");
+  return { project, featureName, featureId, prdName, title, agent, repo };
+}
+
+export async function forgeRun(args: string[]) {
+  const parsed = await parseForgeArgs(args, "check");
+  const workflow = await collectForgeStatus(parsed.project, parsed.sliceId);
+  const checkResult = await runPipeline({
+    project: parsed.project,
+    sliceId: parsed.sliceId,
+    phase: "close",
+    repo: parsed.repo,
+    base: parsed.base,
+    dryRun: parsed.dryRun,
+    worktree: parsed.worktree,
+  });
+  const review = parsed.dryRun
+    ? null
+    : await collectForgeReview(parsed.project, parsed.sliceId, parsed.repo, parsed.base, parsed.worktree);
+  if (!parsed.json) renderForgePipeline("check", workflow, checkResult, review);
+  if (!checkResult.ok) throw new Error(`forge run: check failed at ${checkResult.stoppedAt}`);
+  if (review && !review.ok) throw new Error("forge run: check found slice-local blockers");
+
+  const closeResult = await runPipeline({
+    project: parsed.project,
+    sliceId: parsed.sliceId,
+    phase: "verify",
+    repo: parsed.repo,
+    base: parsed.base,
+    dryRun: parsed.dryRun,
+    worktree: parsed.worktree,
+    sliceLocal: true,
+  });
+  if (parsed.json) console.log(JSON.stringify({ ...workflow, check: checkResult, close: closeResult }, null, 2));
+  else renderForgePipeline("close", workflow, closeResult);
+  if (!closeResult.ok) throw new Error(`forge run: close failed at ${closeResult.stoppedAt}`);
 }
 

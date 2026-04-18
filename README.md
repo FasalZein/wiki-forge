@@ -1,19 +1,24 @@
 <p align="center">
   <strong>wiki-forge</strong><br>
-  <em>A local-first second brain for humans and LLMs</em>
+  <em>Two layers: a second brain that remembers, and a forge that ships</em>
 </p>
 
 <p align="center">
-  Persistent, compounding knowledge maintained in markdown.<br>
+  <strong>Wiki</strong> — persistent, compounding knowledge maintained in markdown.<br>
+  <strong>Forge</strong> — a software-development workflow that turns that knowledge into shipped code.<br>
   Agents handle the bookkeeping. You handle the thinking.
 </p>
 
 ---
 
-**Not RAG.** The wiki is a compiled artifact that grows over time, not a retrieval layer that re-derives answers from scratch each query. Code is always the source of truth — the wiki is compiled memory that makes code navigable across sessions.
+**Not RAG.** The wiki is a compiled artifact that grows over time, not a retrieval layer that re-derives answers from scratch each query. Code is always the source of truth — the wiki is compiled memory that makes code navigable across sessions. Forge is the optional SDLC layer on top: research → grill → PRD → slices → TDD → verify → desloppify.
 
 ```
-Sources (code, research, docs)  -->  Wiki (markdown, agent-maintained)  -->  You
+Sources (code, research, docs)
+  ├── Wiki  (knowledge layer — maintained markdown in ~/Knowledge)
+  └── Forge (workflow layer — research → PRD → slices → TDD → verify)
+                                          ↓
+                                        You
 ```
 
 ## Quick Start
@@ -124,6 +129,17 @@ Features, PRDs, standalone planning docs, and vertical slices with task-scoped s
 Thin forge happy path:
 
 ```bash
+# One command: scaffold feature + PRD + slice + start
+wiki forge plan my-app "user onboarding" --agent Codex --repo ~/Dev/my-app
+
+# One command: check + close in a single pass
+wiki forge run my-app --repo ~/Dev/my-app
+wiki forge status my-app
+```
+
+Or step by step:
+
+```bash
 wiki create-feature my-app "user onboarding"               # -> specs/features/FEAT-001-user-onboarding.md
 wiki create-prd my-app --feature FEAT-001 "email signup"   # -> specs/prds/PRD-001-email-signup.md
 wiki create-issue-slice my-app "email verification" --prd PRD-001 --assignee Codex --source src/auth.ts
@@ -151,9 +167,11 @@ wiki close-slice my-app MY-APP-001 --repo ~/Dev/my-app --base main
 The grouped forge surface stays the default operator path over those primitives:
 
 ```bash
-wiki forge start my-app MY-APP-001 --agent Codex --repo ~/Dev/my-app
-wiki forge check my-app MY-APP-001 --repo ~/Dev/my-app   # defaults to worktree scope when --base is omitted
+wiki forge plan my-app "feature name" --agent Codex --repo ~/Dev/my-app   # scaffold + start in one step
+wiki forge start my-app MY-APP-001 --agent Codex --repo ~/Dev/my-app      # or start an existing slice
+wiki forge check my-app MY-APP-001 --repo ~/Dev/my-app                    # defaults to worktree scope
 wiki forge close my-app MY-APP-001 --repo ~/Dev/my-app
+wiki forge run my-app MY-APP-001 --repo ~/Dev/my-app                      # check + close in one pass
 wiki forge status my-app MY-APP-001
 ```
 
@@ -231,7 +249,7 @@ Compact map:
 | Protocol | `wiki protocol sync`, `wiki protocol audit` |
 | Planning | `wiki create-feature`, `wiki create-prd`, `wiki create-issue-slice`, `wiki backlog`, `wiki next` |
 | Hierarchy | `wiki feature-status`, `wiki start-feature`, `wiki close-feature`, `wiki start-prd`, `wiki close-prd` |
-| Lifecycle | `wiki forge start/check/close/status`, `wiki start-slice`, `wiki verify-slice`, `wiki close-slice` |
+| Lifecycle | `wiki forge plan/start/check/close/run/status`, `wiki start-slice`, `wiki verify-slice`, `wiki close-slice` |
 | Active work checks | `wiki checkpoint`, `wiki lint-repo`, `wiki commit-check` |
 | Closeout | `wiki verify-page`, `wiki closeout`, `wiki gate` |
 | Handoff | `wiki export-prompt`, `wiki resume`, `wiki handover`, `wiki note`, `wiki claim` |
@@ -243,7 +261,7 @@ Compact map:
 |-------|-----------|-------------|
 | **Wiki** | Maintained project memory in `~/Knowledge` | `wiki` CLI |
 | **Research** | Filed evidence and source-backed notes under `research/` and `raw/` | `/research` skill + `wiki research` commands |
-| **Forge** | Optional workflow layer: research -> grill -> PRD -> slices -> TDD -> verify -> desloppify; exposed in the CLI as `wiki forge start/check/close/status` over the lower-level primitives | `/forge` skill |
+| **Forge** | Optional workflow layer: research -> grill -> PRD -> slices -> TDD -> verify -> desloppify; exposed in the CLI as `wiki forge plan/start/check/close/run/status` over the lower-level primitives | `/forge` skill |
 
 These are separate concerns. The wiki is the knowledge store. Research is evidence. Forge is the software-development workflow layer over that memory.
 
