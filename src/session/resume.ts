@@ -131,6 +131,14 @@ export async function resumeProject(args: string[]) {
   // Decisive format: lead with the ONE command to run. Everything else is context below.
   console.log(`→ ${payload.triage.command}`);
   console.log(`  (${payload.triage.reason})`);
+  // F5: surface recovery hints inline when the triage reports a stuck slice —
+  // either the workflow-gate re-route (needs-*) or a prior forge-run failure.
+  const showsRecovery =
+    payload.triage.kind === "resume-failed-forge" || payload.triage.kind.startsWith("needs-");
+  const focusId = payload.activeTask?.id ?? payload.nextTask?.id ?? null;
+  if (showsRecovery && focusId) {
+    console.log(`  recovery: wiki forge release ${options.project} ${focusId}  |  wiki close-slice ${options.project} ${focusId} --reason "<reason>"`);
+  }
   console.log("");
   if (noHandoverButBreadcrumb) {
     console.log(`⚠  no handover file — resuming from pipeline breadcrumb (previous session ended without wiki handover)`);
