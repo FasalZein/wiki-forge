@@ -7,7 +7,7 @@ import { readSliceHub, readSlicePlan, readSliceSourcePaths } from "../lib/slices
 import { projectTaskHubPath } from "../lib/structure";
 import { collectTaskContextForId, moveTaskToSection, lifecycleOpen } from "../hierarchy";
 import { summarizePlan } from "../session";
-import { collectClaimResult, collectDependencyStatuses, defaultAgentName, writeClaimMetadata } from "./_shared";
+import { collectClaimResult, collectDependencyStatuses, defaultAgentName, formatClaimConflictError, writeClaimMetadata } from "./_shared";
 
 export async function startSlice(args: string[]) {
   const project = args[0];
@@ -78,7 +78,7 @@ export async function startSlice(args: string[]) {
   }
   if (claim.conflicts.length > 0) {
     if (json) console.log(JSON.stringify(result, null, 2));
-    fail(`claim conflict for ${sliceId}`, 2);
+    fail(formatClaimConflictError(sliceId, claim.conflicts, project, repo), 2);
   }
 
   await moveTaskToSection(project, sliceId, "In Progress");

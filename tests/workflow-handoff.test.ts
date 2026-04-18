@@ -119,7 +119,7 @@ describe("wiki workflow handoff improvements", () => {
     const testPlan = readFileSync(join(vault, "projects", "gated", "specs", "slices", "GATED-001", "test-plan.md"), "utf8");
     expect(index).toContain("status: done");
     expect(index).toContain("completed_at:");
-    expect(index).toContain("verification_level: code-verified");
+    expect(index).toContain("verification_level: test-verified");
     expect(testPlan).toContain("verification_level: test-verified");
   });
 

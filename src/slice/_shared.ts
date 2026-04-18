@@ -18,6 +18,7 @@ export type ClaimConflict = {
   overlap: string[];
   reason: "in-progress" | "claimed" | "existing-claim";
   claimedBy?: string;
+  claimedAt?: string;
 };
 
 export type StartSliceDependency = {
@@ -102,15 +103,22 @@ async function collectClaimConflicts(project: string, targetSliceId: string, age
   const targetHub = await readSliceHub(project, targetSliceId);
   const existingClaimedBy = typeof targetHub.data.claimed_by === "string" ? targetHub.data.claimed_by.trim() : "";
   if (existingClaimedBy && !agentNamesEqual(existingClaimedBy, agent)) {
-    overlaps.set(targetSliceId, { taskId: targetSliceId, overlap: targetSourcePaths, reason: "existing-claim", claimedBy: existingClaimedBy });
+    const existingClaimedAt = typeof targetHub.data.claimed_at === "string" ? targetHub.data.claimed_at.trim() : undefined;
+    overlaps.set(targetSliceId, { taskId: targetSliceId, overlap: targetSourcePaths, reason: "existing-claim", claimedBy: existingClaimedBy, claimedAt: existingClaimedAt });
   }
   if (!targetSourcePaths.length) return [...overlaps.values()].sort((a, b) => a.taskId.localeCompare(b.taskId));
 
   const focus = await collectBacklog(project);
   for (const item of focus.sections["In Progress"] ?? []) {
     if (item.id === targetSliceId) continue;
+    const inProgressPath = projectTaskHubPath(project, item.id);
+    const inProgressParsed = await exists(inProgressPath)
+      ? safeMatter(relative(VAULT_ROOT, inProgressPath), await readText(inProgressPath), { silent: true })
+      : null;
+    const inProgressClaimedBy = typeof inProgressParsed?.data.claimed_by === "string" ? inProgressParsed.data.claimed_by.trim() : undefined;
+    const inProgressClaimedAt = typeof inProgressParsed?.data.claimed_at === "string" ? inProgressParsed.data.claimed_at.trim() : undefined;
     const overlap = intersect(targetSourcePaths, await readSliceSourcePaths(project, item.id));
-    if (overlap.length) overlaps.set(item.id, { taskId: item.id, overlap, reason: "in-progress" });
+    if (overlap.length) overlaps.set(item.id, { taskId: item.id, overlap, reason: "in-progress", claimedBy: inProgressClaimedBy, claimedAt: inProgressClaimedAt });
   }
 
   const slicesDir = projectSlicesDir(project);
@@ -122,12 +130,29 @@ async function collectClaimConflicts(project: string, targetSliceId: string, age
     const parsed = safeMatter(relative(VAULT_ROOT, indexPath), await readText(indexPath), { silent: true });
     const claimedBy = parsed?.data.claimed_by;
     if (typeof claimedBy !== "string" || !claimedBy.trim()) continue;
+    const claimedAt = typeof parsed?.data.claimed_at === "string" ? parsed.data.claimed_at.trim() : undefined;
     const overlap = intersect(targetSourcePaths, await readSliceSourcePaths(project, entry));
     if (!overlap.length) continue;
     const existing = overlaps.get(entry);
-    overlaps.set(entry, existing ? { ...existing, claimedBy } : { taskId: entry, overlap, reason: "claimed", claimedBy });
+    overlaps.set(entry, existing ? { ...existing, claimedBy, claimedAt } : { taskId: entry, overlap, reason: "claimed", claimedBy, claimedAt });
   }
   return [...overlaps.values()].sort((a, b) => a.taskId.localeCompare(b.taskId));
+}
+
+export function formatClaimConflictError(sliceId: string, conflicts: ClaimConflict[], project: string, repo?: string): string {
+  const lines: string[] = [`cannot start ${sliceId}`];
+  for (const conflict of conflicts) {
+    lines.push(`blocker: ${conflict.reason} claim on ${conflict.taskId}`);
+    if (conflict.claimedBy) lines.push(`  owner: ${conflict.claimedBy}`);
+    if (conflict.claimedAt) lines.push(`  claimed_at: ${conflict.claimedAt}`);
+  }
+  const blocker = conflicts[0];
+  const repoArg = repo ? ` --repo ${repo}` : " --repo <path>";
+  lines.push("resolution:");
+  lines.push(`  - close the active slice: wiki forge close ${project} ${blocker.taskId}${repoArg}`);
+  lines.push(`  - release the claim: wiki forge release ${project} ${blocker.taskId}`);
+  lines.push(`  - force takeover: wiki forge start ${project} ${sliceId}${repoArg} --force`);
+  return lines.join("\n");
 }
 
 function intersect(left: string[], right: string[]) {

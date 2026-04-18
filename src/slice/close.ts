@@ -49,40 +49,70 @@ export async function closeSlice(args: string[]) {
       throw new Error(`slice must be In Progress before closeout: ${sliceId} is in ${context.section}`);
     }
   }
+
+  // Collect all pre-closeout blockers before throwing so the operator sees everything at once.
+  type PrereqBlocker = { message: string; fix: string };
+  const prereqBlockers: PrereqBlocker[] = [];
+
   if (context.planStatus !== "ready" || context.testPlanStatus !== "ready") {
-    throw new Error(`slice docs are not ready for closeout: plan=${context.planStatus} test-plan=${context.testPlanStatus}`);
+    prereqBlockers.push({
+      message: `slice docs are not ready: plan=${context.planStatus} test-plan=${context.testPlanStatus}`,
+      fix: `wiki forge run ${project} ${sliceId}  # complete the plan and test-plan docs`,
+    });
   }
+
   const closeSliceParentPrd = typeof hub.data.parent_prd === "string" ? hub.data.parent_prd : null;
   const closeSliceParentFeature = typeof hub.data.parent_feature === "string" ? hub.data.parent_feature : null;
   const testPlan = await readSliceTestPlan(project, sliceId);
   const testPlanLevel = readVerificationLevel(testPlan.data);
   if (testPlanLevel !== "test-verified") {
-    throw new Error(`slice test-plan must be test-verified before closeout: ${sliceId}`);
+    prereqBlockers.push({
+      message: `test-plan.md verification_level is ${testPlanLevel ?? "(unset)"}, expected test-verified`,
+      fix: `wiki verify-slice ${project} ${sliceId}${repo ? ` --repo ${repo}` : ""}`,
+    });
   }
   if (!hasStructuredVerificationEvidence(testPlan.data)) {
-    throw new Error(`slice test-plan is missing structured verification evidence before closeout: ${sliceId}`);
+    prereqBlockers.push({
+      message: `test-plan.md is missing structured verification evidence (verification_commands / verified_against)`,
+      fix: `wiki verify-slice ${project} ${sliceId}${repo ? ` --repo ${repo}` : ""}  # run verify-slice to populate evidence`,
+    });
+  }
+
+  if (prereqBlockers.length > 0) {
+    const lines = formatBlockerChecklist(sliceId, prereqBlockers.map((b) => `${b.message}\n     → run: ${b.fix}`));
+    process.stderr.write(lines + "\n");
+    throw new Error(`cannot close ${sliceId}: ${prereqBlockers.length} prerequisite(s) failed`);
   }
 
   const closeout = await collectCloseout(project, base, repo, undefined, undefined, { worktree, sliceLocal, sliceId });
   const uncoveredChangedCodeFiles = closeout.refreshFromGit.uncoveredFiles.filter((file) => !isTestFile(file));
   const reviewPassPending = closeout.ok && closeout.staleImpactedPages.length > 0;
-  const closeoutBlockers = [
-    ...closeout.blockers,
-    ...(!worktree && closeout.staleImpactedPages.length ? [`${closeout.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted (closeout: REVIEW PASS — run: ${closeout.nextSteps.join(" && ")})`] : []),
-    ...(!sliceLocal && uncoveredChangedCodeFiles.length ? [`${uncoveredChangedCodeFiles.length} changed code file(s) are not covered by wiki bindings`] : []),
+  const closeoutBlockerMessages = [
+    ...closeout.blockers.map((msg) => `${msg}\n     → run: wiki closeout ${project} --repo ${closeout.repo} --base ${base}`),
+    ...(!worktree && closeout.staleImpactedPages.length ? [
+      `${closeout.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted (closeout: REVIEW PASS)\n     → run: ${closeout.nextSteps.join(" && ")}`,
+    ] : []),
+    ...(!sliceLocal && uncoveredChangedCodeFiles.length ? [
+      `${uncoveredChangedCodeFiles.length} changed code file(s) are not covered by wiki bindings\n     → run: wiki bind ${project} specs/slices/${sliceId}/index.md <source-file>`,
+    ] : []),
   ];
-  if (closeoutBlockers.length > 0 && !force) {
+  if (closeoutBlockerMessages.length > 0 && !force) {
     const failed = {
       project,
       sliceId,
       closed: false,
       previousSection: context.section,
       closeout,
-      blockers: closeoutBlockers,
+      blockers: closeout.blockers.concat(
+        ...(!worktree && closeout.staleImpactedPages.length ? [`${closeout.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted (closeout: REVIEW PASS — run: ${closeout.nextSteps.join(" && ")})`] : []),
+        ...(!sliceLocal && uncoveredChangedCodeFiles.length ? [`${uncoveredChangedCodeFiles.length} changed code file(s) are not covered by wiki bindings`] : []),
+      ),
       ...(reviewPassPending ? { reviewPass: true, hint: `closeout is REVIEW PASS with ${closeout.staleImpactedPages.length} stale page(s). Re-run close-slice with --force-review after manual review, or fix the pending steps first.` } : {}),
     };
     if (json) console.log(JSON.stringify(failed, null, 2));
-    throw new Error(`close-slice prerequisites failed for ${project}`);
+    const lines = formatBlockerChecklist(sliceId, closeoutBlockerMessages);
+    process.stderr.write(lines + "\n");
+    throw new Error(`cannot close ${sliceId}: closeout checks failed`);
   }
   if (reviewPassPending && forceReview) {
     appendLogEntry("close-slice-force-review", sliceId, {
@@ -154,6 +184,11 @@ export async function closeSlice(args: string[]) {
       console.log(`  5. wiki feature-status ${project}  # verify computed_status = complete`);
     }
   }
+}
+
+function formatBlockerChecklist(sliceId: string, items: string[]): string {
+  const numbered = items.map((item, i) => `  ${i + 1}. ${item}`).join("\n");
+  return `cannot close ${sliceId}:\nblockers:\n${numbered}`;
 }
 
 function canAutoHealCloseLifecycle(data: Record<string, unknown>) {

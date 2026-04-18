@@ -4,6 +4,7 @@ import { VAULT_ROOT } from "../constants";
 import { nowIso, orderFrontmatter, requireValue, writeNormalizedPage } from "../cli-shared";
 import { appendLogEntry } from "../lib/log";
 import { type VerificationCommandSpec, extractVerificationSpecs, readSliceTestPlan } from "../lib/slices";
+import { projectTaskHubPath, projectTaskPlanPath } from "../lib/structure";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
 import { applyVerificationLevel } from "../verification";
 
@@ -25,6 +26,10 @@ export async function verifySlice(args: string[]) {
   if (ok) {
     await recordVerificationEvidence(testPlan.path, testPlan.content, testPlan.data, repo, results);
     await applyVerificationLevel(testPlan.path, "test-verified", false, relative(VAULT_ROOT, testPlan.path), true);
+    const indexPath = projectTaskHubPath(project, sliceId);
+    await applyVerificationLevel(indexPath, "test-verified", false, relative(VAULT_ROOT, indexPath), true);
+    const planPath = projectTaskPlanPath(project, sliceId);
+    await applyVerificationLevel(planPath, "test-verified", false, relative(VAULT_ROOT, planPath), true);
   }
   appendLogEntry("verify-slice", sliceId, { project, details: [`commands=${results.length}`, `ok=${ok}`] });
   const payload = { project, sliceId, ok, testPlan: relative(VAULT_ROOT, testPlan.path), commands: results };

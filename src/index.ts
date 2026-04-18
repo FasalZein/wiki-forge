@@ -10,7 +10,7 @@ import { askProject, fileAnswer, fileResearch } from "./retrieval/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "./retrieval/qmd-commands";
 import { handoverProject, resumeProject, nextProject, noteProject, exportPrompt, logCommand } from "./session";
 import { claimSlice, startSlice, verifySlice, closeSlice, createIssueSlice, repairHistoricalDoneSlices } from "./slice";
-import { forgeCheck, forgeClose, forgeNext, forgeOpen, forgePlan, forgeRun, forgeStart, forgeStatus } from "./slice/forge";
+import { forgeCheck, forgeClose, forgeNext, forgeOpen, forgePlan, forgeRelease, forgeRun, forgeStart, forgeStatus } from "./slice/forge";
 import { pipelineCommand, pipelineResetCommand } from "./slice/pipeline";
 import { statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, bindSourcePaths, migrateVerification, verifyPage, acknowledgeImpact } from "./verification";
 import { findProjectArg } from "./git-utils";
@@ -111,6 +111,7 @@ const commands: Record<string, CommandHandler> = {
   "forge:status": (args) => forgeStatus(args),
   "forge:plan": (args) => forgePlan(args),
   "forge:next": (args) => forgeNext(args),
+  "forge:release": (args) => forgeRelease(args),
 };
 
 const rawArgs = process.argv.slice(2);
@@ -206,7 +207,8 @@ function resolveCommand(rawArgs: string[]) {
       status: "forge:status",
       plan: "forge:plan",
       next: "forge:next",
-    }[subcommand as "start" | "open" | "check" | "close" | "run" | "status" | "plan" | "next"];
+      release: "forge:release",
+    }[subcommand as "start" | "open" | "check" | "close" | "run" | "status" | "plan" | "next" | "release"];
     if (!mapped) throw new Error(`unknown forge subcommand: ${subcommand}. Run 'wiki help' for usage.`);
     return { command: mapped, args: subArgs };
   }

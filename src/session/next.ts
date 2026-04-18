@@ -9,10 +9,12 @@ export async function nextProject(args: string[]) {
   requireValue(project, "project");
   const json = args.includes("--json");
   const focus = await collectBacklogFocus(project);
+  // Only recommend a slice if its hub (index.md) is scaffolded; unscaffolded slices cannot be started
+  const scaffoldedRecommendation = focus.recommendedTask?.taskHubPath !== undefined ? focus.recommendedTask : null;
   const recommendation = focus.activeTask
     ? { ...focus.activeTask, reason: "continue the active slice" }
-    : focus.recommendedTask
-      ? { ...focus.recommendedTask, reason: "next ready slice from backlog" }
+    : scaffoldedRecommendation
+      ? { ...scaffoldedRecommendation, reason: "next ready slice from backlog" }
       : null;
 
   let actions: Array<{ kind: string; message: string }> = [];

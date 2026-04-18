@@ -9,7 +9,8 @@ import { runPipeline } from "../lib/pipeline";
 import { collectCloseout, collectGate } from "../maintenance";
 import { type ForgeWorkflowLedger, validateForgeWorkflowLedger } from "../lib/forge-ledger";
 import { projectPrdsDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath } from "../lib/structure";
-import { collectBacklogFocus, collectBacklogView, collectTaskContextForId, detectTaskDocState, createFeatureReturningId, createPrdReturningId } from "../hierarchy";
+import { collectBacklogFocus, collectBacklogView, collectTaskContextForId, detectTaskDocState, createFeatureReturningId, createPrdReturningId, moveTaskToSection } from "../hierarchy";
+import { appendLogEntry } from "../lib/log";
 import type { BacklogTaskContext } from "../hierarchy";
 import { createIssueSlice } from "./slice-scaffold";
 import { startSlice } from "./start";
@@ -333,6 +334,52 @@ export async function forgeOpen(args: string[]) {
   return forgeStart(args);
 }
 
+export async function forgeRelease(args: string[]) {
+  const positional = args.filter((a) => !a.startsWith("--"));
+  const project = positional[0];
+  const sliceId = positional[1];
+  requireValue(project, "project");
+  requireValue(sliceId, "slice-id");
+
+  const context = await collectTaskContextForId(project, sliceId);
+  if (!context) throw new Error(`slice not found in backlog: ${sliceId}`);
+
+  const indexPath = projectTaskHubPath(project, sliceId);
+  if (!await exists(indexPath)) throw new Error(`slice index not found: ${sliceId}`);
+  const parsed = safeMatter(relative(VAULT_ROOT, indexPath), await readText(indexPath), { silent: true });
+  if (!parsed) throw new Error(`could not parse slice index: ${sliceId}`);
+
+  const claimedBy = typeof parsed.data.claimed_by === "string" ? parsed.data.claimed_by.trim() : null;
+  if (!claimedBy) {
+    console.log(`no active claim on ${sliceId}`);
+    return;
+  }
+
+  const wasStarted = context.section === "In Progress" || parsed.data.status === "in-progress";
+
+  const data = { ...parsed.data };
+  delete data.claimed_by;
+  delete data.claimed_at;
+  delete data.claim_paths;
+  if (wasStarted) {
+    delete data.started_at;
+    data.status = "todo";
+  }
+  data.updated = nowIso();
+  writeNormalizedPage(indexPath, parsed.content, orderFrontmatter(data, [
+    "title", "type", "spec_kind", "project", "source_paths", "task_id",
+    "depends_on", "parent_prd", "parent_feature", "created_at", "updated", "started_at", "status",
+  ]));
+
+  if (wasStarted) {
+    await moveTaskToSection(project, sliceId, "Todo");
+  }
+
+  appendLogEntry("release-claim", sliceId, { project, details: [`released_from=${claimedBy}`] });
+  console.log(`released claim on ${sliceId} (was owned by ${claimedBy})`);
+  if (wasStarted) console.log(`moved ${sliceId} back to Todo`);
+}
+
 export async function forgePlan(args: string[]) {
   const parsed = parseForgePlanArgs(args);
   let createdFeatureId: string | undefined;
@@ -523,7 +570,8 @@ export async function forgeNext(args: string[]) {
   const focus = await collectBacklogFocus(project);
 
   const activeId = focus.activeTask?.id ?? null;
-  const recommendedId = focus.recommendedTask?.id ?? null;
+  // Only recommend a slice if its hub (index.md) exists on disk; unscaffolded slices cannot be started
+  const recommendedId = (focus.recommendedTask?.taskHubPath !== undefined ? focus.recommendedTask?.id : null) ?? null;
   const targetId = activeId ?? recommendedId;
 
   if (!targetId) {
@@ -620,9 +668,9 @@ function renderSlicePrompt(data: SlicePromptData): string {
 
 async function forgeNextAll(project: string): Promise<void> {
   const view = await collectBacklogView(project);
-  // Include both In Progress (active) and unblocked Todo slices that have docs
-  const inProgressTasks = ((view.sections["In Progress"] ?? []) as BacklogTaskContext[]).filter((task) => task.hasSliceDocs);
-  const todoTasks = ((view.sections["Todo"] ?? []) as BacklogTaskContext[]).filter((task) => task.hasSliceDocs && task.blockedBy.length === 0);
+  // Include both In Progress (active) and unblocked Todo slices that have a scaffolded hub (index.md)
+  const inProgressTasks = ((view.sections["In Progress"] ?? []) as BacklogTaskContext[]).filter((task) => task.taskHubPath !== undefined);
+  const todoTasks = ((view.sections["Todo"] ?? []) as BacklogTaskContext[]).filter((task) => task.taskHubPath !== undefined && task.blockedBy.length === 0);
 
   const inProgressEntries = inProgressTasks.map((task) => ({ task, active: true }));
   const todoEntries = todoTasks.map((task) => ({ task, active: false }));

@@ -19,6 +19,7 @@ Forge Workflow (primary surface):
   wiki forge close <project> [slice-id] [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
   wiki forge status <project> [slice-id] [--json]
   wiki forge next <project> [--json] [--prompt] [--prompt-json] [--all --prompt-json]
+  wiki forge release <project> <slice-id>
 
 Session:
   wiki resume <project> [--repo <path>] [--base <rev>] [--json]

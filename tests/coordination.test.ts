@@ -83,7 +83,9 @@ describe("wiki coordination commands", () => {
     expect(result.exitCode).toBe(2);
     const json = JSON.parse(result.stdout.toString());
     expect(json.conflicts[0].taskId).toBe("DEMO-001");
-    expect(result.stderr.toString()).toContain("claim conflict");
+    expect(result.stderr.toString()).toContain("cannot start DEMO-002");
+    expect(result.stderr.toString()).toContain("DEMO-001");
+    expect(result.stderr.toString()).toContain("resolution:");
   });
 
   test("note records agent messages in the durable log", () => {
@@ -347,7 +349,7 @@ describe("wiki coordination commands", () => {
 
     const result = runWiki(["close-slice", "gated", "GATED-001", "--repo", repo, "--base", "HEAD~1", "--json"], env);
     expect(result.exitCode).toBe(1);
-    expect(result.stderr.toString()).toContain("test-plan must be test-verified");
+    expect(result.stderr.toString()).toContain("test-plan.md verification_level is");
   });
 
   test("close-slice requires structured verification evidence", () => {

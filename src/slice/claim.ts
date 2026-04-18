@@ -1,6 +1,6 @@
 import { fail, requireValue } from "../cli-shared";
 import { appendLogEntry } from "../lib/log";
-import { collectClaimResult, defaultAgentName, writeClaimMetadata } from "./_shared";
+import { collectClaimResult, defaultAgentName, formatClaimConflictError, writeClaimMetadata } from "./_shared";
 
 export async function claimSlice(args: string[]) {
   const project = args[0];
@@ -32,7 +32,7 @@ export async function claimSlice(args: string[]) {
   }
   if (result.conflicts.length > 0) {
     if (args.includes("--json")) console.log(JSON.stringify(result, null, 2));
-    fail(`claim conflict for ${sliceId}`);
+    fail(formatClaimConflictError(sliceId, result.conflicts, project, repo));
   }
   await writeClaimMetadata(project, sliceId, agent, result.claimedAt!, result.sourcePaths);
   appendLogEntry("claim", sliceId, { project, details: [`agent=${agent}`, `paths=${result.sourcePaths.length}`] });
