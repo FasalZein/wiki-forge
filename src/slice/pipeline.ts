@@ -1,6 +1,7 @@
 import { requireValue } from "../cli-shared";
+import { readFlagValue } from "../lib/cli-utils";
 import { resolveDefaultBase } from "../git-utils";
-import { runPipeline, type PipelinePhase } from "../lib/pipeline";
+import { PipelineState, runPipeline, type PipelinePhase } from "../lib/pipeline";
 
 export async function pipelineCommand(args: string[]) {
   const project = args[0];
@@ -44,4 +45,24 @@ export async function pipelineCommand(args: string[]) {
   }
 
   if (!result.ok) throw new Error(`pipeline ${phase} failed at ${result.stoppedAt}`);
+}
+
+export async function pipelineResetCommand(args: string[]) {
+  const project = args[0];
+  const sliceId = args[1];
+  requireValue(project, "project");
+  requireValue(sliceId, "slice-id");
+  const stepId = readFlagValue(args, "--step");
+  const state = new PipelineState();
+  try {
+    if (stepId) {
+      state.resetStep(project, sliceId, stepId);
+      console.log(`reset pipeline step ${stepId} for ${project}/${sliceId}`);
+    } else {
+      state.reset(project, sliceId);
+      console.log(`reset all pipeline steps for ${project}/${sliceId}`);
+    }
+  } finally {
+    state.close();
+  }
 }

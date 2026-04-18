@@ -15,11 +15,6 @@ export type CanonicalProtocolSource = {
   codeQualityIntro: string;
   codeQualityRules: string[];
   codeQualitySummary: string;
-  lifecycle: {
-    beforeStarting: string[];
-    duringWork: string[];
-    beforeCompletion: string[];
-  };
   handoverReminder: string;
 };
 
@@ -51,19 +46,6 @@ export function buildCanonicalProtocolSource(project: string, scope: ProtocolSco
       "Match the surrounding style even when you'd design differently.",
     ],
     codeQualitySummary: "Sloppy code costs a review round-trip. Writing it right the first time is faster than arguing with a reviewer.",
-    lifecycle: {
-      beforeStarting: [`\`wiki start-slice ${project} <slice-id> --agent <name> --repo <path>\``],
-      duringWork: [`\`wiki checkpoint ${project} --repo <path>\``, `\`wiki lint-repo ${project} --repo <path>\``],
-      beforeCompletion: [
-        `\`wiki maintain ${project} --repo <path> --base <rev>\``,
-        "update impacted wiki pages from code and tests",
-        `\`wiki verify-page ${project} <page...> <level>\``,
-        `\`wiki verify-slice ${project} <slice-id> --repo <path>\``,
-        `\`wiki closeout ${project} --repo <path> --base <rev>\``,
-        `\`wiki gate ${project} --repo <path> --base <rev>\``,
-        `\`wiki close-slice ${project} <slice-id> --repo <path> --base <rev>\``,
-      ],
-    },
     handoverReminder: "Read **Next Session Priorities** below BEFORE the session-state sections. If this file is truncated, the priorities block is the minimum you need to resume work. Then load `/wiki` and `/forge` skills before continuing.",
   };
 }
@@ -107,16 +89,13 @@ export function renderManagedProtocolBlock(source: CanonicalProtocolSource) {
     "",
     source.codeQualitySummary,
     "",
-    "## Wiki Protocol",
+    "## Workflow Enforcement",
     "",
-    "Before starting slice work:",
-    ...source.lifecycle.beforeStarting.map((line) => `- ${line}`),
+    "Load `/forge` for tracked slice work. Load `/wiki` for knowledge-layer work.",
+    "The skills define all available commands. This block enforces the contract, not the command surface.",
     "",
-    "During work:",
-    ...source.lifecycle.duringWork.map((line) => `- ${line}`),
-    "",
-    "Before completion:",
-    ...source.lifecycle.beforeCompletion.map((line) => `- ${line}`),
+    `Primary surface: \`wiki forge plan|start|check|run|close|next|status ${source.project}\``,
+    `Session: \`wiki resume ${source.project} --repo <path> --base <rev>\` at session start.`,
     "",
     END_MARKER,
   ].join("\n");
@@ -126,8 +105,8 @@ export function renderPromptProtocolReminders(project: string) {
   const source = buildCanonicalProtocolSource(project, { path: ".", scope: "root" });
   return [
     ...source.workflowLines.slice(0, 3),
-    `Start tracked slice work with ${source.lifecycle.beforeStarting[0]}.`,
-    `Finish tracked slice work with ${source.lifecycle.beforeCompletion[3]}, ${source.lifecycle.beforeCompletion[4]}, and ${source.lifecycle.beforeCompletion[5]}.`,
+    `Start tracked slice work with \`wiki forge plan ${project} <feature-name>\` or \`wiki forge start ${project} <slice-id>\`.`,
+    `Close tracked slice work with \`wiki forge run ${project} [slice-id] --repo <path>\` or \`wiki forge check\` then \`wiki forge close\`.`,
   ];
 }
 

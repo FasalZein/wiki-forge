@@ -1,14 +1,2 @@
-export { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeModule } from "./protocol/project-setup";
-export { backlogCommand, addTask, moveTask, completeTask } from "./hierarchy/backlog";
-export { createIssueSlice } from "./slice/slice-scaffold";
-export { createFeature, createPrd, createPlan, createTestPlan } from "./hierarchy/planning";
-export { dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, syncProject, discoverProject, ingestDiff } from "./maintenance";
-export { handoverProject, claimSlice, noteProject, nextProject, startSlice, verifySlice, closeSlice, exportPrompt, resumeProject } from "./slice/coordination";
-export { commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo } from "./maintenance";
-export { syncProtocol, auditProtocol } from "./protocol/protocol";
-export { dependencyGraph } from "./hierarchy/dependency-graph";
-export { updateIndex } from "./hierarchy/index-log";
-export { logCommand } from "./session/log";
-export { statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear } from "./verification/linting";
-export { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch } from "./research";
-export { printHelp } from "./cli-shared";
+// Intentionally empty — src/index.ts imports directly from domain barrels.
+// This file exists only because wiki source_paths reference it.

@@ -3,6 +3,7 @@ import { join, relative } from "node:path";
 import { requireValue, safeMatter } from "../cli-shared";
 import { VAULT_ROOT } from "../constants";
 import { readVerificationLevel } from "../lib/verification";
+import { readFlagValue } from "../lib/cli-utils";
 import { exists, readText } from "../lib/fs";
 import { runPipeline } from "../lib/pipeline";
 import { collectCloseout, collectGate } from "../maintenance";
@@ -10,7 +11,7 @@ import { type ForgeWorkflowLedger, validateForgeWorkflowLedger } from "../lib/fo
 import { projectPrdsDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath } from "../lib/structure";
 import { collectBacklogFocus, collectTaskContextForId, detectTaskDocState, createFeatureReturningId, createPrdReturningId } from "../hierarchy";
 import { createIssueSlice } from "./slice-scaffold";
-import { startSlice } from "./coordination";
+import { startSlice } from "./start";
 
 export async function forgeStart(args: string[]) {
   const parsed = await parseForgeArgs(args, "start");
@@ -113,13 +114,6 @@ function flagTakesValue(flag: string) {
   return flag === "--agent" || flag === "--repo" || flag === "--base";
 }
 
-function readFlagValue(args: string[], flag: string) {
-  const index = args.indexOf(flag);
-  if (index < 0) return undefined;
-  const value = args[index + 1];
-  return value && !value.startsWith("--") ? value : undefined;
-}
-
 async function resolveForgeSliceId(project: string, explicitSliceId: string | undefined, mode: ForgeMode) {
   if (explicitSliceId) return explicitSliceId;
   const focus = await collectBacklogFocus(project);
@@ -188,6 +182,28 @@ export async function collectForgeStatus(project: string, sliceId: string) {
 }
 
 function buildForgeTriage(project: string, sliceId: string, input: { activeSlice: string | null; planStatus: string; testPlanStatus: string; verificationLevel: string | null; nextPhase: string | null }) {
+  const earlyPhase = input.planStatus !== "ready" || input.testPlanStatus !== "ready";
+  if (earlyPhase && input.nextPhase === "research") {
+    return {
+      kind: "needs-research",
+      reason: "workflow ledger shows research phase is incomplete",
+      command: `/research — gather findings and file with wiki research file ${project}`,
+    };
+  }
+  if (earlyPhase && input.nextPhase === "grill") {
+    return {
+      kind: "needs-grill",
+      reason: "workflow ledger shows grill phase is incomplete",
+      command: `/grill-me — stress-test the design and record decisions`,
+    };
+  }
+  if (earlyPhase && input.nextPhase === "prd") {
+    return {
+      kind: "needs-prd",
+      reason: "workflow ledger shows PRD phase is incomplete",
+      command: `/write-a-prd — create or complete the PRD for this feature`,
+    };
+  }
   if (input.planStatus !== "ready" || input.testPlanStatus !== "ready") {
     return {
       kind: "fill-docs",
@@ -318,32 +334,56 @@ export async function forgeOpen(args: string[]) {
 
 export async function forgePlan(args: string[]) {
   const parsed = parseForgePlanArgs(args);
-  const featureId = parsed.featureId ?? await (async () => {
-    requireValue(parsed.featureName, "feature-name (positional) or --feature FEAT-xxx");
-    const { specId } = await createFeatureReturningId(parsed.project, parsed.featureName!);
-    console.log(`created feature ${specId}`);
-    return specId;
-  })();
-  const prdName = parsed.prdName ?? parsed.featureName;
-  requireValue(prdName, "prd-name (--prd-name) or feature-name positional");
-  const { specId: prdId } = await createPrdReturningId(parsed.project, prdName!, featureId);
-  console.log(`created prd ${prdId}`);
-  const sliceTitle = parsed.title ?? prdName!;
-  const sliceArgs = [
-    parsed.project,
-    sliceTitle,
-    "--prd", prdId,
-    ...(parsed.agent ? ["--assignee", parsed.agent] : []),
-  ];
-  const slice = await createIssueSlice(sliceArgs);
-  if (!slice) throw new Error("createIssueSlice did not return a result");
-  console.log(`created slice ${slice.taskId}`);
-  await startSlice([
-    parsed.project,
-    slice.taskId,
-    ...(parsed.agent ? ["--agent", parsed.agent] : []),
-    ...(parsed.repo ? ["--repo", parsed.repo] : []),
-  ]);
+  let createdFeatureId: string | undefined;
+  let createdPrdId: string | undefined;
+  let createdSliceId: string | undefined;
+  let lastStep = "parse";
+  try {
+    lastStep = "create-feature";
+    const featureId = parsed.featureId ?? await (async () => {
+      requireValue(parsed.featureName, "feature-name (positional) or --feature FEAT-xxx");
+      const { specId } = await createFeatureReturningId(parsed.project, parsed.featureName!);
+      console.log(`created feature ${specId}`);
+      createdFeatureId = specId;
+      return specId;
+    })();
+    if (!createdFeatureId) createdFeatureId = featureId;
+    const prdName = parsed.prdName ?? parsed.featureName;
+    requireValue(prdName, "prd-name (--prd-name) or feature-name positional");
+    lastStep = "create-prd";
+    const { specId: prdId } = await createPrdReturningId(parsed.project, prdName!, featureId);
+    console.log(`created prd ${prdId}`);
+    createdPrdId = prdId;
+    lastStep = "create-slice";
+    const sliceTitle = parsed.title ?? prdName!;
+    const sliceArgs = [
+      parsed.project,
+      sliceTitle,
+      "--prd", prdId,
+      ...(parsed.agent ? ["--assignee", parsed.agent] : []),
+    ];
+    const slice = await createIssueSlice(sliceArgs);
+    if (!slice) throw new Error("createIssueSlice did not return a result");
+    console.log(`created slice ${slice.taskId}`);
+    createdSliceId = slice.taskId;
+    lastStep = "start-slice";
+    await startSlice([
+      parsed.project,
+      slice.taskId,
+      ...(parsed.agent ? ["--agent", parsed.agent] : []),
+      ...(parsed.repo ? ["--repo", parsed.repo] : []),
+    ]);
+  } catch (error) {
+    const artifacts: string[] = [];
+    if (createdFeatureId) artifacts.push(`  feature: ${createdFeatureId}`);
+    if (createdPrdId) artifacts.push(`  prd: ${createdPrdId}`);
+    if (createdSliceId) artifacts.push(`  slice: ${createdSliceId}`);
+    if (artifacts.length) {
+      console.error(`forge plan failed at ${lastStep}. Already created:\n${artifacts.join("\n")}`);
+      if (createdSliceId) console.error(`Use: wiki forge start ${parsed.project} ${createdSliceId} to retry from start-slice`);
+    }
+    throw error;
+  }
 }
 
 type ForgePlanArgs = {
@@ -450,12 +490,8 @@ export async function forgeRun(args: string[]) {
     dryRun: parsed.dryRun,
     worktree: parsed.worktree,
   });
-  const review = parsed.dryRun
-    ? null
-    : await collectForgeReview(parsed.project, parsed.sliceId, parsed.repo, parsed.base, parsed.worktree);
-  if (!parsed.json) renderForgePipeline("check", workflow, checkResult, review);
+  if (!parsed.json) renderForgePipeline("check", workflow, checkResult);
   if (!checkResult.ok) throw new Error(`forge run: check failed at ${checkResult.stoppedAt}`);
-  if (review && !review.ok) throw new Error("forge run: check found slice-local blockers");
 
   const closeResult = await runPipeline({
     project: parsed.project,

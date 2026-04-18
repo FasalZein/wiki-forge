@@ -6,10 +6,7 @@ import { appendLogEntry } from "../lib/log";
 import { renderPromptProtocolReminders } from "../lib/protocol-source";
 import { extractShellCommandBlocks, readSliceHub, readSlicePlan, readSliceSourcePaths, readSliceTestPlan } from "../lib/slices";
 import { collectTaskContextForId } from "../hierarchy";
-
-function defaultAgentName() {
-  return process.env.PI_AGENT_NAME || process.env.CLAUDE_AGENT_NAME || process.env.USER || "agent";
-}
+import { defaultAgentName } from "../lib/cli-utils";
 
 export async function noteProject(args: string[]) {
   const project = args[0];

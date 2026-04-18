@@ -117,6 +117,10 @@ export class PipelineState {
     this.db.run(`DELETE FROM pipeline_steps WHERE project = ? AND slice_id = ?`, [project, sliceId]);
   }
 
+  resetStep(project: string, sliceId: string, stepId: string) {
+    this.db.run(`DELETE FROM pipeline_steps WHERE project = ? AND slice_id = ? AND step_id = ?`, [project, sliceId, stepId]);
+  }
+
   close() {
     this.db.close();
   }

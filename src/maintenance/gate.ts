@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { requireValue } from "../cli-shared";
 import type { DiagnosticFinding } from "../lib/diagnostics";
 import { collectSliceLocalContext, fileMatchesSliceClaims } from "../lib/slice-local";
+import { readFlagValue } from "../lib/cli-utils";
 import { exists, readText } from "../lib/fs";
 import { resolveRepoPath, assertGitRepo } from "../lib/verification";
 import { resolveDefaultBase } from "../git-utils";
@@ -122,13 +123,6 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
     ...(closeout ? { closeout } : {}),
     ...(structuralRefactor ? { structuralRefactor } : {}),
   };
-}
-
-function readFlagValue(args: string[], flag: string) {
-  const index = args.indexOf(flag);
-  if (index < 0) return undefined;
-  const value = args[index + 1];
-  return value && !value.startsWith("--") ? value : undefined;
 }
 
 async function collectStructuralRefactorStatus(repo: string, base: string) {

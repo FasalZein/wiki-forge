@@ -35,7 +35,7 @@ export async function refreshFromGit(args: string[]) {
   const verbose = args.includes("--verbose");
   const result = await collectRefreshFromGit(options.project, options.base, options.repo);
   appendLogEntry("refresh-from-git", options.project, { project: options.project, details: [`base=${result.base}`, `changed=${result.changedFiles.length}`, `impacted=${result.impactedPages.length}`, `uncovered=${result.uncoveredFiles.length}`, `missing_tests=${result.testHealth.codeFilesWithoutChangedTests.length}`] });
-  if (json) console.log(JSON.stringify(result, null, 2));
+  if (json) console.log(JSON.stringify(compactRefreshFromGitForJson(result), null, 2));
   else {
     console.log(`refresh-from-git for ${options.project}:`);
     console.log(`- repo: ${result.repo}`);
@@ -98,4 +98,18 @@ function renderRefreshOnMerge(result: RefreshOnMergeResult, verbose: boolean) {
     for (const blocker of result.gate.blockers) console.log(`  - blocker: ${blocker}`);
     for (const warning of result.gate.warnings.slice(0, 20)) console.log(`  - warning: ${warning}`);
   }
+}
+
+function compactRefreshFromGitForJson(result: Awaited<ReturnType<typeof collectRefreshFromGit>>) {
+  const MAX_IMPACTED = 25;
+  const MAX_UNCOVERED = 50;
+  const truncatedImpacted = result.impactedPages.length > MAX_IMPACTED;
+  const truncatedUncovered = result.uncoveredFiles.length > MAX_UNCOVERED;
+  return {
+    ...result,
+    impactedPages: result.impactedPages.slice(0, MAX_IMPACTED).map(({ diffSummary, ...page }) => page),
+    ...(truncatedImpacted ? { impactedPagesTruncated: true, totalImpactedPages: result.impactedPages.length } : {}),
+    uncoveredFiles: result.uncoveredFiles.slice(0, MAX_UNCOVERED),
+    ...(truncatedUncovered ? { uncoveredFilesTruncated: true, totalUncoveredFiles: result.uncoveredFiles.length } : {}),
+  };
 }

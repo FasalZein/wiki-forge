@@ -2,6 +2,7 @@ import { parseProjectRepoBaseArgs } from "../git-utils";
 import { collectHierarchyStatusActions, collectLifecycleDriftActions } from "../hierarchy";
 import type { DiagnosticFinding, DiagnosticScope } from "../lib/diagnostics";
 import { collectSliceLocalContext, classifySliceLocalPageScope, fileMatchesSliceClaims } from "../lib/slice-local";
+import { readFlagValue } from "../lib/cli-utils";
 import { collectLintResult, collectSemanticLintResult } from "../verification";
 import type { LintingSnapshot } from "../verification";
 import {
@@ -122,13 +123,6 @@ export function compactCloseoutForJson(result: Awaited<ReturnType<typeof collect
       ...(truncatedDrift ? { truncated: true, totalDrifted: driftedRows.length } : {}),
     },
   };
-}
-
-function readFlagValue(args: string[], flag: string) {
-  const index = args.indexOf(flag);
-  if (index < 0) return undefined;
-  const value = args[index + 1];
-  return value && !value.startsWith("--") ? value : undefined;
 }
 
 function pushScopedFileFindings(

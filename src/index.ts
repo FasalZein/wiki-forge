@@ -1,22 +1,19 @@
 #!/usr/bin/env bun
 
 import type { CommandHandler } from "./types";
-import { printHelp, scaffoldProject, addTask, backlogCommand, moveTask, completeTask, createIssueSlice, createFeature, createPrd, createPlan, createTestPlan, createModule, onboardProject, onboardPlan, normalizeModule, dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, syncProject, discoverProject, ingestDiff, handoverProject, claimSlice, noteProject, nextProject, startSlice, verifySlice, closeSlice, exportPrompt, resumeProject, commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo, syncProtocol, auditProtocol, dependencyGraph, updateIndex, logCommand, statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch } from "./system";
-import { forgeCheck, forgeClose, forgeNext, forgeOpen, forgePlan, forgeRun, forgeStart, forgeStatus } from "./slice/forge";
-import { doctorProject, gateProject } from "./maintenance";
-import { closeFeature, closePrd, featureStatusCommand, startFeature, startPrd } from "./hierarchy";
-import { pipelineCommand } from "./slice/pipeline";
-import { repairHistoricalDoneSlices } from "./slice";
-import { findProjectArg } from "./git-utils";
+import { printHelp } from "./cli-shared";
+import { backlogCommand, addTask, moveTask, completeTask, createFeature, createPrd, createPlan, createTestPlan, dependencyGraph, updateIndex, featureStatusCommand, startFeature, closeFeature, startPrd, closePrd, summaryProject, createLayerPage, lintVault, scaffoldLayer } from "./hierarchy";
+import { dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, syncProject, discoverProject, ingestDiff, commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo, doctorProject, gateProject, driftCheck } from "./maintenance";
+import { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeModule, syncProtocol, auditProtocol, obsidianCommand, setupShell } from "./protocol";
+import { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch } from "./research";
 import { askProject, fileAnswer, fileResearch } from "./retrieval/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "./retrieval/qmd-commands";
-import { bindSourcePaths, migrateVerification, verifyPage } from "./verification";
-import { driftCheck } from "./maintenance";
-import { acknowledgeImpact } from "./verification/acknowledge-impact";
-import { obsidianCommand } from "./protocol/obsidian";
-import { setupShell } from "./protocol/setup";
-import { summaryProject } from "./hierarchy/summary";
-import { createLayerPage, lintVault, scaffoldLayer } from "./hierarchy/layers";
+import { handoverProject, resumeProject, nextProject, noteProject, exportPrompt, logCommand } from "./session";
+import { claimSlice, startSlice, verifySlice, closeSlice, createIssueSlice, repairHistoricalDoneSlices } from "./slice";
+import { forgeCheck, forgeClose, forgeNext, forgeOpen, forgePlan, forgeRun, forgeStart, forgeStatus } from "./slice/forge";
+import { pipelineCommand, pipelineResetCommand } from "./slice/pipeline";
+import { statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, bindSourcePaths, migrateVerification, verifyPage, acknowledgeImpact } from "./verification";
+import { findProjectArg } from "./git-utils";
 import { appendActivity, extractProject, extractTarget, resolveAgent, resolveSessionId } from "./lib/tracker";
 
 const commands: Record<string, CommandHandler> = {
@@ -100,6 +97,7 @@ const commands: Record<string, CommandHandler> = {
   "create-layer-page": (args) => createLayerPage(args),
   "lint-vault": (args) => lintVault(args),
   pipeline: (args) => pipelineCommand(args),
+  "pipeline-reset": (args) => pipelineResetCommand(args),
   "feature-status": (args) => featureStatusCommand(args),
   "start-feature": (args) => startFeature(args),
   "close-feature": (args) => closeFeature(args),
