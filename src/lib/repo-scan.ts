@@ -5,6 +5,7 @@ import { safeMatter } from "../cli-shared";
 import { fileFingerprint, readCache, writeCache } from "./cache";
 import { exists, readText } from "./fs";
 import { gitMarkdownStatusFingerprint } from "../git-utils";
+import { isIgnoredDir, loadConfig, matchesAnyIgnore } from "./config";
 
 export const SCAFFOLD_DIRS = new Set(["src", "lib", "app", "apps", "packages", "services", "workers", "server", "api", "functions", "cmd", "internal"]);
 
@@ -21,12 +22,14 @@ export function listCodeFiles(repo: string, customPaths?: string[]) {
   } else {
     patterns = DEFAULT_CODE_PATTERNS;
   }
+  const userIgnore = loadConfig(repo).repo.ignore.value;
   const files = new Set<string>();
   for (const pattern of patterns) {
     for (const absolute of new Bun.Glob(pattern).scanSync({ cwd: repo, absolute: true, onlyFiles: true })) {
       const rel = relative(repo, absolute).replaceAll("\\", "/");
       if (/\/(node_modules|dist|build|coverage|\.next|__pycache__|\.pytest_cache|\.mypy_cache|\.venv|venv|\.tox)\//u.test(`/${rel}`)) continue;
       if (/^(package-lock\.json|bun\.lock|pnpm-lock\.yaml|yarn\.lock)$/u.test(rel.split("/").pop() ?? "")) continue;
+      if (matchesAnyIgnore(rel, userIgnore)) continue;
       files.add(rel);
     }
   }
@@ -34,11 +37,13 @@ export function listCodeFiles(repo: string, customPaths?: string[]) {
 }
 
 export async function listRepoMarkdownDocs(repo: string) {
-  const fingerprint = `${fileFingerprint(join(repo, ".git", "index"))}:${fileFingerprint(join(repo, ".git", "HEAD"))}:${await gitMarkdownStatusFingerprint(repo)}`;
+  const configFingerprint = fileFingerprint(join(repo, "wiki.config.jsonc"));
+  const fingerprint = `${fileFingerprint(join(repo, ".git", "index"))}:${fileFingerprint(join(repo, ".git", "HEAD"))}:${await gitMarkdownStatusFingerprint(repo)}:cfg=${configFingerprint}`;
   const cacheKey = `repo-docs:${repo}`;
-  const cached = await readCache<string[]>("repo-scan", cacheKey, "4", fingerprint);
+  const cached = await readCache<string[]>("repo-scan", cacheKey, "5", fingerprint);
   if (cached) return cached;
 
+  const userIgnore = loadConfig(repo).repo.ignore.value;
   const files = new Set<string>();
   const visit = (dir: string, prefix = "") => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -46,19 +51,21 @@ export async function listRepoMarkdownDocs(repo: string) {
       const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
       const absolute = join(dir, entry.name);
       if (entry.isDirectory()) {
+        if (isIgnoredDir(rel.replaceAll("\\", "/"), userIgnore)) continue;
         visit(absolute, rel);
         continue;
       }
       if (!entry.isFile() || !entry.name.toLowerCase().endsWith(".md")) continue;
       const normalized = rel.replaceAll("\\", "/");
       if (isAllowedRepoMarkdownDoc(normalized)) continue;
+      if (matchesAnyIgnore(normalized, userIgnore)) continue;
       files.add(normalized);
     }
   };
   visit(repo);
 
   const result = [...files].sort();
-  void writeCache("repo-scan", cacheKey, "4", fingerprint, result);
+  void writeCache("repo-scan", cacheKey, "5", fingerprint, result);
   return result;
 }
 

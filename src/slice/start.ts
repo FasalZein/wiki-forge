@@ -6,7 +6,7 @@ import { appendLogEntry } from "../lib/log";
 import { readSliceHub, readSlicePlan, readSliceSourcePaths } from "../lib/slices";
 import { projectTaskHubPath } from "../lib/structure";
 import { collectTaskContextForId, moveTaskToSection, lifecycleOpen } from "../hierarchy";
-import { summarizePlan } from "../session";
+import { summarizePlan } from "../lib/plan-summary";
 import { ClaimConflict, collectClaimResult, collectDependencyStatuses, defaultAgentName, formatClaimConflictError, writeClaimMetadata } from "./_shared";
 
 export type StartSliceResult = {

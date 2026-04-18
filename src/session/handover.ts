@@ -4,7 +4,7 @@ import { parseProjectRepoBaseArgs } from "../git-utils";
 import { collectSessionActivity, resolveSessionId } from "../lib/tracker";
 import { collectBacklog } from "../hierarchy";
 import { collectMaintenancePlan } from "../maintenance";
-import { closeSlice } from "../slice/close";
+import { closeSlice } from "../slice";
 import { readSliceTestPlan } from "../lib/slices";
 import { readVerificationLevel } from "../lib/verification";
 import { readSlicePipelineProgress, type PipelineProgressEntry } from "../lib/slice-progress";

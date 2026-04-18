@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wiki-forge.dev/schemas/wiki.config.schema.json",
+  "title": "wiki-forge configuration",
+  "description": "Configuration for the wiki-forge CLI. Applied as: project file (<repo>/wiki.config.jsonc) overrides system file (~/.config/wiki-forge/config.jsonc) overrides built-in defaults.",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "repo": {
+      "type": "object",
+      "description": "Repository-level knobs.",
+      "additionalProperties": true,
+      "properties": {
+        "ignore": {
+          "type": "array",
+          "description": "Extra glob patterns to exclude from repo scans (markdown doc discovery and source-file discovery). Appended to built-in exclusions; cannot un-ignore them.",
+          "items": { "type": "string" },
+          "examples": [
+            ["docs/**", "archive/**"]
+          ]
+        }
+      }
+    }
+  }
+}

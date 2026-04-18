@@ -13,6 +13,7 @@ import { claimSlice, startSlice, verifySlice, closeSlice, createIssueSlice, repa
 import { forgeCheck, forgeClose, forgeNext, forgeOpen, forgePlan, forgeRelease, forgeRun, forgeStart, forgeStatus } from "./slice/forge";
 import { pipelineCommand, pipelineResetCommand } from "./slice/pipeline";
 import { statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, bindSourcePaths, migrateVerification, verifyPage, acknowledgeImpact } from "./verification";
+import { configCommand } from "./config";
 import { findProjectArg } from "./git-utils";
 import { appendActivity, extractProject, extractTarget, resolveAgent, resolveSessionId } from "./lib/tracker";
 
@@ -112,6 +113,7 @@ const commands: Record<string, CommandHandler> = {
   "forge:plan": (args) => forgePlan(args),
   "forge:next": (args) => forgeNext(args),
   "forge:release": (args) => forgeRelease(args),
+  config: (args) => configCommand(args),
 };
 
 const rawArgs = process.argv.slice(2);
