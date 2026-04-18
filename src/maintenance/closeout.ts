@@ -53,7 +53,7 @@ export async function collectCloseout(project: string, base: string, explicitRep
     collectLifecycleDriftActions(project),
   ]);
   const impacted = new Set(refreshFromGit.impactedPages.map((page) => page.page));
-  const sliceLocalContext = options.worktree && options.sliceLocal && options.sliceId
+  const sliceLocalContext = options.sliceLocal && options.sliceId
     ? await collectSliceLocalContext(project, options.sliceId, projectSnapshot.pageEntries)
     : null;
   const staleImpactedPages = options.worktree
