@@ -58,6 +58,20 @@ function readUpdatedField(filePath: string) {
 }
 
 describe("WIKI-FORGE-145 clean-repo cascade refresh", () => {
+  test("checkpoint --base HEAD ignores mtime-only stale pages on a clean committed repo", () => {
+    const { repo, env, pages } = setupCascadeFixture();
+    for (const page of pages) backdateUpdatedField(page);
+
+    const result = runWiki(["checkpoint", "wf145c", "--repo", repo, "--base", "HEAD", "--json"], env);
+
+    expect(result.exitCode).toBe(0);
+    const payload = JSON.parse(result.stdout.toString());
+    expect(payload.base).toBe("HEAD");
+    expect(payload.modifiedFiles).toBe(0);
+    expect(payload.clean).toBe(true);
+    expect(payload.stalePages).toEqual([]);
+  });
+
   test("refresh-from-git --base HEAD stamps acknowledged pages whose only drift is mtime/update skew", () => {
     const { vault, repo, env, pages } = setupCascadeFixture();
     for (const page of pages) backdateUpdatedField(page);

@@ -32,7 +32,7 @@ Internal / Repair:
   wiki forge release <project> <slice-id>
   wiki maintain <project> [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json] [--verbose]
   wiki sync <project> [--repo <path>] [--report-only] [--write] [--json]
-  wiki checkpoint <project> [--repo <path>] [--json]
+  wiki checkpoint <project> [--repo <path>] [--base <rev>] [--json]
   wiki closeout <project> [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json] [--verbose]
   wiki gate <project> [--repo <path>] [--base <rev>] [--worktree] [--structural-refactor] [--json]
   wiki doctor <project> [--repo <path>] [--base <rev>] [--json]

@@ -721,7 +721,7 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("wiki backlog <project> [--assignee <agent>] [--json]");
     expect(output).toContain("wiki create-issue-slice <project> <title...> [--section <name>] [--priority <p>] [--tag <t>] [--prd <PRD-ID>] [--assignee <agent>] [--source <path...>] [--json]");
     expect(output).toContain("wiki commit-check <project> [--repo <path>] [--json] [--verbose]");
-    expect(output).toContain("wiki checkpoint <project> [--repo <path>] [--json]");
+    expect(output).toContain("wiki checkpoint <project> [--repo <path>] [--base <rev>] [--json]");
     expect(output).toContain("wiki lint-repo <project> [--repo <path>] [--json]");
     expect(output).toContain("wiki protocol sync <project> [--repo <path>] [--json]");
     expect(output).toContain("wiki protocol audit <project> [--repo <path>] [--json]");

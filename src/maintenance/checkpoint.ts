@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { statSync } from "node:fs";
 import { fail } from "../cli-shared";
 import { parseUpdatedDate } from "../lib/verification";
-import { parseProjectRepoArgs, bindingMatchesFile } from "../git-utils";
+import { parseProjectRepoArgs, bindingMatchesFile, gitChangedFiles } from "../git-utils";
 import { readFlagValue } from "../lib/cli-utils";
 import { readSliceSourcePaths } from "../lib/slices";
 import { loadProjectSnapshot } from "./_shared";
@@ -12,16 +12,24 @@ export async function checkpoint(args: string[]) {
   const json = args.includes("--json");
   const sliceLocal = args.includes("--slice-local");
   const sliceId = readFlagValue(args, "--slice-id");
-  const result = await collectCheckpoint(options.project, options.repo, sliceLocal && sliceId ? { sliceId } : undefined);
+  const base = readFlagValue(args, "--base");
+  const result = await collectCheckpoint(
+    options.project,
+    options.repo,
+    sliceLocal && sliceId ? { sliceId, ...(base ? { base } : {}) } : (base ? { base } : undefined),
+  );
   if (json) console.log(JSON.stringify(result, null, 2));
   else renderCheckpoint(result);
   if (!result.clean) fail(`checkpoint found ${result.stalePages.length} stale page(s) for ${options.project}`);
 }
 
-export async function collectCheckpoint(project: string, explicitRepo?: string, sliceFilter?: { sliceId: string }) {
+export async function collectCheckpoint(project: string, explicitRepo?: string, sliceFilter?: { sliceId?: string; base?: string }) {
   const snapshot = await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
-  const sliceSourcePaths = sliceFilter
+  const sliceSourcePaths = sliceFilter?.sliceId
     ? await readSliceSourcePaths(project, sliceFilter.sliceId)
+    : null;
+  const changedFiles = sliceFilter?.base
+    ? await gitChangedFiles(snapshot.repo, sliceFilter.base)
     : null;
   const pageEntries = sliceSourcePaths
     ? snapshot.pageEntries.filter((entry) =>
@@ -35,6 +43,7 @@ export async function collectCheckpoint(project: string, explicitRepo?: string, 
   const modifiedFiles = new Set<string>();
   const unboundFiles = new Set<string>();
   const pageStatuses = new Map<string, { page: string; matchedSourcePaths: Set<string>; lastSourceChangeMs: number; pageUpdatedMs: number | null; pageUpdated: string; broadBinding: boolean }>();
+  const filesToInspect = changedFiles ?? snapshot.repoFiles ?? [];
 
   // F3: under --slice-local, only files owned by the slice's source_paths drive
   // staleness. Without this, a broad-binding page (e.g. `architecture/src-layout.md`
@@ -45,7 +54,7 @@ export async function collectCheckpoint(project: string, explicitRepo?: string, 
     return sliceSourcePaths.some((sliceSp) => bindingMatchesFile(sliceSp, file) || bindingMatchesFile(file, sliceSp));
   };
 
-  for (const file of snapshot.repoFiles ?? []) {
+  for (const file of filesToInspect) {
     if (!fileInScope(file)) continue;
     const absolutePath = join(snapshot.repo, file);
     let mtimeMs = 0;
@@ -81,7 +90,9 @@ export async function collectCheckpoint(project: string, explicitRepo?: string, 
       matchedSourcePaths: [...entry.matchedSourcePaths].sort(),
       lastSourceChange: new Date(entry.lastSourceChangeMs).toISOString(),
       pageUpdated: entry.pageUpdated,
-      stale: !entry.broadBinding && (entry.pageUpdatedMs === null || entry.lastSourceChangeMs > entry.pageUpdatedMs),
+      stale: changedFiles !== null
+        ? entry.pageUpdatedMs === null || entry.lastSourceChangeMs > entry.pageUpdatedMs
+        : !entry.broadBinding && (entry.pageUpdatedMs === null || entry.lastSourceChangeMs > entry.pageUpdatedMs),
       modified: entry.lastSourceChangeMs > projectUpdated.getTime(),
     }))
     .filter((entry) => entry.modified || entry.stale)
@@ -90,6 +101,7 @@ export async function collectCheckpoint(project: string, explicitRepo?: string, 
   return {
     project,
     repo: snapshot.repo,
+    ...(sliceFilter?.base ? { base: sliceFilter.base } : {}),
     modifiedFiles: modifiedFiles.size,
     boundPages: orderedPages.length,
     pageStatuses: orderedPages,
