@@ -97,3 +97,66 @@ describe("gate typecheck", () => {
     expect(json.findings.every((finding: { scope: string; severity: string; message: string }) => !(finding.severity === "blocker" && finding.message === "typecheck failed"))).toBe(true);
   });
 });
+
+describe("gate test_exemptions", () => {
+  function setupExemptionRepo(files: Array<{ path: string; v1: string; v2: string }>) {
+    const vault = tempDir("wiki-vault");
+    const repo = tempDir("wiki-repo-exempt");
+    mkdirSync(join(vault, "projects"), { recursive: true });
+    writeFileSync(join(vault, "AGENTS.md"), "# Agents\n", "utf8");
+    writeFileSync(join(vault, "index.md"), "# Index\n", "utf8");
+    mkdirSync(join(repo, "tests"), { recursive: true });
+    for (const f of files) {
+      mkdirSync(join(repo, f.path.split("/").slice(0, -1).join("/")), { recursive: true });
+      writeFileSync(join(repo, f.path), f.v1, "utf8");
+    }
+    writeFileSync(join(repo, "tests", "unrelated.test.ts"), "import { test, expect } from 'bun:test'\ntest('unrelated', () => expect(1).toBe(1))\n", "utf8");
+    runGit(repo, ["init", "-q"]);
+    runGit(repo, ["add", "."]);
+    runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
+    for (const f of files) writeFileSync(join(repo, f.path), f.v2, "utf8");
+    runGit(repo, ["add", "."]);
+    runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "second"]);
+    return { vault, repo };
+  }
+
+  test("exact-path exemption removes file from blockers while non-exempted file remains", () => {
+    const { vault, repo } = setupExemptionRepo([
+      { path: "src/types.ts", v1: "export type Foo = string;\n", v2: "export type Foo = number;\n" },
+      { path: "src/payments.ts", v1: "export const total = 1\n", v2: "export const total = 2\n" },
+    ]);
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "payments slice"], env).exitCode).toBe(0);
+
+    const slicePath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "index.md");
+    writeFileSync(slicePath, readFileSync(slicePath, "utf8").replace("source_paths: []", "source_paths:\n  - src/types.ts\n  - src/payments.ts\ntest_exemptions:\n  - src/types.ts"), "utf8");
+
+    const result = runWiki(["gate", "demo", "--repo", repo, "--base", "HEAD~1", "--slice-local", "--slice-id", "DEMO-001", "--json"], env);
+    const json = JSON.parse(result.stdout.toString());
+    const missingTestsBlockers = json.findings.filter((f: { severity: string; scope: string; message: string }) => f.severity === "blocker" && f.scope === "slice" && f.message.includes("changed code file"));
+    expect(missingTestsBlockers.length).toBe(1);
+    expect(missingTestsBlockers[0].message).toBe("1 changed code file(s) have no matching changed tests");
+  });
+
+  test("glob pattern exemption (*.d.ts) removes matching files from blockers", () => {
+    const { vault, repo } = setupExemptionRepo([
+      { path: "src/api.d.ts", v1: "export declare const x: string;\n", v2: "export declare const x: number;\n" },
+      { path: "src/payments.ts", v1: "export const total = 1\n", v2: "export const total = 2\n" },
+    ]);
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "api slice"], env).exitCode).toBe(0);
+
+    const slicePath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "index.md");
+    writeFileSync(slicePath, readFileSync(slicePath, "utf8").replace("source_paths: []", "source_paths:\n  - src/api.d.ts\n  - src/payments.ts\ntest_exemptions:\n  - '*.d.ts'"), "utf8");
+
+    const result = runWiki(["gate", "demo", "--repo", repo, "--base", "HEAD~1", "--slice-local", "--slice-id", "DEMO-001", "--json"], env);
+    const json = JSON.parse(result.stdout.toString());
+    const missingTestsBlockers = json.findings.filter((f: { severity: string; scope: string; message: string }) => f.severity === "blocker" && f.scope === "slice" && f.message.includes("changed code file"));
+    expect(missingTestsBlockers.length).toBe(1);
+    expect(missingTestsBlockers[0].message).toBe("1 changed code file(s) have no matching changed tests");
+  });
+});

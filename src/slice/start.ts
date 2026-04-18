@@ -7,7 +7,141 @@ import { readSliceHub, readSlicePlan, readSliceSourcePaths } from "../lib/slices
 import { projectTaskHubPath } from "../lib/structure";
 import { collectTaskContextForId, moveTaskToSection, lifecycleOpen } from "../hierarchy";
 import { summarizePlan } from "../session";
-import { collectClaimResult, collectDependencyStatuses, defaultAgentName, formatClaimConflictError, writeClaimMetadata } from "./_shared";
+import { ClaimConflict, collectClaimResult, collectDependencyStatuses, defaultAgentName, formatClaimConflictError, writeClaimMetadata } from "./_shared";
+
+export type StartSliceResult = {
+  ok: boolean;
+  sliceId: string;
+  status: "in-progress" | "missing" | "done" | "blocked" | "conflict";
+  agent: string;
+  startedAt?: string;
+  planSummary?: string;
+  sourcePaths?: string[];
+  dependencies?: Array<{ id: string; status: string }>;
+  conflicts?: ClaimConflict[];
+  blocking?: string[];
+  error?: string;
+  _autoStartedPrd?: string;
+  _autoStartedFeature?: string;
+};
+
+export async function startSliceCore(
+  project: string,
+  sliceId: string,
+  agent: string,
+  repo?: string,
+): Promise<StartSliceResult> {
+  let hub;
+  let plan;
+  try {
+    hub = await readSliceHub(project, sliceId);
+    plan = await readSlicePlan(project, sliceId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      ok: false,
+      sliceId,
+      status: "missing",
+      agent,
+      error: message.includes("not found") ? `slice not found: ${sliceId}` : message,
+    };
+  }
+
+  const context = await collectTaskContextForId(project, sliceId);
+  if (!context) {
+    return {
+      ok: false,
+      sliceId,
+      status: "missing",
+      agent,
+      error: `slice not found in backlog: ${sliceId}`,
+    };
+  }
+  if (context.section === "Done" || hub.data.status === "done") {
+    return {
+      ok: false,
+      sliceId,
+      status: "done",
+      agent,
+      error: `${sliceId} is already done`,
+    };
+  }
+
+  const [dependencies, sourcePaths] = await Promise.all([
+    collectDependencyStatuses(project, sliceId),
+    readSliceSourcePaths(project, sliceId),
+  ]);
+  const blocking = dependencies.filter((dependency) => !dependency.done);
+  const claim = await collectClaimResult(project, sliceId, agent, repo, context, sourcePaths);
+  const startedAt = nowIso();
+  const planSummary = summarizePlan(hub.content, plan.content, sourcePaths);
+
+  if (blocking.length > 0) {
+    return {
+      ok: false,
+      sliceId,
+      status: "blocked",
+      agent,
+      startedAt,
+      planSummary,
+      sourcePaths,
+      dependencies: dependencies.map((d) => ({ id: d.id, status: d.status })),
+      conflicts: claim.conflicts,
+      blocking: blocking.map((d) => d.id),
+      error: `${sliceId} is blocked by unfinished dependencies: ${blocking.map((d) => d.id).join(", ")}`,
+    };
+  }
+  if (claim.conflicts.length > 0) {
+    return {
+      ok: false,
+      sliceId,
+      status: "conflict",
+      agent,
+      startedAt,
+      planSummary,
+      sourcePaths,
+      dependencies: dependencies.map((d) => ({ id: d.id, status: d.status })),
+      conflicts: claim.conflicts,
+      error: formatClaimConflictError(sliceId, claim.conflicts, project, repo),
+    };
+  }
+
+  await moveTaskToSection(project, sliceId, "In Progress");
+  await writeClaimMetadata(project, sliceId, agent, startedAt, sourcePaths);
+  await markSliceStarted(project, sliceId, startedAt);
+  appendLogEntry("start-slice", sliceId, { project, details: [`agent=${agent}`, `started_at=${startedAt}`] });
+
+  const parentPrd = typeof hub.data.parent_prd === "string" ? hub.data.parent_prd : null;
+  const parentFeature = typeof hub.data.parent_feature === "string" ? hub.data.parent_feature : null;
+  let autoStartedPrd: string | undefined;
+  let autoStartedFeature: string | undefined;
+  if (parentPrd) {
+    try {
+      await lifecycleOpen(project, parentPrd, "prd");
+      autoStartedPrd = parentPrd;
+    } catch { /* non-fatal */ }
+  }
+  if (parentFeature) {
+    try {
+      await lifecycleOpen(project, parentFeature, "feature");
+      autoStartedFeature = parentFeature;
+    } catch { /* non-fatal */ }
+  }
+
+  return {
+    ok: true,
+    sliceId,
+    status: "in-progress",
+    agent,
+    startedAt,
+    planSummary,
+    sourcePaths,
+    dependencies: dependencies.map((d) => ({ id: d.id, status: d.status })),
+    conflicts: claim.conflicts,
+    _autoStartedPrd: autoStartedPrd,
+    _autoStartedFeature: autoStartedFeature,
+  };
+}
 
 export async function startSlice(args: string[]) {
   const project = args[0];
@@ -33,83 +167,88 @@ export async function startSlice(args: string[]) {
     }
   }
 
-  let hub;
-  let plan;
-  try {
-    hub = await readSliceHub(project, sliceId);
-    plan = await readSlicePlan(project, sliceId);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (json) console.log(JSON.stringify({ project, sliceId, status: "missing", agent }, null, 2));
-    fail(message.includes("not found") ? `slice not found: ${sliceId}` : message, 3);
-  }
+  const coreResult = await startSliceCore(project, sliceId, agent, repo);
 
-  const context = await collectTaskContextForId(project, sliceId);
-  if (!context) {
-    if (json) console.log(JSON.stringify({ project, sliceId, status: "missing", agent }, null, 2));
-    fail(`slice not found in backlog: ${sliceId}`, 3);
-  }
-  if (context.section === "Done" || hub.data.status === "done") {
-    fail(`${sliceId} is already done`, 1);
-  }
-
-  const [dependencies, sourcePaths] = await Promise.all([
-    collectDependencyStatuses(project, sliceId),
-    readSliceSourcePaths(project, sliceId),
-  ]);
-  const blocking = dependencies.filter((dependency) => !dependency.done);
-  const claim = await collectClaimResult(project, sliceId, agent, repo, context, sourcePaths);
-  const startedAt = nowIso();
-  const planSummary = summarizePlan(hub.content, plan.content, sourcePaths);
-  const result = {
-    sliceId,
-    status: "in-progress",
-    agent,
-    startedAt,
-    dependencies: dependencies.map((dependency) => ({ id: dependency.id, status: dependency.status })),
-    claimedPaths: sourcePaths,
-    planSummary,
-    conflicts: claim.conflicts,
-  };
-
-  if (blocking.length > 0) {
-    if (json) console.log(JSON.stringify(result, null, 2));
-    fail(`${sliceId} is blocked by unfinished dependencies: ${blocking.map((dependency) => dependency.id).join(", ")}`, 1);
-  }
-  if (claim.conflicts.length > 0) {
-    if (json) console.log(JSON.stringify(result, null, 2));
-    fail(formatClaimConflictError(sliceId, claim.conflicts, project, repo), 2);
-  }
-
-  await moveTaskToSection(project, sliceId, "In Progress");
-  await writeClaimMetadata(project, sliceId, agent, startedAt, sourcePaths);
-  await markSliceStarted(project, sliceId, startedAt);
-  appendLogEntry("start-slice", sliceId, { project, details: [`agent=${agent}`, `started_at=${startedAt}`] });
-
-  const parentPrd = typeof hub.data.parent_prd === "string" ? hub.data.parent_prd : null;
-  const parentFeature = typeof hub.data.parent_feature === "string" ? hub.data.parent_feature : null;
-  if (parentPrd) {
-    try {
-      await lifecycleOpen(project, parentPrd, "prd");
-      process.stderr.write(`auto-started prd ${parentPrd}\n`);
-    } catch { /* non-fatal */ }
-  }
-  if (parentFeature) {
-    try {
-      await lifecycleOpen(project, parentFeature, "feature");
-      process.stderr.write(`auto-started feature ${parentFeature}\n`);
-    } catch { /* non-fatal */ }
-  }
-
-  if (json) {
-    console.log(JSON.stringify(result, null, 2));
+  if (!coreResult.ok) {
+    switch (coreResult.status) {
+      case "missing": {
+        if (json) console.log(JSON.stringify({ project, sliceId, status: "missing", agent }, null, 2));
+        fail(coreResult.error ?? `slice not found: ${sliceId}`, 3);
+        break;
+      }
+      case "done": {
+        fail(coreResult.error ?? `${sliceId} is already done`, 1);
+        break;
+      }
+      case "blocked": {
+        if (json) {
+          const jsonResult = {
+            sliceId: coreResult.sliceId,
+            status: coreResult.status,
+            agent: coreResult.agent,
+            startedAt: coreResult.startedAt,
+            dependencies: coreResult.dependencies,
+            claimedPaths: coreResult.sourcePaths,
+            planSummary: coreResult.planSummary,
+            conflicts: coreResult.conflicts,
+          };
+          console.log(JSON.stringify(jsonResult, null, 2));
+        }
+        fail(coreResult.error ?? `${sliceId} is blocked`, 1);
+        break;
+      }
+      case "conflict": {
+        if (json) {
+          const jsonResult = {
+            sliceId: coreResult.sliceId,
+            status: coreResult.status,
+            agent: coreResult.agent,
+            startedAt: coreResult.startedAt,
+            dependencies: coreResult.dependencies,
+            claimedPaths: coreResult.sourcePaths,
+            planSummary: coreResult.planSummary,
+            conflicts: coreResult.conflicts,
+          };
+          console.log(JSON.stringify(jsonResult, null, 2));
+        }
+        fail(coreResult.error ?? `claim conflict for ${sliceId}`, 2);
+        break;
+      }
+    }
     return;
   }
 
+  // Emit stderr auto-start messages (side effects that must not be in core)
+  if (coreResult._autoStartedPrd) {
+    process.stderr.write(`auto-started prd ${coreResult._autoStartedPrd}\n`);
+  }
+  if (coreResult._autoStartedFeature) {
+    process.stderr.write(`auto-started feature ${coreResult._autoStartedFeature}\n`);
+  }
+
+  const successJsonResult = {
+    sliceId: coreResult.sliceId,
+    status: coreResult.status,
+    agent: coreResult.agent,
+    startedAt: coreResult.startedAt,
+    dependencies: coreResult.dependencies,
+    claimedPaths: coreResult.sourcePaths,
+    planSummary: coreResult.planSummary,
+    conflicts: coreResult.conflicts,
+  };
+
+  if (json) {
+    console.log(JSON.stringify(successJsonResult, null, 2));
+    return;
+  }
+
+  const dependencies = coreResult.dependencies ?? [];
+  const sourcePaths = coreResult.sourcePaths ?? [];
   let dependencySummary: string;
   if (dependencies.length) {
     dependencySummary = dependencies.map((dependency) => {
-      const statusLabel = dependency.done ? "✓" : `(${dependency.status})`;
+      const done = dependency.status === "done";
+      const statusLabel = done ? "✓" : `(${dependency.status})`;
       return `${dependency.id} ${statusLabel}`;
     }).join(", ");
   } else {
@@ -123,7 +262,7 @@ export async function startSlice(args: string[]) {
     console.log(`Claim: no source_paths bound — bind with: wiki bind ${project} specs/slices/${sliceId}/index.md <source-file>`);
   }
   console.log("---");
-  console.log(planSummary);
+  console.log(coreResult.planSummary);
 }
 
 async function markSliceStarted(project: string, sliceId: string, startedAt: string) {

@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { requireValue } from "../cli-shared";
 import type { DiagnosticFinding } from "../lib/diagnostics";
 import { collectSliceLocalContext, fileMatchesSliceClaims } from "../lib/slice-local";
@@ -7,6 +7,7 @@ import { exists, readText } from "../lib/fs";
 import { resolveRepoPath, assertGitRepo } from "../lib/verification";
 import { resolveDefaultBase } from "../git-utils";
 import { isTestFile } from "./test-health";
+import { readSliceHub } from "../lib/slices";
 import { collectDoctor, compactDoctorForJson } from "./doctor";
 import { collectCloseout } from "./closeout";
 
@@ -58,8 +59,12 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
         for (const blocker of structuralRefactor.blockers) findings.push({ scope: "slice", severity: "blocker", message: blocker });
       }
     } else if (sliceLocalContext) {
-      const sliceMissingTests = doctor.maintain.refreshFromGit.testHealth.codeFilesWithoutChangedTests.filter((file) => fileMatchesSliceClaims(file, sliceLocalContext));
-      const otherMissingTests = doctor.maintain.refreshFromGit.testHealth.codeFilesWithoutChangedTests.filter((file) => !fileMatchesSliceClaims(file, sliceLocalContext));
+      const hub = await readSliceHub(project, sliceLocalContext.sliceId);
+      const exemptions = Array.isArray(hub.data.test_exemptions) ? hub.data.test_exemptions.map(String) : [];
+      const isExempt = (file: string) => exemptions.some((p) => p.includes("*") ? new Bun.Glob(p).match(file) || new Bun.Glob(p).match(basename(file)) : file === p || file.endsWith(`/${p}`));
+      const nonExemptMissing = doctor.maintain.refreshFromGit.testHealth.codeFilesWithoutChangedTests.filter((file) => !isExempt(file));
+      const sliceMissingTests = nonExemptMissing.filter((file) => fileMatchesSliceClaims(file, sliceLocalContext));
+      const otherMissingTests = nonExemptMissing.filter((file) => !fileMatchesSliceClaims(file, sliceLocalContext));
       if (sliceMissingTests.length > 0) findings.push({ scope: "slice", severity: "blocker", message: `${sliceMissingTests.length} changed code file(s) have no matching changed tests` });
       if (otherMissingTests.length > 0) findings.push({ scope: "history", severity: "warning", message: `${otherMissingTests.length} changed file(s) outside the active slice also need test coverage` });
     } else {

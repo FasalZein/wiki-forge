@@ -140,6 +140,7 @@ export interface RunPipelineOptions {
   json?: boolean;
   worktree?: boolean;
   sliceLocal?: boolean;
+  onStepComplete?: (step: { id: string; label: string; ok: boolean; error: string | null; durationMs: number | null }) => Promise<void>;
 }
 
 export async function runPipeline(options: RunPipelineOptions, executor?: (command: string, args: string[]) => Promise<{ ok: boolean; error?: string; stdout?: string; stderr?: string }>, injectedState?: PipelineState): Promise<PipelineResult> {
@@ -160,6 +161,9 @@ export async function runPipeline(options: RunPipelineOptions, executor?: (comma
       const skipped = !options.dryRun && state.shouldSkip(options.project, options.sliceId, step.id);
       if (skipped) {
         result.steps.push({ id: step.id, label: step.label, skipped: true, ok: true, error: null, durationMs: null });
+        if (options.onStepComplete) {
+          await options.onStepComplete({ id: step.id, label: step.label, ok: true, error: null, durationMs: null });
+        }
         continue;
       }
 
@@ -181,6 +185,10 @@ export async function runPipeline(options: RunPipelineOptions, executor?: (comma
       state.record(options.project, options.sliceId, step.id, startedAt, completedAt, run.ok, run.error ?? null);
 
       result.steps.push({ id: step.id, label: step.label, skipped: false, ok: run.ok, error: run.error ?? null, stdout: run.stdout, stderr: run.stderr, durationMs });
+
+      if (options.onStepComplete) {
+        await options.onStepComplete({ id: step.id, label: step.label, ok: run.ok, error: run.error ?? null, durationMs });
+      }
 
       if (!run.ok) {
         result.ok = false;

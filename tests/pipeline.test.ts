@@ -269,4 +269,84 @@ describe("runPipeline", () => {
     expect(result.steps[0].skipped).toBe(true);
     expect(result.steps[1].skipped).toBe(false);
   });
+
+  it("onStepComplete is called for each executed step with correct fields", async () => {
+    const calls: Array<{ id: string; ok: boolean; durationMs: number | null }> = [];
+    const executor = async (_command: string, _args: string[]) => ({ ok: true });
+    const state = makeInMemoryState();
+
+    await runPipeline(
+      {
+        project: "proj",
+        sliceId: "S-1",
+        phase: "close",
+        onStepComplete: async (step) => {
+          calls.push({ id: step.id, ok: step.ok, durationMs: step.durationMs });
+        },
+      },
+      executor,
+      state,
+    );
+
+    expect(calls.length).toBe(4);
+    expect(calls.map((c) => c.id)).toEqual(["checkpoint", "lint-repo", "maintain", "update-index"]);
+    for (const call of calls) {
+      expect(call.ok).toBe(true);
+      expect(typeof call.durationMs).toBe("number");
+    }
+  });
+
+  it("onStepComplete receives failure info when a step fails", async () => {
+    const calls: Array<{ id: string; ok: boolean; error: string | null }> = [];
+    const executor = async (command: string, _args: string[]) => {
+      if (command === "lint-repo") return { ok: false, error: "lint failed" };
+      return { ok: true };
+    };
+    const state = makeInMemoryState();
+
+    await runPipeline(
+      {
+        project: "proj",
+        sliceId: "S-1",
+        phase: "close",
+        onStepComplete: async (step) => {
+          calls.push({ id: step.id, ok: step.ok, error: step.error });
+        },
+      },
+      executor,
+      state,
+    );
+
+    expect(calls.length).toBe(2);
+    expect(calls[0]).toMatchObject({ id: "checkpoint", ok: true, error: null });
+    expect(calls[1]).toMatchObject({ id: "lint-repo", ok: false, error: "lint failed" });
+  });
+
+  it("onStepComplete is called for skipped steps with ok=true and durationMs=null", async () => {
+    const state = makeInMemoryState();
+    state.record("proj", "S-1", "checkpoint", "2026-01-01T00:00:00Z", "2026-01-01T00:00:01Z", true, null);
+
+    const calls: Array<{ id: string; ok: boolean; durationMs: number | null }> = [];
+    const executor = async (_command: string, _args: string[]) => ({ ok: true });
+
+    await runPipeline(
+      {
+        project: "proj",
+        sliceId: "S-1",
+        phase: "close",
+        onStepComplete: async (step) => {
+          calls.push({ id: step.id, ok: step.ok, durationMs: step.durationMs });
+        },
+      },
+      executor,
+      state,
+    );
+
+    expect(calls.length).toBe(4);
+    expect(calls[0]).toMatchObject({ id: "checkpoint", ok: true, durationMs: null });
+    for (const call of calls.slice(1)) {
+      expect(call.ok).toBe(true);
+      expect(typeof call.durationMs).toBe("number");
+    }
+  });
 });
