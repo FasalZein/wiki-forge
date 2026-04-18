@@ -40,6 +40,7 @@ export async function queryVault(args: string[]) {
   if (!query) {
     throw new Error("missing query");
   }
+  process.stderr.write("note: 'wiki query' returns raw hits across the vault. For a project-scoped answer brief with sources, use 'wiki ask <project> <question>'.\n");
 
   const mode = resolveRetrievalMode(query, { expand, bm25: useBm25, sdkHybridAvailable: await sdkHybridAvailable() });
   if (mode === "expand") {
