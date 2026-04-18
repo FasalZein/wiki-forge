@@ -28,12 +28,18 @@ export function computeStatus(sliceStates: SliceState[], authoredStatus?: string
   // (PRDs/features implemented directly). If slices exist but all are
   // cancelled, that's genuine drift — return "not-started" so R3 cascade can heal.
   if (sliceStates.length === 0) {
-    if (authoredStatus === "complete") return "complete";
+    if (authoredStatus === "complete" || authoredStatus === "cancelled") return "complete";
     if (authoredStatus === "in-progress") return "in-progress";
     return "not-started";
   }
 
-  if (active.length === 0) return "not-started";
+  // All children cancelled AND parent authored `cancelled`: branch is fully
+  // settled (R3 already cascaded). Roll up as "complete" so feature-status
+  // shows the resolved state instead of the confusing "not-started".
+  if (active.length === 0) {
+    if (authoredStatus === "cancelled") return "complete";
+    return "not-started";
+  }
 
   const allDraft = active.every((s) => !s.status || s.status === "draft");
   if (allDraft) return "not-started";
