@@ -34,7 +34,7 @@ export async function collectCheckpoint(project: string, explicitRepo?: string, 
   const projectUpdated = parseUpdatedDate(summaryEntry?.rawUpdated) ?? new Date(0);
   const modifiedFiles = new Set<string>();
   const unboundFiles = new Set<string>();
-  const pageStatuses = new Map<string, { page: string; matchedSourcePaths: Set<string>; lastSourceChangeMs: number; pageUpdatedMs: number | null; pageUpdated: string }>();
+  const pageStatuses = new Map<string, { page: string; matchedSourcePaths: Set<string>; lastSourceChangeMs: number; pageUpdatedMs: number | null; pageUpdated: string; broadBinding: boolean }>();
 
   // F3: under --slice-local, only files owned by the slice's source_paths drive
   // staleness. Without this, a broad-binding page (e.g. `architecture/src-layout.md`
@@ -67,6 +67,7 @@ export async function collectCheckpoint(project: string, explicitRepo?: string, 
         lastSourceChangeMs: 0,
         pageUpdatedMs: parseUpdatedDate(entry.rawUpdated)?.getTime() ?? null,
         pageUpdated: String(entry.rawUpdated ?? "missing"),
+        broadBinding: readBroadBinding(entry.parsed?.data),
       };
       existing.matchedSourcePaths.add(file);
       existing.lastSourceChangeMs = Math.max(existing.lastSourceChangeMs, mtimeMs);
@@ -80,7 +81,7 @@ export async function collectCheckpoint(project: string, explicitRepo?: string, 
       matchedSourcePaths: [...entry.matchedSourcePaths].sort(),
       lastSourceChange: new Date(entry.lastSourceChangeMs).toISOString(),
       pageUpdated: entry.pageUpdated,
-      stale: entry.pageUpdatedMs === null || entry.lastSourceChangeMs > entry.pageUpdatedMs,
+      stale: !entry.broadBinding && (entry.pageUpdatedMs === null || entry.lastSourceChangeMs > entry.pageUpdatedMs),
       modified: entry.lastSourceChangeMs > projectUpdated.getTime(),
     }))
     .filter((entry) => entry.modified || entry.stale)
@@ -96,6 +97,12 @@ export async function collectCheckpoint(project: string, explicitRepo?: string, 
     unboundFiles: [...unboundFiles].sort(),
     clean: orderedPages.every((entry) => !entry.stale),
   };
+}
+
+function readBroadBinding(data: Record<string, unknown> | undefined) {
+  const binding = data?.binding;
+  if (!binding || typeof binding !== "object") return false;
+  return (binding as Record<string, unknown>).broad === true;
 }
 
 function renderCheckpoint(result: Awaited<ReturnType<typeof collectCheckpoint>>) {

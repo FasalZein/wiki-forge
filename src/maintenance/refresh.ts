@@ -34,14 +34,20 @@ export async function refreshFromGit(args: string[]) {
   const json = args.includes("--json");
   const verbose = args.includes("--verbose");
   const result = await collectRefreshFromGit(options.project, options.base, options.repo);
-  appendLogEntry("refresh-from-git", options.project, { project: options.project, details: [`base=${result.base}`, `changed=${result.changedFiles.length}`, `impacted=${result.impactedPages.length}`, `uncovered=${result.uncoveredFiles.length}`, `missing_tests=${result.testHealth.codeFilesWithoutChangedTests.length}`] });
-  if (json) console.log(JSON.stringify(compactRefreshFromGitForJson(result), null, 2));
+  const cascadeRefreshActions = result.cascadeRefreshActions ?? [];
+  for (const action of cascadeRefreshActions) {
+    if (action._apply) await action._apply();
+  }
+  appendLogEntry("refresh-from-git", options.project, { project: options.project, details: [`base=${result.base}`, `changed=${result.changedFiles.length}`, `impacted=${result.impactedPages.length}`, `cascade=${cascadeRefreshActions.length}`, `uncovered=${result.uncoveredFiles.length}`, `missing_tests=${result.testHealth.codeFilesWithoutChangedTests.length}`] });
+  const compact = compactRefreshFromGitForJson(result);
+  if (json) console.log(JSON.stringify({ ...compact, cascadeRefreshedPages: cascadeRefreshActions.map((action) => action.message) }, null, 2));
   else {
     console.log(`refresh-from-git for ${options.project}:`);
     console.log(`- repo: ${result.repo}`);
     console.log(`- base: ${result.base}`);
     console.log(`- changed files: ${result.changedFiles.length}`);
     console.log(`- impacted pages: ${result.impactedPages.length}`);
+    console.log(`- cascade refreshed pages: ${cascadeRefreshActions.length}`);
     console.log(`- uncovered files: ${result.uncoveredFiles.length}`);
     console.log(`- changed tests: ${result.testHealth.changedTestFiles.length}`);
     console.log(`- code changes without changed tests: ${result.testHealth.codeFilesWithoutChangedTests.length}`);
@@ -58,6 +64,10 @@ export async function refreshFromGit(args: string[]) {
     if (result.testHealth.codeFilesWithoutChangedTests.length) {
       console.log(`- missing test companion changes:`);
       for (const file of result.testHealth.codeFilesWithoutChangedTests) console.log(`  - ${file}`);
+    }
+    if (cascadeRefreshActions.length) {
+      console.log(`- auto-heal:`);
+      for (const action of cascadeRefreshActions) console.log(`  - ${action.message}`);
     }
   }
 }

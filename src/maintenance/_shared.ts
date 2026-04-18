@@ -1,7 +1,7 @@
 import { join, relative } from "node:path";
 import { statSync } from "node:fs";
 import { VAULT_ROOT } from "../constants";
-import { nowIso, projectRoot, assertExists, safeMatter, writeNormalizedPage, orderFrontmatter } from "../cli-shared";
+import { projectRoot, assertExists, safeMatter } from "../cli-shared";
 import { readText } from "../lib/fs";
 import { readVerificationLevel, resolveRepoPath, assertGitRepo, gitDiffSummary, parseUpdatedDate } from "../lib/verification";
 import { walkMarkdown } from "../lib/vault";
@@ -12,7 +12,7 @@ import { collectChangedTestHealth, isCodeFile } from "./test-health";
 import { isHistoricalDoneSlicePage } from "../lib/slice-query";
 import type { LintingSnapshot } from "../verification";
 import type { MaintenanceAction } from "../lib/diagnostics";
-import { appendAutoHealLogEntry, tailAutoHealLog } from "../lib/auto-heal-log";
+import { createCascadeRefreshAction, filesChangedSinceVerification, verifiedCommitExists } from "./cascade-refresh";
 
 export type ProjectSnapshot = {
   project: string;
@@ -142,43 +142,20 @@ export async function collectRefreshFromGit(project: string, base: string, expli
       }
       if (stillAcknowledged) {
         acknowledgedPages.push(entry.page);
-        // Behavior A (PRD-057): emit a write-frontmatter action to stamp updated: + verified_against:
-        // forward when all source_paths still hash to verified_against (zero-change cascade).
-        // Capture closure variables now so each action closes over its own entry snapshot.
-        const capturedEntry = entry;
-        const capturedVaultRoot = effectiveVaultRoot;
-        const capturedMatchedSourcePaths = matchedSourcePaths;
-        cascadeRefreshActions.push({
-          kind: "write-frontmatter",
-          scope: "project",
-          message: `cascade-refresh ${capturedEntry.page} (sources unchanged, stamping updated + verified_against)`,
-          async _apply() {
-            // Idempotence check: skip if a cascade-refresh entry already exists in the log
-            // for this page at this verified_against sha (dedupe across runs).
-            const recentEntries = await tailAutoHealLog(capturedVaultRoot, 300);
-            const sha = capturedEntry.verifiedAgainst!;
-            const alreadyEmitted = recentEntries.some(
-              (e) =>
-                e.includes(`auto-heal | cascade-refresh`) &&
-                e.includes(`page=${capturedEntry.page}`) &&
-                e.includes(`sha=${sha}`),
-            );
-            if (alreadyEmitted) return;
-            // Stamp updated: + re-serialize verified_against: unchanged.
-            const stamped = nowIso();
-            const data = orderFrontmatter({
-              ...capturedEntry.parsed!.data,
-              updated: stamped,
-              verified_against: sha,
-            }, ["title", "type", "spec_kind", "project", "source_paths", "updated", "verified_against"]);
-            writeNormalizedPage(capturedEntry.file, capturedEntry.parsed!.content, data);
-            appendAutoHealLogEntry(capturedVaultRoot, "cascade-refresh", project, "cascade-refresh", [
-              `page=${capturedEntry.page}`,
-              `sha=${sha}`,
-              `sources=${capturedMatchedSourcePaths.join(", ")}`,
-            ]);
-          },
-        });
+        cascadeRefreshActions.push(
+          createCascadeRefreshAction(
+            project,
+            effectiveVaultRoot,
+            {
+              file: entry.file,
+              page: entry.page,
+              content: entry.parsed.content,
+              data: entry.parsed.data,
+              verifiedAgainst: entry.verifiedAgainst,
+            },
+            matchedSourcePaths,
+          ),
+        );
         continue;
       }
     }
@@ -188,6 +165,38 @@ export async function collectRefreshFromGit(project: string, base: string, expli
       diffSummary.push(...(diffSummaryCache.get(sourcePath) ?? []));
     }
     impactedPages.push({ page: entry.page, matchedSourcePaths, verificationLevel: entry.verificationLevel, diffSummary });
+  }
+  if (changedFiles.length === 0) {
+    for (const entry of state.pageEntries) {
+      if (!entry.parsed || !entry.verifiedAgainst || entry.sourcePaths.length === 0) continue;
+      const pageUpdated = parseEntryUpdated(entry.rawUpdated);
+      if (!pageUpdated) continue;
+      const driftedSourcePaths = entry.sourcePaths.filter((sourcePath) => {
+        const modifiedAt = worktreeModifiedAt(state.repo, sourcePath);
+        return Number.isFinite(modifiedAt) && modifiedAt > pageUpdated.getTime();
+      });
+      if (driftedSourcePaths.length === 0) continue;
+
+      if (!await verifiedCommitExists(state.repo, entry.verifiedAgainst)) continue;
+      const sourceFilesChangedSinceVerification = await filesChangedSinceVerification(state.repo, entry.verifiedAgainst, entry.sourcePaths);
+      if (sourceFilesChangedSinceVerification.length > 0) continue;
+
+      cascadeRefreshActions.push(
+        createCascadeRefreshAction(
+          project,
+          effectiveVaultRoot,
+          {
+            file: entry.file,
+            page: entry.page,
+            content: entry.parsed.content,
+            data: entry.parsed.data,
+            verifiedAgainst: entry.verifiedAgainst,
+          },
+          driftedSourcePaths,
+          "mtime-drift",
+        ),
+      );
+    }
   }
   const testHealth = collectChangedTestHealth(changedFiles);
   return { project, repo: state.repo, base, changedFiles, impactedPages, acknowledgedPages, cascadeRefreshActions, uncoveredFiles: changedFiles.filter((file) => isCodeFile(file) && !covered.has(file)), testHealth };

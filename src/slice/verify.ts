@@ -1,9 +1,9 @@
 import { relative } from "node:path";
-import { gitHeadSha } from "../git-utils";
+import { bindingMatchesFile, gitHeadSha, gitLines } from "../git-utils";
 import { VAULT_ROOT } from "../constants";
 import { nowIso, orderFrontmatter, requireValue, writeNormalizedPage } from "../cli-shared";
 import { appendLogEntry } from "../lib/log";
-import { type VerificationCommandSpec, extractVerificationSpecs, readSliceTestPlan } from "../lib/slices";
+import { type VerificationCommandSpec, extractVerificationSpecs, readSliceHub, readSliceSourcePaths, readSliceTestPlan } from "../lib/slices";
 import { projectTaskHubPath, projectTaskPlanPath } from "../lib/structure";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
 import { applyVerificationLevel } from "../verification";
@@ -20,6 +20,7 @@ export async function verifySlice(args: string[]) {
   const testPlan = await readSliceTestPlan(project, sliceId);
   const specs = extractVerificationSpecs(testPlan.content);
   if (!specs.length) throw new Error(`no verification command blocks found in ${relative(VAULT_ROOT, testPlan.path)}`);
+  const warnings = await collectSourcePathsDriftWarnings(project, sliceId, repo);
 
   const results: VerificationRunResult[] = [];
   for (let i = 0; i < specs.length; i++) {
@@ -38,8 +39,8 @@ export async function verifySlice(args: string[]) {
     const planPath = projectTaskPlanPath(project, sliceId);
     await applyVerificationLevel(planPath, "test-verified", false, relative(VAULT_ROOT, planPath), true);
   }
-  appendLogEntry("verify-slice", sliceId, { project, details: [`commands=${results.length}`, `ok=${ok}`] });
-  const payload = { project, sliceId, ok, testPlan: relative(VAULT_ROOT, testPlan.path), commands: results };
+  appendLogEntry("verify-slice", sliceId, { project, details: [`commands=${results.length}`, `ok=${ok}`, `warnings=${warnings.length}`] });
+  const payload = { project, sliceId, ok, testPlan: relative(VAULT_ROOT, testPlan.path), commands: results, warnings };
   if (json) console.log(JSON.stringify(payload, null, 2));
   else {
     console.log(`verify-slice ${sliceId}: ${ok ? "PASS" : "FAIL"}`);
@@ -55,6 +56,7 @@ export async function verifySlice(args: string[]) {
         }
       }
     }
+    for (const warning of warnings) console.log(`- warning: ${warning}`);
     if (!ok) {
       const failedCount = results.filter((r) => !r.ok).length;
       console.log(`\n${failedCount} of ${results.length} verification command(s) failed.`);
@@ -62,6 +64,22 @@ export async function verifySlice(args: string[]) {
     }
   }
   if (!ok) throw new Error(`verify-slice failed for ${sliceId}`);
+}
+
+async function collectSourcePathsDriftWarnings(project: string, sliceId: string, repo: string) {
+  const hub = await readSliceHub(project, sliceId);
+  const startedAt = typeof hub.data.started_at === "string" ? hub.data.started_at.trim() : "";
+  if (!startedAt) return [];
+
+  const declaredSourcePaths = await readSliceSourcePaths(project, sliceId);
+  if (declaredSourcePaths.length === 0) return [];
+
+  const touchedFiles = [...new Set(await gitLines(repo, ["log", `--since=${startedAt}`, "--name-only", "--pretty=format:"]))];
+  const missingSourcePaths = touchedFiles
+    .filter((file) => !declaredSourcePaths.some((sourcePath) => bindingMatchesFile(sourcePath, file) || bindingMatchesFile(file, sourcePath)))
+    .sort();
+  if (missingSourcePaths.length === 0) return [];
+  return [`source_paths drift: files changed since started_at are missing from the slice docs: ${missingSourcePaths.join(", ")}`];
 }
 
 type VerificationRunResult = {
