@@ -2,19 +2,18 @@ import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { nowIso, orderFrontmatter, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { VAULT_ROOT } from "../constants";
-import { readVerificationLevel, resolveRepoPath } from "../lib/verification";
+import { resolveRepoPath } from "../lib/verification";
 import { readFlagValue, defaultAgentName } from "../lib/cli-utils";
 import { exists, readText } from "../lib/fs";
 import { runPipeline } from "../lib/pipeline";
 import { collectCloseout, collectGate } from "../maintenance";
-import { type ForgeWorkflowLedger, validateForgeWorkflowLedger } from "../lib/forge-ledger";
-import { applyDerivedLedger } from "../lib/forge-ledger-detect";
-import { phaseRecommendation } from "../lib/forge-phase-commands";
+import { type ForgeWorkflowLedger } from "../lib/forge-ledger";
 import { buildForgeSteering, renderSteeringPacket } from "../lib/forge-steering";
 import { projectPrdsDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath } from "../lib/structure";
-import { collectBacklogFocus, collectBacklogView, collectTaskContextForId, detectTaskDocState, createFeatureReturningId, createPrdReturningId, moveTaskToSection } from "../hierarchy";
+import { collectBacklogFocus, collectBacklogView, collectTaskContextForId, createFeatureReturningId, createPrdReturningId, moveTaskToSection } from "../hierarchy";
 import { appendLogEntry } from "../lib/log";
 import type { BacklogTaskContext } from "../hierarchy";
+import { collectForgeStatus, compactForgeStatusForJson } from "../protocol";
 import { createIssueSlice } from "./slice-scaffold";
 import { startSlice, startSliceCore } from "./start";
 import { writeSliceProgress, type SlicePipelineProgress, type PipelineStepProgress } from "../lib/slice-progress";
@@ -131,131 +130,15 @@ async function resolveForgeSliceId(project: string, explicitSliceId: string | un
   return candidate;
 }
 
-export async function collectForgeStatus(project: string, sliceId: string) {
-  const [focus, context, hub, plan, testPlan, decisionRefs] = await Promise.all([
-    collectBacklogFocus(project),
-    collectTaskContextForId(project, sliceId),
-    readMatter(projectTaskHubPath(project, sliceId)),
-    readMatter(projectTaskPlanPath(project, sliceId)),
-    readMatter(projectTaskTestPlanPath(project, sliceId)),
-    collectDecisionRefs(project),
-  ]);
-  const parentPrd = typeof hub?.data.parent_prd === "string" ? hub.data.parent_prd : undefined;
-  const parentFeature = typeof hub?.data.parent_feature === "string" ? hub.data.parent_feature : undefined;
-  const prdDoc = parentPrd ? await readPlanningDoc(projectPrdsDir(project), parentPrd) : null;
-  const researchRefs = prdDoc ? extractWikilinks(extractSection(prdDoc.content, "Prior Research")) : [];
-  const verificationCommands = Array.isArray(testPlan?.data.verification_commands)
-    ? testPlan.data.verification_commands
-      .map((entry) => entry && typeof entry === "object" && typeof (entry as Record<string, unknown>).command === "string" ? String((entry as Record<string, unknown>).command) : null)
-      .filter((value): value is string => Boolean(value))
-    : [];
-  const planReady = await detectTaskDocState(projectTaskPlanPath(project, sliceId)) === "ready";
-  const testPlanReady = await detectTaskDocState(projectTaskTestPlanPath(project, sliceId)) === "ready";
-  const hasRedTestChecklist = /^\s*-\s*\[(?: |x|X)\]/mu.test(extractSection(testPlan?.content ?? "", "Red Tests"));
-  const tddReady = planReady && testPlanReady && hasRedTestChecklist && verificationCommands.length > 0;
-  const authoredLedger: Partial<ForgeWorkflowLedger> = {
-    project,
-    sliceId,
-    ...(parentPrd ? { parentPrd } : {}),
-    ...(researchRefs.length ? { research: { completedAt: readUpdated(prdDoc?.data), researchRefs } } : {}),
-    ...(decisionRefs.length ? { grill: { completedAt: decisionRefs[0].completedAt, decisionRefs: decisionRefs.map((entry) => entry.ref) } } : {}),
-    ...(prdDoc && parentPrd ? { prd: { completedAt: readUpdated(prdDoc.data), prdRef: parentPrd, parentPrd } } : {}),
-    ...(hub && plan && testPlan ? { slices: { completedAt: readUpdated(hub.data), sliceRefs: [sliceId] } } : {}),
-    ...(tddReady ? { tdd: { completedAt: readUpdated(testPlan?.data), tddEvidence: [`projects/${project}/specs/slices/${sliceId}/test-plan.md#red-tests`] } } : {}),
-  };
-  const hubLedger = readAuthoredHubLedger(hub?.data?.forge_workflow_ledger, project, sliceId);
-  const mergedAuthoredLedger = mergeAuthoredLedgers(authoredLedger, hubLedger);
-  // PRD-056: merge artifact-detected ledger fields; authored fields win, derived fills gaps.
-  // applyDerivedLedger is safe even if detection fails (degrades gracefully).
-  let ledger: Partial<ForgeWorkflowLedger>;
-  try {
-    const { merged } = await applyDerivedLedger(mergedAuthoredLedger, project, sliceId);
-    ledger = merged;
-  } catch {
-    // Detection failure degrades gracefully — fall back to authored ledger
-    ledger = mergedAuthoredLedger;
-  }
-  const validation = validateForgeWorkflowLedger(ledger as ForgeWorkflowLedger);
-  const verificationLevel = testPlan ? readVerificationLevel(testPlan.data) : null;
-  const triage = buildForgeTriage(project, sliceId, {
-    activeSlice: focus.activeTask?.id ?? null,
-    sliceStatus: context?.sliceStatus ?? null,
-    section: context?.section ?? null,
-    planStatus: context?.planStatus ?? "missing",
-    testPlanStatus: context?.testPlanStatus ?? "missing",
-    verificationLevel,
-    nextPhase: validation.nextPhase ?? null,
-  });
+async function collectForgeReview(project: string, sliceId: string, repo: string | undefined, base: string | undefined, worktree: boolean) {
+  const resolvedBase = base ?? "HEAD";
+  const closeout = await collectCloseout(project, resolvedBase, repo, undefined, undefined, { worktree, sliceLocal: true, sliceId });
+  const gate = await collectGate(project, resolvedBase, repo, { worktree, sliceLocal: true, sliceId, precomputedCloseout: closeout });
   return {
-    project,
-    sliceId,
-    activeSlice: focus.activeTask?.id ?? null,
-    recommendedSlice: focus.recommendedTask?.id ?? null,
-    context,
-    parentPrd: parentPrd ?? null,
-    parentFeature: parentFeature ?? null,
-    planStatus: context?.planStatus ?? "missing",
-    testPlanStatus: context?.testPlanStatus ?? "missing",
-    verificationLevel,
-    workflow: {
-      ledger,
-      validation,
-    },
-    triage,
-    steering: buildForgeSteering({
-      project,
-      sliceId,
-      triage,
-      nextPhase: validation.nextPhase ?? null,
-      planStatus: context?.planStatus ?? "missing",
-      testPlanStatus: context?.testPlanStatus ?? "missing",
-      verificationLevel,
-      sliceStatus: context?.sliceStatus ?? null,
-      section: context?.section ?? null,
-    }),
-  };
-}
-
-function buildForgeTriage(project: string, sliceId: string, input: { activeSlice: string | null; sliceStatus: string | null; section: string | null; planStatus: string; testPlanStatus: string; verificationLevel: string | null; nextPhase: string | null }) {
-  const earlyPhase = input.planStatus !== "ready" || input.testPlanStatus !== "ready";
-  if (earlyPhase && input.nextPhase && ["research", "grill", "prd", "slices", "tdd", "verify"].includes(input.nextPhase)) {
-    return phaseRecommendation(project, sliceId, input.nextPhase as import("../lib/forge-ledger").ForgePhase);
-  }
-  if (input.planStatus !== "ready" || input.testPlanStatus !== "ready") {
-    return {
-      kind: "fill-docs",
-      reason: `plan=${input.planStatus} test-plan=${input.testPlanStatus}`,
-      command: `update projects/${project}/specs/slices/${sliceId}/plan.md and test-plan.md`,
-    };
-  }
-  if (input.sliceStatus === "done" || input.section === "Done") {
-    return {
-      kind: "completed",
-      reason: "slice is done",
-      command: `wiki forge next ${project}`,
-    };
-  }
-  if (input.verificationLevel !== "test-verified") {
-    return {
-      kind: "close-slice",
-      reason: `verification level is ${input.verificationLevel ?? "missing"}`,
-      command: `wiki forge run ${project} ${sliceId} --repo <path>`,
-    };
-  }
-  if (input.activeSlice === sliceId) {
-    // Test-verified + active + not yet in Done section → close it via forge run.
-    // The workflow ledger (research/grill/prd/...) is for the full feature chain;
-    // a slice that passed verification should close, not go back to research.
-    return {
-      kind: "close-slice",
-      reason: "slice is test-verified; close it",
-      command: `wiki forge run ${project} ${sliceId} --repo <path>`,
-    };
-  }
-  return {
-    kind: "open-slice",
-    reason: `slice ${sliceId} is not the active slice`,
-    command: `wiki forge run ${project} ${sliceId} --repo <path>`,
+    ok: gate.ok,
+    findings: gate.findings,
+    blockers: gate.blockers,
+    warnings: gate.warnings,
   };
 }
 
@@ -275,43 +158,13 @@ async function readPlanningDoc(dir: string, id: string): Promise<MatterDoc | nul
   return file ? readMatter(join(dir, file)) : null;
 }
 
-async function collectDecisionRefs(project: string) {
-  const decisionsPath = join(VAULT_ROOT, "projects", project, "decisions.md");
-  const decisions = await readMatter(decisionsPath);
-  if (!decisions) return [] as Array<{ ref: string; completedAt: string }>;
-  const body = extractSection(decisions.content, "Current Decisions");
-  const hasEntries = body.split("\n").some((line) => /^-\s+/u.test(line.trim()));
-  return hasEntries ? [{ ref: `projects/${project}/decisions.md#current-decisions`, completedAt: readUpdated(decisions.data) }] : [];
-}
-
 function extractSection(markdown: string, heading: string) {
   const match = markdown.match(new RegExp(`^## ${escapeRegex(heading)}\\n([\\s\\S]*?)(?=^##\\s|$)`, "mu"));
   return match?.[1]?.trim() ?? "";
 }
 
-function extractWikilinks(markdown: string) {
-  return [...markdown.matchAll(/\[\[([^\]]+)\]\]/g)].map((match) => match[1].trim()).filter(Boolean);
-}
-
 function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function readUpdated(data: Record<string, unknown> | undefined) {
-  const value = data?.updated ?? data?.started_at ?? data?.created_at;
-  return typeof value === "string" && value.trim() ? value : new Date(0).toISOString();
-}
-
-async function collectForgeReview(project: string, sliceId: string, repo: string | undefined, base: string | undefined, worktree: boolean) {
-  const resolvedBase = base ?? "HEAD";
-  const closeout = await collectCloseout(project, resolvedBase, repo, undefined, undefined, { worktree, sliceLocal: true, sliceId });
-  const gate = await collectGate(project, resolvedBase, repo, { worktree, sliceLocal: true, sliceId, precomputedCloseout: closeout });
-  return {
-    ok: gate.ok,
-    findings: gate.findings,
-    blockers: gate.blockers,
-    warnings: gate.warnings,
-  };
 }
 
 function renderForgePipeline(action: "check" | "close", workflow: Awaited<ReturnType<typeof collectForgeStatus>>, result: Awaited<ReturnType<typeof runPipeline>>, review?: Awaited<ReturnType<typeof collectForgeReview>> | null) {
@@ -370,70 +223,6 @@ function renderForgeStatus(workflow: Awaited<ReturnType<typeof collectForgeStatu
     else if (status.ready) state = "ready";
     console.log(`  - ${status.phase}: ${state}${status.missing.length ? ` | unmet ${status.missing.join(", ")}` : ""}`);
   }
-}
-
-function compactForgeStatusForJson(workflow: Awaited<ReturnType<typeof collectForgeStatus>>) {
-  const { context, ...rest } = workflow;
-  return {
-    ...rest,
-    workflow: {
-      ...workflow.workflow,
-      validation: {
-        ...workflow.workflow.validation,
-        statuses: workflow.workflow.validation.statuses.map((status) => ({
-          ...status,
-          unmet: status.missing,
-        })),
-      },
-    },
-    context: context
-      ? {
-          id: context.id,
-          title: context.title,
-          section: context.section,
-          assignee: context.assignee,
-          sliceStatus: context.sliceStatus,
-          planStatus: context.planStatus,
-          testPlanStatus: context.testPlanStatus,
-          dependencies: context.dependencies,
-          blockedBy: context.blockedBy,
-        }
-      : null,
-    steering: workflow.steering,
-  };
-}
-
-function readAuthoredHubLedger(
-  value: unknown,
-  project: string,
-  sliceId: string,
-): Partial<ForgeWorkflowLedger> {
-  if (!value || typeof value !== "object") return { project, sliceId };
-  const ledger = value as Record<string, unknown>;
-  const out: Partial<ForgeWorkflowLedger> = { project, sliceId };
-  for (const phase of ["research", "grill", "prd", "slices", "tdd", "verify"] as const) {
-    const phaseValue = ledger[phase];
-    if (phaseValue && typeof phaseValue === "object") {
-      (out as Record<string, unknown>)[phase] = phaseValue;
-    }
-  }
-  if (typeof ledger.parentPrd === "string") out.parentPrd = ledger.parentPrd;
-  return out;
-}
-
-function mergeAuthoredLedgers(
-  base: Partial<ForgeWorkflowLedger>,
-  override: Partial<ForgeWorkflowLedger>,
-): Partial<ForgeWorkflowLedger> {
-  const merged: Partial<ForgeWorkflowLedger> = { ...base, ...override };
-  for (const phase of ["research", "grill", "prd", "slices", "tdd", "verify"] as const) {
-    const basePhase = base[phase] as Record<string, unknown> | undefined;
-    const overridePhase = override[phase] as Record<string, unknown> | undefined;
-    if (basePhase || overridePhase) {
-      (merged as Record<string, unknown>)[phase] = { ...(basePhase ?? {}), ...(overridePhase ?? {}) };
-    }
-  }
-  return merged;
 }
 
 export async function forgeOpen(args: string[]) {
@@ -816,15 +605,15 @@ function compactDocSummary(content: string, sections: string[]): string {
     // Fall back to case-insensitive partial match on any heading containing the keyword
     if (!extracted) extracted = extractSectionFuzzy(content, section).trim();
     if (!extracted) continue;
-    const sectionLines = extracted.split("\n").filter((l) => l.trim()).slice(0, 5);
+    const sectionLines = extracted.split("\n").filter((line: string) => line.trim()).slice(0, 5);
     lines.push(`${section}: ${sectionLines.join(" | ")}`);
   }
   if (lines.length > 0) return lines.join("\n");
   // Last resort: extract first 3 non-empty, non-heading, non-list-marker-only lines from body
   const bodyLines = content
     .split("\n")
-    .filter((l) => {
-      const t = l.trim();
+    .filter((line: string) => {
+      const t = line.trim();
       return t.length > 0 && !/^#{1,6}\s/u.test(t) && !/^-\s*(?:\[[ x]\])?\s*$/u.test(t);
     })
     .slice(0, 3);

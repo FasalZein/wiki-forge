@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { cleanupTempPaths, runWiki, setRepoFrontmatter, setupPassingRepo } from "./test-helpers";
+import { runWiki } from "./_helpers/wiki-subprocess";
+import { cleanupTempPaths, setRepoFrontmatter, setupPassingRepo } from "./test-helpers";
 
 afterEach(() => {
   cleanupTempPaths();

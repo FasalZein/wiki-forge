@@ -5,16 +5,15 @@ import { projectRoot, safeMatter } from "../cli-shared";
 import { parseProjectRepoBaseArgs } from "../git-utils";
 import { exists, readText } from "../lib/fs";
 import { readSliceHandoff } from "../lib/slice-progress";
+import { isPrePhaseTriage } from "../lib/forge-triage";
 import { collectSessionActivity, resolveSessionId } from "../lib/tracker";
-import { assertGitRepo, readVerificationLevel, resolveRepoPath } from "../lib/verification";
+import { assertGitRepo, resolveRepoPath } from "../lib/verification";
 import { collectMaintenancePlan } from "../maintenance";
 import { collectDriftSummary } from "../lib/drift-query";
 import { loadLintingSnapshot } from "../verification";
-import { applyDerivedLedger } from "../lib/forge-ledger-detect";
-import { validateForgeWorkflowLedger, type ForgePhase } from "../lib/forge-ledger";
-import { phaseRecommendation } from "../lib/forge-phase-commands";
 import { buildForgeSteering, renderSteeringPacket } from "../lib/forge-steering";
-import { projectTaskTestPlanPath } from "../lib/structure";
+import { collectForgeStatus, isSliceDocsReady } from "../protocol";
+import { classifyResumeTriage } from "./resume-triage";
 import {
   collectDirtyRepoStatus,
   collectRecentCommits,
@@ -52,16 +51,10 @@ export async function resumeProject(args: string[]) {
   ]);
   const handoff = maintain.focus.activeTask ? await readSliceHandoff(options.project, maintain.focus.activeTask.id) : null;
   const focusSliceId = maintain.focus.activeTask?.id ?? maintain.focus.recommendedTask?.id ?? null;
-  let workflowNextPhase: ForgePhase | null = null;
-  if (focusSliceId) {
-    try {
-      const { merged } = await applyDerivedLedger({}, options.project, focusSliceId);
-      workflowNextPhase = validateForgeWorkflowLedger({ project: options.project, sliceId: focusSliceId, ...merged }).nextPhase;
-    } catch {}
-  }
   const focusTask = maintain.focus.activeTask ?? maintain.focus.recommendedTask;
-  const earlyPhase =
-    focusTask && (focusTask.planStatus !== "ready" || focusTask.testPlanStatus !== "ready");
+  const focusWorkflow = focusSliceId ? await collectForgeStatus(options.project, focusSliceId).catch(() => null) : null;
+  const workflowNextPhase = focusWorkflow?.workflow.validation.nextPhase ?? null;
+  const earlyPhase = focusTask ? !isSliceDocsReady(focusTask) : false;
 
   const dirty = await collectDirtyRepoStatus(repo);
   const recentCommits = await collectRecentCommits(repo, 5);
@@ -86,17 +79,18 @@ export async function resumeProject(args: string[]) {
   }
 
   const actions = maintain.actions.slice(0, 8);
-  let focusVerificationLevel: string | null = null;
-  if (focusTask) {
-    try {
-      const testPlanPath = projectTaskTestPlanPath(options.project, focusTask.id);
-      const parsed = safeMatter(relative(VAULT_ROOT, testPlanPath), await readText(testPlanPath), { silent: true });
-      focusVerificationLevel = parsed ? readVerificationLevel(parsed.data) : null;
-    } catch {
-      focusVerificationLevel = null;
-    }
-  }
-  const triage = classifyResumeTriage(options.project, repo, options.base, maintain.focus.activeTask, maintain.focus.recommendedTask, actions, handoff, workflowNextPhase, earlyPhase, focusVerificationLevel);
+  const focusVerificationLevel = focusWorkflow?.verificationLevel ?? null;
+  const triage = classifyResumeTriage({
+    project: options.project,
+    repo,
+    base: options.base,
+    activeTask: maintain.focus.activeTask,
+    nextTask: maintain.focus.recommendedTask,
+    handoff,
+    workflowNextPhase,
+    earlyPhase,
+    verificationLevel: focusVerificationLevel,
+  });
   const steering = focusTask
     ? buildForgeSteering({
         project: options.project,
@@ -147,7 +141,7 @@ export async function resumeProject(args: string[]) {
   }
   for (const line of renderSteeringPacket(payload.steering)) console.log(`- ${line}`);
   const showsRecovery =
-    payload.triage.kind === "resume-failed-forge" || payload.triage.kind.startsWith("needs-");
+    payload.triage.kind === "resume-failed-forge" || isPrePhaseTriage(payload.triage);
   const focusId = payload.activeTask?.id ?? payload.nextTask?.id ?? null;
   if (showsRecovery && focusId) {
     console.log(`  recovery: wiki forge release ${options.project} ${focusId}  |  wiki close-slice ${options.project} ${focusId} --reason "<reason>"`);
@@ -188,55 +182,4 @@ export async function resumeProject(args: string[]) {
     }
   }
   renderSessionActivity(sessionActivity);
-}
-
-function classifyResumeTriage(
-  project: string,
-  repo: string,
-  base: string | undefined,
-  activeTask: { id: string } | null | undefined,
-  nextTask: { id: string } | null | undefined,
-  actions: Array<{ kind: string; message: string; scope?: string }>,
-  handoff?: { lastForgeRun?: string; lastForgeStep?: string; lastForgeOk?: boolean; nextAction?: string; failureSummary?: string } | null,
-  workflowNextPhase?: ForgePhase | null,
-  earlyPhase?: boolean | null,
-  verificationLevel?: string | null,
-) {
-  const baseFlag = base ? ` --base ${base}` : "";
-  const focusTask = activeTask ?? nextTask;
-  if (activeTask && handoff && handoff.lastForgeOk === false && handoff.nextAction) {
-    const verifyCloseSteps = new Set(["verify-slice", "closeout", "gate", "close-slice"]);
-    const shouldResumeFailedForge =
-      verificationLevel === "test-verified" || verifyCloseSteps.has(handoff.lastForgeStep ?? "");
-    if (shouldResumeFailedForge) {
-      return {
-        kind: "resume-failed-forge",
-        reason: handoff.failureSummary ?? `forge run failed at ${handoff.lastForgeStep}`,
-        command: `wiki forge run ${project} ${activeTask.id} --repo ${repo}${baseFlag}`,
-      };
-    }
-  }
-  if (focusTask && earlyPhase && workflowNextPhase && workflowNextPhase !== "verify") {
-    const rec = phaseRecommendation(project, focusTask.id, workflowNextPhase);
-    return { kind: rec.kind, reason: rec.reason, command: rec.command, ...(rec.loadSkill ? { loadSkill: rec.loadSkill } : {}) };
-  }
-  if (activeTask) {
-    return {
-      kind: "continue-active-slice",
-      reason: `active slice ${activeTask.id} is the current focus`,
-      command: `wiki forge run ${project} ${activeTask.id} --repo ${repo}${baseFlag}`,
-    };
-  }
-  if (nextTask) {
-    return {
-      kind: "start-next-slice",
-      reason: `no slice is active; ${nextTask.id} is the next ready slice`,
-      command: `wiki forge run ${project} ${nextTask.id} --repo ${repo}${baseFlag}`,
-    };
-  }
-  return {
-    kind: "plan-next",
-    reason: "no active or ready slice was found",
-    command: `wiki forge next ${project}`,
-  };
 }

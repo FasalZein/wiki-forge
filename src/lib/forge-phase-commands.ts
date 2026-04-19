@@ -1,11 +1,7 @@
 import type { ForgePhase } from "./forge-ledger";
+import type { ForgeTriage, PrePhaseTriageKind } from "./forge-triage";
 
-export type PhaseRecommendation = {
-  kind: string;
-  reason: string;
-  command: string;
-  loadSkill?: string;
-};
+export type PhaseRecommendation = ForgeTriage & { kind: PrePhaseTriageKind };
 
 export function phaseRecommendation(project: string, sliceId: string, nextPhase: ForgePhase): PhaseRecommendation {
   switch (nextPhase) {

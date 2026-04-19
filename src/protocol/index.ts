@@ -18,3 +18,4 @@ export {
   buildDirectoryTree,
   readCodePaths,
 } from "./repo-scan";
+export { collectForgeStatus, compactForgeStatusForJson, buildForgeTriage, isSliceDocsReady } from "./forge-status";

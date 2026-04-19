@@ -1,8 +1,8 @@
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { repoRoot, runWiki } from "./_helpers/wiki-subprocess";
 
-export const repoRoot = process.cwd();
 const tempPaths: string[] = [];
 
 export function tempDir(prefix: string) {
@@ -18,14 +18,7 @@ export function cleanupTempPaths() {
   }
 }
 
-export function runWiki(args: string[], env: Record<string, string> = {}) {
-  return Bun.spawnSync([process.execPath, "src/index.ts", ...args], {
-    cwd: repoRoot,
-    env: { ...process.env, ...env },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-}
+export { repoRoot, runWiki };
 
 export function runGit(repo: string, args: string[]) {
   const result = Bun.spawnSync(["git", ...args], {

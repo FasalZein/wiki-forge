@@ -1,4 +1,5 @@
 import type { ForgePhase } from "./forge-ledger";
+import { isPrePhaseTriage, type ForgeTriage } from "./forge-triage";
 
 export type ForgeLane =
   | "domain-work"
@@ -6,13 +7,6 @@ export type ForgeLane =
   | "maintenance-refresh"
   | "verify-close"
   | "audited-exception";
-
-export type ForgeTriageLike = {
-  kind: string;
-  reason: string;
-  command: string;
-  loadSkill?: string;
-};
 
 export type ForgeSteeringPacket = {
   lane: ForgeLane;
@@ -25,7 +19,7 @@ export type ForgeSteeringPacket = {
 type BuildForgeSteeringInput = {
   project: string;
   sliceId: string | null;
-  triage: ForgeTriageLike;
+  triage: ForgeTriage;
   nextPhase: ForgePhase | null;
   planStatus?: TaskDocState | null;
   testPlanStatus?: TaskDocState | null;
@@ -67,7 +61,7 @@ export function buildForgeSteering(input: BuildForgeSteeringInput): ForgeSteerin
     };
   }
 
-  if (input.triage.kind.startsWith("needs-")) {
+  if (isPrePhaseTriage(input.triage)) {
     const lane = input.nextPhase === "tdd" ? "implementation-work" : "domain-work";
     const loadSkill = input.nextPhase === "tdd" ? "/tdd" : input.triage.loadSkill;
     return {
