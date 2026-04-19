@@ -100,6 +100,51 @@ describe("wiki slice lifecycle", () => {
     expect(json.commands[0].failures).toContain("stdout missing: missing text");
   });
 
+  test("verify-slice rejects recursive workflow commands in executable verification blocks", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice"], env).exitCode).toBe(0);
+    const testPlanPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "test-plan.md");
+    writeFileSync(
+      testPlanPath,
+      "---\ntitle: DEMO-001 auth slice\ntype: spec\nspec_kind: test-plan\nproject: demo\ntask_id: DEMO-001\nupdated: 2026-04-19\nstatus: ready\n---\n\n# DEMO-001 auth slice\n\n## Red Tests\n\n- [x] recursive workflow commands are rejected\n\n## Verification Commands\n\n```bash\nwiki forge run demo DEMO-001 --repo .\n```\n",
+      "utf8",
+    );
+
+    const result = runWiki(["verify-slice", "demo", "DEMO-001", "--repo", repo, "--json"], env);
+    expect(result.exitCode).toBe(1);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.ok).toBe(false);
+    expect(json.commands[0].ok).toBe(false);
+    expect(json.commands[0].failures.some((failure: string) => failure.includes("recursive workflow command"))).toBe(true);
+  });
+
+  test("verify-slice reports missing repo file references before execution", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice"], env).exitCode).toBe(0);
+    const testPlanPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "test-plan.md");
+    writeFileSync(
+      testPlanPath,
+      "---\ntitle: DEMO-001 auth slice\ntype: spec\nspec_kind: test-plan\nproject: demo\ntask_id: DEMO-001\nupdated: 2026-04-19\nstatus: ready\n---\n\n# DEMO-001 auth slice\n\n## Red Tests\n\n- [x] missing verification command targets are surfaced before execution\n\n## Verification Commands\n\n```bash\nbun test tests/renamed-auth-workflow.test.ts\n```\n",
+      "utf8",
+    );
+
+    const result = runWiki(["verify-slice", "demo", "DEMO-001", "--repo", repo, "--json"], env);
+    expect(result.exitCode).toBe(1);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.ok).toBe(false);
+    expect(json.commands[0].ok).toBe(false);
+    expect(json.commands[0].failures.some((failure: string) => failure.includes("missing repo path"))).toBe(true);
+    expect(json.commands[0].failures.some((failure: string) => failure.includes("tests/renamed-auth-workflow.test.ts"))).toBe(true);
+  });
+
   test("backlog parser accepts both checked and unchecked checkboxes", () => {
     const { vault } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };

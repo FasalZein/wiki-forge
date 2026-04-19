@@ -1,7 +1,8 @@
-import { relative } from "node:path";
+import { join, relative } from "node:path";
 import { bindingMatchesFile, gitHeadSha, gitLines } from "../git-utils";
 import { VAULT_ROOT } from "../constants";
 import { nowIso, orderFrontmatter, requireValue, writeNormalizedPage } from "../cli-shared";
+import { exists } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
 import { type VerificationCommandSpec, extractVerificationSpecs, readSliceHub, readSliceSourcePaths, readSliceTestPlan } from "../lib/slices";
 import { projectTaskHubPath, projectTaskPlanPath } from "../lib/structure";
@@ -119,6 +120,26 @@ async function drainStream(stream: ReadableStream<Uint8Array>, forward: boolean)
 }
 
 async function runVerificationCommand(repo: string, spec: VerificationCommandSpec, streamingAllowed: boolean = true): Promise<VerificationRunResult> {
+  const preflightFailures = await collectVerificationPreflightFailures(repo, spec.command);
+  if (preflightFailures.length) {
+    return {
+      label: spec.label,
+      command: spec.command,
+      ok: false,
+      expected: {
+        exitCode: spec.expectedExitCode,
+        stdoutContains: [...spec.stdoutContains],
+        stderrContains: [...spec.stderrContains],
+      },
+      actual: {
+        exitCode: -1,
+        stdout: "",
+        stderr: preflightFailures.join("\n"),
+      },
+      failures: preflightFailures,
+    };
+  }
+
   const proc = Bun.spawn({
     cmd: ["bash", "-lc", spec.command],
     cwd: repo,
@@ -174,6 +195,64 @@ async function runVerificationCommand(repo: string, spec: VerificationCommandSpe
     },
     failures,
   };
+}
+
+async function collectVerificationPreflightFailures(repo: string, command: string) {
+  const failures: string[] = [];
+  const recursiveCommand = findRecursiveWorkflowCommand(command);
+  if (recursiveCommand) {
+    failures.push(
+      `recursive workflow command in executable verification block: ${recursiveCommand}; move manual workflow repro steps to non-executable notes`,
+    );
+  }
+
+  const missingRepoPaths = await collectMissingRepoPaths(repo, command);
+  if (missingRepoPaths.length) {
+    failures.push(
+      `missing repo path${missingRepoPaths.length === 1 ? "" : "s"} in verification command: ${missingRepoPaths.join(", ")}; refresh the slice test plan before rerunning verify-slice`,
+    );
+  }
+
+  return failures;
+}
+
+function findRecursiveWorkflowCommand(command: string) {
+  const executableLines = command
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"));
+  const executableBody = executableLines.join("\n");
+  for (const pattern of [/\bwiki\s+forge\s+run\b/iu, /\bwiki\s+verify-slice\b/iu, /\bwiki\s+close-slice\b/iu]) {
+    const match = executableBody.match(pattern);
+    if (match) return match[0];
+  }
+  return null;
+}
+
+async function collectMissingRepoPaths(repo: string, command: string) {
+  const candidates = new Set<string>();
+  const executableLines = command
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"));
+
+  for (const line of executableLines) {
+    for (const match of line.matchAll(/(?:^|[\s"'`])((?:\.\/)?(?:src|tests|skills|scripts|projects|research)\/[^\s"'`;&|()<>\]]+)/gu)) {
+      const rawCandidate = match[1]?.trim();
+      if (!rawCandidate) continue;
+      const normalized = rawCandidate
+        .replace(/^\.\/+/u, "")
+        .replace(/[,'"`)]+$/gu, "");
+      if (!normalized || /[*?[\]{}]/u.test(normalized)) continue;
+      candidates.add(normalized);
+    }
+  }
+
+  const missing: string[] = [];
+  for (const candidate of candidates) {
+    if (!await exists(join(repo, candidate))) missing.push(candidate);
+  }
+  return missing.sort();
 }
 
 async function recordVerificationEvidence(
