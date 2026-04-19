@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { assertInstalledRepoSkillsFresh, auditInstalledRepoSkills, buildSyncPlan, COMPANION_SKILLS, listRepoSkills, parseSyncArgs, REPO_SKILLS } from "../scripts/sync-local";
+import { assertInstalledRepoSkillsFresh, auditInstalledRepoSkills, buildSyncPlan, COMPANION_SKILLS, listRepoSkills, parseSyncArgs, REPO_SKILLS, selectRepoSkills, WIKI_ONLY_SKILLS } from "../scripts/sync-local";
 import { cleanupTempPaths, tempDir } from "./test-helpers";
 
 afterEach(() => {
@@ -11,7 +11,7 @@ afterEach(() => {
 describe("sync-local", () => {
   test("builds the default local sync plan", () => {
     const repoDir = process.cwd();
-    const plan = buildSyncPlan({ repoDir, includeCompanions: false, audit: false });
+    const plan = buildSyncPlan({ repoDir, includeCompanions: false, audit: false, installSet: "full" });
     const repoSkillSteps = plan.slice(3);
     const repoSkillLabels = REPO_SKILLS.flatMap((skill) => [
       `remove repo skill ${skill}`,
@@ -43,15 +43,30 @@ describe("sync-local", () => {
   test("companion skills list is empty (all skills are repo-owned)", () => {
     expect(COMPANION_SKILLS).toEqual([]);
     const repoDir = process.cwd();
-    const withCompanions = buildSyncPlan({ repoDir, includeCompanions: true, audit: false });
-    const without = buildSyncPlan({ repoDir, includeCompanions: false, audit: false });
+    const withCompanions = buildSyncPlan({ repoDir, includeCompanions: true, audit: false, installSet: "full" });
+    const without = buildSyncPlan({ repoDir, includeCompanions: false, audit: false, installSet: "full" });
     expect(withCompanions.map((s) => s.label)).toEqual(without.map((s) => s.label));
   });
 
-  test("parses with-companions flag", () => {
-    expect(parseSyncArgs([], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: false, repoDir: "/repo/wiki-forge" });
-    expect(parseSyncArgs(["--with-companions"], "/repo/wiki-forge")).toEqual({ includeCompanions: true, audit: false, repoDir: "/repo/wiki-forge" });
-    expect(parseSyncArgs(["--audit"], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: true, repoDir: "/repo/wiki-forge" });
+  test("parses install set and with-companions flags", () => {
+    expect(parseSyncArgs([], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: false, installSet: "full", repoDir: "/repo/wiki-forge" });
+    expect(parseSyncArgs(["--with-companions"], "/repo/wiki-forge")).toEqual({ includeCompanions: true, audit: false, installSet: "full", repoDir: "/repo/wiki-forge" });
+    expect(parseSyncArgs(["--audit"], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: true, installSet: "full", repoDir: "/repo/wiki-forge" });
+    expect(parseSyncArgs(["--wiki-only"], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: false, installSet: "wiki-only", repoDir: "/repo/wiki-forge" });
+    expect(parseSyncArgs(["--install-set", "wiki-only"], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: false, installSet: "wiki-only", repoDir: "/repo/wiki-forge" });
+  });
+
+  test("wiki-only install set narrows repo skill selection to the wiki skill", () => {
+    const repoDir = process.cwd();
+    expect(selectRepoSkills(repoDir, "wiki-only")).toEqual([...WIKI_ONLY_SKILLS]);
+    const plan = buildSyncPlan({ repoDir, includeCompanions: false, audit: false, installSet: "wiki-only" });
+    expect(plan.map((step) => step.label)).toEqual([
+      "link wiki cli",
+      "install latest qmd",
+      "rebuild qmd native modules",
+      "remove repo skill wiki",
+      "install repo skill wiki",
+    ]);
   });
 
   test("audit detects missing and stale installed repo skills", () => {
@@ -65,7 +80,7 @@ describe("sync-local", () => {
     mkdirSync(join(installRoot, "forge"), { recursive: true });
     writeFileSync(join(installRoot, "forge", "SKILL.md"), "# forge\nstale\n", "utf8");
 
-    const audit = auditInstalledRepoSkills({ repoDir }, installRoot);
+    const audit = auditInstalledRepoSkills({ repoDir, installSet: "full" }, installRoot);
     expect(audit.ok).toBe(false);
     expect(audit.rows).toEqual([
       { skill: "forge", status: "stale", installedSkillPath: join(installRoot, "forge", "SKILL.md") },
@@ -87,10 +102,10 @@ describe("sync-local", () => {
     writeFileSync(join(installRoot, "forge", "SKILL.md"), "# forge\nstale\n", "utf8");
     writeFileSync(join(installRoot, "wiki", "SKILL.md"), "# wiki\nrepo\n", "utf8");
 
-    expect(() => assertInstalledRepoSkillsFresh({ repoDir }, installRoot)).toThrow(
+    expect(() => assertInstalledRepoSkillsFresh({ repoDir, installSet: "full" }, installRoot)).toThrow(
       "sync:local finished but installed repo skill copies are still stale under",
     );
-    expect(() => assertInstalledRepoSkillsFresh({ repoDir }, installRoot)).toThrow("forge: stale");
+    expect(() => assertInstalledRepoSkillsFresh({ repoDir, installSet: "full" }, installRoot)).toThrow("forge: stale");
   });
 
   test("post-install verification fails when repo-owned installed skills are missing", () => {
@@ -104,7 +119,7 @@ describe("sync-local", () => {
     mkdirSync(join(installRoot, "forge"), { recursive: true });
     writeFileSync(join(installRoot, "forge", "SKILL.md"), "# forge\nrepo\n", "utf8");
 
-    expect(() => assertInstalledRepoSkillsFresh({ repoDir }, installRoot)).toThrow("wiki: missing");
+    expect(() => assertInstalledRepoSkillsFresh({ repoDir, installSet: "full" }, installRoot)).toThrow("wiki: missing");
   });
 
   test("post-install verification passes when repo-owned installed skills are fresh", () => {
@@ -119,6 +134,24 @@ describe("sync-local", () => {
       writeFileSync(join(installRoot, skill, "SKILL.md"), contents, "utf8");
     }
 
-    expect(assertInstalledRepoSkillsFresh({ repoDir }, installRoot).ok).toBe(true);
+    expect(assertInstalledRepoSkillsFresh({ repoDir, installSet: "full" }, installRoot).ok).toBe(true);
+  });
+
+  test("wiki-only audit ignores missing forge skills", () => {
+    const repoDir = tempDir("sync-local-repo");
+    const installRoot = tempDir("sync-local-install");
+
+    for (const skill of ["forge", "wiki"]) {
+      mkdirSync(join(repoDir, "skills", skill), { recursive: true });
+      writeFileSync(join(repoDir, "skills", skill, "SKILL.md"), `# ${skill}\nrepo\n`, "utf8");
+    }
+    mkdirSync(join(installRoot, "wiki"), { recursive: true });
+    writeFileSync(join(installRoot, "wiki", "SKILL.md"), "# wiki\nrepo\n", "utf8");
+
+    const audit = auditInstalledRepoSkills({ repoDir, installSet: "wiki-only" }, installRoot);
+    expect(audit.ok).toBe(true);
+    expect(audit.rows).toEqual([
+      { skill: "wiki", status: "ok", installedSkillPath: join(installRoot, "wiki", "SKILL.md") },
+    ]);
   });
 });

@@ -5,6 +5,9 @@ import { resolve } from "node:path";
 
 export const REPO_SKILLS = listRepoSkills(resolve(import.meta.dir, ".."));
 export const COMPANION_SKILLS = [] as const;
+export const INSTALL_SETS = ["full", "wiki-only"] as const;
+export type InstallSet = typeof INSTALL_SETS[number];
+export const WIKI_ONLY_SKILLS = ["wiki"] as const;
 
 export type SyncStep = {
   label: string;
@@ -14,6 +17,7 @@ export type SyncStep = {
 export type SyncOptions = {
   includeCompanions: boolean;
   audit: boolean;
+  installSet: InstallSet;
   repoDir: string;
 };
 
@@ -27,6 +31,7 @@ async function main(args: string[]) {
     const audit = auditInstalledRepoSkills(options);
     console.log("wiki-forge local skill audit");
     console.log(`- repo: ${options.repoDir}`);
+    console.log(`- install set: ${options.installSet}`);
     console.log(`- install root: ${audit.installRoot}`);
     for (const row of audit.rows) console.log(`- ${row.skill}: ${row.status}`);
     if (!audit.ok) process.exit(1);
@@ -41,6 +46,7 @@ async function main(args: string[]) {
 
   console.log("wiki-forge local sync");
   console.log(`- repo: ${options.repoDir}`);
+  console.log(`- install set: ${options.installSet}`);
   console.log(`- companion skills: ${options.includeCompanions ? "yes" : "no"}`);
 
   for (const step of plan) {
@@ -54,15 +60,17 @@ async function main(args: string[]) {
 }
 
 export function parseSyncArgs(args: string[], repoDir = resolve(import.meta.dir, "..")): SyncOptions {
+  const installSet = parseInstallSetArg(args);
   return {
     includeCompanions: args.includes("--with-companions"),
     audit: args.includes("--audit"),
+    installSet,
     repoDir,
   };
 }
 
 export function buildSyncPlan(options: SyncOptions): SyncStep[] {
-  const repoSkills = listRepoSkills(options.repoDir).flatMap((skill) => ([
+  const repoSkills = selectRepoSkills(options.repoDir, options.installSet).flatMap((skill) => ([
     {
       label: `remove repo skill ${skill}`,
       command: ["npx", "skills@latest", "remove", skill, "-g", "-y"],
@@ -96,8 +104,14 @@ export function listRepoSkills(repoDir: string): string[] {
     .sort((left, right) => left.localeCompare(right));
 }
 
-export function auditInstalledRepoSkills(options: Pick<SyncOptions, "repoDir">, installRoot = resolve(process.env.HOME || "~", ".agents", "skills")) {
-  const rows = listRepoSkills(options.repoDir).map((skill) => {
+export function selectRepoSkills(repoDir: string, installSet: InstallSet): string[] {
+  const discovered = listRepoSkills(repoDir);
+  if (installSet === "full") return discovered;
+  return discovered.filter((skill) => WIKI_ONLY_SKILLS.includes(skill as typeof WIKI_ONLY_SKILLS[number]));
+}
+
+export function auditInstalledRepoSkills(options: Pick<SyncOptions, "repoDir" | "installSet">, installRoot = resolve(process.env.HOME || "~", ".agents", "skills")) {
+  const rows = selectRepoSkills(options.repoDir, options.installSet).map((skill) => {
     const repoSkillPath = resolve(options.repoDir, "skills", skill, "SKILL.md");
     const installedSkillPath = resolve(installRoot, skill, "SKILL.md");
     if (!existsSync(installedSkillPath)) return { skill, status: "missing", installedSkillPath } as const;
@@ -108,7 +122,7 @@ export function auditInstalledRepoSkills(options: Pick<SyncOptions, "repoDir">, 
   return { installRoot, rows, ok: rows.every((row) => row.status === "ok") };
 }
 
-export function assertInstalledRepoSkillsFresh(options: Pick<SyncOptions, "repoDir">, installRoot = resolve(process.env.HOME || "~", ".agents", "skills")) {
+export function assertInstalledRepoSkillsFresh(options: Pick<SyncOptions, "repoDir" | "installSet">, installRoot = resolve(process.env.HOME || "~", ".agents", "skills")) {
   const audit = auditInstalledRepoSkills(options, installRoot);
   if (audit.ok) return audit;
   const failures = audit.rows
@@ -122,6 +136,16 @@ export function assertInstalledRepoSkillsFresh(options: Pick<SyncOptions, "repoD
 
 function ensureCommand(command: string, errorMessage: string) {
   if (!Bun.which(command)) throw new Error(errorMessage);
+}
+
+function parseInstallSetArg(args: string[]): InstallSet {
+  if (args.includes("--wiki-only")) return "wiki-only";
+  if (args.includes("--full")) return "full";
+  const index = args.indexOf("--install-set");
+  if (index === -1) return "full";
+  const value = args[index + 1];
+  if (value === "full" || value === "wiki-only") return value;
+  throw new Error(`invalid --install-set value: ${value ?? "(missing)"} (expected: ${INSTALL_SETS.join(", ")})`);
 }
 
 function runStep(step: SyncStep, repoDir: string) {

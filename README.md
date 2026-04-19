@@ -26,10 +26,13 @@ Sources (code, research, docs)
 ```bash
 git clone https://github.com/FasalZein/wiki-forge.git
 cd wiki-forge
-./install.sh
+./install.sh          # prompts for wiki-only vs full wiki+forge setup
+# or:
+./install.sh --wiki-only
+./install.sh --full
 ```
 
-The installer handles bun, dependencies, local sync of the CLI/qmd/skills, shell config, and the vault directory (`~/Knowledge`). See [SETUP.md](SETUP.md) for manual setup, Obsidian config, and troubleshooting.
+The installer handles bun, dependencies, local sync of the CLI/qmd/skills, shell config, and the vault directory (`~/Knowledge`). `wiki-only` installs just the second-brain layer (`/wiki`). `full` installs the second-brain layer plus the forge SDLC workflow stack (`/forge` and its repo-owned companions). See [SETUP.md](SETUP.md) for manual setup, Obsidian config, and troubleshooting.
 
 <details>
 <summary><strong>Manual prerequisites</strong> (if not using the installer)</summary>
@@ -46,11 +49,20 @@ brew install sqlite   # macOS — required for Bun SDK hybrid retrieval
 ## Local Sync
 
 ```bash
-bun run sync:local                      # relink CLI, refresh qmd, reinstall every repo-owned skill discovered under skills/*/SKILL.md
-bun run sync:local -- --audit           # detect installed repo-skill drift before or after syncing
+bun run sync:local                                      # relink CLI, refresh qmd, reinstall the full repo-owned skill set
+bun run sync:local -- --install-set wiki-only           # relink CLI/qmd and install only the wiki skill
+bun run sync:local -- --audit                           # audit the default full repo-owned skill set
+bun run sync:local -- --install-set wiki-only --audit   # audit only the wiki-only install set
 ```
 
 Use this after pulling repo changes or editing `skills/*/SKILL.md`. Restart the agent session after syncing so it reloads the updated installed skills.
+
+`/wiki` and `/forge` stay separate:
+
+- `/wiki` = second-brain layer: retrieval, maintenance, verification, filing, drift
+- `/forge` = SDLC layer: research → domain-model → PRD → slices → TDD → verify → desloppify
+- `full` install gives you both layers
+- `wiki-only` keeps the install in second-brain mode with no forge workflow stack
 
 ---
 

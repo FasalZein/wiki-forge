@@ -6,6 +6,24 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 VAULT_DEFAULT="$HOME/Knowledge"
+INSTALL_SET=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --wiki-only)
+      INSTALL_SET="wiki-only"
+      ;;
+    --full)
+      INSTALL_SET="full"
+      ;;
+    *)
+      echo "[error] unknown option: $1"
+      echo "usage: ./install.sh [--wiki-only|--full]"
+      exit 1
+      ;;
+  esac
+  shift
+done
 
 echo "=== wiki-forge setup ==="
 echo ""
@@ -31,17 +49,33 @@ if [ "$(uname -s)" = "Darwin" ] && command -v brew &>/dev/null; then
   fi
 fi
 
-# 4. Sync CLI, qmd, and skills
-echo "Syncing local CLI, qmd, and skills..."
-bun run sync:local
+# 4. Choose install set
+if [ -z "$INSTALL_SET" ]; then
+  echo "Install mode:"
+  echo "  1) wiki-only  - second-brain setup only (/wiki)"
+  echo "  2) full       - wiki + forge SDLC workflow (/wiki + /forge stack)"
+  read -rp "Choose install mode [2]: " install_choice
+  case "${install_choice:-2}" in
+    1) INSTALL_SET="wiki-only" ;;
+    2) INSTALL_SET="full" ;;
+    *)
+      echo "[error] invalid install mode: ${install_choice}"
+      exit 1
+      ;;
+  esac
+fi
+
+# 5. Sync CLI, qmd, and selected skills
+echo "Syncing local CLI, qmd, and skills (${INSTALL_SET})..."
+bun run sync:local -- --install-set "$INSTALL_SET"
 echo "[ok] local sync complete"
 
-# 5. Set up vault
+# 6. Set up vault
 read -rp "Vault path [$VAULT_DEFAULT]: " vault_input
 VAULT="${vault_input:-$VAULT_DEFAULT}"
 mkdir -p "$VAULT"
 
-# 6. Set KNOWLEDGE_VAULT_ROOT in shell config
+# 7. Set KNOWLEDGE_VAULT_ROOT in shell config
 SHELL_NAME="$(basename "${SHELL:-/bin/zsh}")"
 case "$SHELL_NAME" in
   zsh)  RC_FILE="$HOME/.zshrc" ;;
@@ -75,9 +109,19 @@ echo ""
 echo "Next steps:"
 echo "  source $(basename "${RC_FILE:-your-shell-config}")"
 echo "  wiki help"
-echo "  bun run sync:local           # refresh CLI/qmd/repo skills after local changes"
+echo "  bun run sync:local -- --install-set ${INSTALL_SET}   # refresh CLI/qmd/repo skills after local changes"
+echo ""
+if [ "$INSTALL_SET" = "wiki-only" ]; then
+  echo "Installed mode: wiki-only"
+  echo "  - wiki remains your second-brain layer"
+  echo "  - forge workflow skills were not installed"
+else
+  echo "Installed mode: full"
+  echo "  - wiki remains your second-brain layer"
+  echo "  - forge adds the SDLC workflow layer on top"
+fi
 echo ""
 echo "Obsidian users: enable the Obsidian CLI in Settings → General → CLI."
 echo "On macOS, wiki-forge retrieval uses Homebrew sqlite when available for Bun qmd SDK hybrid search."
-echo "[note] sync:local installs every repo-owned wiki-forge skill. Restart your agent session after syncing so it reloads the updated copies."
+echo "[note] Restart your agent session after syncing so it reloads the updated installed skill copies."
 echo "See SETUP.md for full details."

@@ -5,10 +5,18 @@
 ```bash
 git clone https://github.com/FasalZein/wiki-forge.git
 cd wiki-forge
-./install.sh
+./install.sh          # prompts for wiki-only vs full wiki+forge setup
+# or:
+./install.sh --wiki-only
+./install.sh --full
 ```
 
 The install script handles first-time bootstrap: bun, dependencies, local sync of the CLI/qmd/skills, shell config, vault directory, and skill installation. By default it creates `~/Knowledge` if it does not exist yet.
+
+Install modes:
+
+- `wiki-only`: installs only the `/wiki` second-brain layer
+- `full`: installs `/wiki` plus the repo-owned `/forge` workflow stack
 
 ## Manual Setup
 
@@ -51,13 +59,14 @@ The CLI auto-detects `~/Knowledge` if the env var is unset.
 
 ### 4. Install skills
 
-`sync:local` is the canonical install path. It relinks the CLI, refreshes qmd, and installs every repo-owned skill discovered under `skills/*/SKILL.md`.
+`sync:local` is the canonical install path. It relinks the CLI, refreshes qmd, and installs the selected repo-owned skill set discovered under `skills/*/SKILL.md`.
 
 ```bash
-bun run sync:local
+bun run sync:local                            # full wiki+forge install set
+bun run sync:local -- --install-set wiki-only
 ```
 
-Current repo-owned skill set:
+Current full repo-owned skill set:
 
 - `desloppify`
 - `domain-model`
@@ -69,6 +78,10 @@ Current repo-owned skill set:
 - `tdd`
 - `wiki`
 - `write-a-prd`
+
+`wiki-only` installs just:
+
+- `wiki`
 
 If you want to install specific skills from your local checkout:
 
@@ -123,6 +136,13 @@ That refreshes:
 
 ```bash
 bun run sync:local -- --with-companions
+```
+
+You can audit a specific install set after syncing:
+
+```bash
+bun run sync:local -- --audit
+bun run sync:local -- --install-set wiki-only --audit
 ```
 
 After syncing skills, restart your agent session so it reloads the updated installed copies.
@@ -185,6 +205,13 @@ After installing skills, Claude Code automatically picks them up. Start any non-
 - `/desloppify`
 
 `/grill-me` remains available as an optional compatibility skill, but the default forge happy path routes through `/domain-model`.
+
+Layer contract:
+
+- `/wiki` stays the second-brain layer
+- `/forge` stays the SDLC workflow layer
+- `wiki-only` installs only the first layer
+- `full` installs both layers without mixing their responsibilities
 
 Or use individual skills directly:
 
