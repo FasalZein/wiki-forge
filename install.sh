@@ -33,7 +33,7 @@ fi
 
 # 4. Sync CLI, qmd, and skills
 echo "Syncing local CLI, qmd, and skills..."
-bun run sync:local -- --with-companions
+bun run sync:local
 echo "[ok] local sync complete"
 
 # 5. Set up vault
@@ -79,5 +79,5 @@ echo "  bun run sync:local           # refresh CLI/qmd/repo skills after local c
 echo ""
 echo "Obsidian users: enable the Obsidian CLI in Settings → General → CLI."
 echo "On macOS, wiki-forge retrieval uses Homebrew sqlite when available for Bun qmd SDK hybrid search."
-echo "[note] /research is also required for full forge chaining. Install your agent's research skill separately if it is not already available."
+echo "[note] sync:local installs every repo-owned wiki-forge skill. Restart your agent session after syncing so it reloads the updated copies."
 echo "See SETUP.md for full details."

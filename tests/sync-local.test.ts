@@ -12,6 +12,7 @@ describe("sync-local", () => {
   test("builds the default local sync plan", () => {
     const repoDir = process.cwd();
     const plan = buildSyncPlan({ repoDir, includeCompanions: false, audit: false });
+    const repoSkillSteps = plan.slice(3);
     expect(plan.map((step) => step.label)).toEqual([
       "link wiki cli",
       "install latest qmd",
@@ -22,6 +23,8 @@ describe("sync-local", () => {
     expect(plan[1]?.command).toEqual(["npm", "install", "-g", "@tobilu/qmd@latest", "--audit=false", "--fund=false"]);
     expect(plan[2]?.command).toEqual(["npm", "rebuild", "-g", "@tobilu/qmd"]);
     expect(plan[3]?.command[3]).toBe(`${repoDir}/skills/${REPO_SKILLS[0]}`);
+    expect(repoSkillSteps.every((step) => step.command.includes("-g"))).toBe(true);
+    expect(repoSkillSteps.every((step) => !step.command.includes("-y"))).toBe(true);
   });
 
   test("repo skill discovery is code-driven from skills/*/SKILL.md", () => {

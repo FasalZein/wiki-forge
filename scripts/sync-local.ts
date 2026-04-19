@@ -63,12 +63,12 @@ export function parseSyncArgs(args: string[], repoDir = resolve(import.meta.dir,
 export function buildSyncPlan(options: SyncOptions): SyncStep[] {
   const repoSkills = listRepoSkills(options.repoDir).map((skill) => ({
     label: `install repo skill ${skill}`,
-    command: ["npx", "skills@latest", "add", resolve(options.repoDir, "skills", skill), "-g", "-y"],
+    command: ["npx", "skills@latest", "add", resolve(options.repoDir, "skills", skill), "-g"],
   }));
   const companionSkills = options.includeCompanions
     ? COMPANION_SKILLS.map((skill) => ({
       label: `install companion skill ${skill.split("/").pop()}`,
-      command: ["npx", "skills@latest", "add", skill, "-g", "-y"],
+      command: ["npx", "skills@latest", "add", skill, "-g"],
     }))
     : [];
 

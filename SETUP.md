@@ -51,38 +51,59 @@ The CLI auto-detects `~/Knowledge` if the env var is unset.
 
 ### 4. Install skills
 
-`forge` is a workflow orchestrator. It depends on companion skills, so install both the repo skills and the external workflow skills it chains into.
-
-Repo skills:
+`sync:local` is the canonical install path. It relinks the CLI, refreshes qmd, and installs every repo-owned skill discovered under `skills/*/SKILL.md`.
 
 ```bash
+bun run sync:local
+```
+
+Current repo-owned skill set:
+
+- `desloppify`
+- `domain-model`
+- `forge`
+- `grill-me` (optional compatibility skill; forge now routes through `domain-model`)
+- `improve-codebase-architecture`
+- `prd-to-slices`
+- `research`
+- `tdd`
+- `wiki`
+- `write-a-prd`
+
+If you want to install specific skills from your local checkout:
+
+```bash
+npx skills@latest add ./skills/desloppify -g
+npx skills@latest add ./skills/domain-model -g
 npx skills@latest add ./skills/forge -g
-npx skills@latest add ./skills/wiki -g
+npx skills@latest add ./skills/grill-me -g
+npx skills@latest add ./skills/improve-codebase-architecture -g
 npx skills@latest add ./skills/prd-to-slices -g
+npx skills@latest add ./skills/research -g
+npx skills@latest add ./skills/tdd -g
+npx skills@latest add ./skills/wiki -g
+npx skills@latest add ./skills/write-a-prd -g
 ```
 
-Companion workflow skills from `mattpocock/skills`:
+Or install them from GitHub:
 
 ```bash
+npx skills@latest add FasalZein/wiki-forge/skills/desloppify -g
 npx skills@latest add FasalZein/wiki-forge/skills/domain-model -g
-npx skills@latest add mattpocock/skills/write-a-prd -g
-npx skills@latest add mattpocock/skills/tdd -g
-```
-
-`/research` is also required for full forge chaining. Install your agent's research skill separately if it is not already available.
-
-Or install the repo skills from GitHub:
-
-```bash
 npx skills@latest add FasalZein/wiki-forge/skills/forge -g
-npx skills@latest add FasalZein/wiki-forge/skills/wiki -g
+npx skills@latest add FasalZein/wiki-forge/skills/grill-me -g
+npx skills@latest add FasalZein/wiki-forge/skills/improve-codebase-architecture -g
 npx skills@latest add FasalZein/wiki-forge/skills/prd-to-slices -g
+npx skills@latest add FasalZein/wiki-forge/skills/research -g
+npx skills@latest add FasalZein/wiki-forge/skills/tdd -g
+npx skills@latest add FasalZein/wiki-forge/skills/wiki -g
+npx skills@latest add FasalZein/wiki-forge/skills/write-a-prd -g
 ```
 
 Verify:
 
 ```bash
-npx skills list -g | grep -E "forge|wiki|prd-to-slices|domain-model|write-a-prd|tdd"
+npx skills list -g | grep -E "desloppify|domain-model|forge|grill-me|improve-codebase-architecture|prd-to-slices|research|tdd|wiki|write-a-prd"
 ```
 
 ### 5. Sync local updates
@@ -96,9 +117,9 @@ bun run sync:local
 That refreshes:
 - the linked `wiki` CLI via `bun link`
 - the global `qmd` install plus native rebuild
-- repo-owned skills (`forge`, `wiki`, `prd-to-slices`)
+- repo-owned skills discovered from `skills/*/SKILL.md`
 
-If you also want to refresh the companion workflow skills used by `/forge`, run:
+`bun run sync:local -- --with-companions` is still accepted for compatibility, but today it does the same thing as the default path because `COMPANION_SKILLS` is empty and the forge chain is repo-owned.
 
 ```bash
 bun run sync:local -- --with-companions
@@ -153,21 +174,29 @@ After installing skills, Claude Code automatically picks them up. Start any non-
 /forge
 ```
 
-`/forge` expects these companion skills to already be installed:
+`/forge` expects these repo-owned workflow skills to already be installed:
+- `/research`
 - `/domain-model`
 - `/write-a-prd`
 - `/prd-to-slices`
 - `/tdd`
 - `/wiki`
+- `/improve-codebase-architecture`
+- `/desloppify`
+
+`/grill-me` remains available as an optional compatibility skill, but the default forge happy path routes through `/domain-model`.
 
 Or use individual skills directly:
 
 ```
 /wiki          # CLI operations reference
+/research      # investigate and file evidence
 /domain-model  # sharpen terminology and decisions before the PRD
 /write-a-prd   # create the PRD
 /prd-to-slices # break a PRD into backlog items
 /tdd           # implement via red-green-refactor
+/improve-codebase-architecture # capture deeper refactor candidates
+/desloppify    # final code-quality pass
 ```
 
 ### For Other Agents (Cursor, Codex, Kiro, etc.)
@@ -265,7 +294,7 @@ Ensure you're on Obsidian 1.8+ and have enabled CLI in Settings → General. Res
 
 ```bash
 npx skills list -g                  # verify installation
-bun run sync:local -- --with-companions
+bun run sync:local
 ```
 
 Then restart the agent session. Installed skills under `~/.agents/skills/` do not hot-reload into already running sessions.

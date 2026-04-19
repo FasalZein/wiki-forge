@@ -11,12 +11,12 @@
 
 ---
 
-**Not RAG.** The wiki is a compiled artifact that grows over time, not a retrieval layer that re-derives answers from scratch each query. Code is always the source of truth — the wiki is compiled memory that makes code navigable across sessions. Forge is the optional SDLC layer on top: research → grill → PRD → slices → TDD → verify → desloppify.
+**Not RAG.** The wiki is a compiled artifact that grows over time, not a retrieval layer that re-derives answers from scratch each query. Code is always the source of truth — the wiki is compiled memory that makes code navigable across sessions. Forge is the optional SDLC layer on top: research → domain-model → PRD → slices → TDD → verify → desloppify.
 
 ```
 Sources (code, research, docs)
   ├── Wiki  (knowledge layer — maintained markdown in ~/Knowledge)
-  └── Forge (workflow layer — research → PRD → slices → TDD → verify)
+  └── Forge (workflow layer — research → domain-model → PRD → slices → TDD → verify)
                                           ↓
                                         You
 ```
@@ -236,7 +236,7 @@ Compact map:
 |-------|-----------|-------------|
 | **Wiki** | Maintained project memory in `~/Knowledge` | `wiki` CLI |
 | **Research** | Filed evidence and source-backed notes under `research/` and `raw/` | `/research` skill + `wiki research` commands |
-| **Forge** | Optional workflow layer: research -> grill -> PRD -> slices -> TDD -> verify -> desloppify; agent surface is `wiki forge plan/run/next` | `/forge` skill |
+| **Forge** | Optional workflow layer: research -> domain-model -> PRD -> slices -> TDD -> verify -> desloppify; agent surface is `wiki forge plan/run/next` | `/forge` skill |
 
 These are separate concerns. The wiki is the knowledge store. Research is evidence. Forge is the software-development workflow layer over that memory.
 
@@ -342,34 +342,54 @@ Propagation rule:
 Repo-owned skills are installed via the local sync script and auto-discovered from `skills/*/SKILL.md`:
 
 ```bash
-bun run sync:local   # installs all repo-owned skills globally
+bun run sync:local            # relink CLI, refresh qmd, and install every repo-owned skill globally
+bun run sync:local -- --audit # compare installed repo skills against the checked-out repo copies
 ```
 
-Or install individually:
+Current repo-owned skill set:
+
+- `desloppify`
+- `domain-model`
+- `forge`
+- `grill-me` (optional compatibility skill; forge now routes through `domain-model`)
+- `improve-codebase-architecture`
+- `prd-to-slices`
+- `research`
+- `tdd`
+- `wiki`
+- `write-a-prd`
+
+Or install any individual skill from GitHub:
 
 ```bash
-npx skills@latest add FasalZein/wiki-forge/skills/forge -g
-npx skills@latest add FasalZein/wiki-forge/skills/wiki -g
-npx skills@latest add FasalZein/wiki-forge/skills/prd-to-slices -g
-npx skills@latest add FasalZein/wiki-forge/skills/write-a-prd -g
-npx skills@latest add FasalZein/wiki-forge/skills/domain-model -g
-npx skills@latest add FasalZein/wiki-forge/skills/tdd -g
 npx skills@latest add FasalZein/wiki-forge/skills/desloppify -g
+npx skills@latest add FasalZein/wiki-forge/skills/domain-model -g
+npx skills@latest add FasalZein/wiki-forge/skills/forge -g
+npx skills@latest add FasalZein/wiki-forge/skills/grill-me -g
+npx skills@latest add FasalZein/wiki-forge/skills/improve-codebase-architecture -g
+npx skills@latest add FasalZein/wiki-forge/skills/prd-to-slices -g
+npx skills@latest add FasalZein/wiki-forge/skills/research -g
+npx skills@latest add FasalZein/wiki-forge/skills/tdd -g
+npx skills@latest add FasalZein/wiki-forge/skills/wiki -g
+npx skills@latest add FasalZein/wiki-forge/skills/write-a-prd -g
 ```
 
-`/research` is also required for full forge chaining. Install your agent's research skill separately if it is not already available.
+`sync:local` is the canonical path because it keeps the installed skill copies aligned with the checked-out repo. Restart the agent session after syncing so it reloads the refreshed instructions.
 
 ### Skill Reference
 
 | Skill | Invoke | What it does | When to use |
 |-------|--------|-------------|-------------|
+| **research** | `/research` | Investigates external evidence and produces research artifacts that can be filed into the wiki | When a feature, refactor, or architecture decision needs outside evidence |
 | **wiki** | `/wiki` | Knowledge-layer operations: research, retrieval, maintenance, drift, verification, gates | When no non-trivial product behavior is being planned or changed |
-| **forge** | `/forge` | Software-development workflow: research -> grill -> PRD -> slices -> TDD -> verify -> desloppify | Non-trivial implementation work, new features, cross-module changes, or existing slice continuation |
+| **forge** | `/forge` | Software-development workflow: research -> domain-model -> PRD -> slices -> TDD -> verify -> desloppify | Non-trivial implementation work, new features, cross-module changes, or existing slice continuation |
 | **prd-to-slices** | `/prd-to-slices` | Breaks a PRD into tracked vertical slices in the wiki backlog | After writing a PRD, before implementation |
 | **write-a-prd** | `/write-a-prd` | Wiki-vault-native PRD authoring via `wiki create-prd` | When you need formal project intent |
 | **domain-model** | `/domain-model` | Sharpens terms, records decisions in the wiki, and surfaces ambiguities before PRD authoring | Before writing a PRD |
 | **tdd** | `/tdd` | Red-green-refactor with vertical slices — no code without tests, ever | During implementation |
+| **improve-codebase-architecture** | `/improve-codebase-architecture` | Finds deeper-module and boundary-refactor candidates and turns them into tracked follow-up work | At cadence boundaries or after shipping a batch |
 | **desloppify** | `/desloppify` | Scans for AI-introduced anti-patterns, triages, fixes, verifies | Final quality gate after wiki closeout |
+| **grill-me** | `/grill-me` | Optional interview-style stress test for a plan when you explicitly want adversarial questioning | Compatibility path outside the main forge happy path |
 
 ### When to Use What
 
