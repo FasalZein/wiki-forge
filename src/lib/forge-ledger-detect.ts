@@ -25,7 +25,7 @@
  */
 
 import { join, basename, relative } from "node:path";
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { VAULT_ROOT, STALE_UNVERIFIED_DAYS } from "../constants";
 import { safeMatter } from "../cli-shared";
 import { appendText, ensureDir, exists, readText } from "./fs";
@@ -118,11 +118,19 @@ async function _derive(project: string, sliceId: string, vaultRoot: string): Pro
   // or is listed in the PRD's source_paths frontmatter.
   // -------------------------------------------------------------------
   const researchRefs = await detectResearchRefs(project, sliceId, parentPrd, vaultRoot);
-  if (researchRefs.length > 0) {
+  if (researchRefs.refs.length > 0) {
     patch.research = {
       completedAt: new Date().toISOString(),
-      researchRefs,
+      researchRefs: researchRefs.refs,
     };
+    if (researchRefs.legacyFallbackUsed) {
+      findings.push({
+        phase: "research",
+        scope: "slice",
+        severity: "warning",
+        message: "deprecated basename research matching was used; add task_id or slice_id frontmatter to the research note",
+      });
+    }
   }
 
   // -------------------------------------------------------------------
@@ -205,9 +213,9 @@ async function detectResearchRefs(
   sliceId: string,
   parentPrd: string | undefined,
   vaultRoot: string,
-): Promise<string[]> {
+): Promise<{ refs: string[]; legacyFallbackUsed: boolean }> {
   const researchDir = join(vaultRoot, "research", "projects", project);
-  if (!await exists(researchDir)) return [];
+  if (!await exists(researchDir)) return { refs: [], legacyFallbackUsed: false };
 
   // Gather reference sets from the PRD's source_paths
   const prdSourcePaths = new Set<string>();
@@ -229,22 +237,27 @@ async function detectResearchRefs(
   }
 
   const refs: string[] = [];
+  let legacyFallbackUsed = false;
   const sliceIdLower = sliceId.toLowerCase();
   const prdIdLower = parentPrd ? parentPrd.toLowerCase() : null;
 
-  scanDirFlat(researchDir, "", project, sliceIdLower, prdIdLower, prdSourcePaths, refs);
+  scanDirFlat(researchDir, "", project, sliceId, sliceIdLower, prdIdLower, prdSourcePaths, refs, (usedLegacy) => {
+    legacyFallbackUsed = legacyFallbackUsed || usedLegacy;
+  });
 
-  return [...new Set(refs)];
+  return { refs: [...new Set(refs)], legacyFallbackUsed };
 }
 
 function scanDirFlat(
   dir: string,
   relPrefix: string,
   project: string,
+  sliceId: string,
   sliceIdLower: string,
   prdIdLower: string | null,
   prdSourcePaths: Set<string>,
   refs: string[],
+  onLegacyFallback: (usedLegacy: boolean) => void,
 ) {
   let entries: import("node:fs").Dirent[] = [];
   try {
@@ -256,7 +269,7 @@ function scanDirFlat(
     const full = join(dir, entry.name);
     const rel = relPrefix ? `${relPrefix}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
-      scanDirFlat(full, rel, project, sliceIdLower, prdIdLower, prdSourcePaths, refs);
+      scanDirFlat(full, rel, project, sliceId, sliceIdLower, prdIdLower, prdSourcePaths, refs, onLegacyFallback);
     } else if (entry.isFile()) {
       const base = basename(entry.name, ".md").toLowerCase();
       // PRD rule: basename matches `prd-<id>-*` where prdIdLower is e.g. "prd-056"
@@ -268,8 +281,13 @@ function scanDirFlat(
         base === sliceIdLower;
       const relVaultPath = `research/projects/${project}/${rel}`;
       const matchesBySourcePath = prdSourcePaths.has(relVaultPath);
-      if (matchesByName || matchesBySourcePath) {
+      const parsed = safeMatter(relVaultPath, readFileSync(full, "utf8"), { silent: true });
+      const taskId = typeof parsed?.data.task_id === "string" ? parsed.data.task_id.trim() : "";
+      const sliceFrontmatterId = typeof parsed?.data.slice_id === "string" ? parsed.data.slice_id.trim() : "";
+      const matchesByFrontmatter = taskId === sliceId || sliceFrontmatterId === sliceId;
+      if (matchesByFrontmatter || matchesBySourcePath || matchesByName) {
         refs.push(relVaultPath);
+        if (!matchesByFrontmatter && matchesByName) onLegacyFallback(true);
       }
     }
   }
@@ -442,6 +460,18 @@ async function detectTddEvidence(project: string, sliceId: string, vaultRoot: st
   // Both must be status: ready (not draft, not current, not anything else)
   if (planStatus !== "ready" || testPlanStatus !== "ready") return [];
 
+  const redTestsSection = extractSection(testPlanParsed.content, "Red Tests");
+  if (!/^\s*-\s*\[(?: |x|X)\]/mu.test(redTestsSection)) return [];
+
+  const verificationCommands = Array.isArray(testPlanParsed.data.verification_commands)
+    ? testPlanParsed.data.verification_commands
+        .map((entry) => entry && typeof entry === "object" && typeof (entry as Record<string, unknown>).command === "string"
+          ? String((entry as Record<string, unknown>).command).trim()
+          : "")
+        .filter(Boolean)
+    : [];
+  if (verificationCommands.length === 0) return [];
+
   return [`projects/${project}/specs/slices/${sliceId}/test-plan.md`];
 }
 
@@ -569,6 +599,14 @@ export async function applyDerivedLedger(
   for (const phase of ["research", "grill", "prd", "slices", "tdd", "verify"] as const) {
     const authoredPhase = authored[phase] as Record<string, unknown> | undefined;
     const derivedPhase = derived.patch[phase] as Record<string, unknown> | undefined;
+    if (authoredPhase?.completedAt && !derivedPhase?.completedAt) {
+      const alreadyLogged = existingEntries.some(
+        (entry) =>
+          entry.includes(`forge-ledger-override | ${sliceId}`) &&
+          entry.includes(`- phase=${phase}`),
+      );
+      if (!alreadyLogged) appendOverrideEntry(logPath, sliceId, project, phase);
+    }
     if (!authoredPhase?.completedAt && derivedPhase?.completedAt) {
       // Dedupe: skip if we already have an auto-heal entry for this slice+phase
       const alreadyEmitted = existingEntries.some(
@@ -613,6 +651,17 @@ function appendAutoHealEntry(
   appendText(logPath, `${lines.join("\n")}\n`);
 }
 
+function appendOverrideEntry(logPath: string, sliceId: string, project: string, phase: string) {
+  const date = new Date().toISOString().slice(0, 10);
+  const lines = [
+    `## [${date}] forge-ledger-override | ${sliceId}`,
+    `- project: ${project}`,
+    `- phase=${phase}`,
+    "",
+  ];
+  appendText(logPath, `${lines.join("\n")}\n`);
+}
+
 async function tailLogFromPath(logPath: string, count: number): Promise<string[]> {
   if (!await exists(logPath)) return [];
   const content = (await readText(logPath)).replace(/\r\n/g, "\n");
@@ -636,4 +685,3 @@ function extractSection(markdown: string, heading: string): string {
   void headingLine; // referenced above for clarity only
   return "";
 }
-

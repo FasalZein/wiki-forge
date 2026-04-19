@@ -66,15 +66,26 @@ function makeTestPlan(
   vault: string,
   project: string,
   sliceId: string,
-  options: { status?: "ready" | "draft" | "current"; verificationLevel?: string } = {},
+  options: {
+    status?: "ready" | "draft" | "current";
+    verificationLevel?: string;
+    verificationCommands?: string[];
+  } = {},
 ) {
-  const { status = "ready", verificationLevel } = options;
+  const {
+    status = "ready",
+    verificationLevel,
+    verificationCommands = ["bun test"],
+  } = options;
   const dir = join(vault, "projects", project, "specs", "slices", sliceId);
   mkdirSync(dir, { recursive: true });
   const verLine = verificationLevel ? `verification_level: ${verificationLevel}\n` : "";
+  const verificationCommandsYaml = verificationCommands.length > 0
+    ? `verification_commands:\n${verificationCommands.map((command) => `  - command: ${command}`).join("\n")}\n`
+    : "";
   writeFileSync(
     join(dir, "test-plan.md"),
-    `---\ntitle: ${sliceId} test-plan\ntype: spec\nspec_kind: test-plan\nproject: ${project}\ntask_id: ${sliceId}\nupdated: '2026-04-17T00:00:00.000Z'\nstatus: ${status}\n${verLine}---\n\n# Test Plan\n\n## Red Tests\n\n- [x] it works\n\n## Verification Commands\n\n\`\`\`bash\nbun test\n\`\`\`\n`,
+    `---\ntitle: ${sliceId} test-plan\ntype: spec\nspec_kind: test-plan\nproject: ${project}\ntask_id: ${sliceId}\nupdated: '2026-04-17T00:00:00.000Z'\nstatus: ${status}\n${verLine}${verificationCommandsYaml}---\n\n# Test Plan\n\n## Red Tests\n\n- [x] it works\n\n## Verification Commands\n\n\`\`\`bash\nbun test\n\`\`\`\n`,
     "utf8",
   );
 }
@@ -114,10 +125,18 @@ function makeDecisions(vault: string, project: string, content: string, updatedA
   );
 }
 
-function makeResearchFile(vault: string, project: string, filename: string) {
+function makeResearchFile(
+  vault: string,
+  project: string,
+  filename: string,
+  frontmatter: Record<string, string> = {},
+) {
   const dir = join(vault, "research", "projects", project);
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, filename), `# Research: ${filename}\n\nSome findings.\n`, "utf8");
+  const frontmatterBlock = Object.keys(frontmatter).length
+    ? `---\n${Object.entries(frontmatter).map(([key, value]) => `${key}: ${value}`).join("\n")}\n---\n\n`
+    : "";
+  writeFileSync(join(dir, filename), `${frontmatterBlock}# Research: ${filename}\n\nSome findings.\n`, "utf8");
 }
 
 function addVerifyLogEntry(vault: string, sliceId: string, project: string, dateStr = "2026-04-18") {
@@ -158,6 +177,16 @@ describe("deriveForgeLedgerFromArtifacts — zero artifact baseline", () => {
 });
 
 describe("deriveForgeLedgerFromArtifacts — research phase", () => {
+  test("detects research file by task_id frontmatter even when basename is unrelated", async () => {
+    const vault = setupVault();
+    makeSliceHub(vault, "myproject", "MYPROJECT-001");
+    makeResearchFile(vault, "myproject", "audit-notes.md", { task_id: "MYPROJECT-001" });
+
+    const result = await d(vault, "myproject", "MYPROJECT-001");
+    expect(result.patch.research).toBeDefined();
+    expect(result.patch.research?.researchRefs?.[0]).toContain("audit-notes.md");
+  });
+
   test("detects research file by PRD-<id>-* basename pattern", async () => {
     const vault = setupVault();
     makeSliceHub(vault, "myproject", "MYPROJECT-001", { parent_prd: "PRD-056" });
@@ -183,8 +212,8 @@ describe("deriveForgeLedgerFromArtifacts — research phase", () => {
   test("aggregates multiple matching research files (not ambiguous)", async () => {
     const vault = setupVault();
     makeSliceHub(vault, "myproject", "MYPROJECT-001", { parent_prd: "PRD-001" });
-    makeResearchFile(vault, "myproject", "prd-001-part-a.md");
-    makeResearchFile(vault, "myproject", "prd-001-part-b.md");
+    makeResearchFile(vault, "myproject", "prd-001-part-a.md", { task_id: "MYPROJECT-001" });
+    makeResearchFile(vault, "myproject", "prd-001-part-b.md", { task_id: "MYPROJECT-001" });
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
     expect(result.patch.research?.researchRefs).toHaveLength(2);
@@ -198,6 +227,16 @@ describe("deriveForgeLedgerFromArtifacts — research phase", () => {
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
     expect(result.patch.research).toBeUndefined();
+  });
+
+  test("legacy basename matching still works and emits a deprecation finding", async () => {
+    const vault = setupVault();
+    makeSliceHub(vault, "myproject", "MYPROJECT-001");
+    makeResearchFile(vault, "myproject", "myproject-001-legacy.md");
+
+    const result = await d(vault, "myproject", "MYPROJECT-001");
+    expect(result.patch.research).toBeDefined();
+    expect(result.findings.some((finding) => finding.phase === "research" && finding.message.includes("deprecated basename"))).toBe(true);
   });
 });
 
@@ -324,6 +363,36 @@ describe("deriveForgeLedgerFromArtifacts — tdd phase", () => {
     expect(result.patch.tdd).toBeDefined();
     expect(result.patch.tdd?.tddEvidence).toHaveLength(1);
     expect(result.patch.tdd?.tddEvidence?.[0]).toContain("test-plan.md");
+  });
+
+  test("skips tdd phase when test-plan has no Red Tests section", async () => {
+    const vault = setupVault();
+    makeSliceHub(vault, "myproject", "MYPROJECT-001");
+    makePlan(vault, "myproject", "MYPROJECT-001", "ready");
+    const dir = join(vault, "projects", "myproject", "specs", "slices", "MYPROJECT-001");
+    writeFileSync(
+      join(dir, "test-plan.md"),
+      "---\ntitle: MYPROJECT-001 test-plan\ntype: spec\nspec_kind: test-plan\nproject: myproject\ntask_id: MYPROJECT-001\nupdated: '2026-04-17T00:00:00.000Z'\nstatus: ready\nverification_commands:\n  - command: bun test\n---\n\n# Test Plan\n\n## Verification Commands\n\n```bash\nbun test\n```\n",
+      "utf8",
+    );
+
+    const result = await d(vault, "myproject", "MYPROJECT-001");
+    expect(result.patch.tdd).toBeUndefined();
+  });
+
+  test("skips tdd phase when verification_commands frontmatter is empty", async () => {
+    const vault = setupVault();
+    makeSliceHub(vault, "myproject", "MYPROJECT-001");
+    makePlan(vault, "myproject", "MYPROJECT-001", "ready");
+    const dir = join(vault, "projects", "myproject", "specs", "slices", "MYPROJECT-001");
+    writeFileSync(
+      join(dir, "test-plan.md"),
+      "---\ntitle: MYPROJECT-001 test-plan\ntype: spec\nspec_kind: test-plan\nproject: myproject\ntask_id: MYPROJECT-001\nupdated: '2026-04-17T00:00:00.000Z'\nstatus: ready\nverification_commands: []\n---\n\n# Test Plan\n\n## Red Tests\n\n- [x] it works\n",
+      "utf8",
+    );
+
+    const result = await d(vault, "myproject", "MYPROJECT-001");
+    expect(result.patch.tdd).toBeUndefined();
   });
 
   test("skips tdd phase when plan.md is draft", async () => {
@@ -513,6 +582,27 @@ describe("deriveForgeLedgerFromArtifacts — graceful degradation", () => {
 });
 
 describe("applyDerivedLedger — audit log emission", () => {
+  test("authored hub ledger overrides derived detection and emits an override log entry", async () => {
+    const vault = setupVault();
+    makeSliceHub(vault, "myproject", "MYPROJECT-001");
+
+    const authored: Partial<ForgeWorkflowLedger> = {
+      project: "myproject",
+      sliceId: "MYPROJECT-001",
+      research: {
+        completedAt: "2026-04-01T00:00:00.000Z",
+        researchRefs: ["projects/myproject/research/manual.md"],
+      },
+    };
+
+    const { merged } = await applyDerivedLedger(authored, "myproject", "MYPROJECT-001", vault);
+    expect(merged.research?.completedAt).toBe("2026-04-01T00:00:00.000Z");
+
+    const log = readFileSync(join(vault, "log.md"), "utf8");
+    expect(log).toContain("forge-ledger-override | MYPROJECT-001");
+    expect(log).toContain("phase=research");
+  });
+
   test("merges derived tdd phase when authored ledger lacks it", async () => {
     const vault = setupVault();
     makeSliceHub(vault, "myproject", "MYPROJECT-001", { parent_prd: "PRD-001", parent_feature: "FEAT-001" });

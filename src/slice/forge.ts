@@ -148,7 +148,10 @@ export async function collectForgeStatus(project: string, sliceId: string) {
       .map((entry) => entry && typeof entry === "object" && typeof (entry as Record<string, unknown>).command === "string" ? String((entry as Record<string, unknown>).command) : null)
       .filter((value): value is string => Boolean(value))
     : [];
-  const tddReady = await detectTaskDocState(projectTaskTestPlanPath(project, sliceId)) === "ready" && Boolean(testPlan?.content.includes("## Red Tests"));
+  const planReady = await detectTaskDocState(projectTaskPlanPath(project, sliceId)) === "ready";
+  const testPlanReady = await detectTaskDocState(projectTaskTestPlanPath(project, sliceId)) === "ready";
+  const hasRedTestChecklist = /^\s*-\s*\[(?: |x|X)\]/mu.test(extractSection(testPlan?.content ?? "", "Red Tests"));
+  const tddReady = planReady && testPlanReady && hasRedTestChecklist && verificationCommands.length > 0;
   const authoredLedger: Partial<ForgeWorkflowLedger> = {
     project,
     sliceId,
@@ -158,17 +161,18 @@ export async function collectForgeStatus(project: string, sliceId: string) {
     ...(prdDoc && parentPrd ? { prd: { completedAt: readUpdated(prdDoc.data), prdRef: parentPrd, parentPrd } } : {}),
     ...(hub && plan && testPlan ? { slices: { completedAt: readUpdated(hub.data), sliceRefs: [sliceId] } } : {}),
     ...(tddReady ? { tdd: { completedAt: readUpdated(testPlan?.data), tddEvidence: [`projects/${project}/specs/slices/${sliceId}/test-plan.md#red-tests`] } } : {}),
-    ...(verificationCommands.length ? { verify: { completedAt: readUpdated(testPlan?.data), verificationCommands } } : {}),
   };
+  const hubLedger = readAuthoredHubLedger(hub?.data?.forge_workflow_ledger, project, sliceId);
+  const mergedAuthoredLedger = mergeAuthoredLedgers(authoredLedger, hubLedger);
   // PRD-056: merge artifact-detected ledger fields; authored fields win, derived fills gaps.
   // applyDerivedLedger is safe even if detection fails (degrades gracefully).
   let ledger: Partial<ForgeWorkflowLedger>;
   try {
-    const { merged } = await applyDerivedLedger(authoredLedger, project, sliceId);
+    const { merged } = await applyDerivedLedger(mergedAuthoredLedger, project, sliceId);
     ledger = merged;
   } catch {
     // Detection failure degrades gracefully — fall back to authored ledger
-    ledger = authoredLedger;
+    ledger = mergedAuthoredLedger;
   }
   const validation = validateForgeWorkflowLedger(ledger as ForgeWorkflowLedger);
   const verificationLevel = testPlan ? readVerificationLevel(testPlan.data) : null;
@@ -337,13 +341,17 @@ function renderForgeStatus(workflow: Awaited<ReturnType<typeof collectForgeStatu
   console.log(`- test-plan: ${workflow.testPlanStatus}`);
   console.log(`- verification level: ${workflow.verificationLevel ?? "none"}`);
   console.log(`- workflow next phase: ${workflow.workflow.validation.nextPhase ?? "complete"}`);
+  const nextPhaseStatus = workflow.workflow.validation.statuses.find((status) => status.phase === workflow.workflow.validation.nextPhase);
+  if (nextPhaseStatus?.missing.length) {
+    console.log(`  unmet: ${nextPhaseStatus.missing.join(", ")}`);
+  }
   console.log(`- next action: ${workflow.triage.command}`);
   console.log(`  reason: ${workflow.triage.reason}`);
   for (const status of workflow.workflow.validation.statuses) {
     let state = `blocked by ${status.blockedBy.join(", ")}`;
     if (status.completed) state = "done";
     else if (status.ready) state = "ready";
-    console.log(`  - ${status.phase}: ${state}${status.missing.length ? ` | missing ${status.missing.join(", ")}` : ""}`);
+    console.log(`  - ${status.phase}: ${state}${status.missing.length ? ` | unmet ${status.missing.join(", ")}` : ""}`);
   }
 }
 
@@ -351,6 +359,16 @@ function compactForgeStatusForJson(workflow: Awaited<ReturnType<typeof collectFo
   const { context, ...rest } = workflow;
   return {
     ...rest,
+    workflow: {
+      ...workflow.workflow,
+      validation: {
+        ...workflow.workflow.validation,
+        statuses: workflow.workflow.validation.statuses.map((status) => ({
+          ...status,
+          unmet: status.missing,
+        })),
+      },
+    },
     context: context
       ? {
           id: context.id,
@@ -365,6 +383,39 @@ function compactForgeStatusForJson(workflow: Awaited<ReturnType<typeof collectFo
         }
       : null,
   };
+}
+
+function readAuthoredHubLedger(
+  value: unknown,
+  project: string,
+  sliceId: string,
+): Partial<ForgeWorkflowLedger> {
+  if (!value || typeof value !== "object") return { project, sliceId };
+  const ledger = value as Record<string, unknown>;
+  const out: Partial<ForgeWorkflowLedger> = { project, sliceId };
+  for (const phase of ["research", "grill", "prd", "slices", "tdd", "verify"] as const) {
+    const phaseValue = ledger[phase];
+    if (phaseValue && typeof phaseValue === "object") {
+      (out as Record<string, unknown>)[phase] = phaseValue;
+    }
+  }
+  if (typeof ledger.parentPrd === "string") out.parentPrd = ledger.parentPrd;
+  return out;
+}
+
+function mergeAuthoredLedgers(
+  base: Partial<ForgeWorkflowLedger>,
+  override: Partial<ForgeWorkflowLedger>,
+): Partial<ForgeWorkflowLedger> {
+  const merged: Partial<ForgeWorkflowLedger> = { ...base, ...override };
+  for (const phase of ["research", "grill", "prd", "slices", "tdd", "verify"] as const) {
+    const basePhase = base[phase] as Record<string, unknown> | undefined;
+    const overridePhase = override[phase] as Record<string, unknown> | undefined;
+    if (basePhase || overridePhase) {
+      (merged as Record<string, unknown>)[phase] = { ...(basePhase ?? {}), ...(overridePhase ?? {}) };
+    }
+  }
+  return merged;
 }
 
 export async function forgeOpen(args: string[]) {
