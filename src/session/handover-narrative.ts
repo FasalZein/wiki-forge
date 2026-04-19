@@ -1,4 +1,5 @@
 import { type PipelineProgressEntry } from "../lib/slice-progress";
+import type { ForgeSteeringPacket } from "../lib/forge-steering";
 
 export type AutoCloseAttempt =
   | { sliceId: string; attempted: true; closed: true }
@@ -10,6 +11,7 @@ export type HandoverPromptContext = {
   repo: string;
   base: string;
   focus: { activeTask: { id: string; title: string } | null; recommendedTask: { id: string; title: string } | null; warnings: string[] };
+  steering: ForgeSteeringPacket | null;
   dirty: { modifiedFiles: string[]; untrackedFiles: string[]; stagedFiles: string[] };
   actions: Array<{ kind: string; message: string }>;
   sessionActivity: { totalCommands: number; commandCounts: Record<string, number> };
@@ -47,7 +49,8 @@ export function buildNextSessionPrompt(result: HandoverPromptContext): string {
   if (result.focus.activeTask) {
     lines.push(`Active slice: ${result.focus.activeTask.id} — ${result.focus.activeTask.title}. Continue this first.`);
   } else if (result.focus.recommendedTask) {
-    lines.push(`Next slice: ${result.focus.recommendedTask.id} — ${result.focus.recommendedTask.title}. Start with: wiki forge run ${result.project} ${result.focus.recommendedTask.id} --repo ${result.repo}`);
+    const nextCommand = result.steering?.nextCommand ?? `wiki forge run ${result.project} ${result.focus.recommendedTask.id} --repo ${result.repo}`;
+    lines.push(`Next slice: ${result.focus.recommendedTask.id} — ${result.focus.recommendedTask.title}. Start with: ${nextCommand}`);
   }
   const priorityActions = result.actions.filter((action) => !action.kind.startsWith("move-doc")).slice(0, 3);
   if (priorityActions.length) {
@@ -88,7 +91,8 @@ export function buildShortPrompt(result: HandoverPromptContext): string {
   if (focusId) {
     lines.push("");
     lines.push(result.focus.activeTask ? "Then continue the active slice:" : "Then continue the tracked backlog, starting with:");
-    lines.push(`  wiki forge run ${result.project} ${focusId} --repo ${result.repo} --base ${result.base}`);
+    lines.push(`  ${result.steering?.nextCommand ?? `wiki forge run ${result.project} ${focusId} --repo ${result.repo} --base ${result.base}`}`);
+    if (result.steering?.loadSkill) lines.push(`  load ${result.steering.loadSkill}`);
   }
 
   const contextLines = [

@@ -1,6 +1,7 @@
 import { relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { parseProjectRepoBaseArgs } from "../git-utils";
+import { collectForgeStatus } from "../protocol";
 import { collectSessionActivity, resolveSessionId } from "../lib/tracker";
 import { collectBacklog } from "../hierarchy";
 import { collectMaintenancePlan } from "../maintenance";
@@ -91,6 +92,8 @@ export async function handoverProject(args: string[]) {
     collectRecentCommits(maintain.repo, 5),
     collectCommitsSinceBase(maintain.repo, options.base, 20),
   ]);
+  const focusTask = maintain.focus.activeTask ?? maintain.focus.recommendedTask;
+  const focusWorkflow = focusTask ? await collectForgeStatus(options.project, focusTask.id, maintain.repo).catch(() => null) : null;
   const pipelineProgress = maintain.focus.activeTask
     ? await readSlicePipelineProgress(options.project, maintain.focus.activeTask.id)
     : null;
@@ -102,6 +105,7 @@ export async function handoverProject(args: string[]) {
     repo: maintain.repo,
     base: options.base,
     focus: maintain.focus,
+    steering: focusWorkflow?.steering ?? null,
     backlog: Object.fromEntries(Object.entries(backlog.sections).map(([section, items]) => [section, items.length])),
     dirty,
     sessionActivity,

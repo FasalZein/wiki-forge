@@ -64,6 +64,28 @@ describe("backlog projection from slice docs", () => {
     expect((json.sections.Done ?? []).some((item: { id: string }) => item.id === "DEMO-001")).toBe(false);
   });
 
+  test("projects a cancelled slice into Cancelled and removes it from forge next", () => {
+    const vault = tempDir("wiki-vault");
+    initVault(vault);
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice"], env).exitCode).toBe(0);
+    expect(runWiki(["close-slice", "demo", "DEMO-001", "--superseded-by", "DEMO-999"], env).exitCode).toBe(0);
+
+    const backlog = runWiki(["backlog", "demo", "--json"], env);
+    expect(backlog.exitCode).toBe(0);
+    const json = JSON.parse(backlog.stdout.toString());
+    expect(json.sections.Cancelled[0].id).toBe("DEMO-001");
+    expect((json.sections.Todo ?? []).some((item: { id: string }) => item.id === "DEMO-001")).toBe(false);
+
+    const next = runWiki(["forge", "next", "demo", "--json"], env);
+    expect(next.exitCode).toBe(0);
+    const nextJson = JSON.parse(next.stdout.toString());
+    expect(nextJson.targetSlice).toBeNull();
+    expect(nextJson.action).toBe("no ready slices");
+  });
+
   test("next treats slice docs as the active lifecycle source even when backlog text was not moved", () => {
     const { vault } = setupPassingRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };

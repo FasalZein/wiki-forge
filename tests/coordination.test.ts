@@ -141,7 +141,8 @@ describe("wiki coordination commands", () => {
     expect(json.dirty.untrackedFiles).toContain("src/new.ts");
     expect(json.shortPrompt).toContain("Load /wiki and /forge.");
     expect(json.shortPrompt).toContain("wiki resume demo --repo");
-    expect(json.shortPrompt).toContain("wiki forge run demo DEMO-001");
+    expect(json.shortPrompt).toContain("/research");
+    expect(json.shortPrompt).not.toContain("wiki forge run demo DEMO-001");
     expect(Array.isArray(json.accomplishments)).toBe(true);
     expect(Array.isArray(json.blockers)).toBe(true);
     expect(json.recentNotes.some((entry: string) => entry.includes("left off at parser"))).toBe(true);
@@ -175,6 +176,35 @@ describe("wiki coordination commands", () => {
     expect(priorityIdx).toBeGreaterThan(shortPromptIdx);
     expect(priorityIdx).toBeGreaterThan(0);
     expect(summaryIdx).toBeGreaterThan(priorityIdx);
+  });
+
+  test("handover short prompt uses steering when the next slice is still in pre-implementation phases", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice"], env).exitCode).toBe(0);
+
+    const planPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "plan.md");
+    const testPlanPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "test-plan.md");
+    writeFileSync(
+      planPath,
+      "---\ntitle: demo plan\ntype: spec\nspec_kind: plan\nproject: demo\ntask_id: DEMO-001\nstatus: ready\nupdated: 2026-04-20\n---\n\n# Plan\n\n## Scope\n\n- auth slice\n\n## Vertical Slice\n\n1. (fill in during TDD)\n2. (fill in during TDD)\n3. (fill in during TDD)\n\n## Acceptance Criteria\n\n- [ ] implement requirements from PRD-001 auth slice\n",
+      "utf8",
+    );
+    writeFileSync(
+      testPlanPath,
+      "---\ntitle: demo test plan\ntype: spec\nspec_kind: test-plan\nproject: demo\ntask_id: DEMO-001\nstatus: ready\nupdated: 2026-04-20\nverification_commands:\n  - command: bun test\n---\n\n# Test Plan\n\n## Red Tests\n\n- [ ] implement requirements from PRD-001 auth slice\n\n## Green Criteria\n\n- [ ] All red tests pass\n- [ ] No regressions in existing test suite\n\n## Refactor Checks\n\n- [ ] confirm no regressions in adjacent code paths\n",
+      "utf8",
+    );
+
+    const result = runWiki(["handover", "demo", "--repo", repo, "--base", "HEAD~1", "--json", "--no-write"], env);
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.steering.lane).toBe("domain-work");
+    expect(json.shortPrompt).toContain("/research");
+    expect(json.shortPrompt).not.toContain("wiki forge run demo DEMO-001");
   });
 
   test("handover stdout survives tail -N: pointer at top, prompt at end, path as last line", () => {

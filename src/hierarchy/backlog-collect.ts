@@ -60,6 +60,7 @@ async function projectBacklogSections(project: string, sections: Record<string, 
 function projectTaskSectionFromSliceSummary(section: string, status: string | null, completedAt: string | null) {
   if (status === "done" || completedAt) return "Done";
   if (status === "in-progress") return "In Progress";
+  if (status === "cancelled") return "Cancelled";
   return section;
 }
 
