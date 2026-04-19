@@ -9,6 +9,67 @@ afterEach(() => {
   cleanupTempPaths();
 });
 
+function seedReadyPaymentsSlice(vault: string, project: string, sliceId: string) {
+  const planPath = join(vault, "projects", project, "specs", "slices", sliceId, "plan.md");
+  const testPlanPath = join(vault, "projects", project, "specs", "slices", sliceId, "test-plan.md");
+  writeFileSync(
+    planPath,
+    [
+      "---",
+      `title: ${sliceId} payments slice`,
+      "type: spec",
+      "spec_kind: plan",
+      `project: ${project}`,
+      `task_id: ${sliceId}`,
+      "updated: 2026-04-18",
+      "status: current",
+      "---",
+      "",
+      `# ${sliceId} payments slice`,
+      "",
+      "## Scope",
+      "",
+      "- Ship the payments change",
+      "",
+      "## Acceptance Criteria",
+      "",
+      "- [ ] Payments total stays correct",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  writeFileSync(
+    testPlanPath,
+    [
+      "---",
+      `title: ${sliceId} payments slice`,
+      "type: spec",
+      "spec_kind: test-plan",
+      `project: ${project}`,
+      `task_id: ${sliceId}`,
+      "updated: 2026-04-18",
+      "status: current",
+      "verification_level: test-verified",
+      "---",
+      "",
+      `# ${sliceId} payments slice`,
+      "",
+      "## Red Tests",
+      "",
+      "- [x] Payments behavior is covered through the public API.",
+      "",
+      "## Verification Commands",
+      "",
+      "```bash",
+      "# label: payments tests",
+      "bun test tests/payments.test.ts",
+      "```",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+}
+
 describe("e2e full lifecycle", () => {
   test("forge plan through forge run through forge next completes the 0-to-Z lifecycle", () => {
     const { vault, repo } = setupPassingRepo();
@@ -226,6 +287,49 @@ describe("e2e full lifecycle", () => {
     const indexPath = join(vault, "projects", "autofull", "specs", "slices", "AUTOFULL-001", "index.md");
     const indexContent = readFileSync(indexPath, "utf8");
     expect(indexContent).toContain("pipeline_progress:");
+  });
+
+  test("multi-slice flow adopts the next slice after the current one closes", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "multiflow"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "multiflow");
+
+    const plan = runWiki(
+      ["forge", "plan", "multiflow", "Multi Flow", "--slices", "foundation,adoption,verification", "--agent", "codex", "--repo", repo],
+      env,
+    );
+    expect(plan.exitCode).toBe(0);
+
+    for (const sliceId of ["MULTIFLOW-001", "MULTIFLOW-002", "MULTIFLOW-003"]) {
+      seedReadyPaymentsSlice(vault, "multiflow", sliceId);
+      expect(runWiki(["bind", "multiflow", `specs/slices/${sliceId}/index.md`, "src/payments.ts"], env).exitCode).toBe(0);
+    }
+
+    const secondIndex = matter(readFileSync(join(vault, "projects", "multiflow", "specs", "slices", "MULTIFLOW-002", "index.md"), "utf8"));
+    const thirdIndex = matter(readFileSync(join(vault, "projects", "multiflow", "specs", "slices", "MULTIFLOW-003", "index.md"), "utf8"));
+    expect(secondIndex.data.depends_on).toEqual(["MULTIFLOW-001"]);
+    expect(thirdIndex.data.depends_on).toEqual(["MULTIFLOW-002"]);
+
+    const firstRun = runWiki(["forge", "run", "multiflow", "MULTIFLOW-001", "--repo", repo, "--json"], env);
+    expect(firstRun.exitCode).toBe(0);
+    const firstRunJson = JSON.parse(firstRun.stdout.toString());
+    expect(firstRunJson.close.ok).toBe(true);
+
+    const next = runWiki(["forge", "next", "multiflow", "--json"], env);
+    expect(next.exitCode).toBe(0);
+    const nextJson = JSON.parse(next.stdout.toString());
+    expect(nextJson.targetSlice).toBe("MULTIFLOW-002");
+    expect(nextJson.active).toBe(false);
+    expect(nextJson.triage.command).toContain("wiki forge run multiflow MULTIFLOW-002");
+
+    const resume = runWiki(["resume", "multiflow", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(resume.exitCode).toBe(0);
+    const resumeJson = JSON.parse(resume.stdout.toString());
+    expect(resumeJson.activeTask).toBeNull();
+    expect(resumeJson.nextTask.id).toBe("MULTIFLOW-002");
+    expect(resumeJson.triage.command).toContain("wiki forge run multiflow MULTIFLOW-002");
   });
 });
 

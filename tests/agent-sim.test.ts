@@ -165,4 +165,40 @@ describe("agent-driven simulator follows triage to terminal state", () => {
       `should not converge on a broken slice, saw: ${observedTriages.join(",")}`,
     ).toBe(true);
   });
+
+  test("simulator closes a sequential multi-slice chain using only resume triage", { timeout: 15000 }, () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "simmulti"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "simmulti");
+
+    const plan = runWiki(
+      ["forge", "plan", "simmulti", "Multi Slice", "--slices", "foundation,adoption,verification", "--agent", "codex", "--repo", repo],
+      env,
+    );
+    expect(plan.exitCode).toBe(0);
+
+    for (const sliceId of ["SIMMULTI-001", "SIMMULTI-002", "SIMMULTI-003"]) {
+      seedReadySlice(vault, "simmulti", sliceId);
+      expect(runWiki(["bind", "simmulti", `specs/slices/${sliceId}/index.md`, "src/payments.ts"], env).exitCode).toBe(0);
+    }
+
+    const result = runAgentSim("simmulti", repo, "HEAD~1", env, { stepBudget: 12 });
+
+    expect(result.converged, JSON.stringify(result, null, 2)).toBe(true);
+    expect(result.steps.length).toBeGreaterThan(3);
+    expect(result.steps.every((step) => step.exitCode === 0)).toBe(true);
+
+    const backlog = JSON.parse(runWiki(["backlog", "simmulti", "--json"], env).stdout.toString());
+    const doneIds = (backlog.sections.Done ?? []).map((task: { id: string }) => task.id);
+    expect(doneIds).toContain("SIMMULTI-001");
+    expect(doneIds).toContain("SIMMULTI-002");
+    expect(doneIds).toContain("SIMMULTI-003");
+    expect(doneIds).toHaveLength(3);
+
+    const finalResume = JSON.parse(runWiki(["resume", "simmulti", "--repo", repo, "--base", "HEAD~1", "--json"], env).stdout.toString());
+    expect(finalResume.activeTask).toBeNull();
+    expect(finalResume.nextTask).toBeNull();
+  });
 });
