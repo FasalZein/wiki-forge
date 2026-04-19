@@ -20,6 +20,50 @@
           ]
         }
       }
+    },
+    "workflow": {
+      "type": "object",
+      "description": "Workflow-layer knobs for forge steering and skill routing.",
+      "additionalProperties": true,
+      "properties": {
+        "phaseSkills": {
+          "type": "object",
+          "description": "Skill aliases to surface for each forge phase. These values steer agents and prompts; they do not execute commands automatically.",
+          "additionalProperties": true,
+          "properties": {
+            "research": {
+              "type": "string",
+              "description": "Skill alias to recommend when the research phase is next.",
+              "examples": ["/research"]
+            },
+            "domainModel": {
+              "type": "string",
+              "description": "Skill alias to recommend when the domain-model phase is next.",
+              "examples": ["/domain-model"]
+            },
+            "prd": {
+              "type": "string",
+              "description": "Skill alias to recommend when the PRD phase is next.",
+              "examples": ["/write-a-prd"]
+            },
+            "slices": {
+              "type": "string",
+              "description": "Skill alias to recommend when slice decomposition is next.",
+              "examples": ["/prd-to-slices"]
+            },
+            "tdd": {
+              "type": "string",
+              "description": "Skill alias to recommend when implementation/TDD is next.",
+              "examples": ["/tdd"]
+            },
+            "verify": {
+              "type": "string",
+              "description": "Skill alias to recommend when verification/quality review is next.",
+              "examples": ["/desloppify"]
+            }
+          }
+        }
+      }
     }
   }
 }

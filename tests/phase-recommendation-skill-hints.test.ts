@@ -81,4 +81,58 @@ describe("phase recommendation skill hints", () => {
     expect(json.exitCode).toBe(0);
     expect(json.json<{ triage: { loadSkill?: string } }>().triage.loadSkill).toBe("/research");
   });
+
+  test("resume uses the repo-configured research skill alias", () => {
+    const vault = tempDir("phase-hints-config-vault");
+    const repo = tempDir("phase-hints-config-repo");
+    initVault(vault);
+    mkdirSync(join(repo, "src"), { recursive: true });
+    writeFileSync(join(repo, "wiki.config.jsonc"), `{ "workflow": { "phaseSkills": { "research": "/custom-research" } } }`, "utf8");
+    writeFileSync(join(repo, "src", "auth.ts"), "export const auth = 1\n", "utf8");
+    runGit(repo, ["init", "-q"]);
+    runGit(repo, ["add", "."]);
+    runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
+    writeFileSync(join(repo, "src", "auth.ts"), "export const auth = 2\n", "utf8");
+    runGit(repo, ["add", "."]);
+    runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "second"]);
+
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+    expect(runWiki(["scaffold-project", "skillcfg"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "skillcfg");
+    expect(runWiki(["create-issue-slice", "skillcfg", "auth slice"], env).exitCode).toBe(0);
+    expect(runWiki(["forge", "start", "skillcfg", "SKILLCFG-001", "--agent", "codex", "--repo", repo], env).exitCode).toBe(0);
+
+    const text = runWiki(["resume", "skillcfg", "--repo", repo], env);
+    expect(text.exitCode).toBe(0);
+    expect(text.stdout.toString()).toContain("load-skill: /custom-research");
+
+    const json = runWiki(["resume", "skillcfg", "--repo", repo, "--json"], env);
+    expect(json.exitCode).toBe(0);
+    expect(json.json<{ triage: { loadSkill?: string } }>().triage.loadSkill).toBe("/custom-research");
+  });
+
+  test("project config can override the surfaced phase skill without code changes", () => {
+    const repo = tempDir("phase-skill-config");
+    writeFileSync(join(repo, "wiki.config.jsonc"), `{ "workflow": { "phaseSkills": { "research": "/custom-research", "domainModel": "/custom-domain" } } }`, "utf8");
+
+    const research = phaseRecommendation("demo", "DEMO-001", "research", repo);
+    expect(research.loadSkill).toBe("/custom-research");
+    expect(research.command).toContain("/custom-research");
+
+    const domainModel = phaseRecommendation("demo", "DEMO-001", "domain-model", repo);
+    expect(domainModel.loadSkill).toBe("/custom-domain");
+    expect(domainModel.command).toContain("/custom-domain");
+
+    const triage = buildForgeTriage("demo", "DEMO-001", {
+      activeSlice: "DEMO-001",
+      sliceStatus: "in-progress",
+      section: "In Progress",
+      planStatus: "missing",
+      testPlanStatus: "missing",
+      verificationLevel: null,
+      nextPhase: "research",
+      repo,
+    });
+    expect(triage.loadSkill).toBe("/custom-research");
+  });
 });

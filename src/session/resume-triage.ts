@@ -42,7 +42,7 @@ export const TRIAGE_RULES: TriageRule[] = [
     kind: "needs-research",
     priority: 20,
     when: ({ activeTask, nextTask, earlyPhase, workflowNextPhase }) => Boolean((activeTask ?? nextTask) && earlyPhase && workflowNextPhase && workflowNextPhase !== "verify"),
-    build: ({ project, activeTask, nextTask, workflowNextPhase }) => phaseRecommendation(project, (activeTask ?? nextTask)!.id, workflowNextPhase!),
+    build: ({ project, repo, activeTask, nextTask, workflowNextPhase }) => phaseRecommendation(project, (activeTask ?? nextTask)!.id, workflowNextPhase!, repo),
   },
   {
     kind: "continue-active-slice",

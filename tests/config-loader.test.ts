@@ -23,11 +23,15 @@ function setupLayers(opts: { systemJsonc?: string; projectJsonc?: string } = {})
 }
 
 describe("loadConfig — zero-config baseline", () => {
-  test("no files anywhere: every leaf has source 'default' and repo.ignore is empty", () => {
+  test("no files anywhere: every leaf has source 'default' and defaults are populated", () => {
     const { cwd, home } = setupLayers();
     const config = loadConfig(cwd, home);
     expect(config.repo.ignore.value).toEqual([]);
     expect(config.repo.ignore.source).toBe("default");
+    expect(config.workflow.phaseSkills.research.value).toBe("/research");
+    expect(config.workflow.phaseSkills.domainModel.value).toBe("/domain-model");
+    expect(config.workflow.phaseSkills.verify.value).toBe("/desloppify");
+    expect(config.workflow.phaseSkills.research.source).toBe("default");
   });
 });
 
@@ -49,6 +53,16 @@ describe("loadConfig — layer precedence", () => {
     const config = loadConfig(cwd, home);
     expect(config.repo.ignore.value).toEqual(["b/**"]);
     expect(config.repo.ignore.source).toBe("project");
+  });
+
+  test("workflow.phaseSkills project leaf overrides system leaf", () => {
+    const { cwd, home } = setupLayers({
+      systemJsonc: `{ "workflow": { "phaseSkills": { "research": "/system-research" } } }`,
+      projectJsonc: `{ "workflow": { "phaseSkills": { "research": "/project-research" } } }`,
+    });
+    const config = loadConfig(cwd, home);
+    expect(config.workflow.phaseSkills.research.value).toBe("/project-research");
+    expect(config.workflow.phaseSkills.research.source).toBe("project");
   });
 });
 
@@ -88,6 +102,19 @@ describe("loadConfig — type validation", () => {
   test("repo.ignore with non-string element also rejected", () => {
     const { cwd, home } = setupLayers({ projectJsonc: `{ "repo": { "ignore": ["ok/**", 3] } }` });
     expect(() => loadConfig(cwd, home)).toThrow(WikiConfigError);
+  });
+
+  test("workflow.phaseSkills.research must be a string", () => {
+    const { cwd, home } = setupLayers({ projectJsonc: `{ "workflow": { "phaseSkills": { "research": ["/research"] } } }` });
+    let thrown: unknown;
+    try {
+      loadConfig(cwd, home);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(WikiConfigError);
+    expect((thrown as Error).message).toContain("workflow.phaseSkills.research");
+    expect((thrown as Error).message).toContain("string");
   });
 });
 

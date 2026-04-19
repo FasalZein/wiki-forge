@@ -56,7 +56,7 @@ export async function resumeProject(args: string[]) {
   const handoff = maintain.focus.activeTask ? await readSliceHandoff(options.project, maintain.focus.activeTask.id) : null;
   const focusSliceId = maintain.focus.activeTask?.id ?? maintain.focus.recommendedTask?.id ?? null;
   const focusTask = maintain.focus.activeTask ?? maintain.focus.recommendedTask;
-  const focusWorkflow = focusSliceId ? await collectForgeStatus(options.project, focusSliceId).catch(() => null) : null;
+  const focusWorkflow = focusSliceId ? await collectForgeStatus(options.project, focusSliceId, repo).catch(() => null) : null;
   const workflowNextPhase = focusWorkflow?.workflow.validation.nextPhase ?? null;
   const earlyPhase = focusTask ? !isSliceDocsReady(focusTask) : false;
 

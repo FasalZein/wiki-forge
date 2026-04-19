@@ -14,6 +14,7 @@ describe("wiki config --effective", () => {
     expect(result.exitCode).toBe(0);
     const out = result.stdout.toString();
     expect(out).toContain("repo.ignore");
+    expect(out).toContain("workflow.phaseSkills.research");
     expect(out).toContain("default");
     expect(out).not.toContain("project");
   });
@@ -25,16 +26,20 @@ describe("wiki config --effective", () => {
     const parsed = JSON.parse(result.stdout.toString());
     expect(parsed.repo.ignore.source).toBe("default");
     expect(parsed.repo.ignore.value).toEqual([]);
+    expect(parsed.workflow.phaseSkills.research.value).toBe("/research");
+    expect(parsed.workflow.phaseSkills.verify.value).toBe("/desloppify");
   });
 
   test("project config annotates configured leaf as 'project'", () => {
     const repo = tempDir("wiki-config-cli-project");
-    writeFileSync(join(repo, "wiki.config.jsonc"), `{ "repo": { "ignore": ["docs/**"] } }`, "utf8");
+    writeFileSync(join(repo, "wiki.config.jsonc"), `{ "repo": { "ignore": ["docs/**"] }, "workflow": { "phaseSkills": { "research": "/custom-research" } } }`, "utf8");
     const result = runWiki(["config", "--effective", "--json", "--repo", repo], { HOME: repo });
     expect(result.exitCode).toBe(0);
     const parsed = JSON.parse(result.stdout.toString());
     expect(parsed.repo.ignore.source).toBe("project");
     expect(parsed.repo.ignore.value).toEqual(["docs/**"]);
+    expect(parsed.workflow.phaseSkills.research.source).toBe("project");
+    expect(parsed.workflow.phaseSkills.research.value).toBe("/custom-research");
   });
 
   test("malformed jsonc exits 1 with parse error containing file path", () => {

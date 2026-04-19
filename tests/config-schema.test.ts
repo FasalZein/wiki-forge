@@ -18,6 +18,13 @@ describe("schemas/wiki.config.schema.json", () => {
     expect(parsed.properties.repo.properties.ignore.items.type).toBe("string");
   });
 
+  test("describes workflow.phaseSkills as string leaves", () => {
+    const parsed = JSON.parse(readFileSync(schemaPath, "utf8"));
+    expect(parsed.properties.workflow.properties.phaseSkills.properties.research.type).toBe("string");
+    expect(parsed.properties.workflow.properties.phaseSkills.properties.domainModel.type).toBe("string");
+    expect(parsed.properties.workflow.properties.phaseSkills.properties.verify.type).toBe("string");
+  });
+
   test("$id is a well-formed URL so editors can resolve it", () => {
     const parsed = JSON.parse(readFileSync(schemaPath, "utf8"));
     expect(() => new URL(parsed.$id)).not.toThrow();

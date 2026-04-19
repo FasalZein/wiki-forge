@@ -36,13 +36,14 @@ type ForgeTriageInput = {
   testPlanStatus: string;
   verificationLevel: string | null;
   nextPhase: ForgePhase | null;
+  repo?: string;
 };
 
 export function isSliceDocsReady(task: Pick<BacklogTaskContext, "planStatus" | "testPlanStatus"> | null | undefined) {
   return task?.planStatus === "ready" && task.testPlanStatus === "ready";
 }
 
-export async function collectForgeStatus(project: string, sliceId: string) {
+export async function collectForgeStatus(project: string, sliceId: string, repo?: string) {
   const [focus, context, hub, plan, testPlan, decisionRefs] = await Promise.all([
     collectBacklogFocus(project),
     collectTaskContextForId(project, sliceId),
@@ -100,6 +101,7 @@ export async function collectForgeStatus(project: string, sliceId: string) {
     testPlanStatus: context?.testPlanStatus ?? "missing",
     verificationLevel,
     nextPhase: validation.nextPhase ?? null,
+    repo,
   });
   return {
     project,
@@ -137,7 +139,7 @@ export function buildForgeTriage(project: string, sliceId: string, input: ForgeT
     testPlanStatus: input.testPlanStatus as TaskDocState,
   });
   if (!docsReady && input.nextPhase) {
-    return phaseRecommendation(project, sliceId, input.nextPhase);
+    return phaseRecommendation(project, sliceId, input.nextPhase, input.repo);
   }
   if (!docsReady) {
     return {

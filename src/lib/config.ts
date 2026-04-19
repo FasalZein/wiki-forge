@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { parse as parseJsonc, printParseErrorCode, type ParseError } from "jsonc-parser";
+import type { ForgePhase } from "./forge-ledger";
 
 export type ConfigSource = "default" | "system" | "project";
 
@@ -13,6 +14,16 @@ export interface ConfigLeaf<T> {
 export interface ResolvedConfig {
   repo: {
     ignore: ConfigLeaf<string[]>;
+  };
+  workflow: {
+    phaseSkills: {
+      research: ConfigLeaf<string>;
+      domainModel: ConfigLeaf<string>;
+      prd: ConfigLeaf<string>;
+      slices: ConfigLeaf<string>;
+      tdd: ConfigLeaf<string>;
+      verify: ConfigLeaf<string>;
+    };
   };
 }
 
@@ -29,11 +40,29 @@ export class WikiConfigError extends Error {
   }
 }
 
-const KNOWN_LEAF_PATHS = new Set(["repo.ignore"]);
+const KNOWN_LEAF_PATHS = new Set([
+  "repo.ignore",
+  "workflow.phaseSkills.research",
+  "workflow.phaseSkills.domainModel",
+  "workflow.phaseSkills.prd",
+  "workflow.phaseSkills.slices",
+  "workflow.phaseSkills.tdd",
+  "workflow.phaseSkills.verify",
+]);
 
 const DEFAULT_CONFIG: ResolvedConfig = {
   repo: {
     ignore: { value: [], source: "default" },
+  },
+  workflow: {
+    phaseSkills: {
+      research: { value: "/research", source: "default" },
+      domainModel: { value: "/domain-model", source: "default" },
+      prd: { value: "/write-a-prd", source: "default" },
+      slices: { value: "/prd-to-slices", source: "default" },
+      tdd: { value: "/tdd", source: "default" },
+      verify: { value: "/desloppify", source: "default" },
+    },
   },
 };
 
@@ -41,6 +70,16 @@ function defaultConfig(): ResolvedConfig {
   return {
     repo: {
       ignore: { value: [...DEFAULT_CONFIG.repo.ignore.value], source: "default" },
+    },
+    workflow: {
+      phaseSkills: {
+        research: { value: DEFAULT_CONFIG.workflow.phaseSkills.research.value, source: "default" },
+        domainModel: { value: DEFAULT_CONFIG.workflow.phaseSkills.domainModel.value, source: "default" },
+        prd: { value: DEFAULT_CONFIG.workflow.phaseSkills.prd.value, source: "default" },
+        slices: { value: DEFAULT_CONFIG.workflow.phaseSkills.slices.value, source: "default" },
+        tdd: { value: DEFAULT_CONFIG.workflow.phaseSkills.tdd.value, source: "default" },
+        verify: { value: DEFAULT_CONFIG.workflow.phaseSkills.verify.value, source: "default" },
+      },
     },
   };
 }
@@ -126,6 +165,18 @@ function applyLayer(
       config.repo.ignore = { value: value as string[], source };
       return;
     }
+    if (path.startsWith("workflow.phaseSkills.")) {
+      if (typeof value !== "string") {
+        throw new WikiConfigError(
+          `invalid config in ${filePath}: key '${path}' expected type 'string'`,
+        );
+      }
+      const key = path.slice("workflow.phaseSkills.".length);
+      if (key === "research" || key === "domainModel" || key === "prd" || key === "slices" || key === "tdd" || key === "verify") {
+        config.workflow.phaseSkills[key] = { value, source };
+        return;
+      }
+    }
     warnings.push(`warn: ${filePath}: unknown key '${path}' (ignored)`);
   });
 }
@@ -155,6 +206,14 @@ function isPlainObject(x: unknown): x is Record<string, unknown> {
 
 export function ignorePatterns(config: ResolvedConfig): string[] {
   return config.repo.ignore.value;
+}
+
+function phaseSkillKey(phase: ForgePhase): keyof ResolvedConfig["workflow"]["phaseSkills"] {
+  return phase === "domain-model" ? "domainModel" : phase;
+}
+
+export function phaseSkill(config: ResolvedConfig, phase: ForgePhase): ConfigLeaf<string> {
+  return config.workflow.phaseSkills[phaseSkillKey(phase)];
 }
 
 export function matchesAnyIgnore(relPath: string, patterns: string[]): boolean {

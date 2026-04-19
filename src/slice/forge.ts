@@ -25,7 +25,7 @@ export async function forgeStart(args: string[]) {
 
 export async function forgeCheck(args: string[]) {
   const parsed = await parseForgeArgs(args, "check");
-  const workflow = await collectForgeStatus(parsed.project, parsed.sliceId);
+  const workflow = await collectForgeStatus(parsed.project, parsed.sliceId, parsed.repo);
   const result = await runPipeline({
     project: parsed.project,
     sliceId: parsed.sliceId,
@@ -47,7 +47,7 @@ export async function forgeCheck(args: string[]) {
 
 export async function forgeClose(args: string[]) {
   const parsed = await parseForgeArgs(args, "close");
-  const workflow = await collectForgeStatus(parsed.project, parsed.sliceId);
+  const workflow = await collectForgeStatus(parsed.project, parsed.sliceId, parsed.repo);
   const result = await runPipeline({
     project: parsed.project,
     sliceId: parsed.sliceId,
@@ -65,7 +65,7 @@ export async function forgeClose(args: string[]) {
 
 export async function forgeStatus(args: string[]) {
   const parsed = await parseForgeArgs(args, "status");
-  const workflow = await collectForgeStatus(parsed.project, parsed.sliceId);
+  const workflow = await collectForgeStatus(parsed.project, parsed.sliceId, parsed.repo);
   if (parsed.json) console.log(JSON.stringify(compactForgeStatusForJson(workflow), null, 2));
   else renderForgeStatus(workflow);
 }
@@ -452,6 +452,7 @@ export async function forgeNext(args: string[]) {
   const promptFlag = args.includes("--prompt");
   const promptJson = args.includes("--prompt-json");
   const all = args.includes("--all");
+  const repo = readFlagValue(args, "--repo");
 
   if (all && !promptJson) {
     throw new Error("--all requires --prompt-json");
@@ -475,7 +476,7 @@ export async function forgeNext(args: string[]) {
     return;
   }
 
-  const workflow = await collectForgeStatus(project, targetId);
+  const workflow = await collectForgeStatus(project, targetId, repo);
 
   if (promptJson || promptFlag) {
     const promptData = await buildSlicePromptData(project, targetId, workflow, activeId !== null);
@@ -734,7 +735,7 @@ function classifyStepFailure(stepId: string, error: string | null): string {
 export async function forgeRun(args: string[]) {
   const parsed = await parseForgeArgs(args, "run");
 
-  const preWorkflow = await collectForgeStatus(parsed.project, parsed.sliceId);
+  const preWorkflow = await collectForgeStatus(parsed.project, parsed.sliceId, parsed.repo);
   if (preWorkflow.steering.lane !== "verify-close") {
     const payload = {
       ok: false,
@@ -772,7 +773,7 @@ export async function forgeRun(args: string[]) {
     if (!parsed.json) console.log(`auto-started ${parsed.sliceId} (agent: ${startResult.agent})`);
   }
 
-  const workflow = await collectForgeStatus(parsed.project, parsed.sliceId);
+  const workflow = await collectForgeStatus(parsed.project, parsed.sliceId, parsed.repo);
 
   const progressSteps: PipelineStepProgress[] = [];
   const onStepComplete = async (step: {
