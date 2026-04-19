@@ -136,6 +136,9 @@ export async function detectTaskDocState(path: string): Promise<TaskDocState> {
   if (!await exists(path)) return "missing";
   const raw = await readNormalizedText(path);
   const parsed = safeMatter(path, raw, { silent: true });
+  const status = typeof parsed?.data.status === "string" ? parsed.data.status.trim().toLowerCase() : "";
+  if (status === "ready") return "ready";
+  if (status === "draft") return "incomplete";
   const body = parsed?.content ?? raw.replace(/^---\n[\s\S]*?\n---\n?/u, "");
   if (/^\s*(?:-\s*(?:\[ \])?\s*|\d+\.\s*)$/mu.test(body)) return "incomplete";
   return "ready";
