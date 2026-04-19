@@ -2,6 +2,8 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { phaseRecommendation } from "../src/lib/forge-phase-commands";
+import { buildForgeSteering } from "../src/lib/forge-steering";
+import { buildForgeTriage } from "../src/protocol/forge-status";
 import { runWiki } from "./_helpers/wiki-subprocess";
 import { cleanupTempPaths, initVault, runGit, setRepoFrontmatter, tempDir } from "./test-helpers";
 
@@ -13,6 +15,42 @@ describe("phase recommendation skill hints", () => {
   test("phaseRecommendation maps research and verify to explicit skills", () => {
     expect(phaseRecommendation("demo", "DEMO-001", "research").loadSkill).toBe("/research");
     expect(phaseRecommendation("demo", "DEMO-001", "verify").loadSkill).toBe("/desloppify");
+  });
+
+  test("domain-model phase recommendation points at wiki-native outputs", () => {
+    const recommendation = phaseRecommendation("demo", "DEMO-001", "grill");
+
+    expect(recommendation.loadSkill).toBe("/domain-model");
+    expect(recommendation.command).toContain("projects/demo/decisions.md");
+    expect(recommendation.command).toContain("projects/demo/architecture/domain-language.md");
+  });
+
+  test("pre-prd triage steers domain work through /domain-model", () => {
+    const triage = buildForgeTriage("demo", "DEMO-001", {
+      activeSlice: "DEMO-001",
+      sliceStatus: "in-progress",
+      section: "In Progress",
+      planStatus: "missing",
+      testPlanStatus: "missing",
+      verificationLevel: null,
+      nextPhase: "grill",
+    });
+    const steering = buildForgeSteering({
+      project: "demo",
+      sliceId: "DEMO-001",
+      triage,
+      nextPhase: "grill",
+      planStatus: "missing",
+      testPlanStatus: "missing",
+      verificationLevel: null,
+      sliceStatus: "in-progress",
+      section: "In Progress",
+    });
+
+    expect(steering.lane).toBe("domain-work");
+    expect(steering.loadSkill).toBe("/domain-model");
+    expect(steering.nextCommand).toContain("projects/demo/decisions.md");
+    expect(steering.nextCommand).toContain("projects/demo/architecture/domain-language.md");
   });
 
   test("resume surfaces loadSkill in text and json for pre-implementation phases", () => {

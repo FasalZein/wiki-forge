@@ -16,7 +16,9 @@ export function phaseRecommendation(project: string, sliceId: string, nextPhase:
       return {
         kind: "needs-grill",
         reason: "workflow ledger shows the domain-model phase is incomplete",
-        command: `/domain-model — sharpen terms, record decisions in the wiki, and surface ambiguities before PRD authoring`,
+        command:
+          `/domain-model — sharpen terms, append durable decisions to projects/${project}/decisions.md, ` +
+          `update projects/${project}/architecture/domain-language.md, and surface ambiguities before PRD authoring`,
         loadSkill: "/domain-model",
       };
     case "prd":

@@ -1,12 +1,28 @@
-# ADR Format
+# ADR / Decision Log Format
 
-ADRs live in `docs/adr/` and use sequential numbering: `0001-slug.md`, `0002-slug.md`, etc.
+For wiki-forge-managed projects, the canonical default is an appended entry in `projects/<project>/decisions.md`. Treat "ADR" as a decision-record content shape, not as a required repo path.
 
-For wiki-forge-managed projects, the canonical equivalent is an appended entry in `projects/<project>/decisions.md`. Do not create repo-local `docs/adr/` unless the project explicitly wants repo-owned ADR files.
+Default wiki-native shape:
+
+```md
+## Current Decisions
+
+- [PRD-059] The domain-model phase writes durable trade-offs to the wiki decision log so PRD authoring can consume them directly instead of recreating them from chat history.
+```
+
+Keep entries short. One or two sentences is usually enough when the surrounding project pages already carry the deeper context. Add PRD or slice tags when they help future retrieval.
+
+Do not create repo-local `docs/adr/` unless the project explicitly wants repo-owned ADR files.
+
+## Repo-local fallback
+
+If the project explicitly keeps ADRs in-repo, they live in `docs/adr/` and use sequential numbering: `0001-slug.md`, `0002-slug.md`, etc.
 
 Create the `docs/adr/` directory lazily — only when the first ADR is needed.
 
 ## Template
+
+For a repo-local ADR file:
 
 ```md
 # {Short title of the decision}
@@ -26,7 +42,7 @@ Only include these when they add genuine value. Most ADRs won't need them.
 
 ## Numbering
 
-Scan `docs/adr/` for the highest existing number and increment by one.
+For repo-local ADRs, scan `docs/adr/` for the highest existing number and increment by one.
 
 ## When to offer an ADR
 

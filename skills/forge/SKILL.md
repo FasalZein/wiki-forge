@@ -72,6 +72,8 @@ Prefer the thin surface first.
 ```text
 1. /research
 2. /domain-model
+   - append durable decisions to `projects/<project>/decisions.md`
+   - update glossary/context in `projects/<project>/architecture/domain-language.md`
 3. wiki forge plan <project> <feature-name> [--agent <name> --repo <path>]
 4. fill plan.md + test-plan.md
 5. /tdd

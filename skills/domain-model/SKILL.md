@@ -1,10 +1,10 @@
 ---
 name: domain-model
-description: Grilling session that challenges your plan against the existing domain model, sharpens terminology, and updates documentation (CONTEXT.md, ADRs) inline as decisions crystallise. Use when user wants to stress-test a plan against their project's language and documented decisions.
+description: Stress-test a plan against the existing domain model, sharpen terminology, and record decisions/context in the project's canonical knowledge surfaces as they crystallise. Use when user wants to challenge a plan against the project's language and documented decisions.
 disable-model-invocation: true
 ---
 
-Repo note for wiki-forge-managed projects:
+For wiki-forge-managed projects, the domain-model phase is wiki-native:
 
 - Canonical decisions belong in the wiki vault, usually `projects/<project>/decisions.md`, not repo-local `docs/adr/`.
 - Canonical glossary/context artifacts also belong in the wiki layer, for example `projects/<project>/architecture/domain-language.md`, not repo-root `CONTEXT.md`.
@@ -16,11 +16,29 @@ Ask the questions one at a time, waiting for feedback on each question before co
 
 If a question can be answered by exploring the codebase, explore the codebase instead.
 
+## Pre-PRD Outputs
+
+Produce these artifacts before `write-a-prd`:
+
+- **Decision log:** append durable, hard-to-reverse decisions to `projects/<project>/decisions.md`.
+- **Domain language page:** keep glossary, relationships, and flagged ambiguities in `projects/<project>/architecture/domain-language.md`.
+- **Open ambiguities:** leave unresolved questions visible so `write-a-prd` can consume them explicitly instead of rediscovering the same uncertainty.
+
+`write-a-prd` should consume these outputs, not recreate them from scratch.
+
 ## Domain awareness
 
 During codebase exploration, also look for existing documentation:
 
-### File structure
+### Canonical lookup order
+
+For wiki-forge-managed projects, read the canonical surfaces in this order:
+
+1. `projects/<project>/architecture/domain-language.md`
+2. `projects/<project>/decisions.md`
+3. Repo-local fallback files only if the project explicitly keeps context artifacts in-repo
+
+### Repo-local fallback structure
 
 Most repos have a single context:
 
@@ -58,7 +76,7 @@ For wiki-forge-managed projects, translate those outputs into the wiki's canonic
 
 ### Challenge against the glossary
 
-When the user uses a term that conflicts with the existing language in `CONTEXT.md`, call it out immediately. "Your glossary defines 'cancellation' as X, but you seem to mean Y — which is it?"
+When the user uses a term that conflicts with the existing language in the canonical domain-language page, call it out immediately. "Your glossary defines 'cancellation' as X, but you seem to mean Y — which is it?" If the project uses repo-local fallback docs, apply the same rule there.
 
 ### Sharpen fuzzy language
 
@@ -72,11 +90,11 @@ When domain relationships are being discussed, stress-test them with specific sc
 
 When the user states how something works, check whether the code agrees. If you find a contradiction, surface it: "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
 
-### Update CONTEXT.md inline
+### Update context/glossary inline
 
-When a term is resolved, update the canonical context/glossary surface right there. Don't batch these up — capture them as they happen. Use the format in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md). For wiki-forge-managed projects, prefer a wiki page such as `projects/<project>/architecture/domain-language.md`.
+When a term is resolved, update the canonical context/glossary surface right there. Don't batch these up — capture them as they happen. Use the format in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md). For wiki-forge-managed projects, that means a wiki page such as `projects/<project>/architecture/domain-language.md`.
 
-### Offer ADRs sparingly
+### Offer decisions sparingly
 
 Only offer to create an ADR when all three are true:
 

@@ -96,4 +96,25 @@ describe("skill layer separation", () => {
     expect(wikiSkill).not.toContain("create-feature`, `create-prd`, `create-issue-slice`, `start-slice`");
     expect(wikiSkill).not.toContain("start-feature`, `close-feature`, `start-prd`, `close-prd`");
   });
+
+  test("domain-model skill and templates stay wiki-native for forge-managed projects", () => {
+    const domainModelSkill = readFileSync(join(process.cwd(), "skills", "domain-model", "SKILL.md"), "utf8");
+    const adrFormat = readFileSync(join(process.cwd(), "skills", "domain-model", "ADR-FORMAT.md"), "utf8");
+    const contextFormat = readFileSync(join(process.cwd(), "skills", "domain-model", "CONTEXT-FORMAT.md"), "utf8");
+    const writePrdSkill = readFileSync(join(process.cwd(), "skills", "write-a-prd", "SKILL.md"), "utf8");
+
+    expect(domainModelSkill).toContain("## Pre-PRD Outputs");
+    expect(domainModelSkill).toContain("projects/<project>/decisions.md");
+    expect(domainModelSkill).toContain("projects/<project>/architecture/domain-language.md");
+    expect(domainModelSkill).toContain("`write-a-prd` should consume");
+    expect(domainModelSkill).not.toContain("### Update CONTEXT.md inline");
+
+    expect(adrFormat).toContain("projects/<project>/decisions.md");
+    expect(adrFormat.indexOf("projects/<project>/decisions.md")).toBeLessThan(adrFormat.indexOf("docs/adr/"));
+    expect(contextFormat).toContain("projects/<project>/architecture/domain-language.md");
+    expect(contextFormat).toContain("content shape");
+
+    expect(writePrdSkill).toContain("projects/<project>/decisions.md");
+    expect(writePrdSkill).toContain("projects/<project>/architecture/domain-language.md");
+  });
 });
