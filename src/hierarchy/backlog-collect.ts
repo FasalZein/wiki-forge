@@ -3,6 +3,7 @@ import { safeMatter } from "../cli-shared";
 import { projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath, toVaultMarkdownPath } from "../lib/structure";
 import { readSliceSummary } from "../lib/slices";
 import { agentNamesEqual, readProjectAgents } from "../lib/agents";
+import { hasSliceDocScaffoldPlaceholders } from "../lib/slice-doc-placeholders";
 import { backlogPathFor, readNormalizedText, parseBacklog } from "./backlog-io";
 import type { BacklogItem } from "./backlog-io";
 import { relative } from "node:path";
@@ -96,7 +97,7 @@ export async function collectBacklogFocus(project: string, preloadedBacklog?: Aw
     if (activeTask.blockedBy.length) warnings.push(`${activeTask.id} is blocked by ${activeTask.blockedBy.join(", ")}`);
   }
   for (const task of todoContexts.filter((entry) => entry.blockedBy.length > 0)) warnings.push(`${task.id} blocked by ${task.blockedBy.join(", ")}`);
-  if (!activeTask && recommendedTask?.hasSliceDocs) warnings.push(`no task is marked In Progress; next ready slice is ${recommendedTask.id}`);
+  if (!activeTask && recommendedTask?.hasSliceDocs) warnings.push(`no task is marked In Progress; next queued slice is ${recommendedTask.id}`);
   return { project, activeTask, recommendedTask, inProgress, todo, warnings, blocked };
 }
 
@@ -137,10 +138,12 @@ export async function detectTaskDocState(path: string): Promise<TaskDocState> {
   const raw = await readNormalizedText(path);
   const parsed = safeMatter(path, raw, { silent: true });
   const status = typeof parsed?.data.status === "string" ? parsed.data.status.trim().toLowerCase() : "";
-  if (status === "ready") return "ready";
-  if (status === "draft") return "incomplete";
+  const specKind = parsed?.data.spec_kind;
   const body = parsed?.content ?? raw.replace(/^---\n[\s\S]*?\n---\n?/u, "");
+  if (status === "draft") return "incomplete";
+  if (hasSliceDocScaffoldPlaceholders(specKind, body)) return "incomplete";
   if (/^\s*(?:-\s*(?:\[ \])?\s*|\d+\.\s*)$/mu.test(body)) return "incomplete";
+  if (status === "ready") return "ready";
   return "ready";
 }
 

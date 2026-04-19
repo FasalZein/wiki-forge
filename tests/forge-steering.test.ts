@@ -87,4 +87,30 @@ describe("WIKI-FORGE-149 steering packet", () => {
     expect(output).toContain("- load-skill: /tdd");
     expect(output).toContain("- next: wiki forge run wf149next WF149NEXT-001 --repo <path>");
   });
+
+  test("forge next keeps placeholder-ready slices in the pre-implementation lane", () => {
+    const { vault, env } = setupRepo("wf149placeholder");
+    const sliceDir = join(vault, "projects", "wf149placeholder", "specs", "slices", "WF149PLACEHOLDER-001");
+    writeFileSync(
+      join(sliceDir, "plan.md"),
+      "---\ntitle: WF149PLACEHOLDER-001\ntype: spec\nspec_kind: plan\nproject: wf149placeholder\ntask_id: WF149PLACEHOLDER-001\nupdated: 2026-04-19\nstatus: ready\n---\n\n# plan\n\n## Scope\n\n- PRD-001 placeholder slice\n\n## Vertical Slice\n\n1. (fill in during TDD)\n2. (fill in during TDD)\n3. (fill in during TDD)\n\n## Acceptance Criteria\n\n- [ ] implement requirements from PRD-001 placeholder slice\n",
+      "utf8",
+    );
+    writeFileSync(
+      join(sliceDir, "test-plan.md"),
+      "---\ntitle: WF149PLACEHOLDER-001\ntype: spec\nspec_kind: test-plan\nproject: wf149placeholder\ntask_id: WF149PLACEHOLDER-001\nupdated: 2026-04-19\nstatus: ready\nverification_commands:\n  - command: bun test\n---\n\n# test-plan\n\n## Red Tests\n\n- [ ] implement requirements from PRD-001 placeholder slice\n\n## Green Criteria\n\n- [ ] All red tests pass\n- [ ] No regressions in existing test suite\n\n## Refactor Checks\n\n- [ ] confirm no regressions in adjacent code paths\n",
+      "utf8",
+    );
+
+    const result = runWiki(["forge", "next", "wf149placeholder", "--json"], env);
+    expect(result.exitCode).toBe(0);
+    const payload = JSON.parse(result.stdout.toString());
+
+    expect(payload.targetSlice).toBe("WF149PLACEHOLDER-001");
+    expect(payload.planStatus).toBe("incomplete");
+    expect(payload.testPlanStatus).toBe("incomplete");
+    expect(payload.triage.kind).toBe("needs-research");
+    expect(payload.steering.lane).toBe("domain-work");
+    expect(payload.steering.nextCommand).not.toContain("wiki forge run wf149placeholder WF149PLACEHOLDER-001");
+  });
 });

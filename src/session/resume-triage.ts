@@ -60,7 +60,7 @@ export const TRIAGE_RULES: TriageRule[] = [
     when: ({ nextTask }) => Boolean(nextTask),
     build: ({ project, repo, base, nextTask }) => ({
       kind: "start-next-slice",
-      reason: `no slice is active; ${nextTask!.id} is the next ready slice`,
+      reason: `no slice is active; ${nextTask!.id} is the next queued slice`,
       command: `wiki forge run ${project} ${nextTask!.id} --repo ${repo}${base ? ` --base ${base}` : ""}`,
     }),
   },

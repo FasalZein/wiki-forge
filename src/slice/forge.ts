@@ -9,6 +9,12 @@ import { runPipeline } from "../lib/pipeline";
 import { collectCloseout, collectGate } from "../maintenance";
 import { type ForgeWorkflowLedger } from "../lib/forge-ledger";
 import { buildForgeSteering, renderSteeringPacket } from "../lib/forge-steering";
+import {
+  DEFAULT_SLICE_GREEN_CRITERIA,
+  DEFAULT_SLICE_REFACTOR_CHECKS,
+  SLICE_VERTICAL_STEP_PLACEHOLDER,
+  hasSliceDocScaffoldPlaceholders,
+} from "../lib/slice-doc-placeholders";
 import { projectPrdsDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath } from "../lib/structure";
 import { collectBacklogFocus, collectBacklogView, collectTaskContextForId, createFeatureReturningId, createPrdReturningId, moveTaskToSection } from "../hierarchy";
 import { appendLogEntry } from "../lib/log";
@@ -657,7 +663,7 @@ async function autoFillSliceDocs(project: string, sliceId: string, prdId: string
 
   // Build vertical slice steps from acceptance criteria count
   const stepCount = Math.min(Math.max(criteriaLines.length, 3), 5);
-  const verticalSliceLines = Array.from({ length: stepCount }, (_, i) => `${i + 1}. (fill in during TDD)`);
+  const verticalSliceLines = Array.from({ length: stepCount }, (_, i) => `${i + 1}. ${SLICE_VERTICAL_STEP_PLACEHOLDER}`);
 
   // Build red test placeholders from acceptance criteria
   const redTestLines = criteriaLines.map((line) => {
@@ -680,7 +686,11 @@ async function fillPlanDoc(project: string, sliceId: string, scopeBody: string, 
   content = replaceSection(content, "Vertical Slice", verticalSliceLines.join("\n"));
   content = replaceSection(content, "Acceptance Criteria", criteriaLines.join("\n"));
 
-  const updatedData = { ...parsed.data, status: "ready", updated: nowIso() };
+  const updatedData = {
+    ...parsed.data,
+    status: hasSliceDocScaffoldPlaceholders("plan", content) ? "draft" : "ready",
+    updated: nowIso(),
+  };
   writeNormalizedPage(planPath, content, updatedData);
 }
 
@@ -692,11 +702,15 @@ async function fillTestPlanDoc(project: string, sliceId: string, redTestLines: s
 
   let content = parsed.content;
   content = replaceSection(content, "Red Tests", redTestLines.join("\n"));
-  content = replaceSection(content, "Green Criteria", "- [ ] All red tests pass\n- [ ] No regressions in existing test suite");
-  content = replaceSection(content, "Refactor Checks", "- [ ] confirm no regressions in adjacent code paths");
+  content = replaceSection(content, "Green Criteria", DEFAULT_SLICE_GREEN_CRITERIA.join("\n"));
+  content = replaceSection(content, "Refactor Checks", DEFAULT_SLICE_REFACTOR_CHECKS.join("\n"));
   content = replaceSection(content, "Verification Commands", "```bash\nbun test\nnpx tsc --noEmit\n```");
 
-  const updatedData = { ...parsed.data, status: "ready", updated: nowIso() };
+  const updatedData = {
+    ...parsed.data,
+    status: hasSliceDocScaffoldPlaceholders("test-plan", content) ? "draft" : "ready",
+    updated: nowIso(),
+  };
   writeNormalizedPage(testPlanPath, content, updatedData);
 }
 

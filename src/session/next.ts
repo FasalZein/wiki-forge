@@ -14,7 +14,7 @@ export async function nextProject(args: string[]) {
   const recommendation = focus.activeTask
     ? { ...focus.activeTask, reason: "continue the active slice" }
     : scaffoldedRecommendation
-      ? { ...scaffoldedRecommendation, reason: "next ready slice from backlog" }
+      ? { ...scaffoldedRecommendation, reason: "next queued slice from backlog" }
       : null;
 
   let actions: Array<{ kind: string; message: string }> = [];

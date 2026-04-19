@@ -148,7 +148,7 @@ describe("wiki forge thin surface", () => {
     expect(backlog.sections["In Progress"][0].id).toBe("NEWPROJ-001");
   });
 
-  test("forge plan auto-fills plan.md and test-plan.md with status ready", () => {
+  test("forge plan auto-fills plan.md and test-plan.md but keeps scaffold placeholders incomplete", () => {
     const { vault, repo } = setupPassingRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
 
@@ -163,12 +163,12 @@ describe("wiki forge thin surface", () => {
     const planContent = readFileSync(planPath, "utf8");
     const testPlanContent = readFileSync(testPlanPath, "utf8");
 
-    expect(planContent).toContain("status: ready");
+    expect(planContent).toContain("status: draft");
     expect(planContent).toContain("## Scope");
     expect(planContent).toContain("## Acceptance Criteria");
     expect(planContent).toContain("## Vertical Slice");
 
-    expect(testPlanContent).toContain("status: ready");
+    expect(testPlanContent).toContain("status: draft");
     expect(testPlanContent).toContain("## Red Tests");
     expect(testPlanContent).toContain("## Green Criteria");
     expect(testPlanContent).toContain("All red tests pass");
@@ -178,9 +178,9 @@ describe("wiki forge thin surface", () => {
     const statusResult = runWiki(["forge", "status", "newproj", "NEWPROJ-001", "--json"], env);
     expect(statusResult.exitCode).toBe(0);
     const statusJson = JSON.parse(statusResult.stdout.toString());
-    expect(statusJson.planStatus).toBe("ready");
-    expect(statusJson.testPlanStatus).toBe("ready");
-    expect(statusJson.triage.kind).not.toBe("fill-docs");
+    expect(statusJson.planStatus).toBe("incomplete");
+    expect(statusJson.testPlanStatus).toBe("incomplete");
+    expect(statusJson.triage.kind).toBe("needs-research");
   });
 
   test("forge plan accepts --feature to skip feature creation", () => {
@@ -232,12 +232,12 @@ describe("wiki forge thin surface", () => {
     expect(todoIds).toContain("MULTIPROJ-002");
     expect(todoIds).toContain("MULTIPROJ-003");
 
-    // All slice plans should have status ready
+    // Freshly scaffolded slices keep draft status until the placeholders are replaced.
     for (const sliceId of ["MULTIPROJ-001", "MULTIPROJ-002", "MULTIPROJ-003"]) {
       const planPath = join(vault, "projects", "multiproj", "specs", "slices", sliceId, "plan.md");
       const testPlanPath = join(vault, "projects", "multiproj", "specs", "slices", sliceId, "test-plan.md");
-      expect(readFileSync(planPath, "utf8")).toContain("status: ready");
-      expect(readFileSync(testPlanPath, "utf8")).toContain("status: ready");
+      expect(readFileSync(planPath, "utf8")).toContain("status: draft");
+      expect(readFileSync(testPlanPath, "utf8")).toContain("status: draft");
     }
   });
 
