@@ -28,7 +28,18 @@ export type ForgeTriage = {
 };
 
 const PRE_PHASE_TRIAGE_KIND_SET = new Set<string>(PRE_PHASE_TRIAGE_KINDS);
+const FORGE_RUN_TRIAGE_KIND_SET = new Set<ForgeTriageKind>([
+  "resume-failed-forge",
+  "close-slice",
+  "open-slice",
+  "continue-active-slice",
+  "start-next-slice",
+]);
 
 export function isPrePhaseTriage(triage: Pick<ForgeTriage, "kind">): triage is ForgeTriage & { kind: PrePhaseTriageKind } {
   return PRE_PHASE_TRIAGE_KIND_SET.has(triage.kind);
+}
+
+export function isForgeRunTriage(triage: Pick<ForgeTriage, "kind">): boolean {
+  return FORGE_RUN_TRIAGE_KIND_SET.has(triage.kind);
 }

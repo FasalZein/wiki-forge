@@ -62,6 +62,7 @@ describe("WIKI-FORGE-149 steering packet", () => {
 
     expect(payload.steering.lane).toBe("implementation-work");
     expect(payload.steering.loadSkill).toBe("/tdd");
+    expect(payload.steering.nextCommand).toContain("wiki forge run wf149status WF149STATUS-001");
   });
 
   test("forge next text leads with the steering packet", () => {
@@ -84,6 +85,6 @@ describe("WIKI-FORGE-149 steering packet", () => {
 
     expect(output).toContain("- lane: implementation-work");
     expect(output).toContain("- load-skill: /tdd");
-    expect(output).toContain("- next: wiki forge next wf149next --prompt");
+    expect(output).toContain("- next: wiki forge run wf149next WF149NEXT-001 --repo <path>");
   });
 });

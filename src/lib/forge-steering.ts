@@ -1,5 +1,5 @@
 import type { ForgePhase } from "./forge-ledger";
-import { isPrePhaseTriage, type ForgeTriage } from "./forge-triage";
+import { isForgeRunTriage, isPrePhaseTriage, type ForgeTriage } from "./forge-triage";
 
 export type ForgeLane =
   | "domain-work"
@@ -73,6 +73,16 @@ export function buildForgeSteering(input: BuildForgeSteeringInput): ForgeSteerin
     };
   }
 
+  if (isForgeRunTriage(input.triage)) {
+    return {
+      lane: input.verificationLevel === "test-verified" ? "verify-close" : "implementation-work",
+      phase,
+      nextCommand: input.triage.command,
+      why: input.triage.reason,
+      ...(input.verificationLevel === "test-verified" ? {} : { loadSkill: "/tdd" }),
+    };
+  }
+
   if (input.planStatus !== "ready" || input.testPlanStatus !== "ready" || input.triage.kind === "fill-docs") {
     return {
       lane: "implementation-work",
@@ -104,9 +114,9 @@ export function buildForgeSteering(input: BuildForgeSteeringInput): ForgeSteerin
   return {
     lane: "implementation-work",
     phase,
-    nextCommand: `wiki forge next ${input.project} --prompt`,
-    why: `verification level is ${input.verificationLevel ?? "missing"}; finish /tdd work before verify-close`,
-    loadSkill: "/tdd",
+    nextCommand: input.triage.command,
+    why: input.triage.reason,
+    ...(input.triage.loadSkill ? { loadSkill: input.triage.loadSkill } : {}),
   };
 }
 

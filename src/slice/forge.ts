@@ -736,7 +736,9 @@ export async function forgeRun(args: string[]) {
   const parsed = await parseForgeArgs(args, "run");
 
   const preWorkflow = await collectForgeStatus(parsed.project, parsed.sliceId, parsed.repo);
-  if (preWorkflow.steering.lane !== "verify-close") {
+  const expectedPrefix = `wiki forge run ${parsed.project} ${parsed.sliceId}`;
+  const canRunCurrentSlice = preWorkflow.steering.nextCommand.startsWith(expectedPrefix);
+  if (!canRunCurrentSlice) {
     const payload = {
       ok: false,
       step: "operator-lane",

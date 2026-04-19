@@ -15,11 +15,14 @@ function setupPhaseResearchFixture() {
   const repo = tempDir("wf141-repo");
   initVault(vault);
   mkdirSync(join(repo, "src"), { recursive: true });
+  mkdirSync(join(repo, "tests"), { recursive: true });
   writeFileSync(join(repo, "src", "auth.ts"), "export const a = 1\n", "utf8");
+  writeFileSync(join(repo, "tests", "auth.test.ts"), "import { expect, test } from 'bun:test'\nimport { a } from '../src/auth'\ntest('auth', () => expect(a).toBe(1))\n", "utf8");
   runGit(repo, ["init", "-q"]);
   runGit(repo, ["add", "."]);
   runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
   writeFileSync(join(repo, "src", "auth.ts"), "export const a = 2\n", "utf8");
+  writeFileSync(join(repo, "tests", "auth.test.ts"), "import { expect, test } from 'bun:test'\nimport { a } from '../src/auth'\ntest('auth', () => expect(a).toBe(2))\n", "utf8");
   runGit(repo, ["add", "."]);
   runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "second"]);
 
@@ -96,7 +99,7 @@ describe("WIKI-FORGE-141 workflow-phase gate", () => {
     expect(hub).toContain("status: draft");
   });
 
-  test("F2 no-regression: forge run on a docs-ready slice is blocked by operator-lane instead of claiming and running closeout", () => {
+  test("F2 no-regression: forge run on a docs-ready slice proceeds through the pipeline", () => {
     const { vault, repo, env } = setupPhaseResearchFixture();
 
     // Fill plan + test-plan so the slice is docs-ready. Triage becomes close-slice.
@@ -108,16 +111,15 @@ describe("WIKI-FORGE-141 workflow-phase gate", () => {
     );
     writeFileSync(
       join(sliceDir, "test-plan.md"),
-      "---\ntitle: WF141-001\ntype: spec\nspec_kind: test-plan\nproject: wf141\ntask_id: WF141-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# test-plan\n\n## Red Tests\n\n- [x] covered\n\n## Verification Commands\n\n```bash\n# label: tests\nbun test\n```\n",
+      "---\ntitle: WF141-001\ntype: spec\nspec_kind: test-plan\nproject: wf141\ntask_id: WF141-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# test-plan\n\n## Red Tests\n\n- [x] covered\n\n## Verification Commands\n\n```bash\n# label: tests\nbun test tests/auth.test.ts\n```\n",
       "utf8",
     );
-    expect(runWiki(["forge", "start", "wf141", "WF141-001", "--agent", "codex", "--repo", repo], env).exitCode).toBe(0);
+    expect(runWiki(["bind", "wf141", "specs/slices/WF141-001/index.md", "src/auth.ts"], env).exitCode).toBe(0);
 
     const run = runWiki(["forge", "run", "wf141", "WF141-001", "--repo", repo, "--json"], env);
-    const stdout = run.stdout.toString();
-    const payload = stdout ? JSON.parse(stdout) : { step: "" };
-    expect(run.exitCode).toBe(1);
-    expect(payload.step).toBe("operator-lane");
-    expect(payload.steering.lane).toBe("implementation-work");
+    expect(run.exitCode).toBe(0);
+    const payload = JSON.parse(run.stdout.toString());
+    expect(payload.check.ok).toBe(true);
+    expect(payload.close.ok).toBe(true);
   });
 });
