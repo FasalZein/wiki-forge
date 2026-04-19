@@ -126,6 +126,7 @@ Obsidian:
 Utility:
   wiki cache-clear
   wiki config --effective [--json] [--repo <path>]
+  wiki schema <kind> | --list
 
 Environment:
   ${VAULT_ROOT_ENV}    vault root when CLI is installed outside the vault repo

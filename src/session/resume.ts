@@ -38,8 +38,12 @@ async function findLatestHandover(project: string): Promise<string | null> {
 }
 
 export async function resumeProject(args: string[]) {
-  const options = await parseProjectRepoBaseArgs(args);
+  const options = await parseProjectRepoBaseArgs(args, {
+    fallbackToHeadIfUnresolvable: true,
+    fallbackLabel: "resume",
+  });
   const json = args.includes("--json");
+  if (options.baseFallbackNote) console.error(options.baseFallbackNote);
   const repo = await resolveRepoPath(options.project, options.repo);
   await assertGitRepo(repo);
   const lintingSnapshot = await loadLintingSnapshot(options.project);

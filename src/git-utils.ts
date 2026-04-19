@@ -12,6 +12,12 @@ export type ProjectRepoBaseArgs = {
   project: string;
   repo?: string;
   base: string;
+  baseFallbackNote?: string;
+};
+
+type ParseProjectRepoBaseOptions = {
+  fallbackToHeadIfUnresolvable?: boolean;
+  fallbackLabel?: string;
 };
 
 export async function resolveDefaultBase(project: string, explicitRepo?: string): Promise<string> {
@@ -34,6 +40,11 @@ export async function resolveDefaultBase(project: string, explicitRepo?: string)
   return "HEAD~1";
 }
 
+async function gitRevisionExists(repo: string, rev: string) {
+  const proc = await Bun.$`git rev-parse --verify ${rev}`.cwd(repo).quiet().nothrow();
+  return proc.exitCode === 0;
+}
+
 export function findProjectArg(args: string[]): string | undefined {
   return args.find((arg, index) => index === 0 || (!arg.startsWith("--") && args[index - 1] !== "--repo" && args[index - 1] !== "--base"));
 }
@@ -47,12 +58,24 @@ export function parseProjectRepoArgs(args: string[]): ProjectRepoArgs {
   return { project, repo };
 }
 
-export async function parseProjectRepoBaseArgs(args: string[]): Promise<ProjectRepoBaseArgs> {
+export async function parseProjectRepoBaseArgs(args: string[], options: ParseProjectRepoBaseOptions = {}): Promise<ProjectRepoBaseArgs> {
   const { project, repo } = parseProjectRepoArgs(args);
   const baseIndex = args.indexOf("--base");
-  const base = baseIndex >= 0 ? args[baseIndex + 1] : await resolveDefaultBase(project, repo);
+  let base = baseIndex >= 0 ? args[baseIndex + 1] : await resolveDefaultBase(project, repo);
   if (baseIndex >= 0) requireValue(base, "base");
-  return { project, repo, base };
+  let baseFallbackNote: string | undefined;
+  if (
+    baseIndex < 0
+    && options.fallbackToHeadIfUnresolvable
+    && base === "HEAD~1"
+  ) {
+    const resolvedRepo = await resolveRepoPath(project, repo);
+    if (!await gitRevisionExists(resolvedRepo, "HEAD~1")) {
+      base = "HEAD";
+      baseFallbackNote = `${options.fallbackLabel ?? "command"}: HEAD~1 unresolvable, falling back to HEAD`;
+    }
+  }
+  return { project, repo, base, ...(baseFallbackNote ? { baseFallbackNote } : {}) };
 }
 
 export async function gitChangedFiles(repo: string, base: string) {

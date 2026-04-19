@@ -508,9 +508,6 @@ export async function forgeNext(args: string[]) {
     console.log(`- verification: ${workflow.verificationLevel ?? "none"}`);
     console.log(`- next action: ${workflow.triage.command}`);
     console.log(`  reason: ${workflow.triage.reason}`);
-    if ("loadSkill" in workflow.triage && typeof workflow.triage.loadSkill === "string") {
-      console.log(`  load-skill: ${workflow.triage.loadSkill}`);
-    }
   }
 }
 

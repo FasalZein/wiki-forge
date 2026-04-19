@@ -132,6 +132,10 @@ const STATE_CONTRACTS: Record<StateContractId, StateContract> = {
   },
 };
 
+export function getStateContract(id: StateContractId): StateContract {
+  return STATE_CONTRACTS[id];
+}
+
 export function resolveStateContract(relPath: string, data: FrontmatterData): StateContract | null {
   const normalized = relPath.replaceAll("\\", "/").replace(/^\.\//u, "");
   if (normalized === "_summary.md" && data.type === "project") return STATE_CONTRACTS["project-summary"];

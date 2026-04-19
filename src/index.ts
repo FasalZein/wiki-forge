@@ -14,6 +14,7 @@ import { forgeCheck, forgeClose, forgeNext, forgeOpen, forgePlan, forgeRelease, 
 import { pipelineCommand, pipelineResetCommand } from "./slice/pipeline";
 import { statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, bindSourcePaths, migrateVerification, verifyPage, acknowledgeImpact } from "./verification";
 import { configCommand } from "./config";
+import { schemaCommand } from "./schema";
 import { findProjectArg } from "./git-utils";
 import { appendActivity, extractProject, extractTarget, resolveAgent, resolveSessionId } from "./lib/tracker";
 
@@ -114,6 +115,7 @@ const commands: Record<string, CommandHandler> = {
   "forge:next": (args) => forgeNext(args),
   "forge:release": (args) => forgeRelease(args),
   config: (args) => configCommand(args),
+  schema: (args) => schemaCommand(args),
 };
 
 const rawArgs = process.argv.slice(2);
