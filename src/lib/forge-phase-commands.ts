@@ -12,9 +12,9 @@ export function phaseRecommendation(project: string, sliceId: string, nextPhase:
         command: `/research — gather findings and file with wiki research file ${project}`,
         loadSkill: "/research",
       };
-    case "grill":
+    case "domain-model":
       return {
-        kind: "needs-grill",
+        kind: "needs-domain-model",
         reason: "workflow ledger shows the domain-model phase is incomplete",
         command:
           `/domain-model — sharpen terms, append durable decisions to projects/${project}/decisions.md, ` +

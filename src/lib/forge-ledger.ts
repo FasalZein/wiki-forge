@@ -1,4 +1,4 @@
-export const FORGE_PHASES = ["research", "grill", "prd", "slices", "tdd", "verify"] as const;
+export const FORGE_PHASES = ["research", "domain-model", "prd", "slices", "tdd", "verify"] as const;
 export type ForgePhase = (typeof FORGE_PHASES)[number];
 
 export type ForgeWorkflowLedger = {
@@ -9,6 +9,7 @@ export type ForgeWorkflowLedger = {
     completedAt?: string;
     researchRefs?: string[];
   };
+  // Legacy storage key retained for historical authored ledgers.
   grill?: {
     completedAt?: string;
     decisionRefs?: string[];
@@ -46,6 +47,20 @@ export type ForgeWorkflowValidation = {
   statuses: ForgePhaseStatus[];
 };
 
+type ForgeLedgerPhaseKey = "research" | "grill" | "prd" | "slices" | "tdd" | "verify";
+
+export function forgeLedgerPhaseKey(phase: ForgePhase): ForgeLedgerPhaseKey {
+  return phase === "domain-model" ? "grill" : phase;
+}
+
+export function readForgeLedgerPhase(ledger: Partial<ForgeWorkflowLedger>, phase: ForgePhase) {
+  return ledger[forgeLedgerPhaseKey(phase)] as Record<string, unknown> | undefined;
+}
+
+export function writeForgeLedgerPhase(target: Partial<ForgeWorkflowLedger>, phase: ForgePhase, value: unknown) {
+  (target as Record<string, unknown>)[forgeLedgerPhaseKey(phase)] = value;
+}
+
 const PHASE_REQUIREMENTS: Record<ForgePhase, (ledger: ForgeWorkflowLedger) => string[]> = {
   research: (ledger) => {
     const missing: string[] = [];
@@ -53,10 +68,11 @@ const PHASE_REQUIREMENTS: Record<ForgePhase, (ledger: ForgeWorkflowLedger) => st
     if (!ledger.research?.researchRefs?.length) missing.push("research.researchRefs");
     return missing;
   },
-  grill: (ledger) => {
+  "domain-model": (ledger) => {
+    const domainModel = readForgeLedgerPhase(ledger, "domain-model");
     const missing: string[] = [];
-    if (!ledger.grill?.completedAt) missing.push("grill.completedAt");
-    if (!ledger.grill?.decisionRefs?.length) missing.push("grill.decisionRefs");
+    if (!domainModel?.completedAt) missing.push("domain-model.completedAt");
+    if (!Array.isArray(domainModel?.decisionRefs) || domainModel.decisionRefs.length === 0) missing.push("domain-model.decisionRefs");
     return missing;
   },
   prd: (ledger) => {

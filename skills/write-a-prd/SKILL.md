@@ -103,7 +103,7 @@ wiki lint-semantic <project>
 
 PRD writing sits after `/domain-model` and before `/prd-to-slices`. See forge SKILL.md for the full pipeline.
 
-The PRD captures all decisions from research and grilling. Every claim in the PRD should trace to filed research.
+The PRD captures all decisions from research and domain modeling. Every claim in the PRD should trace to filed research or the wiki-native domain outputs consumed above.
 
 ### Small scope (standalone)
 

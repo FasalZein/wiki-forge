@@ -1,6 +1,6 @@
 export const PRE_PHASE_TRIAGE_KINDS = [
   "needs-research",
-  "needs-grill",
+  "needs-domain-model",
   "needs-prd",
   "needs-slices",
   "needs-tdd",

@@ -6,7 +6,7 @@
  * risk of side effects on the vault state.
  *
  * Design decisions:
- * - "Within the slice's lifetime" for grill detection uses the slice hub's
+ * - "Within the slice's lifetime" for domain-model detection uses the slice hub's
  *   `created_at` field (falling back to `started_at`) as the lower bound and
  *   the current time as the upper bound.
  * - "Recent" for verify-slice log detection: STALE_UNVERIFIED_DAYS (30 days)
@@ -29,7 +29,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { VAULT_ROOT, STALE_UNVERIFIED_DAYS } from "../constants";
 import { safeMatter } from "../cli-shared";
 import { appendText, ensureDir, exists, readText } from "./fs";
-import type { ForgeWorkflowLedger, ForgePhase } from "./forge-ledger";
+import { FORGE_PHASES, readForgeLedgerPhase, writeForgeLedgerPhase, type ForgeWorkflowLedger, type ForgePhase } from "./forge-ledger";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -134,7 +134,7 @@ async function _derive(project: string, sliceId: string, vaultRoot: string): Pro
   }
 
   // -------------------------------------------------------------------
-  // Phase: grill
+  // Phase: domain-model
   // Rule: decisions.md contains a line tagged [PRD-<id>] or [<sliceId>]
   // authored within the slice's lifetime.
   // -------------------------------------------------------------------
@@ -549,11 +549,11 @@ export function mergeDerivedForgeLedger(
   if (authored.parentPrd !== undefined) merged.parentPrd = authored.parentPrd;
 
   // Per-phase: authored wins if the authored phase object exists and has completedAt
-  for (const phase of ["research", "grill", "prd", "slices", "tdd", "verify"] as const) {
-    const authoredPhase = authored[phase] as Record<string, unknown> | undefined;
+  for (const phase of FORGE_PHASES) {
+    const authoredPhase = readForgeLedgerPhase(authored, phase);
     if (authoredPhase?.completedAt) {
       // Authored has a completedAt — it wins entirely
-      (merged as Record<string, unknown>)[phase] = authored[phase];
+      writeForgeLedgerPhase(merged, phase, authoredPhase);
     }
     // else: keep derived value (already in merged from spread)
   }
@@ -596,9 +596,9 @@ export async function applyDerivedLedger(
   const logPath = join(root, "log.md");
   const existingEntries = await tailLogFromPath(logPath, 200);
 
-  for (const phase of ["research", "grill", "prd", "slices", "tdd", "verify"] as const) {
-    const authoredPhase = authored[phase] as Record<string, unknown> | undefined;
-    const derivedPhase = derived.patch[phase] as Record<string, unknown> | undefined;
+  for (const phase of FORGE_PHASES) {
+    const authoredPhase = readForgeLedgerPhase(authored, phase);
+    const derivedPhase = readForgeLedgerPhase(derived.patch, phase);
     if (authoredPhase?.completedAt && !derivedPhase?.completedAt) {
       const alreadyLogged = existingEntries.some(
         (entry) =>

@@ -102,6 +102,8 @@ describe("skill layer separation", () => {
     const adrFormat = readFileSync(join(process.cwd(), "skills", "domain-model", "ADR-FORMAT.md"), "utf8");
     const contextFormat = readFileSync(join(process.cwd(), "skills", "domain-model", "CONTEXT-FORMAT.md"), "utf8");
     const writePrdSkill = readFileSync(join(process.cwd(), "skills", "write-a-prd", "SKILL.md"), "utf8");
+    const forgeSkill = readFileSync(join(process.cwd(), "skills", "forge", "SKILL.md"), "utf8");
+    const grillSkill = readFileSync(join(process.cwd(), "skills", "grill-me", "SKILL.md"), "utf8");
 
     expect(domainModelSkill).toContain("## Pre-PRD Outputs");
     expect(domainModelSkill).toContain("projects/<project>/decisions.md");
@@ -116,5 +118,13 @@ describe("skill layer separation", () => {
 
     expect(writePrdSkill).toContain("projects/<project>/decisions.md");
     expect(writePrdSkill).toContain("projects/<project>/architecture/domain-language.md");
+    expect(writePrdSkill).not.toContain("research and grilling");
+
+    expect(forgeSkill).toContain("research -> domain-model -> PRD");
+    expect(forgeSkill).not.toContain("companion skills");
+
+    expect(grillSkill).toContain("Compatibility note");
+    expect(grillSkill).toContain("Use `/domain-model` as the primary path");
+    expect(grillSkill).not.toContain("Always grill before writing the PRD");
   });
 });

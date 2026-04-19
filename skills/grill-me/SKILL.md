@@ -14,7 +14,7 @@ Stress-test a plan, design, or PRD through structured interrogation. The goal is
 
 ## When to Use
 
-- Before writing a PRD (`/forge` step 2)
+- When a user explicitly asks to be grilled or older docs still reference `grill`
 - When a PRD has unresolved Open Questions
 - Before a major architecture decision
 - When the user says "grill me", "stress test this", or "poke holes"
@@ -75,9 +75,9 @@ After grilling, update the relevant artifacts:
 
 ## Integration with Forge
 
-Grill sits after `/research` and before `/write-a-prd`. See forge SKILL.md for the full pipeline.
+This is a compatibility surface for older prompts and direct user requests. The canonical forge path now uses `/domain-model` after `/research` and before `/write-a-prd`. See forge SKILL.md for the current pipeline.
 
-**Non-trivial work:** Always grill before writing the PRD. The grilling resolves the Open Questions section so the PRD lands with fewer unknowns.
+**Non-trivial work:** Prefer `/domain-model` before writing the PRD so decisions and glossary/context artifacts land in the wiki-native outputs.
 
 **Small scope:** Skip grilling for bug fixes and focused refactors that don't need design decisions.
 

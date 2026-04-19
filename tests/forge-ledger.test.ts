@@ -8,7 +8,7 @@ import {
 
 describe("forge workflow ledger", () => {
   test("keeps the forge phase chain in canonical order", () => {
-    expect(FORGE_PHASES).toEqual(["research", "grill", "prd", "slices", "tdd", "verify"]);
+    expect(FORGE_PHASES).toEqual(["research", "domain-model", "prd", "slices", "tdd", "verify"]);
   });
 
   test("reports research as the next missing phase for an empty ledger", () => {
@@ -19,13 +19,13 @@ describe("forge workflow ledger", () => {
     expect(validation.statuses[0].missing).toContain("research.researchRefs");
   });
 
-  test("blocks grill until research evidence exists", () => {
+  test("blocks domain-model until research evidence exists", () => {
     const gate = canAdvanceForgePhase(
       {
         project: "wiki-forge",
         sliceId: "WIKI-FORGE-124",
       },
-      "grill",
+      "domain-model",
     );
     expect(gate.ok).toBe(false);
     expect(gate.blockedBy).toEqual(["research"]);

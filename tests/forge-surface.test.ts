@@ -38,6 +38,13 @@ describe("wiki forge thin surface", () => {
     expect(runWiki(["bind", "runproj", "specs/slices/RUNPROJ-001/index.md", "src/payments.ts"], env).exitCode).toBe(0);
     expect(runWiki(["forge", "start", "runproj", "RUNPROJ-001", "--agent", "codex", "--repo", repo], env).exitCode).toBe(0);
 
+    const status = runWiki(["forge", "status", "runproj", "RUNPROJ-001", "--json"], env);
+    expect(status.exitCode).toBe(0);
+    const statusJson = JSON.parse(status.stdout.toString());
+    expect(statusJson.workflow.validation.ok).toBe(true);
+    expect(statusJson.workflow.validation.nextPhase).toBeNull();
+    expect(statusJson.workflow.validation.statuses.every((step: { completed: boolean }) => step.completed)).toBe(true);
+
     const run = runWiki(["forge", "run", "runproj", "RUNPROJ-001", "--repo", repo, "--json"], env);
     expect(run.exitCode).toBe(0);
     const json = JSON.parse(run.stdout.toString());

@@ -18,8 +18,9 @@ describe("phase recommendation skill hints", () => {
   });
 
   test("domain-model phase recommendation points at wiki-native outputs", () => {
-    const recommendation = phaseRecommendation("demo", "DEMO-001", "grill");
+    const recommendation = phaseRecommendation("demo", "DEMO-001", "domain-model");
 
+    expect(recommendation.kind).toBe("needs-domain-model");
     expect(recommendation.loadSkill).toBe("/domain-model");
     expect(recommendation.command).toContain("projects/demo/decisions.md");
     expect(recommendation.command).toContain("projects/demo/architecture/domain-language.md");
@@ -33,13 +34,13 @@ describe("phase recommendation skill hints", () => {
       planStatus: "missing",
       testPlanStatus: "missing",
       verificationLevel: null,
-      nextPhase: "grill",
+      nextPhase: "domain-model",
     });
     const steering = buildForgeSteering({
       project: "demo",
       sliceId: "DEMO-001",
       triage,
-      nextPhase: "grill",
+      nextPhase: "domain-model",
       planStatus: "missing",
       testPlanStatus: "missing",
       verificationLevel: null,

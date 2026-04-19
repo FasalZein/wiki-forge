@@ -2,7 +2,7 @@
 name: forge
 description: >
   Build with rigor. Orchestrates research -> domain-model -> PRD -> slices -> TDD before anything ships.
-  Forge is the workflow layer, not the research layer or wiki layer. It loads companion skills and checks gates. Zero API calls — everything stays in the wiki vault.
+  Forge is the workflow layer, not the research layer or wiki layer. It loads repo-owned workflow skills and checks gates. Zero API calls — everything stays in the wiki vault.
 ---
 
 # Forge

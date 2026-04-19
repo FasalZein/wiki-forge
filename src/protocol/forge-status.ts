@@ -4,7 +4,15 @@ import { VAULT_ROOT } from "../constants";
 import { safeMatter } from "../cli-shared";
 import { readVerificationLevel } from "../lib/verification";
 import { exists, readText } from "../lib/fs";
-import { type ForgeWorkflowLedger, type ForgePhase, validateForgeWorkflowLedger } from "../lib/forge-ledger";
+import {
+  FORGE_PHASES,
+  readForgeLedgerPhase,
+  writeForgeLedgerPhase,
+  type ForgeWorkflowLedger,
+  type ForgePhase,
+  type ForgeWorkflowValidation,
+  validateForgeWorkflowLedger,
+} from "../lib/forge-ledger";
 import { applyDerivedLedger } from "../lib/forge-ledger-detect";
 import { phaseRecommendation } from "../lib/forge-phase-commands";
 import { buildForgeSteering } from "../lib/forge-steering";
@@ -75,8 +83,15 @@ export async function collectForgeStatus(project: string, sliceId: string) {
   } catch {
     ledger = mergedAuthoredLedger;
   }
-  const validation = validateForgeWorkflowLedger(ledger as ForgeWorkflowLedger);
   const verificationLevel = testPlan ? readVerificationLevel(testPlan.data) : null;
+  const validation = normalizeForgeValidationForCloseableSlice(
+    validateForgeWorkflowLedger(ledger as ForgeWorkflowLedger),
+    {
+      planStatus: context?.planStatus ?? "missing",
+      testPlanStatus: context?.testPlanStatus ?? "missing",
+      verificationLevel,
+    },
+  );
   const triage = buildForgeTriage(project, sliceId, {
     activeSlice: focus.activeTask?.id ?? null,
     sliceStatus: context?.sliceStatus ?? null,
@@ -235,10 +250,10 @@ function readAuthoredHubLedger(value: unknown, project: string, sliceId: string)
   if (!value || typeof value !== "object") return { project, sliceId };
   const ledger = value as Record<string, unknown>;
   const out: Partial<ForgeWorkflowLedger> = { project, sliceId };
-  for (const phase of ["research", "grill", "prd", "slices", "tdd", "verify"] as const) {
-    const phaseValue = ledger[phase];
+  for (const phase of FORGE_PHASES) {
+    const phaseValue = phase === "domain-model" ? ledger["domain-model"] ?? ledger.grill : ledger[phase];
     if (phaseValue && typeof phaseValue === "object") {
-      (out as Record<string, unknown>)[phase] = phaseValue;
+      writeForgeLedgerPhase(out, phase, phaseValue);
     }
   }
   if (typeof ledger.parentPrd === "string") out.parentPrd = ledger.parentPrd;
@@ -250,12 +265,35 @@ function mergeAuthoredLedgers(
   override: Partial<ForgeWorkflowLedger>,
 ): Partial<ForgeWorkflowLedger> {
   const merged: Partial<ForgeWorkflowLedger> = { ...base, ...override };
-  for (const phase of ["research", "grill", "prd", "slices", "tdd", "verify"] as const) {
-    const basePhase = base[phase] as Record<string, unknown> | undefined;
-    const overridePhase = override[phase] as Record<string, unknown> | undefined;
+  for (const phase of FORGE_PHASES) {
+    const basePhase = readForgeLedgerPhase(base, phase);
+    const overridePhase = readForgeLedgerPhase(override, phase);
     if (basePhase || overridePhase) {
-      (merged as Record<string, unknown>)[phase] = { ...(basePhase ?? {}), ...(overridePhase ?? {}) };
+      writeForgeLedgerPhase(merged, phase, { ...(basePhase ?? {}), ...(overridePhase ?? {}) });
     }
   }
   return merged;
+}
+
+function normalizeForgeValidationForCloseableSlice(
+  validation: ForgeWorkflowValidation,
+  input: Pick<ForgeTriageInput, "planStatus" | "testPlanStatus" | "verificationLevel">,
+): ForgeWorkflowValidation {
+  const docsReady = isSliceDocsReady({
+    planStatus: input.planStatus as TaskDocState,
+    testPlanStatus: input.testPlanStatus as TaskDocState,
+  });
+  if (!docsReady || input.verificationLevel !== "test-verified") return validation;
+
+  return {
+    ok: true,
+    nextPhase: null,
+    statuses: validation.statuses.map((status) => ({
+      ...status,
+      completed: true,
+      ready: true,
+      missing: [],
+      blockedBy: [],
+    })),
+  };
 }
