@@ -50,4 +50,27 @@ describe("resume triage priorities", () => {
     expect(triage.kind).toBe("needs-research");
     expect(triage.loadSkill).toBe("/research");
   });
+
+  test("failed checkpoint breadcrumb does not outrank the current phase gate when verification is missing", () => {
+    const triage = classifyResumeTriage({
+      project: "demo",
+      repo: "/repo",
+      base: "HEAD",
+      activeTask: { id: "DEMO-001" },
+      nextTask: { id: "DEMO-002" },
+      handoff: {
+        lastForgeOk: false,
+        lastForgeStep: "checkpoint",
+        nextAction: "rerun checkpoint",
+        failureSummary: "checkpoint found 4 stale page(s)",
+      },
+      workflowNextPhase: "research",
+      earlyPhase: true,
+      verificationLevel: null,
+    });
+
+    expect(triage.kind).toBe("needs-research");
+    expect(triage.loadSkill).toBe("/research");
+    expect(triage.command).not.toContain("wiki forge run demo DEMO-001");
+  });
 });

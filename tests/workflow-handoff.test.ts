@@ -180,6 +180,33 @@ describe("wiki workflow handoff improvements", () => {
     expect(json.lastForgeRun.failureSummary).toBe("verify-slice exited 1");
   });
 
+  test("resume demotes a failed checkpoint breadcrumb when current phase still gates earlier work", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice", "--assignee", "Pi"], env).exitCode).toBe(0);
+    expect(runWiki(["move-task", "demo", "DEMO-001", "--to", "In Progress"], env).exitCode).toBe(0);
+
+    const indexPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "index.md");
+    const indexRaw = readFileSync(indexPath, "utf8");
+    const withBreadcrumb = indexRaw.replace(
+      /^---\n/,
+      "---\nlast_forge_run: '2026-04-18T10:00:00.000Z'\nlast_forge_step: checkpoint\nlast_forge_ok: false\nnext_action: rerun checkpoint\nfailure_summary: checkpoint found 4 stale page(s)\n",
+    );
+    writeFileSync(indexPath, withBreadcrumb, "utf8");
+
+    const resume = runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(resume.exitCode).toBe(0);
+    const json = JSON.parse(resume.stdout.toString());
+    expect(json.workflowNextPhase).toBe("research");
+    expect(json.triage.kind).toBe("needs-research");
+    expect(json.triage.loadSkill).toBe("/research");
+    expect(json.triage.command).not.toContain("wiki forge run demo DEMO-001");
+    expect(json.lastForgeRun.failureSummary).toBe("checkpoint found 4 stale page(s)");
+  });
+
   test("resume warns when a pipeline breadcrumb exists but no handover file was written", () => {
     const { vault, repo } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
