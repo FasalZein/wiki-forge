@@ -44,6 +44,7 @@ function seedReadySlice(vault: string, project: string, sliceId: string) {
       `task_id: ${sliceId}`,
       "updated: 2026-04-18",
       "status: current",
+      "verification_level: test-verified",
       "---",
       "",
       `# ${sliceId} payments slice`,
@@ -77,7 +78,7 @@ describe("agent-driven simulator follows triage to terminal state", () => {
 
     const result = runAgentSim("simproj", repo, "HEAD~1", env, { stepBudget: 8 });
 
-    expect(result.converged).toBe(true);
+    expect(result.converged, JSON.stringify(result, null, 2)).toBe(true);
     expect(result.steps.length).toBeGreaterThan(0);
     expect(result.steps.every((s) => s.exitCode === 0)).toBe(true);
 
@@ -108,9 +109,14 @@ describe("agent-driven simulator follows triage to terminal state", () => {
         "task_id: RECOV-001",
         "updated: 2026-04-18",
         "status: current",
+        "verification_level: test-verified",
         "---",
         "",
         "# RECOV-001 payments slice",
+        "",
+        "## Red Tests",
+        "",
+        "- [x] Broken command fixture.",
         "",
         "## Verification Commands",
         "",

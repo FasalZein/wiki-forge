@@ -33,7 +33,7 @@ describe("wiki forge thin surface", () => {
     const planPath = join(vault, "projects", "runproj", "specs", "slices", "RUNPROJ-001", "plan.md");
     const testPlanPath = join(vault, "projects", "runproj", "specs", "slices", "RUNPROJ-001", "test-plan.md");
     writeFileSync(planPath, "---\ntitle: RUNPROJ-001 payments slice\ntype: spec\nspec_kind: plan\nproject: runproj\ntask_id: RUNPROJ-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# RUNPROJ-001 payments slice\n\n## Scope\n\n- Ship the payments change\n", "utf8");
-    writeFileSync(testPlanPath, "---\ntitle: RUNPROJ-001 payments slice\ntype: spec\nspec_kind: test-plan\nproject: runproj\ntask_id: RUNPROJ-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# RUNPROJ-001 payments slice\n\n## Red Tests\n\n- [x] Payments behavior is covered through the public API.\n\n## Verification Commands\n\n```bash\n# label: payments tests\nbun test tests/payments.test.ts\n```\n", "utf8");
+    writeFileSync(testPlanPath, "---\ntitle: RUNPROJ-001 payments slice\ntype: spec\nspec_kind: test-plan\nproject: runproj\ntask_id: RUNPROJ-001\nupdated: 2026-04-13\nstatus: current\nverification_level: test-verified\n---\n\n# RUNPROJ-001 payments slice\n\n## Red Tests\n\n- [x] Payments behavior is covered through the public API.\n\n## Verification Commands\n\n```bash\n# label: payments tests\nbun test tests/payments.test.ts\n```\n", "utf8");
     expect(runWiki(["bind", "runproj", "specs/slices/RUNPROJ-001/index.md", "src/payments.ts"], env).exitCode).toBe(0);
     expect(runWiki(["forge", "start", "runproj", "RUNPROJ-001", "--agent", "codex", "--repo", repo], env).exitCode).toBe(0);
 
@@ -340,7 +340,7 @@ describe("wiki forge thin surface", () => {
     const planPath = join(vault, "projects", "autostart", "specs", "slices", "AUTOSTART-001", "plan.md");
     const testPlanPath = join(vault, "projects", "autostart", "specs", "slices", "AUTOSTART-001", "test-plan.md");
     writeFileSync(planPath, "---\ntitle: AUTOSTART-001 payments slice\ntype: spec\nspec_kind: plan\nproject: autostart\ntask_id: AUTOSTART-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# AUTOSTART-001 payments slice\n\n## Scope\n\n- Ship the payments change\n", "utf8");
-    writeFileSync(testPlanPath, "---\ntitle: AUTOSTART-001 payments slice\ntype: spec\nspec_kind: test-plan\nproject: autostart\ntask_id: AUTOSTART-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# AUTOSTART-001 payments slice\n\n## Red Tests\n\n- [x] Payments behavior is covered through the public API.\n\n## Verification Commands\n\n```bash\n# label: payments tests\nbun test tests/payments.test.ts\n```\n", "utf8");
+    writeFileSync(testPlanPath, "---\ntitle: AUTOSTART-001 payments slice\ntype: spec\nspec_kind: test-plan\nproject: autostart\ntask_id: AUTOSTART-001\nupdated: 2026-04-13\nstatus: current\nverification_level: test-verified\n---\n\n# AUTOSTART-001 payments slice\n\n## Red Tests\n\n- [x] Payments behavior is covered through the public API.\n\n## Verification Commands\n\n```bash\n# label: payments tests\nbun test tests/payments.test.ts\n```\n", "utf8");
     expect(runWiki(["bind", "autostart", "specs/slices/AUTOSTART-001/index.md", "src/payments.ts"], env).exitCode).toBe(0);
     // Do NOT call forge start — forgeRun should auto-start the slice
 
@@ -367,7 +367,7 @@ describe("wiki forge thin surface", () => {
     const planPath = join(vault, "projects", "progproj", "specs", "slices", "PROGPROJ-001", "plan.md");
     const testPlanPath = join(vault, "projects", "progproj", "specs", "slices", "PROGPROJ-001", "test-plan.md");
     writeFileSync(planPath, "---\ntitle: PROGPROJ-001 payments slice\ntype: spec\nspec_kind: plan\nproject: progproj\ntask_id: PROGPROJ-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# PROGPROJ-001 payments slice\n\n## Scope\n\n- Ship the payments change\n", "utf8");
-    writeFileSync(testPlanPath, "---\ntitle: PROGPROJ-001 payments slice\ntype: spec\nspec_kind: test-plan\nproject: progproj\ntask_id: PROGPROJ-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# PROGPROJ-001 payments slice\n\n## Red Tests\n\n- [x] Payments behavior is covered through the public API.\n\n## Verification Commands\n\n```bash\n# label: payments tests\nbun test tests/payments.test.ts\n```\n", "utf8");
+    writeFileSync(testPlanPath, "---\ntitle: PROGPROJ-001 payments slice\ntype: spec\nspec_kind: test-plan\nproject: progproj\ntask_id: PROGPROJ-001\nupdated: 2026-04-13\nstatus: current\nverification_level: test-verified\n---\n\n# PROGPROJ-001 payments slice\n\n## Red Tests\n\n- [x] Payments behavior is covered through the public API.\n\n## Verification Commands\n\n```bash\n# label: payments tests\nbun test tests/payments.test.ts\n```\n", "utf8");
     expect(runWiki(["bind", "progproj", "specs/slices/PROGPROJ-001/index.md", "src/payments.ts"], env).exitCode).toBe(0);
     expect(runWiki(["forge", "start", "progproj", "PROGPROJ-001", "--agent", "codex", "--repo", repo], env).exitCode).toBe(0);
 

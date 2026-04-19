@@ -74,6 +74,7 @@ describe("e2e full lifecycle", () => {
         "task_id: E2EPROJ-001",
         "updated: 2026-04-18",
         "status: current",
+        "verification_level: test-verified",
         "---",
         "",
         "# E2EPROJ-001 E2E Billing",
@@ -182,6 +183,7 @@ describe("e2e full lifecycle", () => {
         "task_id: AUTOFULL-001",
         "updated: 2026-04-18",
         "status: current",
+        "verification_level: test-verified",
         "---",
         "",
         "# AUTOFULL-001 payments slice",
@@ -231,7 +233,7 @@ describe("non-blocking workflow improvements", () => {
     const planPath = join(vault, "projects", project, "specs", "slices", sliceId, "plan.md");
     const testPlanPath = join(vault, "projects", project, "specs", "slices", sliceId, "test-plan.md");
     writeFileSync(planPath, `---\ntitle: ${sliceId}\ntype: spec\nspec_kind: plan\nproject: ${project}\ntask_id: ${sliceId}\nupdated: 2026-04-18\nstatus: current\n---\n\n# ${sliceId}\n\n## Scope\n\n- Ship the change\n`, "utf8");
-    writeFileSync(testPlanPath, `---\ntitle: ${sliceId}\ntype: spec\nspec_kind: test-plan\nproject: ${project}\ntask_id: ${sliceId}\nupdated: 2026-04-18\nstatus: current\n---\n\n# ${sliceId}\n\n## Red Tests\n\n- [x] Covered.\n\n## Verification Commands\n\n\`\`\`bash\n# label: payments tests\nbun test tests/payments.test.ts\n\`\`\`\n`, "utf8");
+    writeFileSync(testPlanPath, `---\ntitle: ${sliceId}\ntype: spec\nspec_kind: test-plan\nproject: ${project}\ntask_id: ${sliceId}\nupdated: 2026-04-18\nstatus: current\nverification_level: test-verified\n---\n\n# ${sliceId}\n\n## Red Tests\n\n- [x] Covered.\n\n## Verification Commands\n\n\`\`\`bash\n# label: payments tests\nbun test tests/payments.test.ts\n\`\`\`\n`, "utf8");
     expect(runWiki(["bind", project, `specs/slices/${sliceId}/index.md`, "src/payments.ts"], env).exitCode).toBe(0);
   }
 

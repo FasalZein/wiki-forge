@@ -44,7 +44,7 @@ function setupSliceLocalFixture() {
   );
   writeFileSync(
     join(sliceDir, "test-plan.md"),
-    "---\ntitle: WF146-001\ntype: spec\nspec_kind: test-plan\nproject: wf146\ntask_id: WF146-001\nupdated: 2026-04-18\nstatus: ready\n---\n\n# test-plan\n\n## Red Tests\n\n- [x] parity fixture\n\n## Verification Commands\n\n```bash\n# label: smoke\n# expect-stdout-contains: ok\nprintf 'ok\\n'\n```\n",
+    "---\ntitle: WF146-001\ntype: spec\nspec_kind: test-plan\nproject: wf146\ntask_id: WF146-001\nupdated: 2026-04-18\nstatus: ready\nverification_commands:\n  - command: printf 'ok\\n'\n---\n\n# test-plan\n\n## Red Tests\n\n- [x] parity fixture\n\n## Verification Commands\n\n```bash\n# label: smoke\n# expect-stdout-contains: ok\nprintf 'ok\\n'\n```\n",
     "utf8",
   );
 
@@ -52,7 +52,7 @@ function setupSliceLocalFixture() {
 }
 
 describe("WIKI-FORGE-146 forge check slice-local parity", () => {
-  test("forge check uses slice-local checkpoint scoping for broad-binding noise", () => {
+  test("forge check and forge close both ignore broad-binding noise under slice-local scoping", () => {
     const { repo, env } = setupSliceLocalFixture();
 
     const check = runWiki(["forge", "check", "wf146", "WF146-001", "--repo", repo, "--base", "HEAD~1", "--json"], env);
@@ -60,5 +60,21 @@ describe("WIKI-FORGE-146 forge check slice-local parity", () => {
     const checkPayload = JSON.parse(check.stdout.toString());
     expect(checkPayload.pipeline.ok).toBe(true);
     expect(checkPayload.pipeline.steps.find((step: { id: string; ok: boolean }) => step.id === "checkpoint")?.ok).toBe(true);
+
+    expect(runWiki(["forge", "start", "wf146", "WF146-001", "--agent", "codex", "--repo", repo], env).exitCode).toBe(0);
+    const close = runWiki(["forge", "close", "wf146", "WF146-001", "--repo", repo, "--json"], env);
+    expect(close.exitCode).toBe(0);
+    const closePayload = JSON.parse(close.stdout.toString());
+    expect(closePayload.pipeline.ok).toBe(true);
+    expect(closePayload.pipeline.steps.find((step: { id: string; ok: boolean }) => step.id === "verify-slice")?.ok).toBe(true);
+  });
+
+  test("non-slice-local checkpoint still reports broad-binding noise", () => {
+    const { repo, env } = setupSliceLocalFixture();
+
+    const checkpoint = runWiki(["checkpoint", "wf146", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(checkpoint.exitCode).toBe(1);
+    const payload = JSON.parse(checkpoint.stdout.toString());
+    expect(payload.stalePages.some((page: { page: string }) => page.page === "architecture/src-layout.md")).toBe(true);
   });
 });

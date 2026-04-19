@@ -83,8 +83,9 @@ describe("WIKI-FORGE-141 workflow-phase gate", () => {
     expect(run.exitCode).not.toBe(0);
     const payload = JSON.parse(run.stdout.toString());
     expect(payload.ok).toBe(false);
-    expect(payload.step).toBe("workflow-gate");
-    expect(payload.nextPhase).toBe("research");
+    expect(payload.step).toBe("operator-lane");
+    expect(payload.steering.phase).toBe("research");
+    expect(payload.steering.lane).toBe("domain-work");
 
     // Slice must NOT have been claimed. No claimed_by, no started_at, no status=in-progress.
     const hubPath = join(vault, "projects", "wf141", "specs", "slices", "WF141-001", "index.md");
@@ -94,7 +95,7 @@ describe("WIKI-FORGE-141 workflow-phase gate", () => {
     expect(hub).toContain("status: draft");
   });
 
-  test("F2 no-regression: forge run on a docs-ready slice drives the pipeline (not workflow-gate)", () => {
+  test("F2 no-regression: forge run on a docs-ready slice is blocked by operator-lane instead of claiming and running closeout", () => {
     const { vault, repo, env } = setupPhaseResearchFixture();
 
     // Fill plan + test-plan so the slice is docs-ready. Triage becomes close-slice.
@@ -114,7 +115,8 @@ describe("WIKI-FORGE-141 workflow-phase gate", () => {
     const run = runWiki(["forge", "run", "wf141", "WF141-001", "--repo", repo, "--json"], env);
     const stdout = run.stdout.toString();
     const payload = stdout ? JSON.parse(stdout) : { step: "" };
-    // The pipeline may fail on a later step, but it must NOT fail on the new workflow-gate.
-    expect(payload.step).not.toBe("workflow-gate");
+    expect(run.exitCode).toBe(1);
+    expect(payload.step).toBe("operator-lane");
+    expect(payload.steering.lane).toBe("implementation-work");
   });
 });

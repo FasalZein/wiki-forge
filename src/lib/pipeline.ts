@@ -36,6 +36,8 @@ export interface PipelineResult {
     stdout?: string;
     stderr?: string;
     durationMs: number | null;
+    rerunCommand: string;
+    upstreamMutated: boolean;
   }>;
   ok: boolean;
   stoppedAt: string | null;
@@ -140,13 +142,23 @@ export interface RunPipelineOptions {
   json?: boolean;
   worktree?: boolean;
   sliceLocal?: boolean;
-  onStepComplete?: (step: { id: string; label: string; ok: boolean; error: string | null; durationMs: number | null }) => Promise<void>;
+  upstreamMutatedBeforeStart?: boolean;
+  onStepComplete?: (step: {
+    id: string;
+    label: string;
+    ok: boolean;
+    error: string | null;
+    durationMs: number | null;
+    rerunCommand: string;
+    upstreamMutated: boolean;
+  }) => Promise<void>;
 }
 
 export async function runPipeline(options: RunPipelineOptions, executor?: (command: string, args: string[]) => Promise<{ ok: boolean; error?: string; stdout?: string; stderr?: string }>, injectedState?: PipelineState): Promise<PipelineResult> {
   const steps = pipelineSteps(options.phase);
   const ownsState = !injectedState;
   const state = injectedState ?? new PipelineState();
+  let upstreamMutated = Boolean(options.upstreamMutatedBeforeStart);
   const result: PipelineResult = {
     project: options.project,
     sliceId: options.sliceId,
@@ -159,20 +171,47 @@ export async function runPipeline(options: RunPipelineOptions, executor?: (comma
   try {
     for (const step of steps) {
       const skipped = !options.dryRun && state.shouldSkip(options.project, options.sliceId, step.id);
+      const args = buildStepArgs(step, options);
+      const rerunCommand = buildRerunCommand(step.command, args);
       if (skipped) {
-        result.steps.push({ id: step.id, label: step.label, skipped: true, ok: true, error: null, durationMs: null });
+        result.steps.push({
+          id: step.id,
+          label: step.label,
+          skipped: true,
+          ok: true,
+          error: null,
+          durationMs: null,
+          rerunCommand,
+          upstreamMutated,
+        });
         if (options.onStepComplete) {
-          await options.onStepComplete({ id: step.id, label: step.label, ok: true, error: null, durationMs: null });
+          await options.onStepComplete({
+            id: step.id,
+            label: step.label,
+            ok: true,
+            error: null,
+            durationMs: null,
+            rerunCommand,
+            upstreamMutated,
+          });
         }
         continue;
       }
 
       if (options.dryRun) {
-        result.steps.push({ id: step.id, label: step.label, skipped: false, ok: true, error: null, durationMs: null });
+        result.steps.push({
+          id: step.id,
+          label: step.label,
+          skipped: false,
+          ok: true,
+          error: null,
+          durationMs: null,
+          rerunCommand,
+          upstreamMutated,
+        });
         continue;
       }
 
-      const args = buildStepArgs(step, options);
       const startedAt = new Date().toISOString();
       state.record(options.project, options.sliceId, step.id, startedAt, null, false, null);
 
@@ -184,10 +223,29 @@ export async function runPipeline(options: RunPipelineOptions, executor?: (comma
       const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();
       state.record(options.project, options.sliceId, step.id, startedAt, completedAt, run.ok, run.error ?? null);
 
-      result.steps.push({ id: step.id, label: step.label, skipped: false, ok: run.ok, error: run.error ?? null, stdout: run.stdout, stderr: run.stderr, durationMs });
+      result.steps.push({
+        id: step.id,
+        label: step.label,
+        skipped: false,
+        ok: run.ok,
+        error: run.error ?? null,
+        stdout: run.stdout,
+        stderr: run.stderr,
+        durationMs,
+        rerunCommand,
+        upstreamMutated,
+      });
 
       if (options.onStepComplete) {
-        await options.onStepComplete({ id: step.id, label: step.label, ok: run.ok, error: run.error ?? null, durationMs });
+        await options.onStepComplete({
+          id: step.id,
+          label: step.label,
+          ok: run.ok,
+          error: run.error ?? null,
+          durationMs,
+          rerunCommand,
+          upstreamMutated,
+        });
       }
 
       if (!run.ok) {
@@ -195,6 +253,8 @@ export async function runPipeline(options: RunPipelineOptions, executor?: (comma
         result.stoppedAt = step.id;
         break;
       }
+
+      if (stepMutatesState(step.command)) upstreamMutated = true;
     }
   } finally {
     if (ownsState) state.close();
@@ -236,4 +296,17 @@ async function executeStep(command: string, args: string[]): Promise<{ ok: boole
   const stderr = proc.stderr.toString().trim();
   if (proc.exitCode === 0) return { ok: true, stdout: stdout || undefined };
   return { ok: false, error: stderr || `exit code ${proc.exitCode}`, stdout: stdout || undefined, stderr: stderr || undefined };
+}
+
+function buildRerunCommand(command: string, args: string[]) {
+  const renderedArgs = args.map(quoteShellArg).join(" ");
+  return renderedArgs ? `wiki ${command} ${renderedArgs}` : `wiki ${command}`;
+}
+
+function quoteShellArg(value: string) {
+  return /\s/u.test(value) ? JSON.stringify(value) : value;
+}
+
+function stepMutatesState(command: string) {
+  return command === "maintain" || command === "update-index" || command === "close-slice";
 }

@@ -40,16 +40,21 @@ export function runAgentSim(
     }
     const resume = JSON.parse(resumeResult.stdout.toString());
     const triage = resume.triage as { kind: string; reason: string; command: string };
+    const steering = resume.steering as { nextCommand?: string } | undefined;
+    const command = typeof steering?.nextCommand === "string" && steering.nextCommand.startsWith("wiki ")
+      ? steering.nextCommand
+      : triage.command;
 
     const entry: SimStep = {
       step,
       triage: triage.kind,
-      command: triage.command,
+      command,
       exitCode: 0,
       reason: triage.reason,
     };
 
-    const isTerminal = TERMINAL_KINDS.has(triage.kind) && !resume.activeTask && !resume.nextTask;
+    const isTerminal = triage.kind === "completed"
+      || (TERMINAL_KINDS.has(triage.kind) && !resume.activeTask && !resume.nextTask);
     if (isTerminal) {
       terminalTriage = triage.kind;
       converged = true;
@@ -58,7 +63,7 @@ export function runAgentSim(
       break;
     }
 
-    const parsed = parseTriageCommand(triage.command, repo, base);
+    const parsed = parseTriageCommand(command, repo, base);
     const cmdResult = runWiki(parsed, env);
     entry.exitCode = cmdResult.exitCode;
     steps.push(entry);

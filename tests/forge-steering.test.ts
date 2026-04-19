@@ -1,0 +1,88 @@
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { cleanupTempPaths, initVault, runGit, runWiki, setRepoFrontmatter, tempDir } from "./test-helpers";
+
+afterEach(() => {
+  cleanupTempPaths();
+});
+
+function setupRepo(project: string) {
+  const vault = tempDir(`${project}-vault`);
+  const repo = tempDir(`${project}-repo`);
+  initVault(vault);
+  mkdirSync(join(repo, "src"), { recursive: true });
+  writeFileSync(join(repo, "src", "auth.ts"), "export const auth = 1\n", "utf8");
+  runGit(repo, ["init", "-q"]);
+  runGit(repo, ["add", "."]);
+  runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
+  writeFileSync(join(repo, "src", "auth.ts"), "export const auth = 2\n", "utf8");
+  runGit(repo, ["add", "."]);
+  runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "second"]);
+
+  const env = { KNOWLEDGE_VAULT_ROOT: vault };
+  expect(runWiki(["scaffold-project", project], env).exitCode).toBe(0);
+  setRepoFrontmatter(vault, repo, project);
+  expect(runWiki(["create-issue-slice", project, "auth slice"], env).exitCode).toBe(0);
+  return { vault, repo, env };
+}
+
+describe("WIKI-FORGE-149 steering packet", () => {
+  test("resume json includes shared steering for domain-work", () => {
+    const { repo, env } = setupRepo("wf149resume");
+    expect(runWiki(["forge", "start", "wf149resume", "WF149RESUME-001", "--agent", "codex", "--repo", repo], env).exitCode).toBe(0);
+
+    const result = runWiki(["resume", "wf149resume", "--repo", repo, "--json"], env);
+    expect(result.exitCode).toBe(0);
+    const payload = JSON.parse(result.stdout.toString());
+
+    expect(payload.steering.lane).toBe("domain-work");
+    expect(payload.steering.phase).toBe("research");
+    expect(payload.steering.loadSkill).toBe("/research");
+  });
+
+  test("forge status json classifies docs-ready but unverified slice as implementation-work", () => {
+    const { vault, env } = setupRepo("wf149status");
+    const sliceDir = join(vault, "projects", "wf149status", "specs", "slices", "WF149STATUS-001");
+    writeFileSync(
+      join(sliceDir, "plan.md"),
+      "---\ntitle: WF149STATUS-001\ntype: spec\nspec_kind: plan\nproject: wf149status\ntask_id: WF149STATUS-001\nupdated: 2026-04-19\nstatus: ready\n---\n\n# plan\n\n## Scope\n\n- finish implementation\n",
+      "utf8",
+    );
+    writeFileSync(
+      join(sliceDir, "test-plan.md"),
+      "---\ntitle: WF149STATUS-001\ntype: spec\nspec_kind: test-plan\nproject: wf149status\ntask_id: WF149STATUS-001\nupdated: 2026-04-19\nstatus: ready\nverification_commands:\n  - command: bun test\n---\n\n# test-plan\n\n## Red Tests\n\n- [x] covered\n",
+      "utf8",
+    );
+
+    const result = runWiki(["forge", "status", "wf149status", "WF149STATUS-001", "--json"], env);
+    expect(result.exitCode).toBe(0);
+    const payload = JSON.parse(result.stdout.toString());
+
+    expect(payload.steering.lane).toBe("implementation-work");
+    expect(payload.steering.loadSkill).toBe("/tdd");
+  });
+
+  test("forge next text leads with the steering packet", () => {
+    const { vault, env } = setupRepo("wf149next");
+    const sliceDir = join(vault, "projects", "wf149next", "specs", "slices", "WF149NEXT-001");
+    writeFileSync(
+      join(sliceDir, "plan.md"),
+      "---\ntitle: WF149NEXT-001\ntype: spec\nspec_kind: plan\nproject: wf149next\ntask_id: WF149NEXT-001\nupdated: 2026-04-19\nstatus: ready\n---\n\n# plan\n\n## Scope\n\n- finish implementation\n",
+      "utf8",
+    );
+    writeFileSync(
+      join(sliceDir, "test-plan.md"),
+      "---\ntitle: WF149NEXT-001\ntype: spec\nspec_kind: test-plan\nproject: wf149next\ntask_id: WF149NEXT-001\nupdated: 2026-04-19\nstatus: ready\nverification_commands:\n  - command: bun test\n---\n\n# test-plan\n\n## Red Tests\n\n- [x] covered\n",
+      "utf8",
+    );
+
+    const result = runWiki(["forge", "next", "wf149next"], env);
+    expect(result.exitCode).toBe(0);
+    const output = result.stdout.toString();
+
+    expect(output).toContain("- lane: implementation-work");
+    expect(output).toContain("- load-skill: /tdd");
+    expect(output).toContain("- next: wiki forge next wf149next --prompt");
+  });
+});

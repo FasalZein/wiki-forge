@@ -6,13 +6,15 @@ import { parseProjectRepoBaseArgs } from "../git-utils";
 import { exists, readText } from "../lib/fs";
 import { readSliceHandoff } from "../lib/slice-progress";
 import { collectSessionActivity, resolveSessionId } from "../lib/tracker";
-import { assertGitRepo, resolveRepoPath } from "../lib/verification";
+import { assertGitRepo, readVerificationLevel, resolveRepoPath } from "../lib/verification";
 import { collectMaintenancePlan } from "../maintenance";
 import { collectDriftSummary } from "../lib/drift-query";
 import { loadLintingSnapshot } from "../verification";
 import { applyDerivedLedger } from "../lib/forge-ledger-detect";
 import { validateForgeWorkflowLedger, type ForgePhase } from "../lib/forge-ledger";
 import { phaseRecommendation } from "../lib/forge-phase-commands";
+import { buildForgeSteering, renderSteeringPacket } from "../lib/forge-steering";
+import { projectTaskTestPlanPath } from "../lib/structure";
 import {
   collectDirtyRepoStatus,
   collectRecentCommits,
@@ -48,24 +50,15 @@ export async function resumeProject(args: string[]) {
     collectSessionActivity(options.project, resolveSessionId()),
     findLatestHandover(options.project),
   ]);
-  const handoff = maintain.focus.activeTask
-    ? await readSliceHandoff(options.project, maintain.focus.activeTask.id)
-    : null;
-
-  // PRD-056: detect workflow next phase via artifact detection for the active/next slice.
-  // Degrades gracefully — never throws; null means detection was skipped or failed.
+  const handoff = maintain.focus.activeTask ? await readSliceHandoff(options.project, maintain.focus.activeTask.id) : null;
   const focusSliceId = maintain.focus.activeTask?.id ?? maintain.focus.recommendedTask?.id ?? null;
-  let workflowNextPhase: string | null = null;
+  let workflowNextPhase: ForgePhase | null = null;
   if (focusSliceId) {
     try {
       const { merged } = await applyDerivedLedger({}, options.project, focusSliceId);
       workflowNextPhase = validateForgeWorkflowLedger({ project: options.project, sliceId: focusSliceId, ...merged }).nextPhase;
-    } catch {
-      // Detection failure is non-fatal; workflowNextPhase stays null
-    }
+    } catch {}
   }
-  // Docs-readiness mirrors buildForgeTriage's earlyPhase rule: a slice whose plan
-  // or test-plan is not yet ready should not be run regardless of the ledger.
   const focusTask = maintain.focus.activeTask ?? maintain.focus.recommendedTask;
   const earlyPhase =
     focusTask && (focusTask.planStatus !== "ready" || focusTask.testPlanStatus !== "ready");
@@ -93,8 +86,35 @@ export async function resumeProject(args: string[]) {
   }
 
   const actions = maintain.actions.slice(0, 8);
-  // Detect stale handover: if pipeline breadcrumb is newer than the handover file,
-  // the previous session likely ended without calling `wiki handover` (e.g., context overflow).
+  let focusVerificationLevel: string | null = null;
+  if (focusTask) {
+    try {
+      const testPlanPath = projectTaskTestPlanPath(options.project, focusTask.id);
+      const parsed = safeMatter(relative(VAULT_ROOT, testPlanPath), await readText(testPlanPath), { silent: true });
+      focusVerificationLevel = parsed ? readVerificationLevel(parsed.data) : null;
+    } catch {
+      focusVerificationLevel = null;
+    }
+  }
+  const triage = classifyResumeTriage(options.project, repo, options.base, maintain.focus.activeTask, maintain.focus.recommendedTask, actions, handoff, workflowNextPhase, earlyPhase, focusVerificationLevel);
+  const steering = focusTask
+    ? buildForgeSteering({
+        project: options.project,
+        sliceId: focusTask.id,
+        triage,
+        nextPhase: workflowNextPhase ?? null,
+        planStatus: focusTask.planStatus,
+        testPlanStatus: focusTask.testPlanStatus,
+        verificationLevel: focusVerificationLevel,
+        sliceStatus: focusTask.sliceStatus,
+        section: focusTask.section,
+      })
+    : buildForgeSteering({
+        project: options.project,
+        sliceId: null,
+        triage,
+        nextPhase: null,
+      });
   const handoverIso = handoverMeta?.created_at ?? null;
   const handoffIso = handoff?.lastForgeRun ?? null;
   const handoverStale = Boolean(
@@ -116,7 +136,8 @@ export async function resumeProject(args: string[]) {
     handoverStale,
     noHandoverButBreadcrumb,
     ...(workflowNextPhase !== null ? { workflowNextPhase } : {}),
-    triage: classifyResumeTriage(options.project, repo, options.base, maintain.focus.activeTask, maintain.focus.recommendedTask, actions, handoff, workflowNextPhase, earlyPhase),
+    triage,
+    steering,
     ...(handoff ? { lastForgeRun: handoff } : {}),
     ...(handoverMeta ? { lastHandover: { path: relative(VAULT_ROOT, latestHandoverPath!), ...handoverMeta } } : {}),
   };
@@ -124,14 +145,7 @@ export async function resumeProject(args: string[]) {
     console.log(JSON.stringify(payload, null, 2));
     return;
   }
-  // Decisive format: lead with the ONE command to run. Everything else is context below.
-  console.log(`→ ${payload.triage.command}`);
-  console.log(`  (${payload.triage.reason})`);
-  if (payload.triage.loadSkill) {
-    console.log(`  load-skill: ${payload.triage.loadSkill}`);
-  }
-  // F5: surface recovery hints inline when the triage reports a stuck slice —
-  // either the workflow-gate re-route (needs-*) or a prior forge-run failure.
+  for (const line of renderSteeringPacket(payload.steering)) console.log(`- ${line}`);
   const showsRecovery =
     payload.triage.kind === "resume-failed-forge" || payload.triage.kind.startsWith("needs-");
   const focusId = payload.activeTask?.id ?? payload.nextTask?.id ?? null;
@@ -184,29 +198,28 @@ function classifyResumeTriage(
   nextTask: { id: string } | null | undefined,
   actions: Array<{ kind: string; message: string; scope?: string }>,
   handoff?: { lastForgeRun?: string; lastForgeStep?: string; lastForgeOk?: boolean; nextAction?: string; failureSummary?: string } | null,
-  workflowNextPhase?: string | null,
+  workflowNextPhase?: ForgePhase | null,
   earlyPhase?: boolean | null,
+  verificationLevel?: string | null,
 ) {
   const baseFlag = base ? ` --base ${base}` : "";
   const focusTask = activeTask ?? nextTask;
-  // Failed-forge breadcrumb takes precedence: operator just lost a run, they need
-  // to see WHY, not a re-route to an earlier workflow phase.
   if (activeTask && handoff && handoff.lastForgeOk === false && handoff.nextAction) {
-    return {
-      kind: "resume-failed-forge",
-      reason: handoff.failureSummary ?? `forge run failed at ${handoff.lastForgeStep}`,
-      command: `wiki forge run ${project} ${activeTask.id} --repo ${repo}${baseFlag}`,
-    };
+    const verifyCloseSteps = new Set(["verify-slice", "closeout", "gate", "close-slice"]);
+    const shouldResumeFailedForge =
+      verificationLevel === "test-verified" || verifyCloseSteps.has(handoff.lastForgeStep ?? "");
+    if (shouldResumeFailedForge) {
+      return {
+        kind: "resume-failed-forge",
+        reason: handoff.failureSummary ?? `forge run failed at ${handoff.lastForgeStep}`,
+        command: `wiki forge run ${project} ${activeTask.id} --repo ${repo}${baseFlag}`,
+      };
+    }
   }
-  // Workflow-phase gate: if plan/test-plan aren't ready AND the ledger says an
-  // earlier phase is incomplete, recommending `wiki forge run` would claim+fail.
-  // Route to the phase-appropriate command. This mirrors buildForgeTriage's
-  // `needs-*` paths so resume, forge status, and forge next agree.
   if (focusTask && earlyPhase && workflowNextPhase && workflowNextPhase !== "verify") {
-    const rec = phaseRecommendation(project, focusTask.id, workflowNextPhase as ForgePhase);
+    const rec = phaseRecommendation(project, focusTask.id, workflowNextPhase);
     return { kind: rec.kind, reason: rec.reason, command: rec.command, ...(rec.loadSkill ? { loadSkill: rec.loadSkill } : {}) };
   }
-  // Agent surface is 3 commands: plan, run, next. Any active slice → run it.
   if (activeTask) {
     return {
       kind: "continue-active-slice",

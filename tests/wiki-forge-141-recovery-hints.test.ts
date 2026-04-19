@@ -32,7 +32,8 @@ describe("WIKI-FORGE-141 recovery hint surface (F5)", () => {
     const run = runWiki(["forge", "run", "wfr", "WFR-001", "--repo", repo, "--json"], env);
     expect(run.exitCode).not.toBe(0);
     const payload = JSON.parse(run.stdout.toString());
-    expect(payload.step).toBe("workflow-gate");
+    expect(payload.step).toBe("operator-lane");
+    expect(payload.steering.lane).toBe("domain-work");
     expect(Array.isArray(payload.recovery)).toBe(true);
     expect(payload.recovery.some((c: string) => c.startsWith("wiki forge release"))).toBe(true);
     expect(payload.recovery.some((c: string) => c.startsWith("wiki close-slice"))).toBe(true);

@@ -10,6 +10,7 @@ import { collectCloseout, collectGate } from "../maintenance";
 import { type ForgeWorkflowLedger, validateForgeWorkflowLedger } from "../lib/forge-ledger";
 import { applyDerivedLedger } from "../lib/forge-ledger-detect";
 import { phaseRecommendation } from "../lib/forge-phase-commands";
+import { buildForgeSteering, renderSteeringPacket } from "../lib/forge-steering";
 import { projectPrdsDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath } from "../lib/structure";
 import { collectBacklogFocus, collectBacklogView, collectTaskContextForId, detectTaskDocState, createFeatureReturningId, createPrdReturningId, moveTaskToSection } from "../hierarchy";
 import { appendLogEntry } from "../lib/log";
@@ -176,6 +177,15 @@ export async function collectForgeStatus(project: string, sliceId: string) {
   }
   const validation = validateForgeWorkflowLedger(ledger as ForgeWorkflowLedger);
   const verificationLevel = testPlan ? readVerificationLevel(testPlan.data) : null;
+  const triage = buildForgeTriage(project, sliceId, {
+    activeSlice: focus.activeTask?.id ?? null,
+    sliceStatus: context?.sliceStatus ?? null,
+    section: context?.section ?? null,
+    planStatus: context?.planStatus ?? "missing",
+    testPlanStatus: context?.testPlanStatus ?? "missing",
+    verificationLevel,
+    nextPhase: validation.nextPhase ?? null,
+  });
   return {
     project,
     sliceId,
@@ -191,14 +201,17 @@ export async function collectForgeStatus(project: string, sliceId: string) {
       ledger,
       validation,
     },
-    triage: buildForgeTriage(project, sliceId, {
-      activeSlice: focus.activeTask?.id ?? null,
-      sliceStatus: context?.sliceStatus ?? null,
-      section: context?.section ?? null,
+    triage,
+    steering: buildForgeSteering({
+      project,
+      sliceId,
+      triage,
+      nextPhase: validation.nextPhase ?? null,
       planStatus: context?.planStatus ?? "missing",
       testPlanStatus: context?.testPlanStatus ?? "missing",
       verificationLevel,
-      nextPhase: validation.nextPhase ?? null,
+      sliceStatus: context?.sliceStatus ?? null,
+      section: context?.section ?? null,
     }),
   };
 }
@@ -303,6 +316,7 @@ async function collectForgeReview(project: string, sliceId: string, repo: string
 
 function renderForgePipeline(action: "check" | "close", workflow: Awaited<ReturnType<typeof collectForgeStatus>>, result: Awaited<ReturnType<typeof runPipeline>>, review?: Awaited<ReturnType<typeof collectForgeReview>> | null) {
   console.log(`forge ${action} ${workflow.project}/${workflow.sliceId}: ${result.ok ? "PASS" : "FAIL"}`);
+  for (const line of renderSteeringPacket(workflow.steering)) console.log(`- ${line}`);
   console.log(`- active slice: ${workflow.activeSlice ?? "none"}`);
   console.log(`- workflow next phase: ${workflow.workflow.validation.nextPhase ?? "complete"}`);
   console.log(`- next action: ${workflow.triage.command}`);
@@ -321,6 +335,8 @@ function renderForgePipeline(action: "check" | "close", workflow: Awaited<Return
       } else if (step.error) {
         console.log(`  error: ${step.error}`);
       }
+      console.log(`  rerun: ${step.rerunCommand}`);
+      console.log(`  upstream mutated: ${step.upstreamMutated ? "yes" : "no"}`);
     }
   }
   if (review) {
@@ -333,6 +349,7 @@ function renderForgePipeline(action: "check" | "close", workflow: Awaited<Return
 
 function renderForgeStatus(workflow: Awaited<ReturnType<typeof collectForgeStatus>>) {
   console.log(`forge status for ${workflow.project}/${workflow.sliceId}`);
+  for (const line of renderSteeringPacket(workflow.steering)) console.log(`- ${line}`);
   console.log(`- active slice: ${workflow.activeSlice ?? "none"}`);
   console.log(`- recommended slice: ${workflow.recommendedSlice ?? "none"}`);
   console.log(`- parent prd: ${workflow.parentPrd ?? "none"}`);
@@ -382,6 +399,7 @@ function compactForgeStatusForJson(workflow: Awaited<ReturnType<typeof collectFo
           blockedBy: context.blockedBy,
         }
       : null,
+    steering: workflow.steering,
   };
 }
 
@@ -685,6 +703,7 @@ export async function forgeNext(args: string[]) {
     targetSlice: targetId,
     active: activeId !== null,
     triage: workflow.triage,
+    steering: workflow.steering,
     planStatus: workflow.planStatus,
     testPlanStatus: workflow.testPlanStatus,
     verificationLevel: workflow.verificationLevel,
@@ -693,6 +712,7 @@ export async function forgeNext(args: string[]) {
   if (json) console.log(JSON.stringify(result, null, 2));
   else {
     console.log(`forge next for ${project}: ${targetId}`);
+    for (const line of renderSteeringPacket(workflow.steering)) console.log(`- ${line}`);
     console.log(`- ${activeId ? "active" : "recommended"} slice`);
     console.log(`- plan: ${workflow.planStatus}`);
     console.log(`- test-plan: ${workflow.testPlanStatus}`);
@@ -928,21 +948,12 @@ function classifyStepFailure(stepId: string, error: string | null): string {
 export async function forgeRun(args: string[]) {
   const parsed = await parseForgeArgs(args, "run");
 
-  // F2 workflow-gate: probe workflow readiness BEFORE claiming the slice.
-  // Consult the authoritative triage (which already reconciles plan/test-plan
-  // readiness against the ledger). Only gate on `needs-*` kinds — those are the
-  // states where `forge run` would claim-then-fail. `close-slice` / `open-slice`
-  // / `fill-docs` either drive the pipeline or have no claim side effect via run.
   const preWorkflow = await collectForgeStatus(parsed.project, parsed.sliceId);
-  const preNextPhase = preWorkflow.workflow.validation.nextPhase;
-  if (preWorkflow.triage.kind.startsWith("needs-") && preNextPhase && preNextPhase !== "verify") {
-    const rec = phaseRecommendation(parsed.project, parsed.sliceId, preNextPhase);
+  if (preWorkflow.steering.lane !== "verify-close") {
     const payload = {
       ok: false,
-      step: "workflow-gate",
-      nextPhase: preNextPhase,
-      reason: rec.reason,
-      command: rec.command,
+      step: "operator-lane",
+      steering: preWorkflow.steering,
       recovery: [
         `wiki forge release ${parsed.project} ${parsed.sliceId}`,
         `wiki close-slice ${parsed.project} ${parsed.sliceId} --reason "<reason>"`,
@@ -950,11 +961,11 @@ export async function forgeRun(args: string[]) {
     };
     if (parsed.json) console.log(JSON.stringify(payload, null, 2));
     else {
-      console.log(`workflow-gate: cannot run forge on ${parsed.sliceId} — ${rec.reason}`);
-      console.log(`  next action: ${rec.command}`);
+      console.log(`forge run blocked for ${parsed.sliceId}`);
+      for (const line of renderSteeringPacket(preWorkflow.steering)) console.log(`- ${line}`);
       console.log(`  recovery: ${payload.recovery.join("  |  ")}`);
     }
-    throw new Error(`workflow-gate: next phase is ${preNextPhase}; run \`${rec.command}\` first`);
+    throw new Error(`operator-lane: ${parsed.sliceId} is in ${preWorkflow.steering.lane}; run \`${preWorkflow.steering.nextCommand}\` first`);
   }
 
   const context = await collectTaskContextForId(parsed.project, parsed.sliceId);
@@ -978,7 +989,15 @@ export async function forgeRun(args: string[]) {
   const workflow = await collectForgeStatus(parsed.project, parsed.sliceId);
 
   const progressSteps: PipelineStepProgress[] = [];
-  const onStepComplete = async (step: { id: string; label: string; ok: boolean; error: string | null; durationMs: number | null }) => {
+  const onStepComplete = async (step: {
+    id: string;
+    label: string;
+    ok: boolean;
+    error: string | null;
+    durationMs: number | null;
+    rerunCommand: string;
+    upstreamMutated: boolean;
+  }) => {
     progressSteps.push({
       id: step.id,
       ok: step.ok,
@@ -1037,6 +1056,7 @@ export async function forgeRun(args: string[]) {
     dryRun: parsed.dryRun,
     worktree: parsed.worktree,
     sliceLocal: true,
+    upstreamMutatedBeforeStart: true,
     onStepComplete,
   });
   if (parsed.json) console.log(JSON.stringify({ ...workflow, check: checkResult, close: closeResult }, null, 2));
