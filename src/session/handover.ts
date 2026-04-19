@@ -7,7 +7,14 @@ import { collectMaintenancePlan } from "../maintenance";
 import { closeSlice } from "../slice";
 import { readSliceTestPlan } from "../lib/slices";
 import { readVerificationLevel } from "../lib/verification";
-import { readSlicePipelineProgress, type PipelineProgressEntry } from "../lib/slice-progress";
+import { readSlicePipelineProgress } from "../lib/slice-progress";
+import {
+  buildAccomplishments,
+  buildBlockers,
+  buildNextSessionPrompt,
+  buildShortPrompt,
+  type AutoCloseAttempt,
+} from "./handover-narrative";
 import {
   collectDirtyRepoStatus,
   collectRecentCommits,
@@ -17,71 +24,6 @@ import {
   renderSessionActivity,
   writeHandoverFile,
 } from "./_shared";
-
-type AutoCloseAttempt =
-  | { sliceId: string; attempted: true; closed: true }
-  | { sliceId: string; attempted: true; closed: false; reason: string }
-  | null;
-
-function buildNextSessionPrompt(result: {
-  project: string;
-  repo: string;
-  base: string;
-  focus: { activeTask: { id: string; title: string } | null; recommendedTask: { id: string; title: string } | null; warnings: string[] };
-  dirty: { modifiedFiles: string[]; untrackedFiles: string[]; stagedFiles: string[] };
-  actions: Array<{ kind: string; message: string }>;
-  recentNotes: string[];
-  recentCommits: string[];
-  commitsSinceBase: string[];
-  pipelineProgress: PipelineProgressEntry[] | null;
-  autoCloseAttempt: AutoCloseAttempt;
-}): string {
-  const lines: string[] = [];
-  lines.push(`Continue work on ${result.project}. Repo: ${result.repo}`);
-  lines.push(`Start with: wiki resume ${result.project} --repo ${result.repo} --base ${result.base}`);
-  lines.push("");
-  if (result.dirty.modifiedFiles.length || result.dirty.untrackedFiles.length) {
-    lines.push(`Warning: ${result.dirty.modifiedFiles.length} modified, ${result.dirty.untrackedFiles.length} untracked files — review and commit or discard before starting new work.`);
-  }
-  if (result.autoCloseAttempt?.attempted) {
-    if (result.autoCloseAttempt.closed) {
-      lines.push(`Previous session auto-closed ${result.autoCloseAttempt.sliceId}`);
-    } else {
-      lines.push(`Auto-close attempted but failed: ${result.autoCloseAttempt.reason}`);
-    }
-  }
-  if (result.focus.activeTask) {
-    lines.push(`Active slice: ${result.focus.activeTask.id} — ${result.focus.activeTask.title}. Continue this first.`);
-  } else if (result.focus.recommendedTask) {
-    lines.push(`Next slice: ${result.focus.recommendedTask.id} — ${result.focus.recommendedTask.title}. Start with: wiki forge run ${result.project} ${result.focus.recommendedTask.id} --repo ${result.repo}`);
-  }
-  const priorityActions = result.actions.filter((a) => !a.kind.startsWith("move-doc")).slice(0, 3);
-  if (priorityActions.length) {
-    lines.push("");
-    lines.push("Priorities:");
-    for (const action of priorityActions) lines.push(`- [${action.kind}] ${action.message}`);
-  }
-  if (result.recentNotes.length) {
-    lines.push("");
-    lines.push(`Previous agent note: ${result.recentNotes[0]}`);
-  }
-  if (result.commitsSinceBase.length) {
-    lines.push("");
-    lines.push("Session commits:");
-    for (const commit of result.commitsSinceBase.slice(0, 10)) lines.push(`- ${commit}`);
-  }
-  if (result.pipelineProgress) {
-    lines.push("");
-    lines.push("Last pipeline run:");
-    for (const step of result.pipelineProgress) {
-      const status = step.ok ? "ok" : "fail";
-      const duration = step.durationMs !== undefined ? ` (${step.durationMs}ms)` : "";
-      const err = step.error ? ` — ${step.error}` : "";
-      lines.push(`- ${step.step}: ${status}${duration}${err}`);
-    }
-  }
-  return lines.join("\n");
-}
 
 export async function handoverProject(args: string[]) {
   const options = await parseProjectRepoBaseArgs(args);
@@ -172,14 +114,24 @@ export async function handoverProject(args: string[]) {
     autoCloseAttempt,
   };
   const nextSessionPrompt = buildNextSessionPrompt(result);
+  const shortPrompt = buildShortPrompt(result);
+  const accomplishments = buildAccomplishments(result);
+  const blockers = buildBlockers(result);
 
   let handoverPath: string | null = null;
   if (!noWrite) {
-    handoverPath = await writeHandoverFile(result, nextSessionPrompt, harness);
+    handoverPath = await writeHandoverFile(result, { shortPrompt, nextSessionPrompt, accomplishments, blockers }, harness);
   }
 
   if (json) {
-    console.log(JSON.stringify({ ...result, nextSessionPrompt, ...(handoverPath ? { handoverPath: relative(VAULT_ROOT, handoverPath) } : {}) }, null, 2));
+    console.log(JSON.stringify({
+      ...result,
+      shortPrompt,
+      nextSessionPrompt,
+      accomplishments,
+      blockers,
+      ...(handoverPath ? { handoverPath: relative(VAULT_ROOT, handoverPath) } : {}),
+    }, null, 2));
     return;
   }
   console.log(`handover for ${options.project}:`);

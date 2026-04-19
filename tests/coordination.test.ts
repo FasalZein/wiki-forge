@@ -139,6 +139,11 @@ describe("wiki coordination commands", () => {
     expect(json.focus.activeTask.id).toBe("DEMO-001");
     expect(json.dirty.modifiedFiles).toContain("src/auth.ts");
     expect(json.dirty.untrackedFiles).toContain("src/new.ts");
+    expect(json.shortPrompt).toContain("Load /wiki and /forge.");
+    expect(json.shortPrompt).toContain("wiki resume demo --repo");
+    expect(json.shortPrompt).toContain("wiki forge run demo DEMO-001");
+    expect(Array.isArray(json.accomplishments)).toBe(true);
+    expect(Array.isArray(json.blockers)).toBe(true);
     expect(json.recentNotes.some((entry: string) => entry.includes("left off at parser"))).toBe(true);
     // Verify handover file was written (WIKI-FORGE-073)
     expect(json.handoverPath).toContain("handovers/");
@@ -149,16 +154,25 @@ describe("wiki coordination commands", () => {
     const handoverContent = readFileSync(join(handoverDir, handoverFiles[0]), "utf8");
     expect(handoverContent).toContain("type: handover");
     expect(handoverContent).toContain("project: demo");
+    expect(handoverContent).toContain("status: current");
+    expect(handoverContent).toContain("## Short Prompt");
     expect(handoverContent).toContain("## Session Summary");
     expect(handoverContent).toContain("## Recent Commits");
     expect(handoverContent).toContain("## Dirty State");
     expect(handoverContent).toContain("## Next Session Priorities");
     expect(handoverContent).toContain("## What Was Accomplished");
     expect(handoverContent).toContain("## Blockers & Open Questions");
+    expect(handoverContent).toContain("```text");
+    expect(handoverContent).toContain("Load /wiki and /forge.");
+    expect(handoverContent).not.toContain("<!-- LLM: fill in what was accomplished during this session -->");
+    expect(handoverContent).not.toContain("<!-- LLM: fill in any blockers or open questions -->");
     // WIKI-FORGE-101: agent-alignment callout + priorities precede auto sections
     expect(handoverContent).toContain("> [!note] Agent alignment");
+    const shortPromptIdx = handoverContent.indexOf("## Short Prompt");
     const priorityIdx = handoverContent.indexOf("## Next Session Priorities");
     const summaryIdx = handoverContent.indexOf("## Session Summary");
+    expect(shortPromptIdx).toBeGreaterThan(0);
+    expect(priorityIdx).toBeGreaterThan(shortPromptIdx);
     expect(priorityIdx).toBeGreaterThan(0);
     expect(summaryIdx).toBeGreaterThan(priorityIdx);
   });

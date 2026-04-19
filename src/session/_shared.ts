@@ -66,7 +66,14 @@ export type HandoverResult = {
   recentNotes: string[];
 };
 
-export async function writeHandoverFile(result: HandoverResult, nextSessionPrompt: string, harness?: string): Promise<string> {
+export type HandoverContent = {
+  shortPrompt: string;
+  nextSessionPrompt: string;
+  accomplishments: string[];
+  blockers: string[];
+};
+
+export async function writeHandoverFile(result: HandoverResult, content: HandoverContent, harness?: string): Promise<string> {
   const sid = resolveSessionId();
   const agent = resolveAgent() ?? "unknown";
   const date = new Date().toISOString().slice(0, 10);
@@ -99,7 +106,7 @@ export async function writeHandoverFile(result: HandoverResult, nextSessionPromp
     active_feature: activeFeature,
     active_prd: activePrd,
     active_slices: activeSlices,
-    status: "draft",
+    status: "current",
   }, ["title", "type", "project", "harness", "agent", "session_id", "created_at", "active_feature", "active_prd", "active_slices", "status"]);
 
   const lines: string[] = [];
@@ -108,17 +115,23 @@ export async function writeHandoverFile(result: HandoverResult, nextSessionPromp
   lines.push("> [!note] Agent alignment");
   lines.push(`> ${renderHandoverAlignmentReminder(result.project)}`);
   lines.push("");
+  lines.push("## Short Prompt");
+  lines.push("");
+  lines.push("```text");
+  lines.push(content.shortPrompt);
+  lines.push("```");
+  lines.push("");
   lines.push("## Next Session Priorities");
   lines.push("");
-  lines.push(nextSessionPrompt);
+  lines.push(content.nextSessionPrompt);
   lines.push("");
   lines.push("## What Was Accomplished");
   lines.push("");
-  lines.push("<!-- LLM: fill in what was accomplished during this session -->");
+  for (const item of content.accomplishments) lines.push(`- ${item}`);
   lines.push("");
   lines.push("## Blockers & Open Questions");
   lines.push("");
-  lines.push("<!-- LLM: fill in any blockers or open questions -->");
+  for (const item of content.blockers) lines.push(`- ${item}`);
   lines.push("");
   lines.push("## Session Summary");
   lines.push("");

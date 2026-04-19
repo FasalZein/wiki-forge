@@ -232,6 +232,7 @@ describe("activity tracker", () => {
       expect(typeof json.sessionActivity.totalCommands).toBe("number");
       expect(json.sessionActivity.totalCommands).toBeGreaterThanOrEqual(3);
       expect(json.sessionActivity.commandCounts["scaffold-project"]).toBe(1);
+      expect(json.shortPrompt).toContain("Load /wiki and /forge.");
     });
   });
 });
