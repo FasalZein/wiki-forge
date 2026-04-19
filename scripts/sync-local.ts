@@ -48,6 +48,7 @@ async function main(args: string[]) {
     runStep(step, options.repoDir);
   }
 
+  assertInstalledRepoSkillsFresh(options);
   console.log("sync complete");
   console.log("restart your agent session to pick up refreshed skill instructions");
 }
@@ -61,14 +62,20 @@ export function parseSyncArgs(args: string[], repoDir = resolve(import.meta.dir,
 }
 
 export function buildSyncPlan(options: SyncOptions): SyncStep[] {
-  const repoSkills = listRepoSkills(options.repoDir).map((skill) => ({
-    label: `install repo skill ${skill}`,
-    command: ["npx", "skills@latest", "add", resolve(options.repoDir, "skills", skill), "-g"],
-  }));
+  const repoSkills = listRepoSkills(options.repoDir).flatMap((skill) => ([
+    {
+      label: `remove repo skill ${skill}`,
+      command: ["npx", "skills@latest", "remove", skill, "-g", "-y"],
+    },
+    {
+      label: `install repo skill ${skill}`,
+      command: ["npx", "skills@latest", "add", resolve(options.repoDir, "skills", skill), "-g", "-y"],
+    },
+  ]));
   const companionSkills = options.includeCompanions
     ? COMPANION_SKILLS.map((skill) => ({
       label: `install companion skill ${skill.split("/").pop()}`,
-      command: ["npx", "skills@latest", "add", skill, "-g"],
+      command: ["npx", "skills@latest", "add", skill, "-g", "-y"],
     }))
     : [];
 
@@ -99,6 +106,18 @@ export function auditInstalledRepoSkills(options: Pick<SyncOptions, "repoDir">, 
     return { skill, status: repoSkill === installedSkill ? "ok" : "stale", installedSkillPath } as const;
   });
   return { installRoot, rows, ok: rows.every((row) => row.status === "ok") };
+}
+
+export function assertInstalledRepoSkillsFresh(options: Pick<SyncOptions, "repoDir">, installRoot = resolve(process.env.HOME || "~", ".agents", "skills")) {
+  const audit = auditInstalledRepoSkills(options, installRoot);
+  if (audit.ok) return audit;
+  const failures = audit.rows
+    .filter((row) => row.status !== "ok")
+    .map((row) => `${row.skill}: ${row.status} (${row.installedSkillPath})`)
+    .join(", ");
+  throw new Error(
+    `sync:local finished but installed repo skill copies are still stale under ${audit.installRoot}: ${failures}`,
+  );
 }
 
 function ensureCommand(command: string, errorMessage: string) {

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { buildSyncPlan, auditInstalledRepoSkills, COMPANION_SKILLS, listRepoSkills, parseSyncArgs, REPO_SKILLS } from "../scripts/sync-local";
+import { assertInstalledRepoSkillsFresh, auditInstalledRepoSkills, buildSyncPlan, COMPANION_SKILLS, listRepoSkills, parseSyncArgs, REPO_SKILLS } from "../scripts/sync-local";
 import { cleanupTempPaths, tempDir } from "./test-helpers";
 
 afterEach(() => {
@@ -13,18 +13,24 @@ describe("sync-local", () => {
     const repoDir = process.cwd();
     const plan = buildSyncPlan({ repoDir, includeCompanions: false, audit: false });
     const repoSkillSteps = plan.slice(3);
+    const repoSkillLabels = REPO_SKILLS.flatMap((skill) => [
+      `remove repo skill ${skill}`,
+      `install repo skill ${skill}`,
+    ]);
     expect(plan.map((step) => step.label)).toEqual([
       "link wiki cli",
       "install latest qmd",
       "rebuild qmd native modules",
-      ...REPO_SKILLS.map((skill) => `install repo skill ${skill}`),
+      ...repoSkillLabels,
     ]);
     expect(plan[0]?.command).toEqual(["bun", "link"]);
     expect(plan[1]?.command).toEqual(["npm", "install", "-g", "@tobilu/qmd@latest", "--audit=false", "--fund=false"]);
     expect(plan[2]?.command).toEqual(["npm", "rebuild", "-g", "@tobilu/qmd"]);
-    expect(plan[3]?.command[3]).toBe(`${repoDir}/skills/${REPO_SKILLS[0]}`);
+    expect(plan[3]?.command).toEqual(["npx", "skills@latest", "remove", REPO_SKILLS[0]!, "-g", "-y"]);
+    expect(plan[4]?.command[3]).toBe(`${repoDir}/skills/${REPO_SKILLS[0]}`);
     expect(repoSkillSteps.every((step) => step.command.includes("-g"))).toBe(true);
-    expect(repoSkillSteps.every((step) => !step.command.includes("-y"))).toBe(true);
+    expect(repoSkillSteps.filter((_, index) => index % 2 === 0).every((step) => step.command.includes("-y"))).toBe(true);
+    expect(repoSkillSteps.filter((_, index) => index % 2 === 1).every((step) => step.command.includes("-y"))).toBe(true);
   });
 
   test("repo skill discovery is code-driven from skills/*/SKILL.md", () => {
@@ -66,5 +72,53 @@ describe("sync-local", () => {
       { skill: "wiki", status: "missing", installedSkillPath: join(installRoot, "wiki", "SKILL.md") },
     ]);
 
+  });
+
+  test("post-install verification fails loudly when repo-owned installed skills stay stale", () => {
+    const repoDir = tempDir("sync-local-repo");
+    const installRoot = tempDir("sync-local-install");
+
+    for (const skill of ["forge", "wiki"]) {
+      mkdirSync(join(repoDir, "skills", skill), { recursive: true });
+      writeFileSync(join(repoDir, "skills", skill, "SKILL.md"), `# ${skill}\nrepo\n`, "utf8");
+    }
+    mkdirSync(join(installRoot, "forge"), { recursive: true });
+    mkdirSync(join(installRoot, "wiki"), { recursive: true });
+    writeFileSync(join(installRoot, "forge", "SKILL.md"), "# forge\nstale\n", "utf8");
+    writeFileSync(join(installRoot, "wiki", "SKILL.md"), "# wiki\nrepo\n", "utf8");
+
+    expect(() => assertInstalledRepoSkillsFresh({ repoDir }, installRoot)).toThrow(
+      "sync:local finished but installed repo skill copies are still stale under",
+    );
+    expect(() => assertInstalledRepoSkillsFresh({ repoDir }, installRoot)).toThrow("forge: stale");
+  });
+
+  test("post-install verification fails when repo-owned installed skills are missing", () => {
+    const repoDir = tempDir("sync-local-repo");
+    const installRoot = tempDir("sync-local-install");
+
+    for (const skill of ["forge", "wiki"]) {
+      mkdirSync(join(repoDir, "skills", skill), { recursive: true });
+      writeFileSync(join(repoDir, "skills", skill, "SKILL.md"), `# ${skill}\nrepo\n`, "utf8");
+    }
+    mkdirSync(join(installRoot, "forge"), { recursive: true });
+    writeFileSync(join(installRoot, "forge", "SKILL.md"), "# forge\nrepo\n", "utf8");
+
+    expect(() => assertInstalledRepoSkillsFresh({ repoDir }, installRoot)).toThrow("wiki: missing");
+  });
+
+  test("post-install verification passes when repo-owned installed skills are fresh", () => {
+    const repoDir = tempDir("sync-local-repo");
+    const installRoot = tempDir("sync-local-install");
+
+    for (const skill of ["forge", "wiki"]) {
+      mkdirSync(join(repoDir, "skills", skill), { recursive: true });
+      mkdirSync(join(installRoot, skill), { recursive: true });
+      const contents = `# ${skill}\nrepo\n`;
+      writeFileSync(join(repoDir, "skills", skill, "SKILL.md"), contents, "utf8");
+      writeFileSync(join(installRoot, skill, "SKILL.md"), contents, "utf8");
+    }
+
+    expect(assertInstalledRepoSkillsFresh({ repoDir }, installRoot).ok).toBe(true);
   });
 });
