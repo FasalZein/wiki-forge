@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { buildForgeSteering } from "../src/lib/forge-steering";
+import { classifyWorkflowSteeringTriage } from "../src/protocol/steering-triage";
 import { runWiki } from "./_helpers/wiki-subprocess";
 import { cleanupTempPaths, initVault, runGit, setRepoFrontmatter, tempDir } from "./test-helpers";
 
@@ -29,6 +31,163 @@ function setupRepo(project: string) {
 }
 
 describe("WIKI-FORGE-149 steering packet", () => {
+  test("shared triage boundary keeps phase gates ahead of forge-run actions", () => {
+    const researchGate = classifyWorkflowSteeringTriage({
+      project: "demo",
+      repo: "/repo",
+      base: "HEAD",
+      activeTask: { id: "DEMO-001" },
+      nextTask: { id: "DEMO-002" },
+      workflowNextPhase: "research",
+      verificationLevel: "test-verified",
+    });
+
+    expect(researchGate.kind).toBe("needs-research");
+    expect(researchGate.command).not.toContain("wiki forge run demo DEMO-001");
+
+    const verifyRecovery = classifyWorkflowSteeringTriage({
+      project: "demo",
+      repo: "/repo",
+      base: "HEAD",
+      activeTask: { id: "DEMO-001" },
+      nextTask: { id: "DEMO-002" },
+      handoff: {
+        lastForgeOk: false,
+        lastForgeStep: "verify-slice",
+        nextAction: "rerun verify-slice",
+        failureSummary: "verify-slice exited 1",
+      },
+      workflowNextPhase: "verify",
+      verificationLevel: "test-verified",
+    });
+
+    expect(verifyRecovery.kind).toBe("resume-failed-forge");
+    expect(verifyRecovery.command).toContain("wiki forge run demo DEMO-001 --repo /repo --base HEAD");
+  });
+
+  test("shared triage boundary owns close and backlog continuation decisions", () => {
+    const closeVerifiedActive = classifyWorkflowSteeringTriage({
+      project: "demo",
+      repo: "/repo",
+      base: undefined,
+      activeTask: { id: "DEMO-001" },
+      nextTask: { id: "DEMO-002" },
+      targetTask: { id: "DEMO-001", planStatus: "ready", testPlanStatus: "ready", sliceStatus: "in-progress", section: "In Progress" },
+      workflowNextPhase: null,
+      verificationLevel: "test-verified",
+      targetSliceStatus: "in-progress",
+      targetSection: "In Progress",
+    });
+    expect(closeVerifiedActive.kind).toBe("close-slice");
+
+    const openVerifiedInactive = classifyWorkflowSteeringTriage({
+      project: "demo",
+      repo: "/repo",
+      base: undefined,
+      activeTask: null,
+      nextTask: { id: "DEMO-002" },
+      targetTask: { id: "DEMO-001", planStatus: "ready", testPlanStatus: "ready", sliceStatus: "draft", section: "Todo" },
+      workflowNextPhase: null,
+      verificationLevel: "test-verified",
+      targetSliceStatus: "draft",
+      targetSection: "Todo",
+    });
+    expect(openVerifiedInactive.kind).toBe("open-slice");
+
+    const completedDoneSlice = classifyWorkflowSteeringTriage({
+      project: "demo",
+      repo: "/repo",
+      base: undefined,
+      activeTask: null,
+      nextTask: null,
+      targetTask: { id: "DEMO-001", planStatus: "ready", testPlanStatus: "ready", sliceStatus: "done", section: "Done" },
+      workflowNextPhase: null,
+      verificationLevel: "test-verified",
+      targetSliceStatus: "done",
+      targetSection: "Done",
+    });
+    expect(completedDoneSlice.kind).toBe("completed");
+
+    const continueActive = classifyWorkflowSteeringTriage({
+      project: "demo",
+      repo: "/repo",
+      base: undefined,
+      activeTask: { id: "DEMO-001" },
+      nextTask: { id: "DEMO-002" },
+      workflowNextPhase: null,
+      verificationLevel: null,
+    });
+    expect(continueActive.kind).toBe("continue-active-slice");
+
+    const startNext = classifyWorkflowSteeringTriage({
+      project: "demo",
+      repo: "/repo",
+      base: undefined,
+      activeTask: null,
+      nextTask: { id: "DEMO-002" },
+      workflowNextPhase: null,
+      verificationLevel: null,
+    });
+    expect(startNext.kind).toBe("start-next-slice");
+
+    const planNext = classifyWorkflowSteeringTriage({
+      project: "demo",
+      repo: "/repo",
+      base: undefined,
+      activeTask: null,
+      nextTask: null,
+      workflowNextPhase: null,
+      verificationLevel: null,
+    });
+    expect(planNext.kind).toBe("plan-next");
+  });
+
+  test("shared steering packet maps triage outcomes into operator lanes", () => {
+    const researchSteering = buildForgeSteering({
+      project: "demo",
+      sliceId: "DEMO-001",
+      triage: {
+        kind: "needs-research",
+        reason: "research is incomplete",
+        command: "/research",
+        loadSkill: "/research",
+      },
+      nextPhase: "research",
+      verificationLevel: null,
+    });
+    expect(researchSteering.lane).toBe("domain-work");
+    expect(researchSteering.loadSkill).toBe("/research");
+
+    const tddSteering = buildForgeSteering({
+      project: "demo",
+      sliceId: "DEMO-001",
+      triage: {
+        kind: "needs-tdd",
+        reason: "tdd is incomplete",
+        command: "update test-plan",
+        loadSkill: "/tdd",
+      },
+      nextPhase: "tdd",
+      verificationLevel: null,
+    });
+    expect(tddSteering.lane).toBe("implementation-work");
+    expect(tddSteering.loadSkill).toBe("/tdd");
+
+    const verifyCloseSteering = buildForgeSteering({
+      project: "demo",
+      sliceId: "DEMO-001",
+      triage: {
+        kind: "open-slice",
+        reason: "slice is not active",
+        command: "wiki forge run demo DEMO-001 --repo /repo",
+      },
+      nextPhase: null,
+      verificationLevel: "test-verified",
+    });
+    expect(verifyCloseSteering.lane).toBe("verify-close");
+    expect(verifyCloseSteering.loadSkill).toBeUndefined();
+  });
+
   test("resume json includes shared steering for domain-work", () => {
     const { repo, env } = setupRepo("wf149resume");
     expect(runWiki(["forge", "start", "wf149resume", "WF149RESUME-001", "--agent", "codex", "--repo", repo], env).exitCode).toBe(0);
@@ -60,7 +219,6 @@ describe("WIKI-FORGE-149 steering packet", () => {
     expect(result.exitCode).toBe(0);
     const payload = JSON.parse(result.stdout.toString());
 
-    expect(payload.triage.kind).toBe("needs-research");
     expect(payload.steering.lane).toBe("domain-work");
     expect(payload.steering.phase).toBe("research");
     expect(payload.steering.loadSkill).toBe("/research");
@@ -111,7 +269,6 @@ describe("WIKI-FORGE-149 steering packet", () => {
     expect(payload.targetSlice).toBe("WF149PLACEHOLDER-001");
     expect(payload.planStatus).toBe("incomplete");
     expect(payload.testPlanStatus).toBe("incomplete");
-    expect(payload.triage.kind).toBe("needs-research");
     expect(payload.steering.lane).toBe("domain-work");
     expect(payload.steering.nextCommand).not.toContain("wiki forge run wf149placeholder WF149PLACEHOLDER-001");
   });
@@ -150,7 +307,6 @@ describe("WIKI-FORGE-149 steering packet", () => {
     const payload = JSON.parse(result.stdout.toString());
 
     expect(payload.workflow.validation.nextPhase).toBe("domain-model");
-    expect(payload.triage.kind).toBe("needs-domain-model");
     expect(payload.steering.phase).toBe("domain-model");
     expect(payload.steering.loadSkill).toBe("/domain-model");
   });

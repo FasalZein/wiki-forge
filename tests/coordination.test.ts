@@ -49,8 +49,8 @@ describe("wiki coordination commands", () => {
     expect(result.exitCode).toBe(0);
     const json = JSON.parse(result.stdout.toString());
     expect(json.recommendation.id).toBe("DEMO-001");
-    expect(json.triage.kind).toBe("needs-research");
     expect(json.steering.lane).toBe("domain-work");
+    expect(json.steering.loadSkill).toBe("/research");
     expect(json.steering.nextCommand).not.toContain("wiki forge run demo DEMO-001");
   });
 

@@ -148,9 +148,9 @@ describe("wiki workflow handoff improvements", () => {
     expect(resume.exitCode).toBe(0);
     const json = JSON.parse(resume.stdout.toString());
     expect(json.activeTask.id).toBe("DEMO-001");
-    expect(json.triage.kind).toBe("needs-research");
-    expect(json.triage.command).not.toContain("wiki forge run demo DEMO-001");
-    expect(json.triage.loadSkill).toBe("/research");
+    expect(json.steering.lane).toBe("domain-work");
+    expect(json.steering.nextCommand).not.toContain("wiki forge run demo DEMO-001");
+    expect(json.steering.loadSkill).toBe("/research");
     expect(json.dirty.modifiedFiles).toContain("src/auth.ts");
     expect(json.recentCommits.length).toBeGreaterThan(0);
   });
@@ -176,9 +176,9 @@ describe("wiki workflow handoff improvements", () => {
     expect(resume.exitCode).toBe(0);
     const json = JSON.parse(resume.stdout.toString());
     expect(json.workflowNextPhase).toBe("research");
-    expect(json.triage.kind).toBe("needs-research");
-    expect(json.triage.reason).toContain("research");
-    expect(json.triage.command).not.toContain("wiki forge run demo DEMO-001");
+    expect(json.steering.phase).toBe("research");
+    expect(json.steering.why).toContain("research");
+    expect(json.steering.nextCommand).not.toContain("wiki forge run demo DEMO-001");
     expect(json.lastForgeRun.failureSummary).toBe("verify-slice exited 1");
   });
 
@@ -203,9 +203,9 @@ describe("wiki workflow handoff improvements", () => {
     expect(resume.exitCode).toBe(0);
     const json = JSON.parse(resume.stdout.toString());
     expect(json.workflowNextPhase).toBe("research");
-    expect(json.triage.kind).toBe("needs-research");
-    expect(json.triage.loadSkill).toBe("/research");
-    expect(json.triage.command).not.toContain("wiki forge run demo DEMO-001");
+    expect(json.steering.phase).toBe("research");
+    expect(json.steering.loadSkill).toBe("/research");
+    expect(json.steering.nextCommand).not.toContain("wiki forge run demo DEMO-001");
     expect(json.lastForgeRun.failureSummary).toBe("checkpoint found 4 stale page(s)");
   });
 

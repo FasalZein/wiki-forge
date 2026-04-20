@@ -69,7 +69,8 @@ describe("task doc readiness", () => {
     const payload = JSON.parse(status.stdout.toString());
     expect(payload.planStatus).toBe("incomplete");
     expect(payload.testPlanStatus).toBe("incomplete");
-    expect(payload.triage.kind).toBe("needs-research");
+    expect(payload.workflow.validation.nextPhase).toBe("research");
+    expect(payload.steering.loadSkill).toBe("/research");
   });
 
   test("resume does not route scaffold-ready slices into forge run", () => {
@@ -97,7 +98,8 @@ describe("task doc readiness", () => {
     const payload = JSON.parse(resume.stdout.toString());
     expect(payload.nextTask.id).toBe("WF153RESUME-001");
     expect(payload.workflowNextPhase).toBe("research");
-    expect(payload.triage.kind).toBe("needs-research");
+    expect(payload.steering.lane).toBe("domain-work");
+    expect(payload.steering.loadSkill).toBe("/research");
     expect(payload.steering.nextCommand).not.toContain("wiki forge run wf153resume WF153RESUME-001");
   });
 });
