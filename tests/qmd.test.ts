@@ -228,6 +228,12 @@ describe("answer reranking", () => {
     expect(researchScore).toBeGreaterThan(1);
     expect(projectScore).toBeGreaterThan(0);
   });
+
+  test("prefers domain-language over research notes for terminology questions", () => {
+    const domainLanguageScore = scoreAnswerSource("wiki-forge", "what terminology should we use for domain language pages", "projects/wiki-forge/architecture/domain-language.md", "project", 0.4, 1);
+    const researchScore = scoreAnswerSource("wiki-forge", "what terminology should we use for domain language pages", "research/wiki-forge/research-taxonomy-normalization.md", "project", 0.4, 1);
+    expect(domainLanguageScore).toBeGreaterThan(researchScore);
+  });
 });
 
 describe("quality-signal score boosting", () => {

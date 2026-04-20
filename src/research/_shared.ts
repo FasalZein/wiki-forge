@@ -22,6 +22,14 @@ export const RESEARCH_STATUSES = ["draft", "reviewed", "verified", "applied"] as
 export const RESEARCH_VERIFICATION_LEVELS = ["unverified", "cross-referenced", "source-checked"] as const;
 export const RESEARCH_WORKFLOW_STAGES = ["capture", "synthesize", "verify", "distill", "applied"] as const;
 
+export function projectTruthTargets(project: string) {
+  const normalized = project.trim();
+  return [
+    `projects/${normalized}/decisions`,
+    `projects/${normalized}/architecture/domain-language`,
+  ];
+}
+
 export async function ensureResearchTopic(topic: string) {
   const normalizedTopic = normalizeTopicPath(topic);
   const dir = researchTopicDir(normalizedTopic);
@@ -79,11 +87,13 @@ export async function collectResearchStatus(topic?: string) {
   let staleUnverified = 0;
   let missingInfluence = 0;
   let readyToDistill = 0;
+  const projectTargets = new Set<string>();
   for (const file of pages) {
     const parsed = safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true });
     if (!parsed) continue;
     const status = typeof parsed.data.status === "string" ? parsed.data.status : "draft";
     const verification = typeof parsed.data.verification_level === "string" ? parsed.data.verification_level : "unverified";
+    const project = typeof parsed.data.project === "string" ? parsed.data.project.trim() : null;
     const hasSources = Array.isArray(parsed.data.sources) && parsed.data.sources.length > 0;
     const influencedBy = normalizeInfluencedBy(parsed.data.influenced_by);
     byStatus[status] = (byStatus[status] ?? 0) + 1;
@@ -94,7 +104,11 @@ export async function collectResearchStatus(topic?: string) {
     const workflowStage = classifyResearchWorkflowStage({ hasSources, status, verification, influencedByCount: influencedBy.length });
     byWorkflowStage[workflowStage] = (byWorkflowStage[workflowStage] ?? 0) + 1;
     if (workflowStage === "distill") readyToDistill += 1;
+    if (project) {
+      for (const target of projectTruthTargets(project)) projectTargets.add(target);
+    }
   }
+  const canonicalTargets = [...projectTargets].sort();
   return {
     topic: normalizedTopic,
     root: relative(VAULT_ROOT, root) || "research",
@@ -104,6 +118,7 @@ export async function collectResearchStatus(topic?: string) {
     workflow: {
       byStage: byWorkflowStage,
       nextCommand: "wiki research distill <research-page> <projects/...>",
+      canonicalTargets,
     },
   };
 }

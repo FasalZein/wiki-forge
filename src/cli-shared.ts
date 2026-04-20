@@ -113,7 +113,7 @@ Research:
   wiki research lint [topic] [--json]
   wiki research audit [topic] [--json]
   wiki research file <topic> [--project <project>] <title...>
-  wiki research distill <research-page> <projects/...>
+  wiki research distill <research-page> <projects/<project>/decisions|projects/<project>/architecture/domain-language>
   wiki source ingest <path-or-url...> [--topic <topic>] [--title <title>] [--bucket <name>]
 
 Obsidian:

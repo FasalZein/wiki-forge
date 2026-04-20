@@ -283,6 +283,8 @@ describe("wiki CLI smoke", () => {
     expect(researchContent).toContain("verification_level: unverified");
     expect(researchContent).toContain("## TL;DR");
     expect(researchContent).toContain("[[research/demo/_overview]]");
+    expect(researchContent).toContain("[[projects/demo/decisions]]");
+    expect(researchContent).toContain("[[projects/demo/architecture/domain-language]]");
     expect(researchContent).toContain("> [!summary]");
 
     const verifiedResearch = researchContent
@@ -754,7 +756,7 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("wiki resume <project> [--repo <path>] [--base <rev>] [--json]");
     expect(output).toContain("wiki dependency-graph <project> [--write] [--json]");
     expect(output).toContain("wiki research file <topic>");
-    expect(output).toContain("wiki research distill <research-page>");
+    expect(output).toContain("wiki research distill <research-page> <projects/<project>/decisions|projects/<project>/architecture/domain-language>");
     expect(output).toContain("wiki source ingest");
     expect(output).toContain("Agent Surface");
     expect(output).toContain("wiki forge plan");

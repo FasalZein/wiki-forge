@@ -222,6 +222,7 @@ export function scoreAnswerSource(project: string, question: string, markdownPat
 
   if (normalized === `${projectPrefix}_summary.md`) adjusted += 0.9;
   if (normalized === `${projectPrefix}decisions.md`) adjusted += 1.1;
+  if (normalized === `${projectPrefix}architecture/domain-language.md`) adjusted += 1.05;
   if (normalized === `${projectPrefix}specs/index.md`) adjusted += 1;
   if (normalized === `${projectPrefix}backlog.md`) adjusted += 0.2;
   if (normalized.startsWith(`${projectPrefix}specs/features/feat-`)) adjusted += 0.55;
@@ -236,6 +237,8 @@ export function scoreAnswerSource(project: string, question: string, markdownPat
   }
   if (/\b(slice|task)\b/u.test(lowerQuestion) && normalized.startsWith(`${projectPrefix}specs/slices/`)) adjusted += 0.45;
   if (/\bforge\b/u.test(lowerQuestion) && normalized === `${projectPrefix}decisions.md`) adjusted += 0.5;
+  if (/\b(term|terms|terminology|domain language|glossary)\b/u.test(lowerQuestion) && normalized === `${projectPrefix}architecture/domain-language.md`) adjusted += 0.8;
+  if (/\b(why|decision|decisions|rationale|tradeoff|tradeoffs)\b/u.test(lowerQuestion) && normalized === `${projectPrefix}decisions.md`) adjusted += 0.5;
 
   if (normalized.startsWith(researchTopicPrefix) || normalized.startsWith(legacyResearchProjectPrefix)) adjusted += prefersResearch ? 0.5 : -0.35;
   if (normalized.endsWith("/_overview.md")) adjusted += prefersResearch ? 0.1 : -0.45;

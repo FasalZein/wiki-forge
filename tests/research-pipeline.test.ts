@@ -25,6 +25,25 @@ describe("research pipeline surface", () => {
     expect(json.workflow.byStage.distill).toBe(1);
   });
 
+  test("status surfaces canonical project-truth targets for project-bound research", () => {
+    const vault = tempDir("wiki-vault");
+    initVault(vault);
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    expect(runWiki(["research", "scaffold", "demo-topic"], env).exitCode).toBe(0);
+    const pagePath = join(vault, "research", "demo-topic", "verified-note.md");
+    writeFileSync(pagePath, `---\ntitle: Verified Note\ntype: research\ntopic: demo-topic\nproject: demo\nstatus: verified\nsource_type: article\nsources:\n  - url: https://example.com\n    accessed: 2026-04-20\n    claim: Verified claim\ninfluenced_by: []\nupdated: 2026-04-20\nverification_level: source-checked\n---\n# Verified Note\n\n## Key Findings\n\n- source: [1]\n`, "utf8");
+
+    const result = runWiki(["research", "status", "demo-topic", "--json"], env);
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.workflow.canonicalTargets).toEqual([
+      "projects/demo/architecture/domain-language",
+      "projects/demo/decisions",
+    ]);
+  });
+
   test("distill records the project-truth target and promotes verified research to applied", () => {
     const vault = tempDir("wiki-vault");
     initVault(vault);

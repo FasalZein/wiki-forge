@@ -3,7 +3,7 @@ import { VAULT_ROOT } from "../constants";
 import { nowIso, orderFrontmatter, writeNormalizedPage } from "../cli-shared";
 import { exists } from "../lib/fs";
 import { normalizeTopicPath, researchPagePath, slugifyResearchPage, topicCrossLinks } from "../lib/research";
-import { ensureResearchTopic } from "./_shared";
+import { ensureResearchTopic, projectTruthTargets } from "./_shared";
 
 export async function createResearchPage(topic: string, title: string, project?: string) {
   const normalizedTopic = normalizeTopicPath(topic);
@@ -28,7 +28,9 @@ export async function createResearchPage(topic: string, title: string, project?:
     `# ${title}`,
     "",
     "> [!summary]",
-    "> Research synthesis note. Capture conclusions here, then link the evidence that supports them.",
+    project
+      ? `> Research synthesis note. Capture conclusions here, then distill accepted findings into [[${projectTruthTargets(project)[0]}]] or [[${projectTruthTargets(project)[1]}]].`
+      : "> Research synthesis note. Capture conclusions here, then link the evidence that supports them.",
     "",
     "## TL;DR",
     "",
@@ -53,6 +55,7 @@ export async function createResearchPage(topic: string, title: string, project?:
     "## Cross Links",
     "",
     ...topicCrossLinks(normalizedTopic),
+    ...(project ? ["- [[projects/" + project + "/decisions]]", "- [[projects/" + project + "/architecture/domain-language]]"] : []),
     "",
   ].join("\n");
   writeNormalizedPage(outputPath, body, data);

@@ -17,6 +17,9 @@ export async function researchStatus(args: string[]) {
     console.log(`- verification: ${RESEARCH_VERIFICATION_LEVELS.map((level) => `${level}=${result.byVerification[level] ?? 0}`).join(" ")}`);
     console.log(`- workflow: ${RESEARCH_WORKFLOW_STAGES.map((stage) => `${stage}=${result.workflow.byStage[stage] ?? 0}`).join(" ")}`);
     console.log(`- distill handoff: ${result.workflow.nextCommand}`);
+    if (result.workflow.canonicalTargets.length) {
+      console.log(`- project-truth targets: ${result.workflow.canonicalTargets.join(", ")}`);
+    }
   }
 }
 
