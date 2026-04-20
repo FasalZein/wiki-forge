@@ -79,8 +79,9 @@ describe("wiki forge thin surface", () => {
     expect(status.exitCode).toBe(0);
     const statusJson = JSON.parse(status.stdout.toString());
     expect(statusJson.context.id).toBe("GATED-001");
-    expect(statusJson.triage.kind).toBe("close-slice");
-    expect(statusJson.triage.command).toContain("wiki forge run gated GATED-001");
+    expect(statusJson.triage.kind).toBe("needs-research");
+    expect(statusJson.steering.lane).toBe("domain-work");
+    expect(statusJson.triage.command).not.toContain("wiki forge run gated GATED-001");
     expect(Array.isArray(statusJson.workflow.validation.statuses)).toBe(true);
 
     const check = runWiki(["forge", "check", "gated", "GATED-001", "--repo", repo, "--json"], env);
@@ -241,7 +242,7 @@ describe("wiki forge thin surface", () => {
     }
   });
 
-  test("forge next returns triage for the active or recommended slice", () => {
+  test("forge next returns pre-implementation triage for active or recommended slices when workflow phases are still incomplete", () => {
     const { vault, repo } = setupPassingRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
 
@@ -263,7 +264,9 @@ describe("wiki forge thin surface", () => {
     expect(beforeJson.active).toBe(false);
     expect(beforeJson.planStatus).toBe("ready");
     expect(beforeJson.testPlanStatus).toBe("ready");
-    expect(beforeJson.triage.kind).toBe("close-slice");
+    expect(beforeJson.triage.kind).toBe("needs-research");
+    expect(beforeJson.steering.lane).toBe("domain-work");
+    expect(beforeJson.steering.nextCommand).not.toContain("wiki forge run nxproj NXPROJ-001");
 
     // After start-slice: slice is active
     expect(runWiki(["forge", "start", "nxproj", "NXPROJ-001", "--agent", "codex", "--repo", repo], env).exitCode).toBe(0);
@@ -272,7 +275,9 @@ describe("wiki forge thin surface", () => {
     const afterJson = JSON.parse(nextAfter.stdout.toString());
     expect(afterJson.active).toBe(true);
     expect(afterJson.targetSlice).toBe("NXPROJ-001");
-    expect(afterJson.triage.kind).toBe("close-slice");
+    expect(afterJson.triage.kind).toBe("needs-research");
+    expect(afterJson.steering.lane).toBe("domain-work");
+    expect(afterJson.steering.nextCommand).not.toContain("wiki forge run nxproj NXPROJ-001");
   });
 
   test("forge next surfaces load-skill hints for pre-implementation phases", () => {

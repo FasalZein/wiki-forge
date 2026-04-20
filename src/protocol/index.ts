@@ -19,3 +19,4 @@ export {
   readCodePaths,
 } from "./repo-scan";
 export { collectForgeStatus, compactForgeStatusForJson, buildForgeTriage, isSliceDocsReady } from "./forge-status";
+export { resolveWorkflowSteering, resolveTargetWorkflowSteering, classifyWorkflowSteeringTriage } from "./steering";

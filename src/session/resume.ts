@@ -11,9 +11,8 @@ import { assertGitRepo, resolveRepoPath } from "../lib/verification";
 import { collectMaintenancePlan } from "../maintenance";
 import { collectDriftSummary } from "../lib/drift-query";
 import { loadLintingSnapshot } from "../verification";
-import { buildForgeSteering, renderSteeringPacket } from "../lib/forge-steering";
-import { collectForgeStatus, isSliceDocsReady } from "../protocol";
-import { classifyResumeTriage } from "./resume-triage";
+import { renderSteeringPacket } from "../lib/forge-steering";
+import { resolveWorkflowSteering } from "../protocol";
 import {
   collectDirtyRepoStatus,
   collectRecentCommits,
@@ -54,11 +53,14 @@ export async function resumeProject(args: string[]) {
     findLatestHandover(options.project),
   ]);
   const handoff = maintain.focus.activeTask ? await readSliceHandoff(options.project, maintain.focus.activeTask.id) : null;
-  const focusSliceId = maintain.focus.activeTask?.id ?? maintain.focus.recommendedTask?.id ?? null;
-  const focusTask = maintain.focus.activeTask ?? maintain.focus.recommendedTask;
-  const focusWorkflow = focusSliceId ? await collectForgeStatus(options.project, focusSliceId, repo).catch(() => null) : null;
-  const workflowNextPhase = focusWorkflow?.workflow.validation.nextPhase ?? null;
-  const earlyPhase = focusTask ? !isSliceDocsReady(focusTask) : false;
+  const steeringResolution = await resolveWorkflowSteering(options.project, {
+    repo,
+    base: options.base,
+    focus: maintain.focus,
+    handoff,
+  });
+  const focusTask = steeringResolution.focusTask;
+  const workflowNextPhase = steeringResolution.workflowNextPhase;
 
   const dirty = await collectDirtyRepoStatus(repo);
   const recentCommits = await collectRecentCommits(repo, 5);
@@ -83,36 +85,6 @@ export async function resumeProject(args: string[]) {
   }
 
   const actions = maintain.actions.slice(0, 8);
-  const focusVerificationLevel = focusWorkflow?.verificationLevel ?? null;
-  const triage = classifyResumeTriage({
-    project: options.project,
-    repo,
-    base: options.base,
-    activeTask: maintain.focus.activeTask,
-    nextTask: maintain.focus.recommendedTask,
-    handoff,
-    workflowNextPhase,
-    earlyPhase,
-    verificationLevel: focusVerificationLevel,
-  });
-  const steering = focusTask
-    ? buildForgeSteering({
-        project: options.project,
-        sliceId: focusTask.id,
-        triage,
-        nextPhase: workflowNextPhase ?? null,
-        planStatus: focusTask.planStatus,
-        testPlanStatus: focusTask.testPlanStatus,
-        verificationLevel: focusVerificationLevel,
-        sliceStatus: focusTask.sliceStatus,
-        section: focusTask.section,
-      })
-    : buildForgeSteering({
-        project: options.project,
-        sliceId: null,
-        triage,
-        nextPhase: null,
-      });
   const handoverIso = handoverMeta?.created_at ?? null;
   const handoffIso = handoff?.lastForgeRun ?? null;
   const handoverStale = Boolean(
@@ -134,8 +106,8 @@ export async function resumeProject(args: string[]) {
     handoverStale,
     noHandoverButBreadcrumb,
     ...(workflowNextPhase !== null ? { workflowNextPhase } : {}),
-    triage,
-    steering,
+    triage: steeringResolution.triage,
+    steering: steeringResolution.steering,
     ...(handoff ? { lastForgeRun: handoff } : {}),
     ...(handoverMeta ? { lastHandover: { path: relative(VAULT_ROOT, latestHandoverPath!), ...handoverMeta } } : {}),
   };

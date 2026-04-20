@@ -55,7 +55,7 @@ describe("WIKI-FORGE-141 workflow-phase gate", () => {
     expect(payload.triage.loadSkill).toBe("/research");
   });
 
-  test("F1 no-regression: resume with ready plan + test-plan still recommends forge run", () => {
+  test("F1 docs-ready but research-incomplete slices still surface the research command", () => {
     const { vault, repo, env } = setupPhaseResearchFixture();
 
     // Fill plan + test-plan so the slice is docs-ready (triage becomes close-slice/open-slice).
@@ -75,8 +75,10 @@ describe("WIKI-FORGE-141 workflow-phase gate", () => {
     const resume = runWiki(["resume", "wf141", "--repo", repo, "--json"], env);
     expect(resume.exitCode).toBe(0);
     const payload = JSON.parse(resume.stdout.toString());
-    // Docs-ready → triage recommends forge run (close-slice kind), not a needs-* command.
-    expect(payload.triage.command).toContain("wiki forge run wf141 WF141-001");
+    expect(payload.workflowNextPhase).toBe("research");
+    expect(payload.triage.kind).toBe("needs-research");
+    expect(payload.triage.command).not.toContain("wiki forge run wf141 WF141-001");
+    expect(payload.triage.loadSkill).toBe("/research");
   });
 
   test("F2: forge run on a workflow-not-implementation-ready slice fails fast without claiming it", () => {
@@ -99,7 +101,7 @@ describe("WIKI-FORGE-141 workflow-phase gate", () => {
     expect(hub).toContain("status: draft");
   });
 
-  test("F2 no-regression: forge run on a docs-ready slice proceeds through the pipeline", () => {
+  test("F2 docs-ready but research-incomplete slices still fail fast at the operator lane", () => {
     const { vault, repo, env } = setupPhaseResearchFixture();
 
     // Fill plan + test-plan so the slice is docs-ready. Triage becomes close-slice.
@@ -114,12 +116,19 @@ describe("WIKI-FORGE-141 workflow-phase gate", () => {
       "---\ntitle: WF141-001\ntype: spec\nspec_kind: test-plan\nproject: wf141\ntask_id: WF141-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# test-plan\n\n## Red Tests\n\n- [x] covered\n\n## Verification Commands\n\n```bash\n# label: tests\nbun test tests/auth.test.ts\n```\n",
       "utf8",
     );
-    expect(runWiki(["bind", "wf141", "specs/slices/WF141-001/index.md", "src/auth.ts"], env).exitCode).toBe(0);
-
     const run = runWiki(["forge", "run", "wf141", "WF141-001", "--repo", repo, "--json"], env);
-    expect(run.exitCode).toBe(0);
+    expect(run.exitCode).not.toBe(0);
     const payload = JSON.parse(run.stdout.toString());
-    expect(payload.check.ok).toBe(true);
-    expect(payload.close.ok).toBe(true);
+    expect(payload.ok).toBe(false);
+    expect(payload.step).toBe("operator-lane");
+    expect(payload.steering.phase).toBe("research");
+    expect(payload.steering.lane).toBe("domain-work");
+    expect(payload.steering.nextCommand).not.toContain("wiki forge run wf141 WF141-001");
+
+    const hubPath = join(vault, "projects", "wf141", "specs", "slices", "WF141-001", "index.md");
+    const hub = readFileSync(hubPath, "utf8");
+    expect(hub).not.toContain("claimed_by:");
+    expect(hub).not.toContain("started_at:");
+    expect(hub).toContain("status: draft");
   });
 });

@@ -42,7 +42,7 @@ describe("WIKI-FORGE-149 steering packet", () => {
     expect(payload.steering.loadSkill).toBe("/research");
   });
 
-  test("forge status json classifies docs-ready but unverified slice as implementation-work", () => {
+  test("forge status json keeps docs-ready but research-incomplete slice in domain-work", () => {
     const { vault, env } = setupRepo("wf149status");
     const sliceDir = join(vault, "projects", "wf149status", "specs", "slices", "WF149STATUS-001");
     writeFileSync(
@@ -60,12 +60,14 @@ describe("WIKI-FORGE-149 steering packet", () => {
     expect(result.exitCode).toBe(0);
     const payload = JSON.parse(result.stdout.toString());
 
-    expect(payload.steering.lane).toBe("implementation-work");
-    expect(payload.steering.loadSkill).toBe("/tdd");
-    expect(payload.steering.nextCommand).toContain("wiki forge run wf149status WF149STATUS-001");
+    expect(payload.triage.kind).toBe("needs-research");
+    expect(payload.steering.lane).toBe("domain-work");
+    expect(payload.steering.phase).toBe("research");
+    expect(payload.steering.loadSkill).toBe("/research");
+    expect(payload.steering.nextCommand).not.toContain("wiki forge run wf149status WF149STATUS-001");
   });
 
-  test("forge next text leads with the steering packet", () => {
+  test("forge next text leads with the shared pre-implementation steering packet", () => {
     const { vault, env } = setupRepo("wf149next");
     const sliceDir = join(vault, "projects", "wf149next", "specs", "slices", "WF149NEXT-001");
     writeFileSync(
@@ -83,9 +85,9 @@ describe("WIKI-FORGE-149 steering packet", () => {
     expect(result.exitCode).toBe(0);
     const output = result.stdout.toString();
 
-    expect(output).toContain("- lane: implementation-work");
-    expect(output).toContain("- load-skill: /tdd");
-    expect(output).toContain("- next: wiki forge run wf149next WF149NEXT-001 --repo <path>");
+    expect(output).toContain("- lane: domain-work");
+    expect(output).toContain("- load-skill: /research");
+    expect(output).not.toContain("- next: wiki forge run wf149next WF149NEXT-001 --repo <path>");
   });
 
   test("forge next keeps placeholder-ready slices in the pre-implementation lane", () => {

@@ -20,6 +20,7 @@ import { collectBacklogFocus, collectBacklogView, collectTaskContextForId, creat
 import { appendLogEntry } from "../lib/log";
 import type { BacklogTaskContext } from "../hierarchy";
 import { collectForgeStatus, compactForgeStatusForJson } from "../protocol";
+import { resolveTargetWorkflowSteering, resolveWorkflowSteering } from "../protocol/steering";
 import { createIssueSlice } from "./slice-scaffold";
 import { startSlice, startSliceCore } from "./start";
 import { writeSliceProgress, type SlicePipelineProgress, type PipelineStepProgress } from "../lib/slice-progress";
@@ -71,7 +72,14 @@ export async function forgeClose(args: string[]) {
 
 export async function forgeStatus(args: string[]) {
   const parsed = await parseForgeArgs(args, "status");
-  const workflow = await collectForgeStatus(parsed.project, parsed.sliceId, parsed.repo);
+  const focus = await collectBacklogFocus(parsed.project);
+  const resolution = await resolveTargetWorkflowSteering(parsed.project, {
+    repo: parsed.repo ?? process.cwd(),
+    sliceId: parsed.sliceId,
+    base: parsed.base,
+    focus,
+  });
+  const workflow = applyResolvedSteering(resolution.workflow, resolution.triage, resolution.steering);
   if (parsed.json) console.log(JSON.stringify(compactForgeStatusForJson(workflow), null, 2));
   else renderForgeStatus(workflow);
 }
@@ -470,11 +478,13 @@ export async function forgeNext(args: string[]) {
   }
 
   const focus = await collectBacklogFocus(project);
+  const steeringResolution = await resolveWorkflowSteering(project, {
+    repo: repo ?? process.cwd(),
+    focus,
+  });
 
-  const activeId = focus.activeTask?.id ?? null;
-  // Only recommend a slice if its hub (index.md) exists on disk; unscaffolded slices cannot be started
-  const recommendedId = (focus.recommendedTask?.taskHubPath !== undefined ? focus.recommendedTask?.id : null) ?? null;
-  const targetId = activeId ?? recommendedId;
+  const activeId = steeringResolution.focus.activeTask?.id ?? null;
+  const targetId = steeringResolution.focusTask?.id ?? null;
 
   if (!targetId) {
     if (json || promptJson) console.log(JSON.stringify({ project, targetSlice: null, action: "no ready slices" }, null, 2));
@@ -482,7 +492,7 @@ export async function forgeNext(args: string[]) {
     return;
   }
 
-  const workflow = await collectForgeStatus(project, targetId, repo);
+  const workflow = steeringResolution.workflow ?? await collectForgeStatus(project, targetId, repo);
 
   if (promptJson || promptFlag) {
     const promptData = await buildSlicePromptData(project, targetId, workflow, activeId !== null);
@@ -498,23 +508,23 @@ export async function forgeNext(args: string[]) {
     project,
     targetSlice: targetId,
     active: activeId !== null,
-    triage: workflow.triage,
-    steering: workflow.steering,
-    planStatus: workflow.planStatus,
-    testPlanStatus: workflow.testPlanStatus,
-    verificationLevel: workflow.verificationLevel,
+    triage: steeringResolution.triage,
+    steering: steeringResolution.steering,
+    planStatus: steeringResolution.focusTask?.planStatus ?? workflow.planStatus,
+    testPlanStatus: steeringResolution.focusTask?.testPlanStatus ?? workflow.testPlanStatus,
+    verificationLevel: steeringResolution.verificationLevel ?? workflow.verificationLevel,
   };
 
   if (json) console.log(JSON.stringify(result, null, 2));
   else {
     console.log(`forge next for ${project}: ${targetId}`);
-    for (const line of renderSteeringPacket(workflow.steering)) console.log(`- ${line}`);
+    for (const line of renderSteeringPacket(steeringResolution.steering)) console.log(`- ${line}`);
     console.log(`- ${activeId ? "active" : "recommended"} slice`);
-    console.log(`- plan: ${workflow.planStatus}`);
-    console.log(`- test-plan: ${workflow.testPlanStatus}`);
-    console.log(`- verification: ${workflow.verificationLevel ?? "none"}`);
-    console.log(`- next action: ${workflow.triage.command}`);
-    console.log(`  reason: ${workflow.triage.reason}`);
+    console.log(`- plan: ${result.planStatus}`);
+    console.log(`- test-plan: ${result.testPlanStatus}`);
+    console.log(`- verification: ${result.verificationLevel ?? "none"}`);
+    console.log(`- next action: ${steeringResolution.triage.command}`);
+    console.log(`  reason: ${steeringResolution.triage.reason}`);
   }
 }
 
@@ -749,7 +759,14 @@ function classifyStepFailure(stepId: string, error: string | null): string {
 export async function forgeRun(args: string[]) {
   const parsed = await parseForgeArgs(args, "run");
 
-  const preWorkflow = await collectForgeStatus(parsed.project, parsed.sliceId, parsed.repo);
+  const focus = await collectBacklogFocus(parsed.project);
+  const preResolution = await resolveTargetWorkflowSteering(parsed.project, {
+    repo: parsed.repo ?? process.cwd(),
+    sliceId: parsed.sliceId,
+    base: parsed.base,
+    focus,
+  });
+  const preWorkflow = applyResolvedSteering(preResolution.workflow, preResolution.triage, preResolution.steering);
   const expectedPrefix = `wiki forge run ${parsed.project} ${parsed.sliceId}`;
   const canRunCurrentSlice = preWorkflow.steering.nextCommand.startsWith(expectedPrefix);
   if (!canRunCurrentSlice) {
@@ -789,7 +806,14 @@ export async function forgeRun(args: string[]) {
     if (!parsed.json) console.log(`auto-started ${parsed.sliceId} (agent: ${startResult.agent})`);
   }
 
-  const workflow = await collectForgeStatus(parsed.project, parsed.sliceId, parsed.repo);
+  const activeFocus = await collectBacklogFocus(parsed.project);
+  const workflowResolution = await resolveTargetWorkflowSteering(parsed.project, {
+    repo: parsed.repo ?? process.cwd(),
+    sliceId: parsed.sliceId,
+    base: parsed.base,
+    focus: activeFocus,
+  });
+  const workflow = applyResolvedSteering(workflowResolution.workflow, workflowResolution.triage, workflowResolution.steering);
 
   const progressSteps: PipelineStepProgress[] = [];
   const onStepComplete = async (step: {
@@ -873,4 +897,16 @@ export async function forgeRun(args: string[]) {
   }
 
   await writeProgress(true);
+}
+
+function applyResolvedSteering(
+  workflow: Awaited<ReturnType<typeof collectForgeStatus>>,
+  triage: Awaited<ReturnType<typeof resolveTargetWorkflowSteering>>["triage"],
+  steering: Awaited<ReturnType<typeof resolveTargetWorkflowSteering>>["steering"],
+) {
+  return {
+    ...workflow,
+    triage,
+    steering,
+  };
 }

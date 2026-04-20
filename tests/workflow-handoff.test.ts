@@ -148,8 +148,9 @@ describe("wiki workflow handoff improvements", () => {
     expect(resume.exitCode).toBe(0);
     const json = JSON.parse(resume.stdout.toString());
     expect(json.activeTask.id).toBe("DEMO-001");
-    expect(json.triage.kind).toBe("continue-active-slice");
-    expect(json.triage.command).toContain("wiki forge run demo DEMO-001");
+    expect(json.triage.kind).toBe("needs-research");
+    expect(json.triage.command).not.toContain("wiki forge run demo DEMO-001");
+    expect(json.triage.loadSkill).toBe("/research");
     expect(json.dirty.modifiedFiles).toContain("src/auth.ts");
     expect(json.recentCommits.length).toBeGreaterThan(0);
   });
