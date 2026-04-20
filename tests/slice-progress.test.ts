@@ -61,6 +61,7 @@ describe("writeSliceProgress", () => {
     expect(Array.isArray(parsed.data.pipeline_progress)).toBe(true);
     expect(parsed.data.last_forge_run).toBe("2026-04-18T10:00:01.000Z");
     expect(parsed.data.last_forge_step).toBe("lint-repo");
+    expect(parsed.data.last_forge_state).toBe("failed");
     expect(parsed.data.last_forge_ok).toBe(false);
     expect(parsed.data.next_action).toBe("fix lint errors");
     expect(parsed.data.failure_summary).toBe("lint-repo failed with: lint failed");
@@ -156,6 +157,30 @@ describe("writeSliceProgress", () => {
       lastRunAt: "2026-04-18T10:00:00.000Z",
     })).not.toThrow();
   });
+
+  test("running pipeline progress records state without forging a failure result", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+    expect(runWiki(["scaffold-project", "sptrunning"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "sptrunning");
+    expect(runWiki(["create-issue-slice", "sptrunning", "auth slice"], env).exitCode).toBe(0);
+
+    callWriteProgress(vault, "sptrunning", "SPTRUNNING-001", {
+      steps: [{ id: "maintain", ok: true, completedAt: "2026-04-18T10:00:00.000Z", durationMs: 75 }],
+      lastStep: "maintain",
+      lastStepOk: true,
+      pipelineOk: false,
+      pipelineState: "running",
+      lastRunAt: "2026-04-18T10:00:00.000Z",
+      nextAction: "wiki forge run sptrunning SPTRUNNING-001 --repo /repo",
+    });
+
+    const parsed = parseFm(sliceIndexPath(vault, "sptrunning", "SPTRUNNING-001"));
+    expect(parsed.data.last_forge_state).toBe("running");
+    expect(parsed.data.last_forge_ok).toBeUndefined();
+    expect(parsed.data.next_action).toBe("wiki forge run sptrunning SPTRUNNING-001 --repo /repo");
+    expect(parsed.data.failure_summary).toBeUndefined();
+  });
 });
 
 describe("readSliceHandoff", () => {
@@ -196,8 +221,33 @@ describe("readSliceHandoff", () => {
     expect(handoff).not.toBeNull();
     expect(handoff!.lastForgeRun).toBe("2026-04-18T12:00:00.000Z");
     expect(handoff!.lastForgeStep).toBe("checkpoint");
+    expect(handoff!.lastForgeState).toBe("passed");
     expect(handoff!.lastForgeOk).toBe(true);
     expect(handoff!.nextAction).toBe("run close pipeline");
     expect(handoff!.failureSummary).toBeUndefined();
+  });
+
+  test("returns running handoff state without a false failure boolean", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+    expect(runWiki(["scaffold-project", "sptest7"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "sptest7");
+    expect(runWiki(["create-issue-slice", "sptest7", "webhook slice"], env).exitCode).toBe(0);
+
+    callWriteProgress(vault, "sptest7", "SPTEST7-001", {
+      steps: [{ id: "update-index", ok: true, completedAt: "2026-04-18T12:00:00.000Z", durationMs: 45 }],
+      lastStep: "update-index",
+      lastStepOk: true,
+      pipelineOk: false,
+      pipelineState: "running",
+      lastRunAt: "2026-04-18T12:00:00.000Z",
+      nextAction: "wiki forge run sptest7 SPTEST7-001 --repo /repo",
+    });
+
+    const handoff = callReadHandoff(vault, "sptest7", "SPTEST7-001");
+    expect(handoff).not.toBeNull();
+    expect(handoff!.lastForgeState).toBe("running");
+    expect(handoff!.lastForgeOk).toBeUndefined();
+    expect(handoff!.nextAction).toContain("wiki forge run sptest7 SPTEST7-001");
   });
 });

@@ -67,7 +67,11 @@ export async function forgeRun(args: string[]) {
     focus: activeFocus,
   });
   const workflow = applyResolvedSteering(workflowResolution.workflow, workflowResolution.triage, workflowResolution.steering);
-  const { onStepComplete, writeProgress } = createProgressTracker(parsed.project, parsed.sliceId);
+  const { onStepComplete, writeProgress } = createProgressTracker(
+    parsed.project,
+    parsed.sliceId,
+    buildForgeRunCommand(parsed.project, parsed.sliceId, parsed.repo, parsed.base),
+  );
 
   const checkResult = await runPipeline({
     project: parsed.project,
@@ -88,11 +92,11 @@ export async function forgeRun(args: string[]) {
     const failedStep = checkResult.stoppedAt ?? "unknown";
     const failedStepError = checkResult.steps.find((step) => step.id === failedStep)?.error ?? null;
     const nextAction = classifyStepFailure(failedStep, failedStepError);
-    await writeProgress(false, nextAction, `check failed at ${failedStep}`);
+    await writeProgress("failed", nextAction, `check failed at ${failedStep}`);
     throw new Error(`forge run: check failed at ${failedStep}`);
   }
   if (review && !review.ok) {
-    await writeProgress(false, "Resolve slice-local blockers reported by forge check", "check found slice-local blockers");
+    await writeProgress("failed", "Resolve slice-local blockers reported by forge check", "check found slice-local blockers");
     throw new Error("forge run: check found slice-local blockers");
   }
 
@@ -114,14 +118,14 @@ export async function forgeRun(args: string[]) {
     const failedStep = closeResult.stoppedAt ?? "unknown";
     const failedStepError = closeResult.steps.find((step) => step.id === failedStep)?.error ?? null;
     const nextAction = classifyStepFailure(failedStep, failedStepError);
-    await writeProgress(false, nextAction, `close failed at ${failedStep}`);
+    await writeProgress("failed", nextAction, `close failed at ${failedStep}`);
     throw new Error(`forge run: close failed at ${failedStep}`);
   }
 
-  await writeProgress(true);
+  await writeProgress("passed");
 }
 
-function createProgressTracker(project: string, sliceId: string) {
+function createProgressTracker(project: string, sliceId: string, resumeCommand: string) {
   const progressSteps: PipelineStepProgress[] = [];
 
   const onStepComplete = async (step: {
@@ -140,20 +144,31 @@ function createProgressTracker(project: string, sliceId: string) {
       durationMs: step.durationMs,
       ...(step.error ? { error: step.error } : {}),
     });
+    await writeProgress("running", resumeCommand);
   };
 
-  const writeProgress = async (pipelineOk: boolean, nextAction?: string, failureSummary?: string) => {
+  const writeProgress = async (
+    pipelineState: SlicePipelineProgress["pipelineState"],
+    nextAction?: string,
+    failureSummary?: string,
+  ) => {
+    const terminal = pipelineState === "passed" || pipelineState === "failed";
     const progress: SlicePipelineProgress = {
       steps: progressSteps,
       lastStep: progressSteps[progressSteps.length - 1]?.id ?? "none",
       lastStepOk: progressSteps[progressSteps.length - 1]?.ok ?? false,
-      pipelineOk,
+      pipelineOk: pipelineState === "passed",
       lastRunAt: new Date().toISOString(),
+      ...(pipelineState ? { pipelineState } : {}),
       ...(nextAction ? { nextAction } : {}),
-      ...(failureSummary ? { failureSummary } : {}),
+      ...(terminal && failureSummary ? { failureSummary } : {}),
     };
     await writeSliceProgress(project, sliceId, progress);
   };
 
   return { onStepComplete, writeProgress };
+}
+
+function buildForgeRunCommand(project: string, sliceId: string, repo?: string, base?: string) {
+  return `wiki forge run ${project} ${sliceId}${repo ? ` --repo ${repo}` : ""}${base ? ` --base ${base}` : ""}`;
 }

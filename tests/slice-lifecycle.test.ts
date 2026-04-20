@@ -100,6 +100,27 @@ describe("wiki slice lifecycle", () => {
     expect(json.commands[0].failures).toContain("stdout missing: missing text");
   });
 
+  test("verify-slice falls back to frontmatter verification_commands when no bash block exists", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice"], env).exitCode).toBe(0);
+    const testPlanPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "test-plan.md");
+    writeFileSync(
+      testPlanPath,
+      "---\ntitle: DEMO-001 auth slice\ntype: spec\nspec_kind: test-plan\nproject: demo\ntask_id: DEMO-001\nupdated: 2026-04-19\nstatus: ready\nverification_commands:\n  - command: bun test tests/other.test.ts\n---\n\n# DEMO-001 auth slice\n\n## Red Tests\n\n- [x] frontmatter commands can drive verification\n",
+      "utf8",
+    );
+
+    const result = runWiki(["verify-slice", "demo", "DEMO-001", "--repo", repo, "--json"], env);
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.ok).toBe(true);
+    expect(json.commands[0].command).toBe("bun test tests/other.test.ts");
+  });
+
   test("verify-slice rejects recursive workflow commands in executable verification blocks", () => {
     const { vault, repo } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };

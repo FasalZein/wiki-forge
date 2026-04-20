@@ -233,4 +233,31 @@ describe("wiki workflow handoff improvements", () => {
     expect(text.exitCode).toBe(0);
     expect(text.stdout.toString()).toContain("no handover file");
   });
+
+  test("resume treats running pipeline breadcrumbs as incomplete state, not failed-forge recovery", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice"], env).exitCode).toBe(0);
+    expect(runWiki(["move-task", "demo", "DEMO-001", "--to", "In Progress"], env).exitCode).toBe(0);
+
+    const indexPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "index.md");
+    const withBreadcrumb = readFileSync(indexPath, "utf8").replace(
+      /^---\n/,
+      "---\nlast_forge_run: '2026-04-18T12:00:00.000Z'\nlast_forge_step: update-index\nlast_forge_state: running\nnext_action: wiki forge run demo DEMO-001 --repo /repo\n",
+    );
+    writeFileSync(indexPath, withBreadcrumb, "utf8");
+
+    const json = JSON.parse(runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env).stdout.toString());
+    expect(json.lastForgeRun.lastForgeState).toBe("running");
+    expect(json.workflowNextPhase).toBe("research");
+    expect(json.triage.kind).toBe("needs-research");
+    expect(json.triage.command).not.toContain("wiki forge run demo DEMO-001");
+
+    const text = runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD~1"], env);
+    expect(text.exitCode).toBe(0);
+    expect(text.stdout.toString()).toContain("last forge run: INCOMPLETE");
+  });
 });

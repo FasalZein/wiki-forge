@@ -31,6 +31,7 @@ import { safeMatter } from "../cli-shared";
 import { appendText, ensureDir, exists, readText } from "./fs";
 import { collectPriorResearchRefs, extractMarkdownSection, readPlanningDoc } from "./forge-evidence";
 import { FORGE_PHASES, readForgeLedgerPhase, writeForgeLedgerPhase, type ForgeWorkflowLedger, type ForgePhase } from "./forge-ledger";
+import { extractVerificationSpecsFromTestPlan } from "./slices";
 import { normalizePath, stripMarkdownExtension, walkMarkdown } from "./vault";
 
 // ---------------------------------------------------------------------------
@@ -432,13 +433,9 @@ async function detectTddEvidence(project: string, sliceId: string, vaultRoot: st
   const redTestsSection = extractMarkdownSection(testPlanParsed.content, "Red Tests");
   if (!/^\s*-\s*\[(?: |x|X)\]/mu.test(redTestsSection)) return [];
 
-  const verificationCommands = Array.isArray(testPlanParsed.data.verification_commands)
-    ? testPlanParsed.data.verification_commands
-        .map((entry) => entry && typeof entry === "object" && typeof (entry as Record<string, unknown>).command === "string"
-          ? String((entry as Record<string, unknown>).command).trim()
-          : "")
-        .filter(Boolean)
-    : [];
+  const verificationCommands = extractVerificationSpecsFromTestPlan(testPlanParsed.content, testPlanParsed.data)
+    .map((entry) => entry.command.trim())
+    .filter(Boolean);
   if (verificationCommands.length === 0) return [];
 
   return [`projects/${project}/specs/slices/${sliceId}/test-plan.md`];

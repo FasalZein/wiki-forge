@@ -4,7 +4,7 @@ import { VAULT_ROOT } from "../constants";
 import { nowIso, orderFrontmatter, requireValue, writeNormalizedPage } from "../cli-shared";
 import { exists } from "../lib/fs";
 import { appendLogEntry } from "../lib/log";
-import { type VerificationCommandSpec, extractVerificationSpecs, readSliceHub, readSliceSourcePaths, readSliceTestPlan } from "../lib/slices";
+import { type VerificationCommandSpec, extractVerificationSpecsFromTestPlan, readSliceHub, readSliceSourcePaths, readSliceTestPlan } from "../lib/slices";
 import { projectTaskHubPath, projectTaskPlanPath } from "../lib/structure";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
 import { applyVerificationLevel } from "../verification";
@@ -19,7 +19,7 @@ export async function verifySlice(args: string[]) {
   await assertGitRepo(repo);
   const json = args.includes("--json");
   const testPlan = await readSliceTestPlan(project, sliceId);
-  const specs = extractVerificationSpecs(testPlan.content);
+  const specs = extractVerificationSpecsFromTestPlan(testPlan.content, testPlan.data);
   if (!specs.length) throw new Error(`no verification command blocks found in ${relative(VAULT_ROOT, testPlan.path)}`);
   const warnings = await collectSourcePathsDriftWarnings(project, sliceId, repo);
 

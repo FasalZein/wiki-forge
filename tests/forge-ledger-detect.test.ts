@@ -449,6 +449,22 @@ describe("deriveForgeLedgerFromArtifacts — tdd phase", () => {
     expect(result.patch.tdd).toBeUndefined();
   });
 
+  test("detects tdd phase from verification command blocks when frontmatter commands are absent", async () => {
+    const vault = setupVault();
+    makeSliceHub(vault, "myproject", "MYPROJECT-001");
+    makePlan(vault, "myproject", "MYPROJECT-001", "ready");
+    const dir = join(vault, "projects", "myproject", "specs", "slices", "MYPROJECT-001");
+    writeFileSync(
+      join(dir, "test-plan.md"),
+      "---\ntitle: MYPROJECT-001 test-plan\ntype: spec\nspec_kind: test-plan\nproject: myproject\ntask_id: MYPROJECT-001\nupdated: '2026-04-17T00:00:00.000Z'\nstatus: ready\n---\n\n# Test Plan\n\n## Red Tests\n\n- [x] it works\n\n## Verification Commands\n\n```bash\nbun test tests/myproject.test.ts\n```\n",
+      "utf8",
+    );
+
+    const result = await d(vault, "myproject", "MYPROJECT-001");
+    expect(result.patch.tdd).toBeDefined();
+    expect(result.patch.tdd?.tddEvidence?.[0]).toContain("test-plan.md");
+  });
+
   test("skips tdd phase when plan.md is draft", async () => {
     const vault = setupVault();
     makeSliceHub(vault, "myproject", "MYPROJECT-001");

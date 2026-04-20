@@ -291,11 +291,25 @@ function buildStepArgs(step: PipelineStepDef, options: RunPipelineOptions): stri
 
 async function executeStep(command: string, args: string[]): Promise<{ ok: boolean; error?: string; stdout?: string; stderr?: string }> {
   const wikiPath = process.argv[1];
-  const proc = await Bun.$`${process.argv[0]} ${wikiPath} ${command} ${args}`.nothrow().quiet().env({ ...process.env });
-  const stdout = proc.stdout.toString().trim();
-  const stderr = proc.stderr.toString().trim();
-  if (proc.exitCode === 0) return { ok: true, stdout: stdout || undefined };
-  return { ok: false, error: stderr || `exit code ${proc.exitCode}`, stdout: stdout || undefined, stderr: stderr || undefined };
+  if (!wikiPath) return { ok: false, error: "cannot resolve current wiki entrypoint" };
+
+  const proc = Bun.spawn({
+    cmd: [process.argv[0], wikiPath, command, ...args],
+    env: { ...process.env },
+    stdin: "ignore",
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+
+  const [rawStdout, rawStderr, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  const stdout = rawStdout.trim();
+  const stderr = rawStderr.trim();
+  if (exitCode === 0) return { ok: true, stdout: stdout || undefined };
+  return { ok: false, error: stderr || `exit code ${exitCode}`, stdout: stdout || undefined, stderr: stderr || undefined };
 }
 
 function buildRerunCommand(command: string, args: string[]) {

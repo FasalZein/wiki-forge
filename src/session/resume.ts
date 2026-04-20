@@ -135,7 +135,12 @@ export async function resumeProject(args: string[]) {
     console.log(`- workflow next phase: ${payload.workflowNextPhase ?? "complete"}`);
   }
   if (handoff) {
-    console.log(`- last forge run: ${handoff.lastForgeOk ? "PASS" : "FAIL"} at ${handoff.lastForgeStep} (${handoff.lastForgeRun})`);
+    const forgeState = handoff.lastForgeState === "running"
+      ? "INCOMPLETE"
+      : handoff.lastForgeOk
+        ? "PASS"
+        : "FAIL";
+    console.log(`- last forge run: ${forgeState} at ${handoff.lastForgeStep} (${handoff.lastForgeRun})`);
   }
   console.log(`- dirty: modified=${dirty.modifiedFiles.length} staged=${dirty.stagedFiles.length} untracked=${dirty.untrackedFiles.length}`);
   if (handoverMeta) {

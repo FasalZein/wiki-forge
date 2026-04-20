@@ -79,6 +79,15 @@ export function extractVerificationSpecs(markdown: string): VerificationCommandS
     .map((block) => parseVerificationCommandSpec(block.value));
 }
 
+export function extractVerificationSpecsFromTestPlan(
+  markdown: string,
+  data: Record<string, unknown> | undefined,
+): VerificationCommandSpec[] {
+  const blockSpecs = extractVerificationSpecs(markdown);
+  if (blockSpecs.length) return blockSpecs;
+  return extractFrontmatterVerificationSpecs(data?.verification_commands);
+}
+
 export function extractShellCommandBlocks(markdown: string) {
   return extractVerificationSpecs(markdown).map((spec) => spec.command);
 }
@@ -139,6 +148,24 @@ function parseVerificationDirective(line: string):
       if (key.toLowerCase().startsWith("expect-")) throw new Error(`unsupported verification directive: ${key}`);
       return null;
   }
+}
+
+function extractFrontmatterVerificationSpecs(value: unknown): VerificationCommandSpec[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((entry): entry is Record<string, unknown> => entry !== null && typeof entry === "object")
+    .map((entry) => {
+      const command = typeof entry.command === "string" ? entry.command.trim() : "";
+      if (!command) return null;
+      return {
+        command,
+        label: typeof entry.label === "string" && entry.label.trim() ? entry.label.trim() : null,
+        expectedExitCode: Number.isInteger(entry.expected_exit_code) ? Number(entry.expected_exit_code) : 0,
+        stdoutContains: Array.isArray(entry.stdout_contains) ? entry.stdout_contains.map(String).map((item) => item.trim()).filter(Boolean) : [],
+        stderrContains: Array.isArray(entry.stderr_contains) ? entry.stderr_contains.map(String).map((item) => item.trim()).filter(Boolean) : [],
+      } satisfies VerificationCommandSpec;
+    })
+    .filter((entry): entry is VerificationCommandSpec => entry !== null);
 }
 
 export async function readSliceAssignee(project: string, taskId: string) {

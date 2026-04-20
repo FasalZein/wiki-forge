@@ -15,6 +15,7 @@ import { applyDerivedLedger } from "../lib/forge-ledger-detect";
 import { buildForgeSteering } from "../lib/forge-steering";
 import { type ForgeTriage } from "../lib/forge-triage";
 import { collectPriorResearchRefs, extractMarkdownSection, readMatterDoc, readPlanningDoc, type MatterDoc } from "../lib/forge-evidence";
+import { extractVerificationSpecsFromTestPlan } from "../lib/slices";
 import { projectPrdsDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath } from "../lib/structure";
 import {
   type BacklogTaskContext,
@@ -54,10 +55,8 @@ export async function collectForgeStatus(project: string, sliceId: string, repo?
   const parentFeature = typeof hub?.data.parent_feature === "string" ? hub.data.parent_feature : undefined;
   const prdDoc = parentPrd ? await readPlanningDoc(projectPrdsDir(project), parentPrd) : null;
   const researchRefs = collectPriorResearchRefs(prdDoc);
-  const verificationCommands = Array.isArray(testPlan?.data.verification_commands)
-    ? testPlan.data.verification_commands
-      .map((entry: unknown) => entry && typeof entry === "object" && typeof (entry as Record<string, unknown>).command === "string" ? String((entry as Record<string, unknown>).command) : null)
-      .filter((value: string | null): value is string => Boolean(value))
+  const verificationCommands = testPlan
+    ? extractVerificationSpecsFromTestPlan(testPlan.content, testPlan.data).map((entry) => entry.command)
     : [];
   const planReady = await detectTaskDocState(projectTaskPlanPath(project, sliceId)) === "ready";
   const testPlanReady = await detectTaskDocState(projectTaskTestPlanPath(project, sliceId)) === "ready";
