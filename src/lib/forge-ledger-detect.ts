@@ -29,6 +29,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { VAULT_ROOT, STALE_UNVERIFIED_DAYS } from "../constants";
 import { safeMatter } from "../cli-shared";
 import { appendText, ensureDir, exists, readText } from "./fs";
+import { collectPriorResearchRefs, extractMarkdownSection, readPlanningDoc } from "./forge-evidence";
 import { FORGE_PHASES, readForgeLedgerPhase, writeForgeLedgerPhase, type ForgeWorkflowLedger, type ForgePhase } from "./forge-ledger";
 import { legacyProjectResearchTopic } from "./research";
 
@@ -114,9 +115,9 @@ async function _derive(project: string, sliceId: string, vaultRoot: string): Pro
 
   // -------------------------------------------------------------------
   // Phase: research
-  // Rule: research/projects/<project>/** contains a file whose basename
-  // matches prd-<lowercased-prdId>-* or <lowercased-sliceId>-*,
-  // or is listed in the PRD's source_paths frontmatter.
+  // Rule: authored PRD Prior Research links count as research evidence, and
+  // research/<project>/** can also match by frontmatter, source_paths, or
+  // legacy basename heuristics during migration.
   // -------------------------------------------------------------------
   const researchRefs = await detectResearchRefs(project, sliceId, parentPrd, vaultRoot);
   if (researchRefs.refs.length > 0) {
@@ -217,38 +218,34 @@ async function detectResearchRefs(
 ): Promise<{ refs: string[]; legacyFallbackUsed: boolean }> {
   const canonicalResearchDir = join(vaultRoot, "research", project);
   const legacyResearchDir = join(vaultRoot, "research", ...legacyProjectResearchTopic(project).split("/"));
-  if (!await exists(canonicalResearchDir) && !await exists(legacyResearchDir)) return { refs: [], legacyFallbackUsed: false };
+  const hasCanonicalResearchDir = await exists(canonicalResearchDir);
+  const hasLegacyResearchDir = await exists(legacyResearchDir);
 
   // Gather reference sets from the PRD's source_paths
   const prdSourcePaths = new Set<string>();
-  if (parentPrd) {
-    const prdsDir = join(vaultRoot, "projects", project, "specs", "prds");
-    if (await exists(prdsDir)) {
-      const entries = readdirSync(prdsDir);
-      const prdFile = entries.find((f) => f.startsWith(`${parentPrd}-`) && f.endsWith(".md"));
-      if (prdFile) {
-        const prdRaw = await readText(join(prdsDir, prdFile));
-        const prdParsed = safeMatter(`projects/${project}/specs/prds/${prdFile}`, prdRaw, { silent: true });
-        if (prdParsed && Array.isArray(prdParsed.data.source_paths)) {
-          for (const sp of prdParsed.data.source_paths) {
-            if (typeof sp === "string") prdSourcePaths.add(sp.trim());
-          }
-        }
-      }
+  const prdsDir = join(vaultRoot, "projects", project, "specs", "prds");
+  const prdDoc = parentPrd ? await readPlanningDoc(prdsDir, parentPrd, vaultRoot) : null;
+  if (prdDoc && Array.isArray(prdDoc.data.source_paths)) {
+    for (const sp of prdDoc.data.source_paths) {
+      if (typeof sp === "string") prdSourcePaths.add(sp.trim());
     }
   }
 
-  const refs: string[] = [];
+  const refs: string[] = collectPriorResearchRefs(prdDoc);
   let legacyFallbackUsed = false;
   const sliceIdLower = sliceId.toLowerCase();
   const prdIdLower = parentPrd ? parentPrd.toLowerCase() : null;
 
-  scanDirFlat(canonicalResearchDir, "", `research/${project}`, sliceId, sliceIdLower, prdIdLower, prdSourcePaths, refs, () => {
-    // Canonical topic-first research paths are not legacy fallback.
-  });
-  scanDirFlat(legacyResearchDir, "", `research/${legacyProjectResearchTopic(project)}`, sliceId, sliceIdLower, prdIdLower, prdSourcePaths, refs, (usedLegacy) => {
-    legacyFallbackUsed = legacyFallbackUsed || usedLegacy;
-  });
+  if (hasCanonicalResearchDir) {
+    scanDirFlat(canonicalResearchDir, "", `research/${project}`, sliceId, sliceIdLower, prdIdLower, prdSourcePaths, refs, () => {
+      // Canonical topic-first research paths are not legacy fallback.
+    });
+  }
+  if (hasLegacyResearchDir) {
+    scanDirFlat(legacyResearchDir, "", `research/${legacyProjectResearchTopic(project)}`, sliceId, sliceIdLower, prdIdLower, prdSourcePaths, refs, (usedLegacy) => {
+      legacyFallbackUsed = legacyFallbackUsed || usedLegacy;
+    });
+  }
 
   return { refs: [...new Set(refs)], legacyFallbackUsed };
 }
@@ -394,7 +391,7 @@ async function detectPrdRefs(
     // Without a specific parentPrd, match any PRD whose parent_feature matches
     // and which references this slice in its Child Slices section
     if (!parentPrd) {
-      const childSlicesSection = extractSection(prdParsed.content, "Child Slices");
+      const childSlicesSection = extractMarkdownSection(prdParsed.content, "Child Slices");
       if (!childSlicesSection.includes(sliceId)) continue;
     }
 
@@ -440,7 +437,7 @@ async function detectSlicesPhase(
   const prdParsed = safeMatter(`projects/${project}/specs/prds/${prdFile}`, raw, { silent: true });
   if (!prdParsed) return [];
 
-  const childSlices = extractSection(prdParsed.content, "Child Slices");
+  const childSlices = extractMarkdownSection(prdParsed.content, "Child Slices");
   if (!childSlices.includes(sliceId)) return [];
 
   return [sliceId];
@@ -465,7 +462,7 @@ async function detectTddEvidence(project: string, sliceId: string, vaultRoot: st
   // Both must be status: ready (not draft, not current, not anything else)
   if (planStatus !== "ready" || testPlanStatus !== "ready") return [];
 
-  const redTestsSection = extractSection(testPlanParsed.content, "Red Tests");
+  const redTestsSection = extractMarkdownSection(testPlanParsed.content, "Red Tests");
   if (!/^\s*-\s*\[(?: |x|X)\]/mu.test(redTestsSection)) return [];
 
   const verificationCommands = Array.isArray(testPlanParsed.data.verification_commands)
@@ -672,21 +669,4 @@ async function tailLogFromPath(logPath: string, count: number): Promise<string[]
   const content = (await readText(logPath)).replace(/\r\n/g, "\n");
   const entries = content.split(/^## /mu).filter(Boolean).map((chunk) => `## ${chunk.trimEnd()}`);
   return entries.slice(-count);
-}
-
-function extractSection(markdown: string, heading: string): string {
-  // Split on all ## headings, find the matching one, return its body.
-  const headingLine = `## ${heading}`;
-  const sections = markdown.split(/^## /mu);
-  for (const section of sections) {
-    const firstLineEnd = section.indexOf("\n");
-    if (firstLineEnd === -1) continue;
-    const sectionHeading = section.slice(0, firstLineEnd).trim();
-    if (sectionHeading === heading) {
-      return section.slice(firstLineEnd).trim();
-    }
-  }
-  // Also try exact heading with newline check (fallback for content starting at top)
-  void headingLine; // referenced above for clarity only
-  return "";
 }

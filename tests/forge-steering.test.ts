@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { runWiki } from "./_helpers/wiki-subprocess";
 import { cleanupTempPaths, initVault, runGit, setRepoFrontmatter, tempDir } from "./test-helpers";
@@ -114,5 +114,44 @@ describe("WIKI-FORGE-149 steering packet", () => {
     expect(payload.triage.kind).toBe("needs-research");
     expect(payload.steering.lane).toBe("domain-work");
     expect(payload.steering.nextCommand).not.toContain("wiki forge run wf149placeholder WF149PLACEHOLDER-001");
+  });
+
+  test("forge status advances to domain-model when the parent PRD already links prior research", () => {
+    const { vault, env } = setupRepo("wf149prior");
+    const sliceDir = join(vault, "projects", "wf149prior", "specs", "slices", "WF149PRIOR-001");
+    writeFileSync(
+      join(sliceDir, "plan.md"),
+      "---\ntitle: WF149PRIOR-001\ntype: spec\nspec_kind: plan\nproject: wf149prior\ntask_id: WF149PRIOR-001\nparent_prd: PRD-001\nparent_feature: FEAT-001\nupdated: 2026-04-19\nstatus: ready\n---\n\n# plan\n\n## Scope\n\n- finish implementation\n",
+      "utf8",
+    );
+    writeFileSync(
+      join(sliceDir, "test-plan.md"),
+      "---\ntitle: WF149PRIOR-001\ntype: spec\nspec_kind: test-plan\nproject: wf149prior\ntask_id: WF149PRIOR-001\nparent_prd: PRD-001\nparent_feature: FEAT-001\nupdated: 2026-04-19\nstatus: ready\nverification_commands:\n  - command: bun test\n---\n\n# test-plan\n\n## Red Tests\n\n- [x] covered\n",
+      "utf8",
+    );
+    const hubPath = join(sliceDir, "index.md");
+    const hub = readFileSync(hubPath, "utf8");
+    writeFileSync(
+      hubPath,
+      hub.replace("task_id: WF149PRIOR-001\n", "task_id: WF149PRIOR-001\nparent_prd: PRD-001\nparent_feature: FEAT-001\n"),
+      "utf8",
+    );
+
+    const prdsDir = join(vault, "projects", "wf149prior", "specs", "prds");
+    mkdirSync(prdsDir, { recursive: true });
+    writeFileSync(
+      join(prdsDir, "PRD-001-auth-flow.md"),
+      "---\ntitle: PRD-001 auth flow\ntype: spec\nspec_kind: prd\nproject: wf149prior\nprd_id: PRD-001\nparent_feature: FEAT-001\nupdated: 2026-04-19\nstatus: draft\n---\n\n# PRD-001\n\n## Prior Research\n\n- [[research/wf149prior/_overview]]\n- [[projects/wf149prior/architecture/reviews/auth-flow-audit]]\n\n## Child Slices\n\n- WF149PRIOR-001\n",
+      "utf8",
+    );
+
+    const result = runWiki(["forge", "status", "wf149prior", "WF149PRIOR-001", "--json"], env);
+    expect(result.exitCode).toBe(0);
+    const payload = JSON.parse(result.stdout.toString());
+
+    expect(payload.workflow.validation.nextPhase).toBe("domain-model");
+    expect(payload.triage.kind).toBe("needs-domain-model");
+    expect(payload.steering.phase).toBe("domain-model");
+    expect(payload.steering.loadSkill).toBe("/domain-model");
   });
 });

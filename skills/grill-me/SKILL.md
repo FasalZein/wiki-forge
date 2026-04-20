@@ -26,7 +26,7 @@ Stress-test a plan, design, or PRD through structured interrogation. The goal is
 
 Read the relevant context:
 - If a PRD exists, read it from the vault (`projects/<project>/specs/prds/`)
-- If research exists, read filed research (`research/projects/<project>/`)
+- If research exists, read filed research (`research/<topic>/`). For project-scoped work, prefer `research/<project>/`.
 - Read relevant source code to ground the discussion in reality
 - Read the project `_summary.md` for broader context
 
@@ -71,7 +71,7 @@ After grilling, update the relevant artifacts:
 
 **If pre-PRD:** The resolved decisions feed directly into `/write-a-prd`.
 
-**If research-worthy decisions emerged:** File them with `wiki research file <project> <title>`.
+**If research-worthy decisions emerged:** File them with `wiki research file <topic> [--project <project>] <title>`. For project-scoped work, use `wiki research file <project> --project <project> <title>`.
 
 ## Integration with Forge
 

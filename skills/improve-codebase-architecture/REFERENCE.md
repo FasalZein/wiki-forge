@@ -145,7 +145,8 @@ Durable architectural guidance that is NOT coupled to current file paths:
 ## Cross Links
 
 - [[projects/<project>/_summary]]
-- [[research/projects/<project>/_overview]]
+- [[projects/<project>/architecture/domain-language]]
+- [[projects/<project>/decisions]]
 ```
 
 ## Optional GitHub Issue Template
@@ -158,7 +159,7 @@ source of truth; the issue is a pointer.
 
 - Wiki feature: projects/<project>/specs/features/FEAT-<nnn>-<slug>.md
 - Wiki PRD: projects/<project>/specs/prds/PRD-<nnn>-<slug>.md
-- Architecture review: research/projects/<project>/architecture-review-<YYYY-MM-DD>.md
+- Architecture review: projects/<project>/architecture/reviews/architecture-review-<YYYY-MM-DD>.md
 
 ## TL;DR
 

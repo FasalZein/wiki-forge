@@ -97,6 +97,7 @@ function makePrd(
   featureId: string,
   childSlices: string[] = [],
   sourcePaths: string[] = [],
+  priorResearchRefs: string[] = [],
 ) {
   const dir = join(vault, "projects", project, "specs", "prds");
   mkdirSync(dir, { recursive: true });
@@ -104,13 +105,16 @@ function makePrd(
   const sourcePathsYaml = sourcePaths.length
     ? `source_paths:\n${sourcePaths.map((p) => `  - ${p}`).join("\n")}\n`
     : "";
+  const priorResearchSection = priorResearchRefs.length
+    ? `\n## Prior Research\n\n${priorResearchRefs.map((ref) => `- [[${ref}]]`).join("\n")}\n`
+    : "";
   const childSlicesSection =
     childSlices.length > 0
       ? `\n## Child Slices\n\n${childSlices.map((s) => `- ${s}`).join("\n")}\n`
       : "\n## Child Slices\n\n- none yet\n";
   writeFileSync(
     join(dir, `${prdId}-${slug}.md`),
-    `---\ntitle: ${prdId} test prd\ntype: spec\nspec_kind: prd\nprd_id: ${prdId}\nparent_feature: ${featureId}\nproject: ${project}\n${sourcePathsYaml}created_at: '2026-04-17T00:00:00.000Z'\nstatus: draft\n---\n\n# ${prdId}\n${childSlicesSection}`,
+    `---\ntitle: ${prdId} test prd\ntype: spec\nspec_kind: prd\nprd_id: ${prdId}\nparent_feature: ${featureId}\nproject: ${project}\n${sourcePathsYaml}created_at: '2026-04-17T00:00:00.000Z'\nstatus: draft\n---\n\n# ${prdId}${priorResearchSection}${childSlicesSection}`,
     "utf8",
   );
 }
@@ -198,6 +202,27 @@ describe("deriveForgeLedgerFromArtifacts — research phase", () => {
     const result = await d(vault, "myproject", "MYPROJECT-001");
     expect(result.patch.research).toBeDefined();
     expect(result.patch.research?.researchRefs?.[0]).toBe("research/myproject/canonical-notes.md");
+  });
+
+  test("detects research evidence from the parent PRD Prior Research section", async () => {
+    const vault = setupVault();
+    makeSliceHub(vault, "myproject", "MYPROJECT-001", { parent_prd: "PRD-056", parent_feature: "FEAT-001" });
+    makePrd(
+      vault,
+      "myproject",
+      "PRD-056",
+      "FEAT-001",
+      ["MYPROJECT-001"],
+      [],
+      ["research/myproject/_overview", "projects/myproject/architecture/reviews/steering-audit"],
+    );
+
+    const result = await d(vault, "myproject", "MYPROJECT-001");
+    expect(result.patch.research).toBeDefined();
+    expect(result.patch.research?.researchRefs).toEqual([
+      "research/myproject/_overview",
+      "projects/myproject/architecture/reviews/steering-audit",
+    ]);
   });
 
   test("detects research file by PRD-<id>-* basename pattern", async () => {

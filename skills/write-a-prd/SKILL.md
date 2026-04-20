@@ -12,7 +12,7 @@ Create a PRD in the wiki vault under `projects/<project>/specs/prds/`. Skip step
 ## Prerequisites
 
 1. A feature must exist — every PRD requires `--feature <FEAT-ID>`. Create one with `wiki create-feature <project> <name>` if needed.
-2. Research should be filed — the PRD links to it in Prior Research. File with `wiki research file <project> <title>` after using `/research`.
+2. Research should be filed — the PRD links to it in Prior Research. File with `wiki research file <topic> [--project <project>] <title>` after using `/research`.
 3. If domain-modeling was needed, consume its wiki-native outputs before drafting:
    - `projects/<project>/decisions.md`
    - `projects/<project>/architecture/domain-language.md`
@@ -80,7 +80,7 @@ The scaffold has these sections — fill all of them from interview and codebase
 | **Users / Actors** | Who interacts — humans, agents, services, CI. |
 | **User Stories** | Extensive numbered list: `As a <actor>, I want <feature>, so that <benefit>`. Cover all aspects. |
 | **Acceptance Criteria** | Checkboxes defining done. These become the basis for slice test plans. |
-| **Prior Research** | Wikilinks to filed research: `[[research/projects/<project>/<slug>]]`. At least one link required. |
+| **Prior Research** | Wikilinks to filed research: `[[research/<topic>/<slug>]]`. For project-scoped research, prefer `[[research/<project>/<slug>]]`. At least one link required. |
 | **Open Questions** | Unresolved decisions. Address before slicing. `/domain-model` resolves terminology, decision, and ambiguity questions before PRD authoring and records the settled outputs in `projects/<project>/decisions.md` plus `projects/<project>/architecture/domain-language.md`. |
 
 Additionally, add these sections below Open Questions if implementation decisions were made:
@@ -118,7 +118,7 @@ For focused changes that still need a PRD but don't need full research:
 - Do not submit PRDs as GitHub issues. PRDs live in the wiki vault.
 - Do not hand-write PRD files. Use `wiki create-prd` for correct frontmatter and structure.
 - Do not skip `--feature`. Every PRD must be parented to a feature.
-- Do not skip Prior Research. File research first, link it in the PRD.
+- Do not skip Prior Research. File research first, link it in the PRD. For project-scoped research, use `wiki research file <project> --project <project> <title>`.
 - Do not include file paths or code snippets — they rot. Describe modules and interfaces.
 - Do not create PRDs for trivial changes. Bug fixes under ~50 lines skip straight to `/tdd`.
 

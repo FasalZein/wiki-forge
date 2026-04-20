@@ -145,26 +145,26 @@ hybrid. Be opinionated — the user wants a strong read, not just a menu.
 ### 7. File the review into the wiki
 
 Instead of immediately creating a GitHub issue, file the architecture review
-as a durable wiki research note. This keeps decisions traceable alongside
-the rest of the project's second-brain state.
+as a durable wiki architecture note under the project layer. Architecture
+reviews are project truth candidates, not generic research notes.
 
 ```bash
-wiki research file <project> "architecture review <YYYY-MM-DD>"
+# create / edit directly in the vault:
+projects/<project>/architecture/reviews/architecture-review-<YYYY-MM-DD>.md
 ```
 
-Then edit the generated file (at `research/projects/<project>/architecture-review-<YYYY-MM-DD>.md`)
-to fill the template in `REFERENCE.md`. Set frontmatter:
+Then edit that note to fill the template in `REFERENCE.md`. Set frontmatter:
 
 ```yaml
-type: research
-topic: projects/<project>
+type: architecture
+project: <project>
+spec_kind: architecture
 source_paths:
   - <every repo-relative path in the chosen cluster>
 ```
 
-Link it from impacted wiki pages: `wiki bind <project> <research-page> <source-path>`
-is not used (research has its own path shape), but you can cross-link via the
-module's `spec.md` and the `architecture/` zone. Use Obsidian wikilinks.
+Link it from impacted wiki pages via the module's `spec.md`, related PRDs, and
+the `architecture/` zone. Use Obsidian wikilinks.
 
 ### 8. Turn accepted refactors into forge work
 
@@ -177,7 +177,9 @@ wiki forge plan <project> "deepen <cluster> module" --prd-name "<chosen interfac
 # Then /prd-to-slices to split the migration into tracer-bullet slices.
 ```
 
-The research note filed in Step 7 becomes the feature's `Prior Research` link.
+The architecture review filed in Step 7 becomes a cross-linked supporting note
+for the feature and PRD. If the refactor also depends on raw research or source
+evidence, file that separately under `research/<topic>/...`.
 
 If the project also uses external issue tracking (e.g., the repo pushes
 refactors to GitHub Issues), create a companion issue **after** the feature+PRD
@@ -187,7 +189,7 @@ exist, and link back to the wiki feature/PRD pages:
 gh issue create --title "Refactor: deepen <cluster>" --body "$(cat <<'EOF'
 Tracks wiki FEAT-<nnn> / PRD-<nnn>.
 
-See architecture review: research/projects/<project>/architecture-review-<YYYY-MM-DD>.md
+See architecture review: projects/<project>/architecture/reviews/architecture-review-<YYYY-MM-DD>.md
 EOF
 )"
 ```
@@ -220,8 +222,8 @@ after a successful deepening pass.
 ## Outputs
 
 - A numbered list of deepening candidates (even if none are accepted).
-- For each accepted candidate: a filed research note under
-  `research/projects/<project>/architecture-review-<YYYY-MM-DD>.md`.
+- For each accepted candidate: a filed architecture review under
+  `projects/<project>/architecture/reviews/architecture-review-<YYYY-MM-DD>.md`.
 - For each accepted candidate: a new `FEAT-<nnn>` + `PRD-<nnn>` (and, if the
   user wants external tracking, a linked GitHub issue).
 - No direct code changes from this skill. Code changes happen in the resulting

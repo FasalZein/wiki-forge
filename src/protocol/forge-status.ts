@@ -1,9 +1,6 @@
-import { readdirSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join } from "node:path";
 import { VAULT_ROOT } from "../constants";
-import { safeMatter } from "../cli-shared";
 import { readVerificationLevel } from "../lib/verification";
-import { exists, readText } from "../lib/fs";
 import {
   FORGE_PHASES,
   readForgeLedgerPhase,
@@ -17,6 +14,7 @@ import { applyDerivedLedger } from "../lib/forge-ledger-detect";
 import { phaseRecommendation } from "../lib/forge-phase-commands";
 import { buildForgeSteering } from "../lib/forge-steering";
 import { type ForgeTriage } from "../lib/forge-triage";
+import { collectPriorResearchRefs, extractMarkdownSection, readMatterDoc, readPlanningDoc, type MatterDoc } from "../lib/forge-evidence";
 import { projectPrdsDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath } from "../lib/structure";
 import {
   type BacklogTaskContext,
@@ -25,7 +23,6 @@ import {
   detectTaskDocState,
 } from "../hierarchy";
 
-type MatterDoc = { path: string; data: Record<string, unknown>; content: string };
 type TaskDocState = BacklogTaskContext["planStatus"];
 
 type ForgeTriageInput = {
@@ -47,30 +44,30 @@ export async function collectForgeStatus(project: string, sliceId: string, repo?
   const [focus, context, hub, plan, testPlan, decisionRefs] = await Promise.all([
     collectBacklogFocus(project),
     collectTaskContextForId(project, sliceId),
-    readMatter(projectTaskHubPath(project, sliceId)),
-    readMatter(projectTaskPlanPath(project, sliceId)),
-    readMatter(projectTaskTestPlanPath(project, sliceId)),
+    readMatterDoc(projectTaskHubPath(project, sliceId)),
+    readMatterDoc(projectTaskPlanPath(project, sliceId)),
+    readMatterDoc(projectTaskTestPlanPath(project, sliceId)),
     collectDecisionRefs(project),
   ]);
   const parentPrd = typeof hub?.data.parent_prd === "string" ? hub.data.parent_prd : undefined;
   const parentFeature = typeof hub?.data.parent_feature === "string" ? hub.data.parent_feature : undefined;
   const prdDoc = parentPrd ? await readPlanningDoc(projectPrdsDir(project), parentPrd) : null;
-  const researchRefs = prdDoc ? extractWikilinks(extractSection(prdDoc.content, "Prior Research")) : [];
+  const researchRefs = collectPriorResearchRefs(prdDoc);
   const verificationCommands = Array.isArray(testPlan?.data.verification_commands)
     ? testPlan.data.verification_commands
-      .map((entry) => entry && typeof entry === "object" && typeof (entry as Record<string, unknown>).command === "string" ? String((entry as Record<string, unknown>).command) : null)
-      .filter((value): value is string => Boolean(value))
+      .map((entry: unknown) => entry && typeof entry === "object" && typeof (entry as Record<string, unknown>).command === "string" ? String((entry as Record<string, unknown>).command) : null)
+      .filter((value: string | null): value is string => Boolean(value))
     : [];
   const planReady = await detectTaskDocState(projectTaskPlanPath(project, sliceId)) === "ready";
   const testPlanReady = await detectTaskDocState(projectTaskTestPlanPath(project, sliceId)) === "ready";
-  const hasRedTestChecklist = /^\s*-\s*\[(?: |x|X)\]/mu.test(extractSection(testPlan?.content ?? "", "Red Tests"));
+  const hasRedTestChecklist = /^\s*-\s*\[(?: |x|X)\]/mu.test(extractMarkdownSection(testPlan?.content ?? "", "Red Tests"));
   const tddReady = planReady && testPlanReady && hasRedTestChecklist && verificationCommands.length > 0;
   const authoredLedger: Partial<ForgeWorkflowLedger> = {
     project,
     sliceId,
     ...(parentPrd ? { parentPrd } : {}),
     ...(researchRefs.length ? { research: { completedAt: readUpdated(prdDoc?.data), researchRefs } } : {}),
-    ...(decisionRefs.length ? { grill: { completedAt: decisionRefs[0].completedAt, decisionRefs: decisionRefs.map((entry) => entry.ref) } } : {}),
+    ...(decisionRefs.length ? { grill: { completedAt: decisionRefs[0].completedAt, decisionRefs: decisionRefs.map((entry: { ref: string }) => entry.ref) } } : {}),
     ...(prdDoc && parentPrd ? { prd: { completedAt: readUpdated(prdDoc.data), prdRef: parentPrd, parentPrd } } : {}),
     ...(hub && plan && testPlan ? { slices: { completedAt: readUpdated(hub.data), sliceRefs: [sliceId] } } : {}),
     ...(tddReady ? { tdd: { completedAt: readUpdated(testPlan?.data), tddEvidence: [`projects/${project}/specs/slices/${sliceId}/test-plan.md#red-tests`] } } : {}),
@@ -207,40 +204,13 @@ export function compactForgeStatusForJson(workflow: Awaited<ReturnType<typeof co
   };
 }
 
-async function readMatter(path: string): Promise<MatterDoc | null> {
-  if (!await exists(path)) return null;
-  const raw = await readText(path);
-  const parsed = safeMatter(relative(VAULT_ROOT, path), raw, { silent: true });
-  if (!parsed) return null;
-  return { path, data: parsed.data, content: parsed.content };
-}
-
-async function readPlanningDoc(dir: string, id: string): Promise<MatterDoc | null> {
-  if (!await exists(dir)) return null;
-  const file = readdirSync(dir).find((entry) => entry.startsWith(`${id}-`) && entry.endsWith(".md"));
-  return file ? readMatter(join(dir, file)) : null;
-}
-
 async function collectDecisionRefs(project: string) {
   const decisionsPath = join(VAULT_ROOT, "projects", project, "decisions.md");
-  const decisions = await readMatter(decisionsPath);
+  const decisions = await readMatterDoc(decisionsPath);
   if (!decisions) return [] as Array<{ ref: string; completedAt: string }>;
-  const body = extractSection(decisions.content, "Current Decisions");
+  const body = extractMarkdownSection(decisions.content, "Current Decisions");
   const hasEntries = body.split("\n").some((line) => /^-\s+/u.test(line.trim()));
   return hasEntries ? [{ ref: `projects/${project}/decisions.md#current-decisions`, completedAt: readUpdated(decisions.data) }] : [];
-}
-
-function extractSection(markdown: string, heading: string) {
-  const match = markdown.match(new RegExp(`^## ${escapeRegex(heading)}\\n([\\s\\S]*?)(?=^##\\s|$)`, "mu"));
-  return match?.[1]?.trim() ?? "";
-}
-
-function extractWikilinks(markdown: string) {
-  return [...markdown.matchAll(/\[\[([^\]]+)\]\]/g)].map((match) => match[1].trim()).filter(Boolean);
-}
-
-function escapeRegex(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function readUpdated(data: Record<string, unknown> | undefined) {
