@@ -214,8 +214,8 @@ describe("wiki forge thin surface", () => {
     const statusJson = JSON.parse(statusResult.stdout.toString());
     expect(statusJson.planStatus).toBe("incomplete");
     expect(statusJson.testPlanStatus).toBe("incomplete");
-    expect(statusJson.workflow.validation.nextPhase).toBe("domain-model");
-    expect(statusJson.triage.kind).toBe("needs-domain-model");
+    expect(statusJson.workflow.validation.nextPhase).toBe("research");
+    expect(statusJson.triage.kind).toBe("needs-research");
   });
 
   test("forge plan accepts --feature to skip feature creation", () => {
