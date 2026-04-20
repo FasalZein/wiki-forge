@@ -3,6 +3,7 @@ import { VAULT_ROOT } from "../constants";
 import { readVerificationLevel } from "../lib/verification";
 import {
   FORGE_PHASES,
+  normalizeForgeLedger,
   readForgeLedgerPhase,
   writeForgeLedgerPhase,
   type ForgeWorkflowLedger,
@@ -67,7 +68,7 @@ export async function collectForgeStatus(project: string, sliceId: string, repo?
     sliceId,
     ...(parentPrd ? { parentPrd } : {}),
     ...(researchRefs.length ? { research: { completedAt: readUpdated(prdDoc?.data), researchRefs } } : {}),
-    ...(decisionRefs.length ? { grill: { completedAt: decisionRefs[0].completedAt, decisionRefs: decisionRefs.map((entry: { ref: string }) => entry.ref) } } : {}),
+    ...(decisionRefs.length ? { "domain-model": { completedAt: decisionRefs[0].completedAt, decisionRefs: decisionRefs.map((entry: { ref: string }) => entry.ref) } } : {}),
     ...(prdDoc && parentPrd ? { prd: { completedAt: readUpdated(prdDoc.data), prdRef: parentPrd, parentPrd } } : {}),
     ...(hub && plan && testPlan ? { slices: { completedAt: readUpdated(hub.data), sliceRefs: [sliceId] } } : {}),
     ...(tddReady ? { tdd: { completedAt: readUpdated(testPlan?.data), tddEvidence: [`projects/${project}/specs/slices/${sliceId}/test-plan.md#red-tests`] } } : {}),
@@ -77,9 +78,9 @@ export async function collectForgeStatus(project: string, sliceId: string, repo?
   let ledger: Partial<ForgeWorkflowLedger>;
   try {
     const { merged } = await applyDerivedLedger(mergedAuthoredLedger, project, sliceId);
-    ledger = merged;
+    ledger = normalizeForgeLedger(merged);
   } catch {
-    ledger = mergedAuthoredLedger;
+    ledger = normalizeForgeLedger(mergedAuthoredLedger);
   }
   const verificationLevel = testPlan ? readVerificationLevel(testPlan.data) : null;
   const validation = normalizeForgeValidationForCloseableSlice(
@@ -179,6 +180,7 @@ export function compactForgeStatusForJson(workflow: Awaited<ReturnType<typeof co
     ...rest,
     workflow: {
       ...workflow.workflow,
+      ledger: normalizeForgeLedger(workflow.workflow.ledger),
       validation: {
         ...workflow.workflow.validation,
         statuses: workflow.workflow.validation.statuses.map((status) => ({

@@ -9,6 +9,10 @@ export type ForgeWorkflowLedger = {
     completedAt?: string;
     researchRefs?: string[];
   };
+  "domain-model"?: {
+    completedAt?: string;
+    decisionRefs?: string[];
+  };
   // Legacy storage key retained for historical authored ledgers.
   grill?: {
     completedAt?: string;
@@ -47,18 +51,33 @@ export type ForgeWorkflowValidation = {
   statuses: ForgePhaseStatus[];
 };
 
-type ForgeLedgerPhaseKey = "research" | "grill" | "prd" | "slices" | "tdd" | "verify";
+type ForgeLedgerPhaseKey = "research" | "domain-model" | "prd" | "slices" | "tdd" | "verify";
 
 export function forgeLedgerPhaseKey(phase: ForgePhase): ForgeLedgerPhaseKey {
-  return phase === "domain-model" ? "grill" : phase;
+  return phase === "domain-model" ? "domain-model" : phase;
 }
 
 export function readForgeLedgerPhase(ledger: Partial<ForgeWorkflowLedger>, phase: ForgePhase) {
+  if (phase === "domain-model") {
+    return (ledger["domain-model"] ?? ledger.grill) as Record<string, unknown> | undefined;
+  }
   return ledger[forgeLedgerPhaseKey(phase)] as Record<string, unknown> | undefined;
 }
 
 export function writeForgeLedgerPhase(target: Partial<ForgeWorkflowLedger>, phase: ForgePhase, value: unknown) {
-  (target as Record<string, unknown>)[forgeLedgerPhaseKey(phase)] = value;
+  const ledger = target as Record<string, unknown>;
+  ledger[forgeLedgerPhaseKey(phase)] = value;
+  if (phase === "domain-model") delete ledger.grill;
+}
+
+export function normalizeForgeLedger(ledger: Partial<ForgeWorkflowLedger>): Partial<ForgeWorkflowLedger> {
+  const normalized: Partial<ForgeWorkflowLedger> = { ...ledger };
+  const domainModel = readForgeLedgerPhase(ledger, "domain-model");
+  if (domainModel) {
+    normalized["domain-model"] = domainModel as ForgeWorkflowLedger["domain-model"];
+  }
+  delete (normalized as Record<string, unknown>).grill;
+  return normalized;
 }
 
 const PHASE_REQUIREMENTS: Record<ForgePhase, (ledger: ForgeWorkflowLedger) => string[]> = {

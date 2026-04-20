@@ -27,8 +27,10 @@ export const TRIAGE_RULES: TriageRule[] = [
   {
     kind: "resume-failed-forge",
     priority: 10,
-    when: ({ activeTask, handoff, verificationLevel }) => {
+    when: (context) => {
+      const { activeTask, handoff, verificationLevel, workflowNextPhase } = context;
       if (!activeTask || !handoff || handoff.lastForgeOk !== false || !handoff.nextAction) return false;
+      if (workflowNextPhase && workflowNextPhase !== "verify") return false;
       const verifyCloseSteps = new Set(["verify-slice", "closeout", "gate", "close-slice"]);
       return verificationLevel === "test-verified" || verifyCloseSteps.has(handoff.lastForgeStep ?? "");
     },

@@ -52,5 +52,31 @@ describe("closeout diagnostics", () => {
     expect(json.findings.some((finding: { scope: string; severity: string; message: string }) =>
       finding.scope === "parent" && finding.severity === "warning" && finding.message.includes("wiki lifecycle")
     )).toBe(true);
+    expect(json.diagnostics.actionableWarnings.some((finding: { scope: string; message: string }) =>
+      finding.scope === "parent" && finding.message.includes("wiki lifecycle")
+    )).toBe(true);
+  });
+
+  test("groups historical warning noise separately from actionable warnings", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "active payments work", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "future payments work", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["move-task", "demo", "DEMO-001", "--to", "In Progress"], env).exitCode).toBe(0);
+
+    writeFileSync(join(repo, "src", "auth.ts"), "export const a = 3\n", "utf8");
+
+    const result = runWiki(["closeout", "demo", "--repo", repo, "--worktree", "--json"], env);
+    const json = JSON.parse(result.stdout.toString());
+
+    expect(json.diagnostics.historicalWarnings.some((finding: { scope: string; message: string }) =>
+      finding.scope === "history" && finding.message.includes("non-actionable planning page")
+    )).toBe(true);
+    expect(json.diagnostics.actionableWarnings.some((finding: { message: string }) =>
+      finding.message.includes("non-actionable planning page")
+    )).toBe(false);
   });
 });

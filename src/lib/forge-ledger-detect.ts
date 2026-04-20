@@ -140,12 +140,12 @@ async function _derive(project: string, sliceId: string, vaultRoot: string): Pro
   // Rule: decisions.md contains a line tagged [PRD-<id>] or [<sliceId>]
   // authored within the slice's lifetime.
   // -------------------------------------------------------------------
-  const grillResult = await detectGrillRefs(project, sliceId, parentPrd, sliceCreatedAt, vaultRoot);
-  if (grillResult.decisionRefs.length > 0) {
-    patch.grill = {
+  const domainModelResult = await detectDomainModelRefs(project, sliceId, parentPrd, sliceCreatedAt, vaultRoot);
+  if (domainModelResult.decisionRefs.length > 0) {
+    writeForgeLedgerPhase(patch, "domain-model", {
       completedAt: new Date().toISOString(),
-      decisionRefs: grillResult.decisionRefs,
-    };
+      decisionRefs: domainModelResult.decisionRefs,
+    });
   }
 
   // -------------------------------------------------------------------
@@ -295,7 +295,7 @@ function scanDirFlat(
   }
 }
 
-async function detectGrillRefs(
+async function detectDomainModelRefs(
   project: string,
   sliceId: string,
   parentPrd: string | undefined,

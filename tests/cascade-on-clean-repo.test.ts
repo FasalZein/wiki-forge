@@ -72,6 +72,17 @@ describe("WIKI-FORGE-145 clean-repo cascade refresh", () => {
     expect(payload.stalePages).toEqual([]);
   });
 
+  test("resume --base HEAD does not surface stale context when checkpoint is clean", () => {
+    const { repo, env, pages } = setupCascadeFixture();
+    for (const page of pages) backdateUpdatedField(page);
+
+    const result = runWiki(["resume", "wf145c", "--repo", repo, "--base", "HEAD", "--json"], env);
+
+    expect(result.exitCode).toBe(0);
+    const payload = JSON.parse(result.stdout.toString());
+    expect(payload.stalePages).toEqual([]);
+  });
+
   test("refresh-from-git --base HEAD stamps acknowledged pages whose only drift is mtime/update skew", () => {
     const { vault, repo, env, pages } = setupCascadeFixture();
     for (const page of pages) backdateUpdatedField(page);

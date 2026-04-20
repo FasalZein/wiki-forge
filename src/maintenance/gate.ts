@@ -1,29 +1,26 @@
 import { basename, join } from "node:path";
-import { requireValue } from "../cli-shared";
-import type { DiagnosticFinding } from "../lib/diagnostics";
+import { groupDiagnosticFindings, type DiagnosticFinding } from "../lib/diagnostics";
 import { collectSliceLocalContext, fileMatchesSliceClaims } from "../lib/slice-local";
 import { readFlagValue } from "../lib/cli-utils";
 import { exists, readText } from "../lib/fs";
 import { resolveRepoPath, assertGitRepo } from "../lib/verification";
-import { resolveDefaultBase } from "../git-utils";
+import { parseProjectRepoBaseArgs, resolveBaseRevision } from "../git-utils";
 import { isTestFile } from "./test-health";
 import { readSliceHub } from "../lib/slices";
 import { collectDoctor, compactDoctorForJson } from "./doctor";
 import { collectCloseout } from "./closeout";
 
 export async function gateProject(args: string[]) {
-  const project = args.find((arg, index) => index === 0 || (!arg.startsWith("--") && args[index - 1] !== "--repo" && args[index - 1] !== "--base"));
-  requireValue(project, "project");
-  const repoIndex = args.indexOf("--repo");
-  const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
-  const baseIndex = args.indexOf("--base");
-  const base = baseIndex >= 0 ? args[baseIndex + 1] : await resolveDefaultBase(project, repo);
-  if (baseIndex >= 0) requireValue(base, "base");
+  const { project, repo, base, baseFallbackNote } = await parseProjectRepoBaseArgs(args, {
+    fallbackToHeadIfUnresolvable: true,
+    fallbackLabel: "gate",
+  });
   const json = args.includes("--json");
   const structuralRefactor = args.includes("--structural-refactor");
   const worktree = args.includes("--worktree");
   const sliceLocal = args.includes("--slice-local");
   const sliceId = readFlagValue(args, "--slice-id");
+  if (baseFallbackNote) console.error(baseFallbackNote);
   const result = await collectGate(project, base, repo, { structuralRefactor, worktree, sliceLocal, sliceId });
   if (json) {
     console.log(JSON.stringify({ ...result, doctor: compactDoctorForJson(result.doctor) }, null, 2));
@@ -33,13 +30,19 @@ export async function gateProject(args: string[]) {
     console.log(`- lint issues: ${result.counts.lint}`);
     console.log(`- semantic issues: ${result.counts.semantic}`);
     console.log(`- uncovered changed files: ${result.counts.uncoveredChangedFiles}`);
-    if (result.blockers.length) {
+    if (result.diagnostics.blockers.length) {
       console.log(`- blockers:`);
-      for (const finding of result.findings.filter((entry) => entry.severity === "blocker")) console.log(`  - [${finding.scope}] ${finding.message}`);
+      for (const finding of result.diagnostics.blockers) console.log(`  - [${finding.scope}] ${finding.message}`);
     }
-    if (result.warnings.length) {
-      console.log(`- warnings:`);
-      for (const finding of result.findings.filter((entry) => entry.severity === "warning")) console.log(`  - [${finding.scope}] ${finding.message}`);
+    if (result.diagnostics.actionableWarnings.length) {
+      console.log(`- actionable warnings:`);
+      for (const finding of result.diagnostics.actionableWarnings) console.log(`  - [${finding.scope}] ${finding.message}`);
+    }
+    if (result.diagnostics.projectDebtWarnings.length) {
+      console.log(`- project debt warnings: ${result.diagnostics.projectDebtWarnings.length} (use --json for details)`);
+    }
+    if (result.diagnostics.historicalWarnings.length) {
+      console.log(`- historical warnings: ${result.diagnostics.historicalWarnings.length} (use --json for details)`);
     }
   }
   if (!result.ok) throw new Error(`gate failed for ${project}`);
@@ -110,11 +113,13 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
   }
   const blockers = findings.filter((finding) => finding.severity === "blocker").map((finding) => finding.message);
   const warnings = findings.filter((finding) => finding.severity === "warning").map((finding) => finding.message);
+  const diagnostics = groupDiagnosticFindings(findings);
   return {
     project,
     base,
     ok: blockers.length === 0,
     findings,
+    diagnostics,
     blockers,
     warnings,
     counts: {
@@ -160,7 +165,8 @@ async function runRepoCheck(repo: string, check: { label: string; command: strin
 }
 
 async function countTrackedTests(repo: string, revision: string) {
-  const proc = await Bun.$`git ls-tree -r --name-only ${revision}`.cwd(repo).nothrow().quiet();
-  if (proc.exitCode !== 0) return 0;
+  const resolvedRevision = await resolveBaseRevision(repo, revision);
+  const proc = await Bun.$`git ls-tree -r --name-only ${resolvedRevision}`.cwd(repo).nothrow().quiet();
+  if (proc.exitCode !== 0) throw new Error(proc.stderr.toString().trim() || `git ls-tree failed for ${revision}`);
   return proc.stdout.toString().replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter((line) => line && isTestFile(line)).length;
 }

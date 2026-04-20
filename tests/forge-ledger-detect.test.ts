@@ -174,7 +174,7 @@ describe("deriveForgeLedgerFromArtifacts — zero artifact baseline", () => {
     makeSliceHub(vault, "myproject", "MYPROJECT-001");
     const result = await d(vault, "myproject", "MYPROJECT-001");
     expect(result.patch.research).toBeUndefined();
-    expect(result.patch.grill).toBeUndefined();
+    expect(result.patch["domain-model"]).toBeUndefined();
     expect(result.patch.prd).toBeUndefined();
     expect(result.patch.slices).toBeUndefined();
     expect(result.patch.tdd).toBeUndefined();
@@ -278,7 +278,7 @@ describe("deriveForgeLedgerFromArtifacts — research phase", () => {
   });
 });
 
-describe("deriveForgeLedgerFromArtifacts — grill phase", () => {
+describe("deriveForgeLedgerFromArtifacts — domain-model phase", () => {
   test("detects PRD tag in decisions.md updated after slice creation", async () => {
     const vault = setupVault();
     makeSliceHub(vault, "myproject", "MYPROJECT-001", { parent_prd: "PRD-056" });
@@ -286,9 +286,9 @@ describe("deriveForgeLedgerFromArtifacts — grill phase", () => {
     makeDecisions(vault, "myproject", "- [PRD-056] Some architectural decision.\n", "2026-04-18T00:00:00.000Z");
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
-    expect(result.patch.grill).toBeDefined();
-    expect(result.patch.grill?.decisionRefs).toHaveLength(1);
-    expect(result.patch.grill?.decisionRefs?.[0]).toContain("decisions.md");
+    expect(result.patch["domain-model"]).toBeDefined();
+    expect(result.patch["domain-model"]?.decisionRefs).toHaveLength(1);
+    expect(result.patch["domain-model"]?.decisionRefs?.[0]).toContain("decisions.md");
   });
 
   test("detects slice-id tag in decisions.md", async () => {
@@ -297,8 +297,8 @@ describe("deriveForgeLedgerFromArtifacts — grill phase", () => {
     makeDecisions(vault, "myproject", "- [MYPROJECT-001] Slice-specific decision.\n", "2026-04-18T00:00:00.000Z");
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
-    expect(result.patch.grill).toBeDefined();
-    expect(result.patch.grill?.decisionRefs?.[0]).toContain("decisions.md");
+    expect(result.patch["domain-model"]).toBeDefined();
+    expect(result.patch["domain-model"]?.decisionRefs?.[0]).toContain("decisions.md");
   });
 
   test("skips decisions.md if updated before slice created_at", async () => {
@@ -308,16 +308,16 @@ describe("deriveForgeLedgerFromArtifacts — grill phase", () => {
     makeDecisions(vault, "myproject", "- [PRD-056] Old decision.\n", "2026-04-16T00:00:00.000Z");
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
-    expect(result.patch.grill).toBeUndefined();
+    expect(result.patch["domain-model"]).toBeUndefined();
   });
 
-  test("returns no grill ref when no matching tags", async () => {
+  test("returns no domain-model ref when no matching tags", async () => {
     const vault = setupVault();
     makeSliceHub(vault, "myproject", "MYPROJECT-001");
     makeDecisions(vault, "myproject", "- Some untagged decision.\n", "2026-04-18T00:00:00.000Z");
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
-    expect(result.patch.grill).toBeUndefined();
+    expect(result.patch["domain-model"]).toBeUndefined();
   });
 });
 
@@ -516,7 +516,7 @@ describe("deriveForgeLedgerFromArtifacts — idempotence", () => {
     expect(first.findings).toEqual(second.findings);
     // Verify refs are the same
     expect(first.patch.research?.researchRefs).toEqual(second.patch.research?.researchRefs);
-    expect(first.patch.grill?.decisionRefs).toEqual(second.patch.grill?.decisionRefs);
+    expect(first.patch["domain-model"]?.decisionRefs).toEqual(second.patch["domain-model"]?.decisionRefs);
     expect(first.patch.slices?.sliceRefs).toEqual(second.patch.slices?.sliceRefs);
     expect(first.patch.tdd?.tddEvidence).toEqual(second.patch.tdd?.tddEvidence);
   });
@@ -539,7 +539,7 @@ describe("mergeDerivedForgeLedger — authored wins", () => {
         completedAt: "2026-04-18T00:00:00.000Z",
         researchRefs: ["derived/ref.md"],
       },
-      grill: {
+      "domain-model": {
         completedAt: "2026-04-18T00:00:00.000Z",
         decisionRefs: ["projects/myproject/decisions.md#current-decisions"],
       },
@@ -550,8 +550,8 @@ describe("mergeDerivedForgeLedger — authored wins", () => {
     // Authored research wins
     expect(merged.research?.completedAt).toBe("2026-01-01T00:00:00.000Z");
     expect(merged.research?.researchRefs).toEqual(["authored/ref.md"]);
-    // Derived grill fills in (was absent in authored)
-    expect(merged.grill?.decisionRefs).toEqual(["projects/myproject/decisions.md#current-decisions"]);
+    // Derived domain-model fills in (was absent in authored)
+    expect(merged["domain-model"]?.decisionRefs).toEqual(["projects/myproject/decisions.md#current-decisions"]);
   });
 
   test("authored top-level parentPrd wins over derived", () => {

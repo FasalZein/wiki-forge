@@ -1,10 +1,9 @@
-import { requireValue } from "../cli-shared";
 import { formatMaintenanceActionLabel } from "../lib/diagnostics";
 import { collectBacklog } from "../hierarchy";
 import { readSliceSummary } from "../lib/slices";
 import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "../verification";
 import type { LintingSnapshot } from "../verification";
-import { resolveDefaultBase } from "../git-utils";
+import { parseProjectRepoBaseArgs } from "../git-utils";
 import {
   loadProjectSnapshot,
   collectRefreshFromGit,
@@ -15,15 +14,13 @@ import { collectDriftSummary } from "./drift";
 import { collectMaintenancePlan } from "./maintain";
 
 export async function doctorProject(args: string[]) {
-  const project = args.find((arg, index) => index === 0 || (!arg.startsWith("--") && args[index - 1] !== "--repo" && args[index - 1] !== "--base"));
-  requireValue(project, "project");
-  const repoIndex = args.indexOf("--repo");
-  const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
-  const baseIndex = args.indexOf("--base");
-  const base = baseIndex >= 0 ? args[baseIndex + 1] : await resolveDefaultBase(project, repo);
-  if (baseIndex >= 0) requireValue(base, "base");
+  const { project, repo, base, baseFallbackNote } = await parseProjectRepoBaseArgs(args, {
+    fallbackToHeadIfUnresolvable: true,
+    fallbackLabel: "doctor",
+  });
   const json = args.includes("--json");
   const worktree = args.includes("--worktree");
+  if (baseFallbackNote) console.error(baseFallbackNote);
   const result = await collectDoctor(project, base, repo, { worktree });
   if (json) {
     console.log(JSON.stringify(compactDoctorForJson(result), null, 2));

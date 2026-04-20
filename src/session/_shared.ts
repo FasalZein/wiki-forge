@@ -6,6 +6,7 @@ import { renderHandoverAlignmentReminder } from "../lib/protocol-source";
 import { tailLog } from "../lib/log";
 import { type SessionSummary, resolveAgent, resolveSessionId } from "../lib/tracker";
 import { type DirtyRepoStatus, collectDirtyRepoStatus } from "../lib/dirty-repo";
+import { resolveBaseRevision } from "../git-utils";
 
 export type { DirtyRepoStatus };
 export { collectDirtyRepoStatus };
@@ -18,7 +19,9 @@ export async function collectRecentCommits(repo: string, limit: number) {
 
 export async function collectCommitsSinceBase(repo: string, base: string | undefined, limit: number): Promise<string[]> {
   if (!base) return [];
-  const proc = await Bun.$`git log --oneline ${base}..HEAD -n ${limit}`.cwd(repo).nothrow().quiet();
+  const resolvedBase = await resolveBaseRevision(repo, base).catch(() => null);
+  if (!resolvedBase) return [];
+  const proc = await Bun.$`git log --oneline ${resolvedBase}..HEAD -n ${limit}`.cwd(repo).nothrow().quiet();
   if (proc.exitCode !== 0) return [];
   return proc.stdout.toString().replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean);
 }

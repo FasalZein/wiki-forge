@@ -36,7 +36,7 @@ function makeRunnableSlice(vault: string, repo: string, project: string, sliceId
     completedAt: '2026-04-19T00:00:00.000Z'
     researchRefs:
       - research/projects/${project}/payments-research.md
-  grill:
+  domain-model:
     completedAt: '2026-04-19T00:00:01.000Z'
     decisionRefs:
       - projects/${project}/decisions.md#current-decisions

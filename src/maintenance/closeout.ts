@@ -1,6 +1,6 @@
 import { parseProjectRepoBaseArgs } from "../git-utils";
 import { collectHierarchyStatusActions, collectLifecycleDriftActions, collectCancelledSyncActions } from "../hierarchy";
-import type { DiagnosticFinding, DiagnosticScope } from "../lib/diagnostics";
+import { groupDiagnosticFindings, type DiagnosticFinding, type DiagnosticScope } from "../lib/diagnostics";
 import { collectSliceLocalContext, classifySliceLocalPageScope, fileMatchesSliceClaims } from "../lib/slice-local";
 import { readFlagValue } from "../lib/cli-utils";
 import { collectLintResult, collectSemanticLintResult } from "../verification";
@@ -119,6 +119,7 @@ export async function collectCloseout(project: string, base: string, explicitRep
   for (const action of lifecycleDriftActions) findings.push({ scope: "parent", severity: "warning", message: action.message });
   const blockers = findings.filter((finding) => finding.severity === "blocker").map((finding) => finding.message);
   const warnings = findings.filter((finding) => finding.severity === "warning").map((finding) => finding.message);
+  const diagnostics = groupDiagnosticFindings(findings);
   const nextSteps: string[] = [];
   if (staleImpactedPages.length > 0) {
     nextSteps.push(`update impacted wiki pages from code`);
@@ -142,6 +143,7 @@ export async function collectCloseout(project: string, base: string, explicitRep
     lint,
     semanticLint,
     findings,
+    diagnostics,
     blockers,
     warnings,
     nextSteps,
@@ -214,7 +216,21 @@ export function renderCloseout(result: Awaited<ReturnType<typeof collectCloseout
   console.log(`- lint: ${result.lint.issues.length}`);
   console.log(`- semantic: ${result.semanticLint.issues.length}`);
   console.log(`- missing tests: ${result.refreshFromGit.testHealth.codeFilesWithoutChangedTests.length}`);
-  if (verbose || !result.ok) {
+  if (result.diagnostics.blockers.length) {
+    console.log(`- blockers:`);
+    for (const finding of result.diagnostics.blockers) console.log(`  - [${finding.scope}] ${finding.message}`);
+  }
+  if (result.diagnostics.actionableWarnings.length) {
+    console.log(`- actionable warnings:`);
+    for (const finding of result.diagnostics.actionableWarnings) console.log(`  - [${finding.scope}] ${finding.message}`);
+  }
+  if (result.diagnostics.projectDebtWarnings.length && !verbose) {
+    console.log(`- project debt warnings: ${result.diagnostics.projectDebtWarnings.length} (use --verbose to expand)`);
+  }
+  if (result.diagnostics.historicalWarnings.length && !verbose) {
+    console.log(`- historical warnings: ${result.diagnostics.historicalWarnings.length} (use --verbose to expand)`);
+  }
+  if (verbose) {
     for (const page of result.refreshFromGit.impactedPages.slice(0, 20)) console.log(`  - impacted: ${page.page} <= ${page.matchedSourcePaths.join(", ")}`);
     for (const finding of result.findings) console.log(`  - [${finding.scope}][${finding.severity}] ${finding.message}`);
   }

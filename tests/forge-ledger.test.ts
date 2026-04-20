@@ -36,7 +36,7 @@ describe("forge workflow ledger", () => {
       project: "wiki-forge",
       sliceId: "WIKI-FORGE-124",
       research: { completedAt: "2026-04-17T00:00:00Z", researchRefs: ["research/projects/wiki-forge/redesign.md"] },
-      grill: { completedAt: "2026-04-17T00:10:00Z", decisionRefs: ["projects/wiki-forge/decisions.md#redesign"] },
+      "domain-model": { completedAt: "2026-04-17T00:10:00Z", decisionRefs: ["projects/wiki-forge/decisions.md#redesign"] },
       prd: { completedAt: "2026-04-17T00:20:00Z", prdRef: "PRD-044" },
     };
 
@@ -51,7 +51,7 @@ describe("forge workflow ledger", () => {
       sliceId: "WIKI-FORGE-124",
       parentPrd: "PRD-044",
       research: { completedAt: "2026-04-17T00:00:00Z", researchRefs: ["research/projects/wiki-forge/redesign.md"] },
-      grill: { completedAt: "2026-04-17T00:10:00Z", decisionRefs: ["projects/wiki-forge/decisions.md#redesign"] },
+      "domain-model": { completedAt: "2026-04-17T00:10:00Z", decisionRefs: ["projects/wiki-forge/decisions.md#redesign"] },
       prd: { completedAt: "2026-04-17T00:20:00Z", prdRef: "PRD-044", parentPrd: "PRD-044" },
       slices: { completedAt: "2026-04-17T00:30:00Z", sliceRefs: ["WIKI-FORGE-124"] },
       tdd: { completedAt: "2026-04-17T00:40:00Z", tddEvidence: [] },
@@ -69,7 +69,7 @@ describe("forge workflow ledger", () => {
       sliceId: "WIKI-FORGE-124",
       parentPrd: "PRD-044",
       research: { completedAt: "2026-04-17T00:00:00Z", researchRefs: ["research/projects/wiki-forge/redesign.md"] },
-      grill: { completedAt: "2026-04-17T00:10:00Z", decisionRefs: ["projects/wiki-forge/decisions.md#redesign"] },
+      "domain-model": { completedAt: "2026-04-17T00:10:00Z", decisionRefs: ["projects/wiki-forge/decisions.md#redesign"] },
       prd: { completedAt: "2026-04-17T00:20:00Z", prdRef: "PRD-044", parentPrd: "PRD-044" },
       slices: { completedAt: "2026-04-17T00:30:00Z", sliceRefs: ["WIKI-FORGE-124"] },
       tdd: { completedAt: "2026-04-17T00:40:00Z", tddEvidence: ["bun test tests/forge-ledger.test.ts"] },

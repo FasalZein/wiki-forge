@@ -41,8 +41,17 @@ export async function resolveDefaultBase(project: string, explicitRepo?: string)
 }
 
 async function gitRevisionExists(repo: string, rev: string) {
-  const proc = await Bun.$`git rev-parse --verify ${rev}`.cwd(repo).quiet().nothrow();
+  const proc = await Bun.$`git rev-parse --verify ${rev}^{commit}`.cwd(repo).quiet().nothrow();
   return proc.exitCode === 0;
+}
+
+export async function resolveBaseRevision(repo: string, rev: string) {
+  const proc = await Bun.$`git rev-parse --verify ${rev}^{commit}`.cwd(repo).quiet().nothrow();
+  if (proc.exitCode !== 0) {
+    const stderr = proc.stderr.toString().trim() || "unknown error";
+    throw new Error(`git base resolve failed for '${rev}': ${stderr}`);
+  }
+  return proc.stdout.toString().trim();
 }
 
 export function findProjectArg(args: string[]): string | undefined {
@@ -79,7 +88,8 @@ export async function parseProjectRepoBaseArgs(args: string[], options: ParsePro
 }
 
 export async function gitChangedFiles(repo: string, base: string) {
-  const proc = await Bun.$`git diff --name-only ${base}...HEAD`.cwd(repo).nothrow().quiet();
+  const resolvedBase = await resolveBaseRevision(repo, base);
+  const proc = await Bun.$`git diff --name-only ${resolvedBase}...HEAD`.cwd(repo).nothrow().quiet();
   if (proc.exitCode !== 0) {
     const stderr = proc.stderr.toString().trim();
     if (stderr.includes("ambiguous argument")) throw new Error(`git diff failed for base '${base}'. The revision does not exist yet; pass --base <rev> that exists in this repo.`);

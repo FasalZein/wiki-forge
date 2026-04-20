@@ -8,9 +8,7 @@ import { readSliceHandoff } from "../lib/slice-progress";
 import { isPrePhaseTriage } from "../lib/forge-triage";
 import { collectSessionActivity, resolveSessionId } from "../lib/tracker";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
-import { collectMaintenancePlan } from "../maintenance";
-import { collectDriftSummary } from "../lib/drift-query";
-import { loadLintingSnapshot } from "../verification";
+import { collectCheckpoint, collectMaintenancePlan } from "../maintenance";
 import { renderSteeringPacket } from "../lib/forge-steering";
 import { resolveWorkflowSteering } from "../protocol";
 import {
@@ -45,10 +43,9 @@ export async function resumeProject(args: string[]) {
   if (options.baseFallbackNote) console.error(options.baseFallbackNote);
   const repo = await resolveRepoPath(options.project, options.repo);
   await assertGitRepo(repo);
-  const lintingSnapshot = await loadLintingSnapshot(options.project);
-  const [maintain, drift, sessionActivity, latestHandoverPath] = await Promise.all([
+  const [maintain, checkpoint, sessionActivity, latestHandoverPath] = await Promise.all([
     collectMaintenancePlan(options.project, options.base, repo),
-    collectDriftSummary(options.project, repo, lintingSnapshot),
+    collectCheckpoint(options.project, repo, { ...(options.base ? { base: options.base } : {}) }),
     collectSessionActivity(options.project, resolveSessionId()),
     findLatestHandover(options.project),
   ]);
@@ -64,7 +61,7 @@ export async function resumeProject(args: string[]) {
 
   const dirty = await collectDirtyRepoStatus(repo);
   const recentCommits = await collectRecentCommits(repo, 5);
-  const stalePages = drift.results.filter((row) => row.status !== "fresh").slice(0, 10).map((row) => row.wikiPage);
+  const stalePages = checkpoint.stalePages.slice(0, 10).map((row) => row.page);
   const recentNotes = (await projectLogEntries(options.project, "note")).slice(0, 5);
 
   let handoverMeta: { harness: string | null; agent: string | null; created_at: string | null; status: string | null; nextPriorities: string | null; activeSlices: string[] } | null = null;

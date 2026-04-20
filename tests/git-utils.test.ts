@@ -1,5 +1,12 @@
-import { describe, expect, test } from "bun:test";
-import { findProjectArg, parseProjectRepoBaseArgs, normalizeRelPath, bindingMatchesFile } from "../src/git-utils";
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { findProjectArg, parseProjectRepoBaseArgs, normalizeRelPath, bindingMatchesFile, resolveBaseRevision } from "../src/git-utils";
+import { cleanupTempPaths, runGit, tempDir } from "./test-helpers";
+
+afterEach(() => {
+  cleanupTempPaths();
+});
 
 describe("git-utils helpers", () => {
   test("findProjectArg returns first positional argument", () => {
@@ -40,5 +47,28 @@ describe("git-utils helpers", () => {
     expect(bindingMatchesFile("src/commands", "src/commands/git-utils.ts")).toBe(true);
     expect(bindingMatchesFile("src/commands/git-utils.ts", "src/commands/git-utils.ts")).toBe(true);
     expect(bindingMatchesFile("src/commands", "src/lib/fs.ts")).toBe(false);
+  });
+
+  test("resolveBaseRevision peels branch names to commit SHAs", async () => {
+    const repo = tempDir("git-utils-repo");
+    mkdirSync(join(repo, "src"), { recursive: true });
+    writeFileSync(join(repo, "src", "auth.ts"), "export const auth = 1\n", "utf8");
+    runGit(repo, ["init", "-q"]);
+    runGit(repo, ["add", "."]);
+    runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
+
+    const head = runGit(repo, ["rev-parse", "HEAD"]).stdout.toString().trim();
+    await expect(resolveBaseRevision(repo, "HEAD")).resolves.toBe(head);
+  });
+
+  test("resolveBaseRevision rejects missing revisions cleanly", async () => {
+    const repo = tempDir("git-utils-repo-invalid");
+    mkdirSync(join(repo, "src"), { recursive: true });
+    writeFileSync(join(repo, "src", "auth.ts"), "export const auth = 1\n", "utf8");
+    runGit(repo, ["init", "-q"]);
+    runGit(repo, ["add", "."]);
+    runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
+
+    await expect(resolveBaseRevision(repo, "HEAD~1")).rejects.toThrow(/git base resolve failed/i);
   });
 });

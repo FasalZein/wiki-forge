@@ -12,7 +12,7 @@ describe("resume triage priorities", () => {
     ]);
   });
 
-  test("resume-failed-forge beats an earlier-phase gate when verify-close evidence exists", () => {
+  test("earlier workflow gates beat stale failed-forge breadcrumbs", () => {
     const triage = classifyResumeTriage({
       project: "demo",
       repo: "/repo",
@@ -27,6 +27,28 @@ describe("resume triage priorities", () => {
       },
       workflowNextPhase: "research",
       earlyPhase: true,
+      verificationLevel: "test-verified",
+    });
+
+    expect(triage.kind).toBe("needs-research");
+    expect(triage.command).not.toContain("wiki forge run demo DEMO-001 --repo /repo --base HEAD");
+  });
+
+  test("resume-failed-forge is still used once the workflow is already in verify", () => {
+    const triage = classifyResumeTriage({
+      project: "demo",
+      repo: "/repo",
+      base: "HEAD",
+      activeTask: { id: "DEMO-001" },
+      nextTask: { id: "DEMO-002" },
+      handoff: {
+        lastForgeOk: false,
+        lastForgeStep: "verify-slice",
+        nextAction: "rerun verify-slice",
+        failureSummary: "verify-slice exited 1",
+      },
+      workflowNextPhase: "verify",
+      earlyPhase: false,
       verificationLevel: "test-verified",
     });
 

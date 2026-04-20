@@ -50,6 +50,36 @@ describe("gate diagnostics", () => {
     expect(json.findings.some((finding: { scope: string; severity: string; message: string }) =>
       finding.scope === "parent" && finding.severity === "warning" && finding.message.includes("wiki lifecycle")
     )).toBe(true);
+    expect(json.diagnostics.actionableWarnings.some((finding: { scope: string; message: string }) =>
+      finding.scope === "parent" && finding.message.includes("wiki lifecycle")
+    )).toBe(true);
+  });
+
+  test("separates project and historical warnings from actionable warnings", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    mkdirSync(join(repo, "docs"), { recursive: true });
+    writeFileSync(join(repo, "docs", "ad-hoc.md"), "# nope\n", "utf8");
+    expect(runWiki(["create-issue-slice", "demo", "payments slice", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["move-task", "demo", "DEMO-001", "--to", "In Progress"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "future slice", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+
+    writeFileSync(join(repo, "src", "auth.ts"), "export const a = 3\n", "utf8");
+    writeFileSync(join(repo, "src", "outside.ts"), "export const outside = 1\n", "utf8");
+
+    const result = runWiki(["gate", "demo", "--repo", repo, "--worktree", "--slice-local", "--slice-id", "DEMO-001", "--json"], env);
+    expect(result.exitCode).toBe(1);
+    const json = JSON.parse(result.stdout.toString());
+
+    expect(json.diagnostics.projectDebtWarnings.some((finding: { scope: string; message: string }) =>
+      finding.scope === "project" && finding.message.includes("repo markdown doc")
+    )).toBe(true);
+    expect(json.diagnostics.historicalWarnings.some((finding: { scope: string; message: string }) =>
+      finding.scope === "history" && finding.message.includes("outside the active slice")
+    )).toBe(true);
   });
 });
 

@@ -63,4 +63,13 @@ describe("resume base fallback", () => {
     expect(result.json<{ base: string }>().base).toBe("HEAD~1");
     expect(result.stderr.toString()).not.toContain("falling back to HEAD");
   });
+
+  test("gate shares the single-commit HEAD fallback note", () => {
+    const { repo, env } = setupSingleCommitRepo("gatefallback");
+
+    const result = runWiki(["gate", "gatefallback", "--repo", repo, "--json"], env);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr.toString()).toContain("gate: HEAD~1 unresolvable, falling back to HEAD");
+  });
 });

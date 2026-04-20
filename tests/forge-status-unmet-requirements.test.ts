@@ -33,7 +33,7 @@ function setHubLedger(vault: string) {
     completedAt: '2026-04-19T00:00:00.000Z'
     researchRefs:
       - research/projects/wfstatus/status-research.md
-  grill:
+  domain-model:
     completedAt: '2026-04-19T00:00:01.000Z'
     decisionRefs:
       - projects/wfstatus/decisions.md#current-decisions
@@ -49,6 +49,22 @@ function setHubLedger(vault: string) {
     completedAt: '2026-04-19T00:00:04.000Z'
     tddEvidence:
       - projects/wfstatus/specs/slices/WFSTATUS-001/test-plan.md
+`;
+  writeFileSync(indexPath, existing.replace(/\n---\n/u, `\n${ledgerBlock}---\n`), "utf8");
+}
+
+function setLegacyHubLedger(vault: string) {
+  const indexPath = join(vault, "projects", "wfstatus", "specs", "slices", "WFSTATUS-001", "index.md");
+  const existing = readFileSync(indexPath, "utf8");
+  const ledgerBlock = `forge_workflow_ledger:
+  research:
+    completedAt: '2026-04-19T00:00:00.000Z'
+    researchRefs:
+      - research/projects/wfstatus/status-research.md
+  grill:
+    completedAt: '2026-04-19T00:00:01.000Z'
+    decisionRefs:
+      - projects/wfstatus/decisions.md#current-decisions
 `;
   writeFileSync(indexPath, existing.replace(/\n---\n/u, `\n${ledgerBlock}---\n`), "utf8");
 }
@@ -85,5 +101,17 @@ describe("forge status unmet requirements", () => {
     expect(payload.workflow.validation.nextPhase).toBe("verify");
     const verify = payload.workflow.validation.statuses.find((status: { phase: string }) => status.phase === "verify");
     expect(verify.unmet).toEqual(["verify.completedAt", "verify.verificationCommands"]);
+  });
+
+  test("json output normalizes legacy grill storage to domain-model", () => {
+    const { env, vault } = setupStatusFixture();
+    setLegacyHubLedger(vault);
+
+    const result = runWiki(["forge", "status", "wfstatus", "WFSTATUS-001", "--json"], env);
+    expect(result.exitCode).toBe(0);
+    const payload = JSON.parse(result.stdout.toString());
+
+    expect(payload.workflow.ledger["domain-model"]).toBeDefined();
+    expect(payload.workflow.ledger.grill).toBeUndefined();
   });
 });

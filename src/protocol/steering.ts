@@ -164,8 +164,11 @@ export function classifyWorkflowSteeringTriage(context: WorkflowSteeringTriageCo
 
   if (context.activeTask && context.handoff?.lastForgeOk === false && context.handoff.nextAction) {
     if (
+      (!context.workflowNextPhase || context.workflowNextPhase === "verify")
+      && (
       (!targetTaskId || context.activeTask.id === targetTaskId)
       && (context.verificationLevel === "test-verified" || verifyCloseSteps.has(context.handoff.lastForgeStep ?? ""))
+      )
     ) {
       return {
         kind: "resume-failed-forge",
