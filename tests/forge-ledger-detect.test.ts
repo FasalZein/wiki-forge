@@ -191,7 +191,7 @@ describe("deriveForgeLedgerFromArtifacts — research phase", () => {
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
     expect(result.patch.research).toBeDefined();
-    expect(result.patch.research?.researchRefs?.[0]).toContain("audit-notes.md");
+    expect(result.patch.research?.researchRefs?.[0]).toContain("audit-notes");
   });
 
   test("detects research file under the canonical topic-first root", async () => {
@@ -201,7 +201,23 @@ describe("deriveForgeLedgerFromArtifacts — research phase", () => {
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
     expect(result.patch.research).toBeDefined();
-    expect(result.patch.research?.researchRefs?.[0]).toBe("research/myproject/canonical-notes.md");
+    expect(result.patch.research?.researchRefs?.[0]).toBe("research/myproject/canonical-notes");
+  });
+
+  test("detects project-bound research under an arbitrary topic via task_id frontmatter", async () => {
+    const vault = setupVault();
+    makeSliceHub(vault, "myproject", "MYPROJECT-001");
+    const dir = join(vault, "research", "auth", "oauth");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "options.md"),
+      "---\nproject: myproject\ntask_id: MYPROJECT-001\n---\n\n# OAuth Options\n",
+      "utf8",
+    );
+
+    const result = await d(vault, "myproject", "MYPROJECT-001");
+    expect(result.patch.research).toBeDefined();
+    expect(result.patch.research?.researchRefs).toContain("research/auth/oauth/options");
   });
 
   test("detects research evidence from the parent PRD Prior Research section", async () => {
@@ -233,7 +249,7 @@ describe("deriveForgeLedgerFromArtifacts — research phase", () => {
     const result = await d(vault, "myproject", "MYPROJECT-001");
     expect(result.patch.research).toBeDefined();
     expect(result.patch.research?.researchRefs).toHaveLength(1);
-    expect(result.patch.research?.researchRefs?.[0]).toContain("prd-056-some-findings.md");
+    expect(result.patch.research?.researchRefs?.[0]).toContain("prd-056-some-findings");
     expect(result.patch.research?.completedAt).toBeDefined();
   });
 
@@ -244,7 +260,7 @@ describe("deriveForgeLedgerFromArtifacts — research phase", () => {
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
     expect(result.patch.research).toBeDefined();
-    expect(result.patch.research?.researchRefs?.[0]).toContain("myproject-001-design-notes.md");
+    expect(result.patch.research?.researchRefs?.[0]).toContain("myproject-001-design-notes");
   });
 
   test("aggregates multiple matching research files (not ambiguous)", async () => {

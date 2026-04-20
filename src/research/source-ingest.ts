@@ -4,12 +4,12 @@ import { mkdirIfMissing, nowIso, orderFrontmatter, requireValue, today, writeNor
 import { appendLogEntry } from "../lib/log";
 import { copyFile, exists } from "../lib/fs";
 import {
+  canonicalizeResearchTopicForWrite,
   deriveSourceSlug,
   deriveSourceTitle,
   detectResearchSourceType,
   inferRawBucket,
   isAllowedRawBucket,
-  normalizeTopicPath,
   rawBucketDir,
   rawPathForSource,
   rawVaultPath,
@@ -20,7 +20,7 @@ import { ensureResearchTopic } from "./_shared";
 
 export async function ingestSource(args: string[]) {
   const { sources, topic, title, bucket } = parseIngestSourceArgs(args);
-  const normalizedTopic = normalizeTopicPath(topic ?? "sources/inbox");
+  const normalizedTopic = canonicalizeResearchTopicForWrite(topic ?? "sources/inbox");
   await ensureResearchTopic(normalizedTopic);
   for (const source of sources) {
     const resolvedBucket = bucket ?? inferRawBucket(source);

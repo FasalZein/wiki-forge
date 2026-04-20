@@ -4,10 +4,10 @@ import { nowIso, orderFrontmatter, requireValue, today, writeNormalizedPage } fr
 import { appendLogEntry } from "../lib/log";
 import { exists } from "../lib/fs";
 import {
+  canonicalizeResearchTopicForWrite,
   deriveSourceSlug,
   deriveSourceTitle,
   detectResearchSourceType,
-  normalizeTopicPath,
   researchPagePath,
   topicCrossLinks,
 } from "../lib/research";
@@ -15,7 +15,7 @@ import { ensureResearchTopic } from "./_shared";
 
 export async function ingestResearch(args: string[]) {
   const { topic, sources, title } = parseIngestResearchArgs(args);
-  const normalizedTopic = normalizeTopicPath(topic);
+  const normalizedTopic = canonicalizeResearchTopicForWrite(topic);
   await ensureResearchTopic(normalizedTopic);
   for (const source of sources) {
     const slug = deriveSourceSlug(source);

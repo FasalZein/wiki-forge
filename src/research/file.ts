@@ -2,11 +2,16 @@ import { relative } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { nowIso, orderFrontmatter, writeNormalizedPage } from "../cli-shared";
 import { exists } from "../lib/fs";
-import { normalizeTopicPath, researchPagePath, slugifyResearchPage, topicCrossLinks } from "../lib/research";
+import {
+  canonicalizeResearchTopicForWrite,
+  researchPagePath,
+  slugifyResearchPage,
+  topicCrossLinks,
+} from "../lib/research";
 import { ensureResearchTopic, projectTruthTargets } from "./_shared";
 
 export async function createResearchPage(topic: string, title: string, project?: string) {
-  const normalizedTopic = normalizeTopicPath(topic);
+  const normalizedTopic = canonicalizeResearchTopicForWrite(topic, project);
   await ensureResearchTopic(normalizedTopic);
   const slug = slugifyResearchPage(title);
   const outputPath = researchPagePath(normalizedTopic, slug);

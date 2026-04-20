@@ -9,7 +9,7 @@ import { appendLogEntry } from "../lib/log";
 import { sdkHybridAvailable, searchKnowledgeExpandedSdk, searchKnowledgeLexicalSdk, searchKnowledgeStructuredSdk } from "../lib/qmd-sdk";
 import { legacyProjectResearchTopic, questionTokens } from "../lib/research";
 import { createResearchPage } from "../research";
-import type { AnswerBrief, AnswerSource, AskOptions, NoteIndex, NoteQualitySignals, QmdResult } from "../types";
+import type { AnswerBrief, AnswerSource, AskOptions, NoteIndex, NoteInfo, NoteQualitySignals, QmdResult } from "../types";
 
 export const DEFAULT_ASK_MAX_RESULTS = 4;
 const DEFAULT_ASK_CANDIDATES = 8;
@@ -168,19 +168,19 @@ function toAnswerSource(project: string, question: string, result: QmdResult, no
   const markdownPath = fromQmdFile(result.file);
   const vaultPath = stripMarkdownExtension(markdownPath);
   const note = findNoteByVaultPath(noteIndex, vaultPath);
-  const scope = classifyAnswerScope(project, markdownPath);
+  const scope = classifyAnswerScope(project, markdownPath, note);
   const evidence = buildEvidenceExcerpt(note, result, question);
-  const adjustedScore = scoreAnswerSource(project, question, markdownPath, scope, result.score, evidence.score, note?.qualitySignals);
+  const adjustedScore = scoreAnswerSource(project, question, markdownPath, scope, result.score, evidence.score, note?.qualitySignals, note);
   return { result, adjustedScore, markdownPath, vaultPath, scope, note, evidence };
 }
 
-export function classifyAnswerScope(project: string, markdownPath: string): AnswerSource["scope"] {
+export function classifyAnswerScope(project: string, markdownPath: string, note?: NoteInfo | null): AnswerSource["scope"] {
   const normalized = normalizePath(markdownPath).toLowerCase();
   const projectPrefix = `projects/${project.toLowerCase()}/`;
   const researchTopicPrefix = `research/${project.toLowerCase()}/`;
   const legacyResearchProjectPrefix = `research/${legacyProjectResearchTopic(project).toLowerCase()}/`;
   if (normalized.startsWith(projectPrefix)) return "project";
-  if (normalized.startsWith(researchTopicPrefix) || normalized.startsWith(legacyResearchProjectPrefix)) return "project";
+  if (isProjectBoundResearch(project, normalized, note, researchTopicPrefix, legacyResearchProjectPrefix)) return "project";
   if (normalized.startsWith("wiki/")) return "wiki";
   if (normalized === "index.md" || normalized === "log.md" || normalized.startsWith("specs/") || normalized.startsWith("tools/") || normalized.startsWith("skills/") || normalized.startsWith("research/")) return "meta";
   return "other";
@@ -208,7 +208,16 @@ const RECENCY_THRESHOLDS = [
 ] as const;
 const RECENCY_STALE_PENALTY = -0.15;
 
-export function scoreAnswerSource(project: string, question: string, markdownPath: string, scope: AnswerSource["scope"], score: number, evidenceScore: number, qualitySignals?: NoteQualitySignals) {
+export function scoreAnswerSource(
+  project: string,
+  question: string,
+  markdownPath: string,
+  scope: AnswerSource["scope"],
+  score: number,
+  evidenceScore: number,
+  qualitySignals?: NoteQualitySignals,
+  note?: NoteInfo | null,
+) {
   let adjusted = score;
   if (scope === "project") adjusted += 1.2;
   else if (scope === "wiki") adjusted += 0.2;
@@ -219,6 +228,7 @@ export function scoreAnswerSource(project: string, question: string, markdownPat
   const researchTopicPrefix = `research/${project.toLowerCase()}/`;
   const legacyResearchProjectPrefix = `research/${legacyProjectResearchTopic(project).toLowerCase()}/`;
   const prefersResearch = questionPrefersResearch(question);
+  const projectBoundResearch = isProjectBoundResearch(project, normalized, note, researchTopicPrefix, legacyResearchProjectPrefix);
 
   if (normalized === `${projectPrefix}_summary.md`) adjusted += 0.9;
   if (normalized === `${projectPrefix}decisions.md`) adjusted += 1.1;
@@ -240,7 +250,7 @@ export function scoreAnswerSource(project: string, question: string, markdownPat
   if (/\b(term|terms|terminology|domain language|glossary)\b/u.test(lowerQuestion) && normalized === `${projectPrefix}architecture/domain-language.md`) adjusted += 0.8;
   if (/\b(why|decision|decisions|rationale|tradeoff|tradeoffs)\b/u.test(lowerQuestion) && normalized === `${projectPrefix}decisions.md`) adjusted += 0.5;
 
-  if (normalized.startsWith(researchTopicPrefix) || normalized.startsWith(legacyResearchProjectPrefix)) adjusted += prefersResearch ? 0.5 : -0.35;
+  if (projectBoundResearch) adjusted += prefersResearch ? 0.5 : -0.35;
   if (normalized.endsWith("/_overview.md")) adjusted += prefersResearch ? 0.1 : -0.45;
   if (normalized.endsWith("/spec.md")) adjusted += 0.25;
   if (normalized.endsWith("/readme.md")) adjusted -= 0.2;
@@ -251,6 +261,29 @@ export function scoreAnswerSource(project: string, question: string, markdownPat
 
   const topicBoost = questionTokens(question).reduce((total, token) => total + (normalized.includes(token) ? 0.08 : 0), 0);
   return adjusted + evidenceScore * 0.35 + Math.min(topicBoost, 0.4);
+}
+
+function isProjectBoundResearch(
+  project: string,
+  normalizedMarkdownPath: string,
+  note: NoteInfo | null | undefined,
+  researchTopicPrefix = `research/${project.toLowerCase()}/`,
+  legacyResearchProjectPrefix = `research/${legacyProjectResearchTopic(project).toLowerCase()}/`,
+) {
+  if (!normalizedMarkdownPath.startsWith("research/")) return false;
+  if (normalizedMarkdownPath.startsWith(researchTopicPrefix) || normalizedMarkdownPath.startsWith(legacyResearchProjectPrefix)) return true;
+  const projectFromFrontmatter = readProjectFromNote(note);
+  return projectFromFrontmatter === project.toLowerCase();
+}
+
+function readProjectFromNote(note: NoteInfo | null | undefined) {
+  if (!note?.content) return null;
+  try {
+    const parsed = matter(note.content);
+    return typeof parsed.data.project === "string" ? parsed.data.project.trim().toLowerCase() : null;
+  } catch {
+    return null;
+  }
 }
 
 export function qualitySignalBoost(signals?: NoteQualitySignals): number {

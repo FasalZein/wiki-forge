@@ -25,13 +25,13 @@
  */
 
 import { join, basename, relative } from "node:path";
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { VAULT_ROOT, STALE_UNVERIFIED_DAYS } from "../constants";
 import { safeMatter } from "../cli-shared";
 import { appendText, ensureDir, exists, readText } from "./fs";
 import { collectPriorResearchRefs, extractMarkdownSection, readPlanningDoc } from "./forge-evidence";
 import { FORGE_PHASES, readForgeLedgerPhase, writeForgeLedgerPhase, type ForgeWorkflowLedger, type ForgePhase } from "./forge-ledger";
-import { legacyProjectResearchTopic } from "./research";
+import { normalizePath, stripMarkdownExtension, walkMarkdown } from "./vault";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -116,7 +116,7 @@ async function _derive(project: string, sliceId: string, vaultRoot: string): Pro
   // -------------------------------------------------------------------
   // Phase: research
   // Rule: authored PRD Prior Research links count as research evidence, and
-  // research/<project>/** can also match by frontmatter, source_paths, or
+  // research/**/*.md can also match by frontmatter, source_paths, or
   // legacy basename heuristics during migration.
   // -------------------------------------------------------------------
   const researchRefs = await detectResearchRefs(project, sliceId, parentPrd, vaultRoot);
@@ -216,10 +216,7 @@ async function detectResearchRefs(
   parentPrd: string | undefined,
   vaultRoot: string,
 ): Promise<{ refs: string[]; legacyFallbackUsed: boolean }> {
-  const canonicalResearchDir = join(vaultRoot, "research", project);
-  const legacyResearchDir = join(vaultRoot, "research", ...legacyProjectResearchTopic(project).split("/"));
-  const hasCanonicalResearchDir = await exists(canonicalResearchDir);
-  const hasLegacyResearchDir = await exists(legacyResearchDir);
+  const researchDir = join(vaultRoot, "research");
 
   // Gather reference sets from the PRD's source_paths
   const prdSourcePaths = new Set<string>();
@@ -236,63 +233,33 @@ async function detectResearchRefs(
   const sliceIdLower = sliceId.toLowerCase();
   const prdIdLower = parentPrd ? parentPrd.toLowerCase() : null;
 
-  if (hasCanonicalResearchDir) {
-    scanDirFlat(canonicalResearchDir, "", `research/${project}`, sliceId, sliceIdLower, prdIdLower, prdSourcePaths, refs, () => {
-      // Canonical topic-first research paths are not legacy fallback.
-    });
-  }
-  if (hasLegacyResearchDir) {
-    scanDirFlat(legacyResearchDir, "", `research/${legacyProjectResearchTopic(project)}`, sliceId, sliceIdLower, prdIdLower, prdSourcePaths, refs, (usedLegacy) => {
-      legacyFallbackUsed = legacyFallbackUsed || usedLegacy;
-    });
+  if (!await exists(researchDir)) {
+    return { refs: [...new Set(refs)], legacyFallbackUsed };
   }
 
-  return { refs: [...new Set(refs)], legacyFallbackUsed };
-}
+  for (const file of await walkMarkdown(researchDir)) {
+    const relVaultPath = normalizePath(relative(vaultRoot, file));
+    const relNoExt = stripMarkdownExtension(relVaultPath);
+    const base = basename(file, ".md").toLowerCase();
+    const matchesByName =
+      (prdIdLower && (base.startsWith(`${prdIdLower}-`) || base === prdIdLower)) ||
+      base.startsWith(`${sliceIdLower}-`) ||
+      base === sliceIdLower;
+    const matchesBySourcePath = prdSourcePaths.has(relVaultPath) || prdSourcePaths.has(relNoExt);
+    const parsed = safeMatter(relVaultPath, await readText(file), { silent: true });
+    const taskId = typeof parsed?.data.task_id === "string" ? parsed.data.task_id.trim() : "";
+    const sliceFrontmatterId = typeof parsed?.data.slice_id === "string" ? parsed.data.slice_id.trim() : "";
+    const matchesByFrontmatter = taskId === sliceId || sliceFrontmatterId === sliceId;
 
-function scanDirFlat(
-  dir: string,
-  relPrefix: string,
-  vaultPrefix: string,
-  sliceId: string,
-  sliceIdLower: string,
-  prdIdLower: string | null,
-  prdSourcePaths: Set<string>,
-  refs: string[],
-  onLegacyFallback: (usedLegacy: boolean) => void,
-) {
-  let entries: import("node:fs").Dirent[] = [];
-  try {
-    entries = readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const entry of entries) {
-    const full = join(dir, entry.name);
-    const rel = relPrefix ? `${relPrefix}/${entry.name}` : entry.name;
-    if (entry.isDirectory()) {
-      scanDirFlat(full, rel, vaultPrefix, sliceId, sliceIdLower, prdIdLower, prdSourcePaths, refs, onLegacyFallback);
-    } else if (entry.isFile()) {
-      const base = basename(entry.name, ".md").toLowerCase();
-      // PRD rule: basename matches `prd-<id>-*` where prdIdLower is e.g. "prd-056"
-      // so we check base.startsWith("prd-056-") — the prdIdLower already has the prd- prefix.
-      // Slice rule: basename matches `<slice-id>-*` where sliceIdLower is e.g. "myproject-001".
-      const matchesByName =
-        (prdIdLower && (base.startsWith(`${prdIdLower}-`) || base === prdIdLower)) ||
-        base.startsWith(`${sliceIdLower}-`) ||
-        base === sliceIdLower;
-      const relVaultPath = `${vaultPrefix}/${rel}`;
-      const matchesBySourcePath = prdSourcePaths.has(relVaultPath);
-      const parsed = safeMatter(relVaultPath, readFileSync(full, "utf8"), { silent: true });
-      const taskId = typeof parsed?.data.task_id === "string" ? parsed.data.task_id.trim() : "";
-      const sliceFrontmatterId = typeof parsed?.data.slice_id === "string" ? parsed.data.slice_id.trim() : "";
-      const matchesByFrontmatter = taskId === sliceId || sliceFrontmatterId === sliceId;
-      if (matchesByFrontmatter || matchesBySourcePath || matchesByName) {
-        refs.push(relVaultPath);
-        if (!matchesByFrontmatter && matchesByName) onLegacyFallback(true);
+    if (matchesByFrontmatter || matchesBySourcePath || matchesByName) {
+      refs.push(relNoExt);
+      if (!matchesByFrontmatter && !matchesBySourcePath && matchesByName) {
+        legacyFallbackUsed = true;
       }
     }
   }
+
+  return { refs: [...new Set(refs)], legacyFallbackUsed };
 }
 
 async function detectDomainModelRefs(

@@ -17,6 +17,13 @@ describe("phase recommendation skill hints", () => {
     expect(phaseRecommendation("demo", "DEMO-001", "verify").loadSkill).toBe("/desloppify");
   });
 
+  test("research phase recommendation keeps topic and project separate", () => {
+    const recommendation = phaseRecommendation("demo", "DEMO-001", "research");
+
+    expect(recommendation.command).toContain("wiki research file <topic> --project demo <title>");
+    expect(recommendation.command).not.toContain("wiki research file demo <title>");
+  });
+
   test("domain-model phase recommendation points at wiki-native outputs", () => {
     const recommendation = phaseRecommendation("demo", "DEMO-001", "domain-model");
 

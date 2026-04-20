@@ -6,6 +6,7 @@ import { normalizePath, stripMarkdownExtension } from "./vault";
 const TOPIC_SEGMENT = "[a-z0-9]+(?:-[a-z0-9]+)*";
 const TOPIC_PATH = `(?:${TOPIC_SEGMENT}\/)*${TOPIC_SEGMENT}`;
 const TOPIC_PATH_PATTERN = new RegExp(`^${TOPIC_PATH}$`, "u");
+const LEGACY_PROJECT_TOPIC_PATTERN = new RegExp(`^projects\/(${TOPIC_SEGMENT})$`, "u");
 
 export const RAW_BUCKETS = ["articles", "papers", "assets", "conversations"] as const;
 
@@ -33,12 +34,23 @@ export function classifyResearchPath(relPath: string): "topic-overview" | "resea
   return null;
 }
 
+export function classifyResearchPathMode(relPath: string): "canonical" | "legacy-project" | null {
+  const rel = relPath.replaceAll("\\", "/").replace(/^\.\//u, "");
+  const kind = classifyResearchPath(rel);
+  if (!kind) return null;
+  return rel.startsWith("research/projects/") ? "legacy-project" : "canonical";
+}
+
+export function isLegacyProjectResearchPath(relPath: string) {
+  return classifyResearchPathMode(relPath) === "legacy-project";
+}
+
 export function isAllowedResearchPath(relPath: string) {
   return classifyResearchPath(relPath) !== null;
 }
 
 export function describeAllowedResearchPaths() {
-  return "research/<topic>/_overview.md; research/<topic>/<slug>.md";
+  return "canonical: research/<topic>/_overview.md; research/<topic>/<slug>.md. legacy compatibility: research/projects/<project>/...";
 }
 
 export function researchRoot() {
@@ -69,8 +81,27 @@ export function topicCrossLinks(topic: string) {
   return [`- [[research/${normalized}/_overview]]`];
 }
 
+export function canonicalProjectResearchTopic(project: string) {
+  return normalizeTopicPath(project);
+}
+
 export function legacyProjectResearchTopic(project: string) {
   return normalizeTopicPath(`projects/${project}`);
+}
+
+export function canonicalizeResearchTopicForWrite(topic: string, project?: string) {
+  const normalizedTopic = normalizeTopicPath(topic);
+  if (project) {
+    const canonicalTopic = canonicalProjectResearchTopic(project);
+    if (normalizedTopic === canonicalTopic || normalizedTopic === legacyProjectResearchTopic(project)) {
+      return canonicalTopic;
+    }
+  }
+  const legacyMatch = normalizedTopic.match(LEGACY_PROJECT_TOPIC_PATTERN);
+  if (legacyMatch) {
+    return canonicalProjectResearchTopic(legacyMatch[1]);
+  }
+  return normalizedTopic;
 }
 
 export function slugifyResearchPage(value: string) {

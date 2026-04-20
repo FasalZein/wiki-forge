@@ -43,7 +43,8 @@ describe("wiki CLI smoke", () => {
     // PRD template includes Prior Research section
     const prdContent = readFileSync(join(vault, "projects", "demo", "specs", "prds", "PRD-001-auth-workflow.md"), "utf8");
     expect(prdContent).toContain("## Prior Research");
-    expect(prdContent).toContain("[[research/demo/_overview]]");
+    expect(prdContent).toContain("Add topic-first research links here");
+    expect(prdContent).toContain("wiki research file <topic> --project demo <title>");
   });
 
   test("module and binding commands work", () => {
@@ -300,9 +301,15 @@ describe("wiki CLI smoke", () => {
     expect(distilledResearchContent).toContain("status: applied");
     expect(distilledResearchContent).toContain("projects/demo/decisions");
 
-    const nestedFileResearch = runWiki(["research", "file", "demo", "--project", "demo", "nested alias check"], env);
+    const nestedFileResearch = runWiki(["research", "file", "projects/demo", "--project", "demo", "nested alias check"], env);
     expect(nestedFileResearch.exitCode).toBe(0);
     expect(existsSync(join(vault, "research", "demo", "nested-alias-check.md"))).toBe(true);
+    expect(existsSync(join(vault, "research", "projects", "demo", "nested-alias-check.md"))).toBe(false);
+
+    const legacyTopicScaffold = runWiki(["research", "scaffold", "projects/demo"], env);
+    expect(legacyTopicScaffold.exitCode).toBe(0);
+    expect(existsSync(join(vault, "research", "demo", "_overview.md"))).toBe(true);
+    expect(existsSync(join(vault, "research", "projects", "demo", "_overview.md"))).toBe(false);
 
     // source ingest
     const sourceFile = join(repo, "notes.txt");
@@ -493,7 +500,8 @@ describe("wiki CLI smoke", () => {
 
     const prdPath = join(vault, "projects", "forgey", "specs", "prds", "PRD-001-workflow-uplift.md");
     const prdContent = readFileSync(prdPath, "utf8");
-    expect(prdContent).toContain("[[research/forgey/_overview]]");
+    expect(prdContent).toContain("Add topic-first research links here");
+    expect(prdContent).toContain("wiki research file <topic> --project forgey <title>");
 
     const backlogContent = readFileSync(join(vault, "projects", "forgey", "backlog.md"), "utf8");
     expect(backlogContent).toContain("FORGEY-001");
@@ -778,7 +786,7 @@ describe("wiki CLI smoke", () => {
     const output = result.stdout.toString();
     expect(output).toContain("Treat repo-local research docs as source material");
     expect(output).toContain("Run `/research` for any net-new investigation or option comparison");
-    expect(output).toContain("File high-signal findings into the vault with `wiki research file demo <title>`");
+    expect(output).toContain("File high-signal findings into the vault with `wiki research file <topic> --project demo <title>`");
   });
 
   test("legacy flat research commands are rejected", () => {

@@ -11,7 +11,7 @@ export function phaseRecommendation(project: string, sliceId: string, nextPhase:
       return {
         kind: "needs-research",
         reason: "workflow ledger shows research phase is incomplete",
-        command: `${skill} — gather findings and file with wiki research file ${project}`,
+        command: `${skill} — gather findings, choose a topic, and file with wiki research file <topic> --project ${project} <title>`,
         loadSkill: skill,
       };
     case "domain-model":

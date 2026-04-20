@@ -166,7 +166,7 @@ async function renderOnboardingPlan(project: string, repo?: string) {
       `- [ ] Review existing research docs for key findings and architectural decisions`,
       `- [ ] Treat repo-local research docs as source material, not the active research workflow`,
       `- [ ] Run \`/research\` for any net-new investigation or option comparison`,
-      `- [ ] File high-signal findings into the vault with \`wiki research file ${project} <title>\``,
+      `- [ ] File high-signal findings into the vault with \`wiki research file <topic> --project ${project} <title>\``,
       `- [ ] Link research pages to relevant module specs and PRDs`,
       `- [ ] Record research-driven decisions in \`projects/${project}/decisions.md\``,
     );

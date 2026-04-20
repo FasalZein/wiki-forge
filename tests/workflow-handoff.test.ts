@@ -155,7 +155,7 @@ describe("wiki workflow handoff improvements", () => {
     expect(json.recentCommits.length).toBeGreaterThan(0);
   });
 
-  test("resume routes to resume-failed-forge when breadcrumb reports a failed pipeline step", () => {
+  test("resume keeps earlier workflow gates ahead of a failed verify breadcrumb", () => {
     const { vault, repo } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
 
@@ -175,9 +175,10 @@ describe("wiki workflow handoff improvements", () => {
     const resume = runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
     expect(resume.exitCode).toBe(0);
     const json = JSON.parse(resume.stdout.toString());
-    expect(json.triage.kind).toBe("resume-failed-forge");
-    expect(json.triage.reason).toContain("verify-slice");
-    expect(json.triage.command).toContain("wiki forge run demo DEMO-001");
+    expect(json.workflowNextPhase).toBe("research");
+    expect(json.triage.kind).toBe("needs-research");
+    expect(json.triage.reason).toContain("research");
+    expect(json.triage.command).not.toContain("wiki forge run demo DEMO-001");
     expect(json.lastForgeRun.failureSummary).toBe("verify-slice exited 1");
   });
 

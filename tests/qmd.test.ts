@@ -210,6 +210,19 @@ describe("answer reranking", () => {
     expect(classifyAnswerScope("wiki-forge", "specs/system-spec.md")).toBe("meta");
   });
 
+  test("classifies project-bound research by frontmatter, not only by path prefix", () => {
+    expect(
+      classifyAnswerScope("wiki-forge", "research/auth/oauth-options.md", {
+        absolutePath: "/tmp/research/auth/oauth-options.md",
+        vaultPath: "research/auth/oauth-options",
+        basename: "oauth-options",
+        aliases: [],
+        headings: new Set(),
+        content: "---\nproject: wiki-forge\n---\n\n# OAuth Options\n",
+      }),
+    ).toBe("project");
+  });
+
   test("prefers project spec docs over research notes for location questions", () => {
     const projectScore = scoreAnswerSource("wiki-forge", "where do PRDs live", "projects/wiki-forge/specs/index.md", "project", 0.4, 1);
     const researchScore = scoreAnswerSource("wiki-forge", "where do PRDs live", "research/wiki-forge/chronological-spec-ordering-and-auto-heal.md", "project", 0.4, 1);
