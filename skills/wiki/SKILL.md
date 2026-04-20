@@ -39,6 +39,18 @@ Defined in the forge skill. Apply to all wiki sessions. Load `/forge` for the fu
 
 Escalate to `/forge` for non-trivial implementation, active slice work, or anything that is really “do the next slice”.
 
+## Command Authority
+
+When maintenance/retrieval surfaces disagree, do not guess. Use this order:
+
+1. `wiki checkpoint` = current freshness truth
+2. `wiki maintain` = repair/reconciliation plan
+3. `wiki resume` = context summary only; may include historical notes
+
+Practical rule:
+- if `checkpoint` is clean, treat freshness as clean even if `resume` still prints stale-looking historical context
+- if `maintain` says no changed files / no impacted pages, that is compatible with a clean checkpoint; prefer the checkpoint result for current stale/not-stale truth
+
 ## Main Commands
 
 Use the smallest fitting surface.
@@ -61,6 +73,12 @@ Use the smallest fitting surface.
 
 SDLC scaffolds remain on the `wiki` CLI but are part of the forge workflow layer and are documented in the `forge` skill, not here. Use `wiki help` for the raw command list.
 
+Generated/derived pages:
+- project hub pages such as `projects/<project>/_summary.md` are derived knowledge surfaces
+- navigation/index pages are also derived
+- if one of these is stale, prefer `wiki sync` / `wiki maintain` first
+- do not manually edit generated sections unless the command surface clearly leaves that section authored
+
 Verification levels (ascending): `scaffold` → `inferred` → `code-verified` → `runtime-verified` → `test-verified`.
 Demotion state: `stale`.
 
@@ -79,6 +97,19 @@ Use this when implementation decisions are already made and you are just refresh
 ```
 
 If this turns into active slice work, switch to `/forge`.
+
+## Debug Playbook
+
+Use this when freshness output disagrees:
+
+1. `wiki checkpoint <project> --repo <path> [--base <rev>]`
+   This answers whether pages are currently stale.
+2. `wiki maintain <project> --repo <path> --base <rev>`
+   This tells you what to repair or reconcile.
+3. `wiki resume <project> --repo <path> --base <rev>`
+   Treat as context only, not as the authority for current staleness.
+
+If the disagreement is really about slice workflow state, leave `/wiki` and switch to `/forge`.
 
 ## Retrieval
 
@@ -117,6 +148,7 @@ Compact lifecycle:
 - Use `wiki protocol sync <project> --repo <path>` for managed repo instruction blocks.
 - `wiki protocol sync` updates protocol files only; it does not refresh installed skills.
 - After editing `skills/*/SKILL.md`, run `bun run sync:local` and restart the agent session. Use `bun run sync:local -- --audit` when you want to check whether installed repo-skill copies have drifted.
+- After fixing behavior, validate both the repo-local/dev CLI path and the installed/synced binary path. Do not assume repo tests alone prove installed-agent parity.
 - Prefer Obsidian-flavored markdown when editing vault pages.
 - Bind source paths early so drift detection can see the page.
 - Set `repo:` in `_summary.md` for code projects or pass `--repo <path>`.

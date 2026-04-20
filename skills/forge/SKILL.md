@@ -15,6 +15,39 @@ Forge is the workflow layer.
 - internal/repair = `wiki forge start|check|close|status|release`
 - default reconciliation primitive = `wiki sync`
 
+## Command Authority
+
+When outputs disagree, do not average them together. Use this precedence:
+
+1. `wiki checkpoint` = current freshness truth
+2. `wiki maintain` = repair/reconciliation plan
+3. `wiki forge status` = workflow ledger truth
+4. `wiki resume` = operator context summary only; it may include historical notes/noise
+
+Interpretation rule:
+- If `checkpoint` is clean, freshness is clean even if `resume` still prints historical context.
+- If `forge status` says a phase is incomplete, treat that as the workflow truth even if an older failed run breadcrumb suggests otherwise.
+- If `maintain` and `checkpoint` disagree, prefer `checkpoint` for current stale/not-stale truth and use `maintain` for the repair actions.
+
+## Default vs Debug Surface
+
+Agents should use only this default surface unless debugging:
+
+- `wiki resume <project> --repo <path> --base <rev>`
+- `wiki forge next <project>`
+- `wiki forge plan <project> ...`
+- `wiki forge run <project> [slice-id] --repo <path>`
+
+Do not improvise lower-level lifecycle commands during normal execution.
+
+Use `wiki forge start|check|close|status|release` and lower-level `wiki` lifecycle commands only for:
+- diagnosis when command outputs conflict
+- repair after a failed `forge run`
+- close-path debugging when verify/close/gate disagree
+- explicit human-directed debugging
+
+If `wiki forge next` already prints the next command, obey that command first. Do not substitute a different surface unless you are debugging a contradiction.
+
 The contract stays:
 
 ```text
@@ -97,6 +130,12 @@ Internal/repair (debugging only, not for normal workflow):
 - `wiki forge status` = show the current forge workflow ledger / phase state
 - `wiki forge release` = release a claimed slice back to Todo
 
+`wiki forge status` usage:
+- `wiki forge status <project>` = project-level overview when you need to know whether there is an active/recommended slice at all
+- `wiki forge status <project> <slice>` = authoritative slice-level workflow diagnosis when debugging a specific slice
+
+When debugging, prefer the slice-scoped form. It is the safer surface because it removes ambiguity about which slice is being evaluated.
+
 ## Low-Level Escape Hatches
 
 Use lower-level verbs only for repair, debugging, or very explicit control:
@@ -109,6 +148,35 @@ Use lower-level verbs only for repair, debugging, or very explicit control:
 - `wiki feature-status`
 
 They still exist, but they are not the primary operator surface anymore.
+
+## Debug Playbook
+
+Use this only when outputs conflict or a `forge run` path looks wrong.
+
+1. Run `wiki forge status <project> <slice> --json`
+   Use this to read the workflow ledger and next required phase for one slice.
+2. Run `wiki checkpoint <project> --repo <path> [--base <rev>]`
+   Use this to answer only one question: are pages currently stale?
+3. Run `wiki maintain <project> --repo <path> --base <rev>`
+   Use this to get the repair/reconciliation plan after freshness/workflow truth is known.
+4. If the close path is unclear, compare:
+   - `wiki verify-slice`
+   - `wiki closeout`
+   - `wiki gate`
+5. Return to `wiki forge run` once the contradiction is resolved.
+
+Do not stay on the low-level surface longer than necessary. Repair there; continue delivery on `forge run`.
+
+## Warning Classes
+
+Treat warnings by class:
+
+- active slice blockers = action now
+- parent warnings = action now if they affect the active hierarchy
+- project debt warnings = background debt unless they block the current slice
+- historical warnings = context only; do not treat them as current blockers
+
+`closeout` and `gate` may pass while still showing project/historical warnings. Do not reopen slice work just because the output is noisy.
 
 ## Closeout Rule
 
@@ -129,6 +197,22 @@ Remember:
 - stronger verification levels are preserved unless explicitly downgraded
 - parent `computed_status` is derived, not manually authored truth — let `wiki maintain` persist it
 - ambiguous drift (e.g. children partly cancelled partly in-progress with a complete parent) still escalates as a `scope: parent` warning with inverse command hints; that one is intentionally agent-resolved, not auto-healed
+
+## Install Parity
+
+After fixing CLI or skill behavior, validate both:
+
+- repo-local/dev path: the checked-out repo commands and tests
+- installed/synced path: the globally installed `wiki` binary + installed repo-owned skill copies
+
+Minimum parity check after skill edits:
+
+```bash
+bun run sync:local
+bun run sync:local -- --audit
+```
+
+Then restart the agent session so installed skill copies, not just repo files, are in effect.
 
 ## Hard Gates
 

@@ -26,6 +26,22 @@ Produce these artifacts before `write-a-prd`:
 
 `write-a-prd` should consume these outputs, not recreate them from scratch.
 
+## Forge Ledger Expectations
+
+For forge-managed projects, the domain-model phase is considered complete only when the workflow can point at durable evidence, not just discussion:
+
+- `projects/<project>/decisions.md` contains concrete decision entries, not an empty scaffold
+- the decision surface yields durable `decisionRefs`
+- `projects/<project>/architecture/domain-language.md` captures the resulting terminology/context, especially when terms were clarified or redefined
+
+Operationally, if `wiki forge status` still reports:
+- `domain-model.completedAt`
+- `domain-model.decisionRefs`
+
+then the workflow does not yet consider the phase complete, even if the files exist.
+
+When debugging ledger completion, verify the evidence, not just file existence.
+
 ## Domain awareness
 
 During codebase exploration, also look for existing documentation:

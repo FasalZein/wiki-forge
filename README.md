@@ -151,6 +151,9 @@ wiki forge run my-app --repo ~/Dev/my-app
 wiki forge next my-app
 ```
 
+Agent rule: use `wiki forge plan|run|next` by default.
+Drop to `forge status`, `checkpoint`, `maintain`, `verify-slice`, `closeout`, or `gate` only for diagnosis, repair, or close-path debugging.
+
 Internal / repair (debugging only):
 
 ```bash
@@ -161,6 +164,18 @@ wiki backlog my-app --assignee Codex
 wiki resume my-app --repo ~/Dev/my-app --base main
 wiki export-prompt my-app MY-APP-001 --agent pi
 ```
+
+When outputs disagree, use this authority order:
+
+1. `wiki checkpoint` = current freshness truth
+2. `wiki maintain` = repair/reconciliation plan
+3. `wiki forge status <project> <slice>` = workflow truth for one slice
+4. `wiki resume` = contextual summary only
+
+Practical debugging rule:
+- prefer `wiki forge status <project> <slice>` over project-level status when diagnosing one slice
+- if `checkpoint` is clean, do not treat noisy `resume` stale context as a current blocker
+- if a generated page like `projects/<project>/_summary.md` is stale, prefer `wiki sync` / `wiki maintain` before manual edits
 
 `create-plan` and `create-test-plan` stay visible under `specs/index.md` as planning docs.
 

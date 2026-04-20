@@ -95,6 +95,10 @@ describe("skill layer separation", () => {
     expect(wikiSkill).not.toContain("computed_status");
     expect(wikiSkill).not.toContain("create-feature`, `create-prd`, `create-issue-slice`, `start-slice`");
     expect(wikiSkill).not.toContain("start-feature`, `close-feature`, `start-prd`, `close-prd`");
+    expect(wikiSkill).toContain("1. `wiki checkpoint` = current freshness truth");
+    expect(wikiSkill).toContain("2. `wiki maintain` = repair/reconciliation plan");
+    expect(wikiSkill).toContain("3. `wiki resume` = context summary only");
+    expect(wikiSkill).toContain("Generated/derived pages:");
   });
 
   test("domain-model skill and templates stay wiki-native for forge-managed projects", () => {
@@ -122,9 +126,20 @@ describe("skill layer separation", () => {
 
     expect(forgeSkill).toContain("research -> domain-model -> PRD");
     expect(forgeSkill).not.toContain("companion skills");
+    expect(forgeSkill).toContain("Use this precedence:");
+    expect(forgeSkill).toContain("1. `wiki checkpoint` = current freshness truth");
+    expect(forgeSkill).toContain("2. `wiki maintain` = repair/reconciliation plan");
+    expect(forgeSkill).toContain("3. `wiki forge status` = workflow ledger truth");
+    expect(forgeSkill).toContain("4. `wiki resume` = operator context summary only");
+    expect(forgeSkill).toContain("Do not improvise lower-level lifecycle commands during normal execution.");
+    expect(forgeSkill).toContain("When debugging, prefer the slice-scoped form.");
 
     expect(grillSkill).toContain("Compatibility note");
     expect(grillSkill).toContain("Use `/domain-model` as the primary path");
     expect(grillSkill).not.toContain("Always grill before writing the PRD");
+
+    expect(domainModelSkill).toContain("## Forge Ledger Expectations");
+    expect(domainModelSkill).toContain("domain-model.completedAt");
+    expect(domainModelSkill).toContain("domain-model.decisionRefs");
   });
 });
