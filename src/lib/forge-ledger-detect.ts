@@ -30,6 +30,7 @@ import { VAULT_ROOT, STALE_UNVERIFIED_DAYS } from "../constants";
 import { safeMatter } from "../cli-shared";
 import { appendText, ensureDir, exists, readText } from "./fs";
 import { FORGE_PHASES, readForgeLedgerPhase, writeForgeLedgerPhase, type ForgeWorkflowLedger, type ForgePhase } from "./forge-ledger";
+import { legacyProjectResearchTopic } from "./research";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -214,8 +215,9 @@ async function detectResearchRefs(
   parentPrd: string | undefined,
   vaultRoot: string,
 ): Promise<{ refs: string[]; legacyFallbackUsed: boolean }> {
-  const researchDir = join(vaultRoot, "research", "projects", project);
-  if (!await exists(researchDir)) return { refs: [], legacyFallbackUsed: false };
+  const canonicalResearchDir = join(vaultRoot, "research", project);
+  const legacyResearchDir = join(vaultRoot, "research", ...legacyProjectResearchTopic(project).split("/"));
+  if (!await exists(canonicalResearchDir) && !await exists(legacyResearchDir)) return { refs: [], legacyFallbackUsed: false };
 
   // Gather reference sets from the PRD's source_paths
   const prdSourcePaths = new Set<string>();
@@ -241,7 +243,10 @@ async function detectResearchRefs(
   const sliceIdLower = sliceId.toLowerCase();
   const prdIdLower = parentPrd ? parentPrd.toLowerCase() : null;
 
-  scanDirFlat(researchDir, "", project, sliceId, sliceIdLower, prdIdLower, prdSourcePaths, refs, (usedLegacy) => {
+  scanDirFlat(canonicalResearchDir, "", `research/${project}`, sliceId, sliceIdLower, prdIdLower, prdSourcePaths, refs, () => {
+    // Canonical topic-first research paths are not legacy fallback.
+  });
+  scanDirFlat(legacyResearchDir, "", `research/${legacyProjectResearchTopic(project)}`, sliceId, sliceIdLower, prdIdLower, prdSourcePaths, refs, (usedLegacy) => {
     legacyFallbackUsed = legacyFallbackUsed || usedLegacy;
   });
 
@@ -251,7 +256,7 @@ async function detectResearchRefs(
 function scanDirFlat(
   dir: string,
   relPrefix: string,
-  project: string,
+  vaultPrefix: string,
   sliceId: string,
   sliceIdLower: string,
   prdIdLower: string | null,
@@ -269,7 +274,7 @@ function scanDirFlat(
     const full = join(dir, entry.name);
     const rel = relPrefix ? `${relPrefix}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
-      scanDirFlat(full, rel, project, sliceId, sliceIdLower, prdIdLower, prdSourcePaths, refs, onLegacyFallback);
+      scanDirFlat(full, rel, vaultPrefix, sliceId, sliceIdLower, prdIdLower, prdSourcePaths, refs, onLegacyFallback);
     } else if (entry.isFile()) {
       const base = basename(entry.name, ".md").toLowerCase();
       // PRD rule: basename matches `prd-<id>-*` where prdIdLower is e.g. "prd-056"
@@ -279,7 +284,7 @@ function scanDirFlat(
         (prdIdLower && (base.startsWith(`${prdIdLower}-`) || base === prdIdLower)) ||
         base.startsWith(`${sliceIdLower}-`) ||
         base === sliceIdLower;
-      const relVaultPath = `research/projects/${project}/${rel}`;
+      const relVaultPath = `${vaultPrefix}/${rel}`;
       const matchesBySourcePath = prdSourcePaths.has(relVaultPath);
       const parsed = safeMatter(relVaultPath, readFileSync(full, "utf8"), { silent: true });
       const taskId = typeof parsed?.data.task_id === "string" ? parsed.data.task_id.trim() : "";

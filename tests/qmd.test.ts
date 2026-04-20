@@ -212,7 +212,7 @@ describe("answer reranking", () => {
 
   test("prefers project spec docs over research notes for location questions", () => {
     const projectScore = scoreAnswerSource("wiki-forge", "where do PRDs live", "projects/wiki-forge/specs/index.md", "project", 0.4, 1);
-    const researchScore = scoreAnswerSource("wiki-forge", "where do PRDs live", "research/projects/wiki-forge/chronological-spec-ordering-and-auto-heal.md", "project", 0.4, 1);
+    const researchScore = scoreAnswerSource("wiki-forge", "where do PRDs live", "research/wiki-forge/chronological-spec-ordering-and-auto-heal.md", "project", 0.4, 1);
     expect(projectScore).toBeGreaterThan(researchScore);
   });
 
@@ -223,7 +223,7 @@ describe("answer reranking", () => {
   });
 
   test("keeps project research competitive for rationale questions", () => {
-    const researchScore = scoreAnswerSource("wiki-forge", "why did we move spec docs into task folders", "research/projects/wiki-forge/task-based-spec-folders-and-hubs.md", "project", 0.4, 1);
+    const researchScore = scoreAnswerSource("wiki-forge", "why did we move spec docs into task folders", "research/wiki-forge/task-based-spec-folders-and-hubs.md", "project", 0.4, 1);
     const projectScore = scoreAnswerSource("wiki-forge", "why did we move spec docs into task folders", "projects/wiki-forge/specs/index.md", "project", 0.4, 1);
     expect(researchScore).toBeGreaterThan(1);
     expect(projectScore).toBeGreaterThan(0);

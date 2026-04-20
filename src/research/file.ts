@@ -5,8 +5,8 @@ import { exists } from "../lib/fs";
 import { normalizeTopicPath, researchPagePath, slugifyResearchPage, topicCrossLinks } from "../lib/research";
 import { ensureResearchTopic } from "./_shared";
 
-export async function createResearchPage(project: string, title: string, topic?: string) {
-  const normalizedTopic = normalizeTopicPath(topic ?? `projects/${project}`);
+export async function createResearchPage(topic: string, title: string, project?: string) {
+  const normalizedTopic = normalizeTopicPath(topic);
   await ensureResearchTopic(normalizedTopic);
   const slug = slugifyResearchPage(title);
   const outputPath = researchPagePath(normalizedTopic, slug);
@@ -15,7 +15,7 @@ export async function createResearchPage(project: string, title: string, topic?:
     title,
     type: "research",
     topic: normalizedTopic,
-    project,
+    ...(project ? { project } : {}),
     status: "draft",
     source_type: "synthesis",
     sources: [],

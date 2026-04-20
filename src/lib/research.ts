@@ -65,14 +65,11 @@ export function topicLabel(topic: string) {
 
 export function topicCrossLinks(topic: string) {
   const normalized = normalizeTopicPath(topic);
-  const links = [`- [[research/${normalized}/_overview]]`];
-  const projectMatch = normalized.match(/^projects\/([^/]+)$/);
-  if (projectMatch) {
-    const project = projectMatch[1];
-    links.push(`- [[projects/${project}/_summary]]`);
-    links.push(`- [[projects/${project}/backlog]]`);
-  }
-  return links;
+  return [`- [[research/${normalized}/_overview]]`];
+}
+
+export function legacyProjectResearchTopic(project: string) {
+  return normalizeTopicPath(`projects/${project}`);
 }
 
 export function slugifyResearchPage(value: string) {

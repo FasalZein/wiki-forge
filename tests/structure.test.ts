@@ -73,6 +73,8 @@ describe("project structure contract", () => {
 
 describe("research structure contract", () => {
   test("allows canonical research topic and page paths", () => {
+    expect(classifyResearchPath("research/wiki-forge/_overview.md")).toBe("topic-overview");
+    expect(classifyResearchPath("research/wiki-forge/spec-ia.md")).toBe("research-page");
     expect(classifyResearchPath("research/projects/wiki-forge/_overview.md")).toBe("topic-overview");
     expect(classifyResearchPath("research/projects/wiki-forge/spec-ia.md")).toBe("research-page");
     expect(classifyResearchPath("research/agents/_overview.md")).toBe("topic-overview");

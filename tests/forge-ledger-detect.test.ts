@@ -130,8 +130,11 @@ function makeResearchFile(
   project: string,
   filename: string,
   frontmatter: Record<string, string> = {},
+  topicRoot = "projects",
 ) {
-  const dir = join(vault, "research", "projects", project);
+  const dir = topicRoot === "projects"
+    ? join(vault, "research", "projects", project)
+    : join(vault, "research", project);
   mkdirSync(dir, { recursive: true });
   const frontmatterBlock = Object.keys(frontmatter).length
     ? `---\n${Object.entries(frontmatter).map(([key, value]) => `${key}: ${value}`).join("\n")}\n---\n\n`
@@ -185,6 +188,16 @@ describe("deriveForgeLedgerFromArtifacts — research phase", () => {
     const result = await d(vault, "myproject", "MYPROJECT-001");
     expect(result.patch.research).toBeDefined();
     expect(result.patch.research?.researchRefs?.[0]).toContain("audit-notes.md");
+  });
+
+  test("detects research file under the canonical topic-first root", async () => {
+    const vault = setupVault();
+    makeSliceHub(vault, "myproject", "MYPROJECT-001");
+    makeResearchFile(vault, "myproject", "canonical-notes.md", { task_id: "MYPROJECT-001" }, "canonical");
+
+    const result = await d(vault, "myproject", "MYPROJECT-001");
+    expect(result.patch.research).toBeDefined();
+    expect(result.patch.research?.researchRefs?.[0]).toBe("research/myproject/canonical-notes.md");
   });
 
   test("detects research file by PRD-<id>-* basename pattern", async () => {

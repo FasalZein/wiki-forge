@@ -95,7 +95,7 @@ const PRD_TEMPLATE = [
   "",
   "## Prior Research",
   "",
-  "- [[research/projects/{{project}}/_overview]]",
+  "- [[research/{{project}}/_overview]]",
   "",
   "## Open Questions",
   "",

@@ -114,7 +114,10 @@ export async function collectResearchLintResult(topic?: string) {
     else if ((parsed.data.sources as unknown[]).some((entry) => !entry || typeof entry !== "object" || !("claim" in (entry as Record<string, unknown>)))) issues.push(`${rel} source entries should include claim attribution`);
     if ((parsed.data.verification_level ?? "unverified") === "unverified" && isOlderThan(parsed.data.updated, STALE_UNVERIFIED_DAYS)) issues.push(`${rel} stale unverified research page`);
     if (hasUnattributedClaims(parsed.content)) issues.push(`${rel} key findings lack inline attribution`);
-    if ((inbound.get(relNoExt) ?? 0) === 0) issues.push(`${rel} not linked from any project or idea page`);
+    const linkedFromTopicHub = await hasTopicHubForResearchPage(rel);
+    if ((inbound.get(relNoExt) ?? 0) === 0 && !linkedFromTopicHub) {
+      issues.push(`${rel} not linked from any topic hub, project page, or idea page`);
+    }
   }
   const rawRootPath = rawRoot();
   if (await exists(rawRootPath)) {
@@ -124,6 +127,13 @@ export async function collectResearchLintResult(topic?: string) {
     }
   }
   return { topic: normalizedTopic, root: relative(VAULT_ROOT, root) || "research", issues };
+}
+
+async function hasTopicHubForResearchPage(relPath: string) {
+  const match = normalizePath(relPath).match(/^research\/(.+)\/[^/]+\.md$/u);
+  if (!match) return false;
+  const overviewRel = `research/${match[1]}/_overview.md`;
+  return exists(`${VAULT_ROOT}/${overviewRel}`);
 }
 
 async function buildResearchInboundCounts() {

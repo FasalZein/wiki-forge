@@ -43,7 +43,7 @@ describe("wiki CLI smoke", () => {
     // PRD template includes Prior Research section
     const prdContent = readFileSync(join(vault, "projects", "demo", "specs", "prds", "PRD-001-auth-workflow.md"), "utf8");
     expect(prdContent).toContain("## Prior Research");
-    expect(prdContent).toContain("[[research/projects/demo/_overview]]");
+    expect(prdContent).toContain("[[research/demo/_overview]]");
   });
 
   test("module and binding commands work", () => {
@@ -249,86 +249,86 @@ describe("wiki CLI smoke", () => {
     expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
 
     // scaffold-research + ingest-research + status
-    const scaffoldResearch = runWiki(["research", "scaffold", "projects/demo"], env);
+    const scaffoldResearch = runWiki(["research", "scaffold", "demo"], env);
     expect(scaffoldResearch.exitCode).toBe(0);
-    expect(existsSync(join(vault, "research", "projects", "demo", "_overview.md"))).toBe(true);
-    expect(readFileSync(join(vault, "research", "projects", "demo", "_overview.md"), "utf8")).toContain("> [!summary]");
+    expect(existsSync(join(vault, "research", "demo", "_overview.md"))).toBe(true);
+    expect(readFileSync(join(vault, "research", "demo", "_overview.md"), "utf8")).toContain("> [!summary]");
 
-    const ingestResearch = runWiki(["research", "ingest", "projects/demo", "https://example.com/auth"], env);
+    const ingestResearch = runWiki(["research", "ingest", "demo", "https://example.com/auth"], env);
     expect(ingestResearch.exitCode).toBe(0);
-    expect(ingestResearch.stdout.toString()).toContain("research/projects/demo/example-com-auth.md");
-    expect(existsSync(join(vault, "research", "projects", "demo", "example-com-auth.md"))).toBe(true);
+    expect(ingestResearch.stdout.toString()).toContain("research/demo/example-com-auth.md");
+    expect(existsSync(join(vault, "research", "demo", "example-com-auth.md"))).toBe(true);
 
-    const batchIngestResearch = runWiki(["research", "ingest", "projects/demo", "https://example.com/a", "https://example.com/b"], env);
+    const batchIngestResearch = runWiki(["research", "ingest", "demo", "https://example.com/a", "https://example.com/b"], env);
     expect(batchIngestResearch.exitCode).toBe(0);
-    expect(existsSync(join(vault, "research", "projects", "demo", "example-com-a.md"))).toBe(true);
-    expect(existsSync(join(vault, "research", "projects", "demo", "example-com-b.md"))).toBe(true);
+    expect(existsSync(join(vault, "research", "demo", "example-com-a.md"))).toBe(true);
+    expect(existsSync(join(vault, "research", "demo", "example-com-b.md"))).toBe(true);
 
-    const researchStatus = runWiki(["research", "status", "projects/demo", "--json"], env);
+    const researchStatus = runWiki(["research", "status", "demo", "--json"], env);
     expect(researchStatus.exitCode).toBe(0);
     const researchStatusJson = JSON.parse(researchStatus.stdout.toString());
-    expect(researchStatusJson.topic).toBe("projects/demo");
+    expect(researchStatusJson.topic).toBe("demo");
     expect(researchStatusJson.counts.total).toBeGreaterThanOrEqual(1);
 
     // file-research
-    const research = runWiki(["research", "file", "demo", "auth options comparison"], env);
+    const research = runWiki(["research", "file", "demo", "--project", "demo", "auth options comparison"], env);
     expect(research.exitCode).toBe(0);
-    expect(research.stdout.toString()).toContain("research/projects/demo/auth-options-comparison.md");
-    expect(existsSync(join(vault, "research", "projects", "demo", "auth-options-comparison.md"))).toBe(true);
-    const researchContent = readFileSync(join(vault, "research", "projects", "demo", "auth-options-comparison.md"), "utf8");
+    expect(research.stdout.toString()).toContain("research/demo/auth-options-comparison.md");
+    expect(existsSync(join(vault, "research", "demo", "auth-options-comparison.md"))).toBe(true);
+    const researchContent = readFileSync(join(vault, "research", "demo", "auth-options-comparison.md"), "utf8");
     expect(researchContent).toContain("type: research");
     expect(researchContent).toContain("project: demo");
-    expect(researchContent).toContain("topic: projects/demo");
+    expect(researchContent).toContain("topic: demo");
     expect(researchContent).toContain("verification_level: unverified");
     expect(researchContent).toContain("## TL;DR");
-    expect(researchContent).toContain("[[research/projects/demo/_overview]]");
+    expect(researchContent).toContain("[[research/demo/_overview]]");
     expect(researchContent).toContain("> [!summary]");
 
-    const nestedFileResearch = runWiki(["research", "file", "demo", "nested alias check"], env);
+    const nestedFileResearch = runWiki(["research", "file", "demo", "--project", "demo", "nested alias check"], env);
     expect(nestedFileResearch.exitCode).toBe(0);
-    expect(existsSync(join(vault, "research", "projects", "demo", "nested-alias-check.md"))).toBe(true);
+    expect(existsSync(join(vault, "research", "demo", "nested-alias-check.md"))).toBe(true);
 
     // source ingest
     const sourceFile = join(repo, "notes.txt");
     writeFileSync(sourceFile, "Important source material\n", "utf8");
-    const ingestSourceFile = runWiki(["source", "ingest", sourceFile, "--topic", "projects/demo"], env);
+    const ingestSourceFile = runWiki(["source", "ingest", sourceFile, "--topic", "demo"], env);
     expect(ingestSourceFile.exitCode).toBe(0);
     expect(existsSync(join(vault, "raw", "conversations", "notes.txt"))).toBe(true);
-    expect(existsSync(join(vault, "research", "projects", "demo", "notes.md"))).toBe(true);
-    const ingestedSourceContent = readFileSync(join(vault, "research", "projects", "demo", "notes.md"), "utf8");
+    expect(existsSync(join(vault, "research", "demo", "notes.md"))).toBe(true);
+    const ingestedSourceContent = readFileSync(join(vault, "research", "demo", "notes.md"), "utf8");
     expect(ingestedSourceContent).toContain("[[raw/conversations/notes.txt]]");
     expect(ingestedSourceContent).toContain("> [!summary]");
 
     unlinkSync(join(vault, "raw", "conversations", "notes.txt"));
-    const ingestSourceConflict = runWiki(["source", "ingest", sourceFile, "--topic", "projects/demo"], env);
+    const ingestSourceConflict = runWiki(["source", "ingest", sourceFile, "--topic", "demo"], env);
     expect(ingestSourceConflict.exitCode).toBe(1);
     expect(ingestSourceConflict.stderr.toString()).toContain("research page already exists");
     expect(existsSync(join(vault, "raw", "conversations", "notes.txt"))).toBe(false);
 
-    const ingestSourceUrl = runWiki(["source", "ingest", "https://example.com/paper", "--topic", "projects/demo"], env);
+    const ingestSourceUrl = runWiki(["source", "ingest", "https://example.com/paper", "--topic", "demo"], env);
     expect(ingestSourceUrl.exitCode).toBe(0);
     expect(existsSync(join(vault, "raw", "articles", "example-com-paper.md"))).toBe(true);
-    expect(existsSync(join(vault, "research", "projects", "demo", "example-com-paper.md"))).toBe(true);
+    expect(existsSync(join(vault, "research", "demo", "example-com-paper.md"))).toBe(true);
 
     const batchSourceA = join(repo, "batch-a.txt");
     const batchSourceB = join(repo, "batch-b.txt");
     writeFileSync(batchSourceA, "batch a\n", "utf8");
     writeFileSync(batchSourceB, "batch b\n", "utf8");
-    const batchIngestSource = runWiki(["source", "ingest", batchSourceA, batchSourceB, "--topic", "projects/demo/batch"], env);
+    const batchIngestSource = runWiki(["source", "ingest", batchSourceA, batchSourceB, "--topic", "demo/batch"], env);
     expect(batchIngestSource.exitCode).toBe(0);
     expect(existsSync(join(vault, "raw", "conversations", "batch-a.txt"))).toBe(true);
     expect(existsSync(join(vault, "raw", "conversations", "batch-b.txt"))).toBe(true);
-    expect(existsSync(join(vault, "research", "projects", "demo", "batch", "batch-a.md"))).toBe(true);
-    expect(existsSync(join(vault, "research", "projects", "demo", "batch", "batch-b.md"))).toBe(true);
+    expect(existsSync(join(vault, "research", "demo", "batch", "batch-a.md"))).toBe(true);
+    expect(existsSync(join(vault, "research", "demo", "batch", "batch-b.md"))).toBe(true);
 
-    const lintResearch = runWiki(["research", "lint", "projects/demo", "--json"], env);
+    const lintResearch = runWiki(["research", "lint", "demo", "--json"], env);
     expect(lintResearch.exitCode).toBe(1);
     const lintResearchJson = JSON.parse(lintResearch.stdout.toString());
     expect(Array.isArray(lintResearchJson.issues)).toBe(true);
     expect(lintResearchJson.issues.some((issue: string) => issue.includes("missing sources"))).toBe(true);
 
     // file-research duplicate fails
-    const researchDup = runWiki(["research", "file", "demo", "auth options comparison"], env);
+    const researchDup = runWiki(["research", "file", "demo", "--project", "demo", "auth options comparison"], env);
     expect(researchDup.exitCode).toBe(1);
     expect(researchDup.stderr.toString()).toContain("already exists");
   });
@@ -477,7 +477,7 @@ describe("wiki CLI smoke", () => {
 
     const prdPath = join(vault, "projects", "forgey", "specs", "prds", "PRD-001-workflow-uplift.md");
     const prdContent = readFileSync(prdPath, "utf8");
-    expect(prdContent).toContain("[[research/projects/forgey/_overview]]");
+    expect(prdContent).toContain("[[research/forgey/_overview]]");
 
     const backlogContent = readFileSync(join(vault, "projects", "forgey", "backlog.md"), "utf8");
     expect(backlogContent).toContain("FORGEY-001");
@@ -739,7 +739,7 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]");
     expect(output).toContain("wiki resume <project> [--repo <path>] [--base <rev>] [--json]");
     expect(output).toContain("wiki dependency-graph <project> [--write] [--json]");
-    expect(output).toContain("wiki research file <project>");
+    expect(output).toContain("wiki research file <topic>");
     expect(output).toContain("wiki source ingest");
     expect(output).toContain("Agent Surface");
     expect(output).toContain("wiki forge plan");
@@ -761,7 +761,7 @@ describe("wiki CLI smoke", () => {
     const output = result.stdout.toString();
     expect(output).toContain("Treat repo-local research docs as source material");
     expect(output).toContain("Run `/research` for any net-new investigation or option comparison");
-    expect(output).toContain("File high-signal findings into the vault with `wiki research file demo <topic>`");
+    expect(output).toContain("File high-signal findings into the vault with `wiki research file demo <title>`");
   });
 
   test("legacy flat research commands are rejected", () => {

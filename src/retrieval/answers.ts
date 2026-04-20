@@ -7,7 +7,7 @@ import { buildEvidenceExcerpt, buildScopedNoteIndex, findNoteByVaultPath, fromQm
 import { buildLexicalSearchQuery, normalizeSemanticQueryText, resolveRetrievalMode } from "../lib/qmd";
 import { appendLogEntry } from "../lib/log";
 import { sdkHybridAvailable, searchKnowledgeExpandedSdk, searchKnowledgeLexicalSdk, searchKnowledgeStructuredSdk } from "../lib/qmd-sdk";
-import { questionTokens } from "../lib/research";
+import { legacyProjectResearchTopic, questionTokens } from "../lib/research";
 import { createResearchPage } from "../research";
 import type { AnswerBrief, AnswerSource, AskOptions, NoteIndex, NoteQualitySignals, QmdResult } from "../types";
 
@@ -177,9 +177,10 @@ function toAnswerSource(project: string, question: string, result: QmdResult, no
 export function classifyAnswerScope(project: string, markdownPath: string): AnswerSource["scope"] {
   const normalized = normalizePath(markdownPath).toLowerCase();
   const projectPrefix = `projects/${project.toLowerCase()}/`;
-  const researchProjectPrefix = `research/projects/${project.toLowerCase()}/`;
+  const researchTopicPrefix = `research/${project.toLowerCase()}/`;
+  const legacyResearchProjectPrefix = `research/${legacyProjectResearchTopic(project).toLowerCase()}/`;
   if (normalized.startsWith(projectPrefix)) return "project";
-  if (normalized.startsWith(researchProjectPrefix)) return "project";
+  if (normalized.startsWith(researchTopicPrefix) || normalized.startsWith(legacyResearchProjectPrefix)) return "project";
   if (normalized.startsWith("wiki/")) return "wiki";
   if (normalized === "index.md" || normalized === "log.md" || normalized.startsWith("specs/") || normalized.startsWith("tools/") || normalized.startsWith("skills/") || normalized.startsWith("research/")) return "meta";
   return "other";
@@ -215,6 +216,8 @@ export function scoreAnswerSource(project: string, question: string, markdownPat
 
   const normalized = normalizePath(markdownPath).toLowerCase();
   const projectPrefix = `projects/${project.toLowerCase()}/`;
+  const researchTopicPrefix = `research/${project.toLowerCase()}/`;
+  const legacyResearchProjectPrefix = `research/${legacyProjectResearchTopic(project).toLowerCase()}/`;
   const prefersResearch = questionPrefersResearch(question);
 
   if (normalized === `${projectPrefix}_summary.md`) adjusted += 0.9;
@@ -234,7 +237,7 @@ export function scoreAnswerSource(project: string, question: string, markdownPat
   if (/\b(slice|task)\b/u.test(lowerQuestion) && normalized.startsWith(`${projectPrefix}specs/slices/`)) adjusted += 0.45;
   if (/\bforge\b/u.test(lowerQuestion) && normalized === `${projectPrefix}decisions.md`) adjusted += 0.5;
 
-  if (normalized.startsWith(`research/projects/${project.toLowerCase()}/`)) adjusted += prefersResearch ? 0.5 : -0.35;
+  if (normalized.startsWith(researchTopicPrefix) || normalized.startsWith(legacyResearchProjectPrefix)) adjusted += prefersResearch ? 0.5 : -0.35;
   if (normalized.endsWith("/_overview.md")) adjusted += prefersResearch ? 0.1 : -0.45;
   if (normalized.endsWith("/spec.md")) adjusted += 0.25;
   if (normalized.endsWith("/readme.md")) adjusted -= 0.2;
@@ -336,17 +339,15 @@ function slugify(value: string) {
 }
 
 export async function fileResearch(args: string[]) {
-  const project = args[0];
-  if (!project) throw new Error("missing project");
-  const root = projectRoot(project);
-  if (!await exists(root)) throw new Error(`project not found: ${project}`);
-  let topic: string | undefined;
+  const topic = args[0];
+  if (!topic) throw new Error("missing topic");
+  let project: string | undefined;
   const titleParts: string[] = [];
   for (let index = 1; index < args.length; index += 1) {
     const arg = args[index];
-    if (arg === "--topic") {
-      topic = args[index + 1];
-      if (!topic) throw new Error("missing topic");
+    if (arg === "--project") {
+      project = args[index + 1];
+      if (!project) throw new Error("missing project");
       index += 1;
       continue;
     }
@@ -354,8 +355,12 @@ export async function fileResearch(args: string[]) {
   }
   const title = titleParts.join(" ").trim();
   if (!title) throw new Error("missing title");
-  const { outputPath } = await createResearchPage(project, title, topic);
-  appendLogEntry("file-research", title, { project, details: [`path=${relative(VAULT_ROOT, outputPath)}`] });
+  if (project) {
+    const root = projectRoot(project);
+    if (!await exists(root)) throw new Error(`project not found: ${project}`);
+  }
+  const { outputPath } = await createResearchPage(topic, title, project);
+  appendLogEntry("file-research", title, { ...(project ? { project } : {}), details: [`topic=${topic}`, `path=${relative(VAULT_ROOT, outputPath)}`] });
   console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
 }
 
