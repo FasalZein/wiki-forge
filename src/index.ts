@@ -5,7 +5,7 @@ import { printHelp } from "./cli-shared";
 import { backlogCommand, addTask, moveTask, completeTask, createFeature, createPrd, createPlan, createTestPlan, dependencyGraph, updateIndex, featureStatusCommand, startFeature, closeFeature, startPrd, closePrd, summaryProject, createLayerPage, lintVault, scaffoldLayer } from "./hierarchy";
 import { dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, syncProject, discoverProject, ingestDiff, commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo, doctorProject, gateProject, driftCheck } from "./maintenance";
 import { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeModule, syncProtocol, auditProtocol, obsidianCommand, setupShell } from "./protocol";
-import { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch } from "./research";
+import { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch, distillResearch } from "./research";
 import { askProject, fileAnswer, fileResearch } from "./retrieval/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "./retrieval/qmd-commands";
 import { handoverProject, resumeProject, nextProject, noteProject, exportPrompt, logCommand } from "./session";
@@ -83,6 +83,7 @@ const commands: Record<string, CommandHandler> = {
   "research:file": (args) => fileResearch(args),
   "research:lint": (args) => lintResearch(args),
   "research:audit": (args) => auditResearch(args),
+  "research:distill": (args) => distillResearch(args),
   "source:ingest": (args) => ingestSource(args),
   "qmd-status": () => qmdStatus(),
   "qmd-update": (args) => qmdUpdate(args),
@@ -176,7 +177,8 @@ function resolveCommand(rawArgs: string[]) {
       lint: "research:lint",
       audit: "research:audit",
       file: "research:file",
-    }[subcommand as "scaffold" | "status" | "ingest" | "lint" | "audit" | "file"];
+      distill: "research:distill",
+    }[subcommand as "scaffold" | "status" | "ingest" | "lint" | "audit" | "file" | "distill"];
     if (!mapped) throw new Error(`unknown research subcommand: ${subcommand}. Run 'wiki help' for usage.`);
     return { command: mapped, args: subArgs };
   }

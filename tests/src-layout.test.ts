@@ -161,6 +161,7 @@ describe("WIKI-FORGE-110 research split by subcommand", () => {
     "ingest.ts",
     "audit.ts",
     "file.ts",
+    "distill.ts",
     "lint.ts",
     "source-ingest.ts",
   ] as const;

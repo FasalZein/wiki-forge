@@ -1,6 +1,7 @@
 import { basename, extname, join } from "node:path";
 import { VAULT_ROOT } from "../constants";
 import { exists } from "./fs";
+import { normalizePath, stripMarkdownExtension } from "./vault";
 
 const TOPIC_SEGMENT = "[a-z0-9]+(?:-[a-z0-9]+)*";
 const TOPIC_PATH = `(?:${TOPIC_SEGMENT}\/)*${TOPIC_SEGMENT}`;
@@ -107,6 +108,30 @@ export async function detectResearchSourceType(source: string): Promise<"web" | 
 
 export function questionTokens(question: string) {
   return question.toLowerCase().split(/[^a-z0-9]+/g).map((token) => token.trim()).filter((token) => token.length >= 4);
+}
+
+export function normalizeWikiTarget(value: string) {
+  const trimmed = value.trim().replace(/^\[\[/u, "").replace(/\]\]$/u, "");
+  const pathOnly = trimmed.split("|")[0]?.split("#")[0]?.trim();
+  if (!pathOnly) return null;
+  return stripMarkdownExtension(normalizePath(pathOnly));
+}
+
+export function normalizeInfluencedBy(value: unknown) {
+  if (!Array.isArray(value)) return [] as string[];
+  const normalized = new Set<string>();
+  for (const entry of value) {
+    if (typeof entry !== "string") continue;
+    const target = normalizeWikiTarget(entry);
+    if (target) normalized.add(target);
+  }
+  return [...normalized];
+}
+
+export function normalizeResearchPageRef(value: string) {
+  const normalized = normalizeWikiTarget(value);
+  if (!normalized) return null;
+  return normalized.startsWith("research/") ? normalized : `research/${normalized}`;
 }
 
 export function rawRoot() {

@@ -269,6 +269,7 @@ describe("wiki CLI smoke", () => {
     const researchStatusJson = JSON.parse(researchStatus.stdout.toString());
     expect(researchStatusJson.topic).toBe("demo");
     expect(researchStatusJson.counts.total).toBeGreaterThanOrEqual(1);
+    expect(researchStatusJson.workflow.byStage.capture).toBeGreaterThanOrEqual(0);
 
     // file-research
     const research = runWiki(["research", "file", "demo", "--project", "demo", "auth options comparison"], env);
@@ -283,6 +284,19 @@ describe("wiki CLI smoke", () => {
     expect(researchContent).toContain("## TL;DR");
     expect(researchContent).toContain("[[research/demo/_overview]]");
     expect(researchContent).toContain("> [!summary]");
+
+    const verifiedResearch = researchContent
+      .replace("status: draft", "status: verified")
+      .replace("verification_level: unverified", "verification_level: source-checked");
+    writeFileSync(join(vault, "research", "demo", "auth-options-comparison.md"), verifiedResearch, "utf8");
+    const distillResearch = runWiki(["research", "distill", "research/demo/auth-options-comparison", "projects/demo/decisions", "--json"], env);
+    expect(distillResearch.exitCode).toBe(0);
+    const distillResearchJson = JSON.parse(distillResearch.stdout.toString());
+    expect(distillResearchJson.applied).toBe(true);
+    expect(distillResearchJson.target).toBe("projects/demo/decisions");
+    const distilledResearchContent = readFileSync(join(vault, "research", "demo", "auth-options-comparison.md"), "utf8");
+    expect(distilledResearchContent).toContain("status: applied");
+    expect(distilledResearchContent).toContain("projects/demo/decisions");
 
     const nestedFileResearch = runWiki(["research", "file", "demo", "--project", "demo", "nested alias check"], env);
     expect(nestedFileResearch.exitCode).toBe(0);
@@ -740,6 +754,7 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("wiki resume <project> [--repo <path>] [--base <rev>] [--json]");
     expect(output).toContain("wiki dependency-graph <project> [--write] [--json]");
     expect(output).toContain("wiki research file <topic>");
+    expect(output).toContain("wiki research distill <research-page>");
     expect(output).toContain("wiki source ingest");
     expect(output).toContain("Agent Surface");
     expect(output).toContain("wiki forge plan");

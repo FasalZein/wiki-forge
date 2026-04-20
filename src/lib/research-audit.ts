@@ -4,7 +4,7 @@ import { STALE_UNVERIFIED_DAYS, VAULT_ROOT } from "../constants";
 import { safeMatter } from "../cli-shared";
 import { exists, readText } from "./fs";
 import { normalizePath, stripMarkdownExtension, walkMarkdown } from "./vault";
-import { normalizeTopicPath, rawRoot, researchRoot, researchTopicDir } from "./research";
+import { normalizeInfluencedBy, normalizeTopicPath, rawRoot, researchRoot, researchTopicDir } from "./research";
 
 export type ResearchAuditResult = {
   topic?: string;
@@ -118,24 +118,6 @@ async function checkUrl(url: string) {
   }
   const message = stderr.trim() || "request failed";
   return { status: null, message };
-}
-
-function normalizeInfluencedBy(value: unknown) {
-  if (!Array.isArray(value)) return [] as string[];
-  const normalized = new Set<string>();
-  for (const entry of value) {
-    if (typeof entry !== "string") continue;
-    const target = normalizeWikiTarget(entry);
-    if (target) normalized.add(target);
-  }
-  return [...normalized];
-}
-
-function normalizeWikiTarget(value: string) {
-  const trimmed = value.trim().replace(/^\[\[/u, "").replace(/\]\]$/u, "");
-  const pathOnly = trimmed.split("|")[0]?.split("#")[0]?.trim();
-  if (!pathOnly) return null;
-  return stripMarkdownExtension(normalizePath(pathOnly));
 }
 
 async function vaultTargetExists(target: string) {

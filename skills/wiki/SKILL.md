@@ -54,7 +54,7 @@ Use the smallest fitting surface.
 | Refresh navigation | `wiki update-index <project> --write` |
 | Sync repo protocol files | `wiki protocol sync <project> --repo <path>` |
 | Audit repo protocol files | `wiki protocol audit <project> --repo <path>` |
-| File project research | `wiki research file <project> <title>` |
+| File project research | `wiki research file <topic> [--project <project>] <title>` |
 | Project Q&A | `wiki ask <project> [--verbose] <question>` |
 | Resume session | `wiki resume <project> --repo <path> --base <rev>` |
 | User-invoked handover | `wiki handover <project> --repo <path> --base <rev>` |
@@ -97,12 +97,19 @@ Use `/research` for the investigation itself.
 Use `wiki research ...` to file and audit the results.
 
 Core commands:
-- `wiki research file <project> <title>`
+- `wiki research file <topic> [--project <project>] <title>`
 - `wiki research scaffold <topic>`
 - `wiki research ingest <topic> <source>`
+- `wiki research distill <research-page> <projects/...>`
 - `wiki source ingest <path-or-url>`
 - `wiki research lint [topic]`
 - `wiki research audit [topic]`
+
+Compact lifecycle:
+- capture evidence with `wiki research file|ingest|source ingest`
+- inspect backlog and verification pressure with `wiki research status`
+- verify link hygiene and influence targets with `wiki research audit`
+- hand accepted conclusions into project truth with `wiki research distill <research-page> <projects/...>`
 
 ## Operating Guidelines
 

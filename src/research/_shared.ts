@@ -7,6 +7,7 @@ import {
   classifyResearchPath,
   describeAllowedRawPaths,
   describeAllowedResearchPaths,
+  normalizeInfluencedBy,
   normalizeTopicPath,
   rawRoot,
   researchOverviewPath,
@@ -19,6 +20,7 @@ import { normalizePath, stripMarkdownExtension, walkMarkdown } from "../lib/vaul
 
 export const RESEARCH_STATUSES = ["draft", "reviewed", "verified", "applied"] as const;
 export const RESEARCH_VERIFICATION_LEVELS = ["unverified", "cross-referenced", "source-checked"] as const;
+export const RESEARCH_WORKFLOW_STAGES = ["capture", "synthesize", "verify", "distill", "applied"] as const;
 
 export async function ensureResearchTopic(topic: string) {
   const normalizedTopic = normalizeTopicPath(topic);
@@ -72,24 +74,37 @@ export async function collectResearchStatus(topic?: string) {
   const pages = (await walkMarkdown(root)).filter((file) => !file.endsWith("/_overview.md"));
   const byStatus = Object.fromEntries(RESEARCH_STATUSES.map((status) => [status, 0])) as Record<string, number>;
   const byVerification = Object.fromEntries(RESEARCH_VERIFICATION_LEVELS.map((level) => [level, 0])) as Record<string, number>;
+  const byWorkflowStage = Object.fromEntries(RESEARCH_WORKFLOW_STAGES.map((stage) => [stage, 0])) as Record<string, number>;
   let missingSources = 0;
   let staleUnverified = 0;
+  let missingInfluence = 0;
+  let readyToDistill = 0;
   for (const file of pages) {
     const parsed = safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true });
     if (!parsed) continue;
     const status = typeof parsed.data.status === "string" ? parsed.data.status : "draft";
     const verification = typeof parsed.data.verification_level === "string" ? parsed.data.verification_level : "unverified";
+    const hasSources = Array.isArray(parsed.data.sources) && parsed.data.sources.length > 0;
+    const influencedBy = normalizeInfluencedBy(parsed.data.influenced_by);
     byStatus[status] = (byStatus[status] ?? 0) + 1;
     byVerification[verification] = (byVerification[verification] ?? 0) + 1;
-    if (!Array.isArray(parsed.data.sources) || parsed.data.sources.length === 0) missingSources += 1;
+    if (!hasSources) missingSources += 1;
     if (verification === "unverified" && isOlderThan(parsed.data.updated, STALE_UNVERIFIED_DAYS)) staleUnverified += 1;
+    if (influencedBy.length === 0) missingInfluence += 1;
+    const workflowStage = classifyResearchWorkflowStage({ hasSources, status, verification, influencedByCount: influencedBy.length });
+    byWorkflowStage[workflowStage] = (byWorkflowStage[workflowStage] ?? 0) + 1;
+    if (workflowStage === "distill") readyToDistill += 1;
   }
   return {
     topic: normalizedTopic,
     root: relative(VAULT_ROOT, root) || "research",
-    counts: { total: pages.length, missingSources, staleUnverified },
+    counts: { total: pages.length, missingSources, staleUnverified, missingInfluence, readyToDistill },
     byStatus,
     byVerification,
+    workflow: {
+      byStage: byWorkflowStage,
+      nextCommand: "wiki research distill <research-page> <projects/...>",
+    },
   };
 }
 
@@ -177,4 +192,17 @@ function hasUnattributedClaims(body: string) {
     return true;
   }
   return false;
+}
+
+function classifyResearchWorkflowStage(input: {
+  hasSources: boolean;
+  status: string;
+  verification: string;
+  influencedByCount: number;
+}) {
+  if (!input.hasSources) return "capture";
+  if (input.status === "draft") return "synthesize";
+  if (input.verification === "unverified" || input.status === "reviewed") return "verify";
+  if (input.influencedByCount === 0 || input.status === "verified") return "distill";
+  return "applied";
 }
