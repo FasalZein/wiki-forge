@@ -21,6 +21,7 @@ describe("phase recommendation skill hints", () => {
     const recommendation = phaseRecommendation("demo", "DEMO-001", "research");
 
     expect(recommendation.command).toContain("wiki research file <topic> --project demo <title>");
+    expect(recommendation.command).toContain("wiki research adopt <research-page> --project demo --slice DEMO-001");
     expect(recommendation.command).not.toContain("wiki research file demo <title>");
   });
 

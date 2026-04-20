@@ -98,11 +98,16 @@ describe("skill layer separation", () => {
     expect(wikiSkill).toContain("1. `wiki checkpoint` = current freshness truth");
     expect(wikiSkill).toContain("2. `wiki maintain` = repair/reconciliation plan");
     expect(wikiSkill).toContain("3. `wiki resume` = context summary only");
+    expect(wikiSkill).toContain("## Router");
+    expect(wikiSkill).toContain("## Main Commands");
+    expect(wikiSkill.indexOf("## Router")).toBeLessThan(wikiSkill.indexOf("## Main Commands"));
     expect(wikiSkill).toContain("Generated/derived pages:");
     expect(wikiSkill).toContain("`wiki refresh-from-git <project> --repo <path> --base <rev>`");
     expect(wikiSkill).toContain("`wiki acknowledge-impact <project> <page...> --repo <path>`");
     expect(wikiSkill).toContain("`wiki bind <project> <page> <source-path...>`");
     expect(wikiSkill).toContain("## Freshness Repair Path");
+    expect(wikiSkill).toContain("`wiki research adopt <research-page> --project <project> --slice <slice-id>`");
+    expect(wikiSkill).toContain("Distill updates project truth targets. Adopt bridges");
   });
 
   test("domain-model skill and templates stay wiki-native for forge-managed projects", () => {
@@ -112,6 +117,8 @@ describe("skill layer separation", () => {
     const writePrdSkill = readFileSync(join(process.cwd(), "skills", "write-a-prd", "SKILL.md"), "utf8");
     const forgeSkill = readFileSync(join(process.cwd(), "skills", "forge", "SKILL.md"), "utf8");
     const grillSkill = readFileSync(join(process.cwd(), "skills", "grill-me", "SKILL.md"), "utf8");
+    const agents = readFileSync(join(process.cwd(), "AGENTS.md"), "utf8");
+    const agentsLocal = agents.split("# AGENTS")[1] ?? "";
 
     expect(domainModelSkill).toContain("## Pre-PRD Outputs");
     expect(domainModelSkill).toContain("projects/<project>/decisions.md");
@@ -130,6 +137,10 @@ describe("skill layer separation", () => {
 
     expect(forgeSkill).toContain("research -> domain-model -> PRD");
     expect(forgeSkill).not.toContain("companion skills");
+    expect(forgeSkill).toContain("## Router");
+    expect(forgeSkill).toContain("## State Table");
+    expect(forgeSkill).toContain("## Repair Branches");
+    expect(forgeSkill.indexOf("## Router")).toBeLessThan(forgeSkill.indexOf("## Default Surface"));
     expect(forgeSkill).toContain("Use this precedence:");
     expect(forgeSkill).toContain("1. `wiki checkpoint` = current freshness truth");
     expect(forgeSkill).toContain("2. `wiki maintain` = repair/reconciliation plan");
@@ -140,6 +151,7 @@ describe("skill layer separation", () => {
     expect(forgeSkill).toContain("`wiki acknowledge-impact <project> <page...> --repo <path>`");
     expect(forgeSkill).toContain("`wiki refresh-from-git <project> --repo <path> --base <rev>`");
     expect(forgeSkill).toContain("`wiki bind <project> <page> <source-path...> [--mode replace|merge]`");
+    expect(forgeSkill).toContain("wiki research adopt <research-page> --project <project> --slice <slice-id>");
 
     expect(grillSkill).toContain("Compatibility note");
     expect(grillSkill).toContain("Use `/domain-model` as the primary path");
@@ -148,5 +160,9 @@ describe("skill layer separation", () => {
     expect(domainModelSkill).toContain("## Forge Ledger Expectations");
     expect(domainModelSkill).toContain("domain-model.completedAt");
     expect(domainModelSkill).toContain("domain-model.decisionRefs");
+
+    expect(agents).toContain("Bootstrap only:");
+    expect(agents).not.toContain("Decision rule:");
+    expect(agentsLocal).not.toContain("wiki forge plan|run|next");
   });
 });

@@ -9,35 +9,18 @@ description: >
 
 # Wiki
 
-> **Scope:** memory, retrieval, verification, research filing, drift. For active implementation threads, load `/forge`.
+> Scope: memory, retrieval, verification, research filing, and freshness repair. For active implementation threads, load `/forge`.
 
-The wiki is compiled memory. Sources of truth live outside it — code, filed research, and primary documents. Agents keep the markdown honest as those sources change.
+## Router
 
-## Protocol Start Checklist
+Choose the smallest fitting surface.
 
-Shared with `/forge`. See the forge skill for the full checklist.
+- retrieval or project Q&A: `wiki ask`, `wiki search`, `wiki query`
+- knowledge refresh or freshness repair: `wiki checkpoint`, `wiki maintain`, `wiki verify-page`
+- research filing: `wiki research ...`
+- tracked slice delivery or phase steering: leave `/wiki` and load `/forge`
 
-Quick reference:
-1. Check repo `AGENTS.md` / `CLAUDE.md` managed block.
-2. Run `wiki resume <project> --repo <path> --base <rev>` when resuming.
-3. When delegating, explicitly load `/wiki` in the sub-agent prompt.
-
-Skip for pure read-only retrieval.
-
-## Behavioral Guardrails
-
-Defined in the forge skill. Apply to all wiki sessions. Load `/forge` for the full text.
-
-## Use Wiki For
-
-- maintenance, drift, freshness, verification
-- retrieval and project Q&A
-- research filing and audit
-- onboarding and knowledge scaffolding
-- protocol sync / audit
-- navigation/index refresh
-
-Escalate to `/forge` for non-trivial implementation, active slice work, or anything that is really “do the next slice”.
+If the task is really “do the next slice”, you are on the wrong skill.
 
 ## Command Authority
 
@@ -48,46 +31,45 @@ When maintenance/retrieval surfaces disagree, do not guess. Use this order:
 3. `wiki resume` = context summary only; may include historical notes
 
 Practical rule:
+
 - if `checkpoint` is clean, treat freshness as clean even if `resume` still prints stale-looking historical context
 - if `maintain` says no changed files / no impacted pages, that is compatible with a clean checkpoint; prefer the checkpoint result for current stale/not-stale truth
 
 ## Main Commands
 
-Use the smallest fitting surface.
+Use the smallest fitting command:
 
 | Need | Command |
 |---|---|
-| Default maintenance entry point | `wiki maintain <project> --base <rev>` |
-| Report-first reconciliation | `wiki sync <project> [--write]` |
-| Git-independent freshness check | `wiki checkpoint <project> --repo <path>` |
-| Git-based drift reconciliation | `wiki refresh-from-git <project> --repo <path> --base <rev>` |
-| Accept reviewed impact as current | `wiki acknowledge-impact <project> <page...> --repo <path>` |
-| Re-verify changed pages | `wiki verify-page <project> <page> <level>` |
-| Narrow or repair source bindings | `wiki bind <project> <page> <source-path...>` |
-| Compact review surface | `wiki closeout <project> --repo <path> --base <rev>` |
-| Pass/fail completion gate | `wiki gate <project> --repo <path> --base <rev>` |
-| Refresh navigation | `wiki update-index <project> --write` |
-| Sync repo protocol files | `wiki protocol sync <project> --repo <path>` |
-| Audit repo protocol files | `wiki protocol audit <project> --repo <path>` |
-| File project research | `wiki research file <topic> [--project <project>] <title>` |
-| Project Q&A | `wiki ask <project> [--verbose] <question>` |
-| Resume session | `wiki resume <project> --repo <path> --base <rev>` |
-| User-invoked handover | `wiki handover <project> --repo <path> --base <rev>` |
+| default maintenance entry point | `wiki maintain <project> --base <rev>` |
+| git-independent freshness truth | `wiki checkpoint <project> --repo <path>` |
+| git-based reconciliation | `wiki refresh-from-git <project> --repo <path> --base <rev>` |
+| accept reviewed impact as current | `wiki acknowledge-impact <project> <page...> --repo <path>` |
+| update verification after a real content change | `wiki verify-page <project> <page> <level>` |
+| repair `source_paths` | `wiki bind <project> <page> <source-path...>` |
+| compact review surface | `wiki closeout <project> --repo <path> --base <rev>` |
+| completion gate | `wiki gate <project> --repo <path> --base <rev>` |
+| file project research | `wiki research file <topic> [--project <project>] <title>` |
+| hand accepted conclusions into project truth | `wiki research distill <research-page> <projects/<project>/decisions|projects/<project>/architecture/domain-language>` |
+| bridge accepted research into a tracked slice | `wiki research adopt <research-page> --project <project> --slice <slice-id>` |
+| project Q&A | `wiki ask <project> <question>` |
+| resume session context | `wiki resume <project> --repo <path> --base <rev>` |
 
-SDLC scaffolds remain on the `wiki` CLI but are part of the forge workflow layer and are documented in the `forge` skill, not here. Use `wiki help` for the raw command list.
+SDLC scaffolds remain on the `wiki` CLI but are part of the forge workflow layer and are documented in the `forge` skill, not here.
 
-Generated/derived pages:
+## Generated/derived pages:
+
 - project hub pages such as `projects/<project>/_summary.md` are derived knowledge surfaces
 - navigation/index pages are also derived
 - if one of these is stale, prefer `wiki sync` / `wiki maintain` first
 - do not manually edit generated sections unless the command surface clearly leaves that section authored
 
-Verification levels (ascending): `scaffold` → `inferred` → `code-verified` → `runtime-verified` → `test-verified`.
+Verification levels (ascending): `scaffold` -> `inferred` -> `code-verified` -> `runtime-verified` -> `test-verified`.
 Demotion state: `stale`.
 
 ## Refresh-Only Flow
 
-Use this when implementation decisions are already made and you are just refreshing the knowledge layer.
+Use this when implementation decisions are already made and you are only refreshing the knowledge layer.
 
 ```text
 1. wiki maintain <project> --base <rev>
@@ -103,66 +85,43 @@ If this turns into active slice work, switch to `/forge`.
 
 ## Freshness Repair Path
 
-Use this when a page keeps resurfacing as stale and you need to decide whether the problem is content drift, accepted impact, or bad bindings.
-
 Rule: prefer canonical reconciliation commands over manual markdown edits when the issue is freshness metadata, accepted impact, or source binding.
 
 1. `wiki checkpoint <project> --repo <path> [--base <rev>]`
-   Use this to confirm whether freshness is actually broken right now.
 2. `wiki maintain <project> --repo <path> --base <rev>`
-   Use this to apply deterministic reconciliation and read the repair plan.
-3. If source intent was already reviewed and the page is still correct, stamp:
-   - `wiki acknowledge-impact <project> <page...> --repo <path>`
-4. If you need the git-based reconciler to honor that acknowledgement and cascade-refresh unchanged-source pages, run:
-   - `wiki refresh-from-git <project> --repo <path> --base <rev>`
-5. If the page content itself changed, update the page and then run:
-   - `wiki verify-page <project> <page> <level>`
-6. If the same page keeps resurfacing because its `source_paths` are too broad, repair the binding:
-   - `wiki bind <project> <page> <source-path...> [--mode replace|merge]`
+3. choose one repair branch:
+   - reviewed-but-still-correct pages: `wiki acknowledge-impact <project> <page...> --repo <path>`
+   - reconcile that acceptance against git: `wiki refresh-from-git <project> --repo <path> --base <rev>`
+   - real content drift: update the page, then `wiki verify-page <project> <page> <level>`
+   - broad or wrong bindings: `wiki bind <project> <page> <source-path...> [--mode replace|merge]`
 
-## Debug Playbook
-
-Use this when freshness output disagrees:
-
-1. `wiki checkpoint <project> --repo <path> [--base <rev>]`
-   This answers whether pages are currently stale.
-2. `wiki maintain <project> --repo <path> --base <rev>`
-   This tells you what to repair or reconcile.
-3. `wiki resume <project> --repo <path> --base <rev>`
-   Treat as context only, not as the authority for current staleness.
-
-If the disagreement is really about slice workflow state, leave `/wiki` and switch to `/forge`.
-
-## Retrieval
-
-```text
-Quick lookup        -> read the file directly
-Broad search        -> wiki search "..."
-Hybrid retrieval    -> wiki query "..."
-Project Q&A         -> wiki ask <project> "..."
-Save an answer      -> wiki file-answer <project> "..."
-Resume context      -> wiki resume <project> --repo <path> --base <rev>
-```
+Do not hand-edit freshness metadata.
 
 ## Research Filing
 
-Use `/research` for the investigation itself.
-Use `wiki research ...` to file and audit the results.
-
-Core commands:
-- `wiki research file <topic> [--project <project>] <title>`
-- `wiki research scaffold <topic>`
-- `wiki research ingest <topic> <source>`
-- `wiki research distill <research-page> <projects/...>`
-- `wiki source ingest <path-or-url>`
-- `wiki research lint [topic]`
-- `wiki research audit [topic]`
+Use `/research` for the investigation itself. Use `wiki research ...` for filing and handoff.
 
 Compact lifecycle:
-- capture evidence with `wiki research file|ingest|source ingest`
-- inspect backlog and verification pressure with `wiki research status`
-- verify link hygiene and influence targets with `wiki research audit`
-- hand accepted conclusions into project truth with `wiki research distill <research-page> <projects/...>`
+
+1. `wiki research file <topic> [--project <project>] <title>`
+2. `wiki research ingest <topic> <source>`
+3. `wiki research status [topic]`
+4. `wiki research distill <research-page> <projects/...>`
+5. if the research unblocks a tracked slice: `wiki research adopt <research-page> --project <project> --slice <slice-id>`
+
+Distill updates project truth targets. Adopt bridges that evidence into forge-visible slice workflow.
+
+## Debug Playbook
+
+Use this only when freshness output disagrees:
+
+1. `wiki checkpoint <project> --repo <path> [--base <rev>]`
+2. `wiki maintain <project> --repo <path> --base <rev>`
+3. `wiki resume <project> --repo <path> --base <rev>`
+
+Treat `resume` as context only, not as the authority for current staleness.
+
+If the disagreement is really about slice workflow state, leave `/wiki` and switch to `/forge`.
 
 ## Operating Guidelines
 
@@ -178,13 +137,3 @@ Compact lifecycle:
 - Verify after updating.
 - `wiki handover` is user-invoked only.
 - Do not invent CLI features or ad hoc document layouts.
-
-## Data Planes
-
-The CLI mainly operates on:
-- frontmatter
-- markdown body
-- git history
-- filesystem/globs
-
-Think in those planes when deciding whether a task is about authored truth, derived truth, or repo state.

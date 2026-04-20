@@ -15,6 +15,17 @@ Forge is the workflow layer.
 - internal/repair = `wiki forge start|check|close|status|release`
 - default reconciliation primitive = `wiki sync`
 
+## Router
+
+Decide the state first. Then run the command for that state.
+
+- memory-only or verification-only work: use `/wiki`
+- active slice, pre-implementation gate: follow `wiki forge status <project> <slice>` and load the named skill
+- active slice, implementation-ready: run `wiki forge run <project> <slice> --repo <path>`
+- stale, conflicting, or failed state: use the repair branch below, then return to `wiki forge run`
+
+Do not start with low-level verbs. Start by classifying the state.
+
 ## Command Authority
 
 When outputs disagree, do not average them together. Use this precedence:
@@ -25,11 +36,24 @@ When outputs disagree, do not average them together. Use this precedence:
 4. `wiki resume` = operator context summary only; it may include historical notes/noise
 
 Interpretation rule:
+
 - If `checkpoint` is clean, freshness is clean even if `resume` still prints historical context.
 - If `forge status` says a phase is incomplete, treat that as the workflow truth even if an older failed run breadcrumb suggests otherwise.
-- If `maintain` and `checkpoint` disagree, prefer `checkpoint` for current stale/not-stale truth and use `maintain` for the repair actions.
+- If `maintain` and `checkpoint` disagree, prefer `checkpoint` for current stale/not-stale truth and use `maintain` for repair actions.
 
-## Default vs Debug Surface
+## State Table
+
+| State | Command | Expected output | Next move |
+|---|---|---|---|
+| session start | `wiki resume <project> --repo <path> --base <rev>` | steering packet + recovery hints | obey the next command unless you are debugging |
+| no active/ready slice | `wiki forge next <project>` | one recommended slice or `no ready slices` | if none, plan the next feature/PRD/slices |
+| research missing | `wiki forge status <project> <slice> --json` | `nextPhase: research` | `/research`, then `wiki research distill`, then `wiki research adopt` |
+| domain-model missing | `wiki forge status <project> <slice> --json` | `nextPhase: domain-model` | `/domain-model`, update `projects/<project>/decisions.md` and `projects/<project>/architecture/domain-language.md` |
+| implementation-ready | `wiki forge run <project> <slice> --repo <path>` | pipeline execution across check/verify/close | continue on `forge run` until done |
+| failed breadcrumb | `wiki forge status <project> <slice> --json` | current phase vs failed step | obey current phase if earlier than the failed step; otherwise rerun `forge run` |
+| freshness contradiction | `wiki checkpoint` then `wiki maintain` | current stale truth + repair plan | use one repair branch, then return to `forge run` |
+
+## Default Surface
 
 Agents should use only this default surface unless debugging:
 
@@ -40,13 +64,57 @@ Agents should use only this default surface unless debugging:
 
 Do not improvise lower-level lifecycle commands during normal execution.
 
-Use `wiki forge start|check|close|status|release` and lower-level `wiki` lifecycle commands only for:
-- diagnosis when command outputs conflict
-- repair after a failed `forge run`
-- close-path debugging when verify/close/gate disagree
-- explicit human-directed debugging
+## Repair Branches
 
-If `wiki forge next` already prints the next command, obey that command first. Do not substitute a different surface unless you are debugging a contradiction.
+Use these only when the default surface is blocked or contradictory.
+
+### Workflow Truth
+
+1. `wiki forge status <project> <slice> --json`
+2. read `workflow.validation.nextPhase`
+3. if the slice is done, return to `wiki forge next <project>`
+
+When debugging, prefer the slice-scoped form. It is the safer surface because it removes ambiguity about which slice is being evaluated.
+
+### Freshness Truth
+
+1. `wiki checkpoint <project> --repo <path> [--base <rev>]`
+2. `wiki maintain <project> --repo <path> --base <rev>`
+3. choose one repair path:
+   - accepted impact: `wiki acknowledge-impact <project> <page...> --repo <path>`
+   - git reconciliation: `wiki refresh-from-git <project> --repo <path> --base <rev>`
+   - broad bindings: `wiki bind <project> <page> <source-path...> [--mode replace|merge]`
+   - real page drift: update the page, then `wiki verify-page <project> <page> <level>`
+4. return to `wiki forge run`
+
+### Research Bridge
+
+Distilling research is not enough for forge truth by itself.
+
+1. `wiki research file <topic> --project <project> <title>`
+2. `wiki research distill <research-page> <projects/<project>/decisions|projects/<project>/architecture/domain-language>`
+3. `wiki research adopt <research-page> --project <project> --slice <slice-id>`
+4. `wiki forge status <project> <slice>`
+
+If research already exists, do not guess at frontmatter or caches. Adopt it explicitly.
+
+### Close-Path Divergence
+
+1. `wiki verify-slice <project> <slice>`
+2. `wiki closeout <project> --repo <path> --base <rev>`
+3. `wiki gate <project> --repo <path> --base <rev>`
+4. `wiki close-slice <project> <slice> --repo <path> --base <rev>`
+
+Treat active slice blockers as current work. Treat project debt and historical warnings as background unless they block the slice.
+
+### Claim / Recovery
+
+1. `wiki forge status <project> <slice> --json`
+2. if the slice should continue, rerun `wiki forge run <project> <slice> --repo <path>`
+3. if the claim is wrong/stale, use `wiki forge release <project> <slice>`
+4. if the slice is being explicitly cancelled, use `wiki close-slice <project> <slice> --reason "<reason>"`
+
+## Workflow Contract
 
 The contract stays:
 
@@ -64,29 +132,22 @@ Run this before any write-oriented `wiki` command unless the task is pure read-o
 4. Run `wiki resume <project> --repo <path> --base <rev>` at session start.
 5. When delegating wiki/forge work to a sub-agent, explicitly load `/wiki` or `/forge` in that prompt.
 
-## Behavioral Guardrails
-
-These load with every forge session. They are not optional.
-
-1. **Think before coding.** State assumptions explicitly. If multiple interpretations exist, present them — don't pick silently. If something is unclear, stop and ask.
-2. **Simplicity first.** Write the minimum code that solves the problem. No speculative features, no unnecessary abstractions, no "just in case" layers. Three similar lines beat a premature helper.
-3. **Surgical changes.** Touch only what the task requires. Don't "improve" adjacent code. Match existing style. Remove only what YOUR changes made unused.
-4. **Goal-driven execution.** Define success criteria before starting. Loop until verified — typecheck, tests, gate. A task is done when the gate passes, not when the code compiles.
-
 ## When To Use Forge
 
 Use `/forge` for:
+
 - any feature / PRD / slice work
 - continuing an existing implementation thread
 - cross-module behavior changes or refactors
 - workflow, lifecycle, or operator-surface changes
 - work that should leave PRD + slice history in the wiki
 
-Do **not** silently downgrade an active slice thread into plain `/wiki` maintenance.
+Do not silently downgrade an active slice thread into plain `/wiki` maintenance.
 
 ## Required Skills
 
 Forge assumes these repo skills exist:
+
 - `/research`
 - `/domain-model`
 - `/write-a-prd`
@@ -97,123 +158,6 @@ Forge assumes these repo skills exist:
 - `/desloppify`
 
 If one is unavailable, stop and name it.
-
-## Default Happy Path
-
-Prefer the thin surface first.
-
-```text
-1. /research
-2. /domain-model
-   - append durable decisions to `projects/<project>/decisions.md`
-   - update glossary/context in `projects/<project>/architecture/domain-language.md`
-3. wiki forge plan <project> <feature-name> [--agent <name> --repo <path>]
-4. fill plan.md + test-plan.md
-5. /tdd
-6. wiki forge run <project> [slice-id] --repo <path>
-   — auto-starts the slice, runs check + verify + close pipelines, writes progress to index.md
-7. /desloppify (final quality gate — external CLI, not a wiki subcommand)
-8. wiki forge next <project>
-```
-
-**Resuming work?** Start every session with `wiki resume <project> --repo <path> --base <rev>`, then run `wiki forge next <project>` — it prints the one command to run next.
-
-Agent commands (the only 3 an agent needs):
-- `wiki forge plan` = create-feature + create-prd + create-issue-slice + start-slice in one step
-- `wiki forge run` = auto-start + check + verify + close in a single pass; writes progress to slice index.md
-- `wiki forge next` = read backlog, pick the next slice, print recommended action
-
-Default agent surface remains `wiki forge plan|run|next`.
-Lower-level `wiki` commands are allowed only for diagnosis and repair.
-When you drop lower, choose one repair branch explicitly; do not improvise manual markdown repair if a canonical command exists.
-
-Internal/repair (debugging only, not for normal workflow):
-- `wiki forge start/open` = manually start a single slice
-- `wiki forge check` = run slice-local verification/closeout review
-- `wiki forge close` = finish the close sequence when check is clean
-- `wiki forge status` = show the current forge workflow ledger / phase state
-- `wiki forge release` = release a claimed slice back to Todo
-
-`wiki forge status` usage:
-- `wiki forge status <project>` = project-level overview when you need to know whether there is an active/recommended slice at all
-- `wiki forge status <project> <slice>` = authoritative slice-level workflow diagnosis when debugging a specific slice
-
-When debugging, prefer the slice-scoped form. It is the safer surface because it removes ambiguity about which slice is being evaluated.
-
-## Low-Level Escape Hatches
-
-Use lower-level verbs only for repair, debugging, or very explicit control:
-- `wiki sync`
-- `wiki refresh-from-git`
-- `wiki start-slice`
-- `wiki verify-slice`
-- `wiki verify-page`
-- `wiki closeout`
-- `wiki gate`
-- `wiki close-slice`
-- `wiki acknowledge-impact`
-- `wiki bind`
-- `wiki feature-status`
-
-They still exist, but they are not the primary operator surface anymore.
-
-## Debug Playbook
-
-Use this only when outputs conflict or a `forge run` path looks wrong.
-
-Rule: prefer canonical reconciliation commands over manual markdown edits when the issue is freshness metadata, accepted impact, or source binding.
-
-1. Run `wiki forge status <project> <slice> --json`
-   Use this to read the workflow ledger and next required phase for one slice.
-2. Run `wiki checkpoint <project> --repo <path> [--base <rev>]`
-   Use this to answer only one question: are pages currently stale?
-3. Run `wiki maintain <project> --repo <path> --base <rev>`
-   Use this to get the repair/reconciliation plan after freshness/workflow truth is known.
-4. If pages are stale only because review already happened or the source hash is intentionally accepted, use:
-   - `wiki acknowledge-impact <project> <page...> --repo <path>`
-   - `wiki refresh-from-git <project> --repo <path> --base <rev>`
-5. If the real issue is broad `source_paths`, narrow the binding instead of repeatedly restamping stale pages:
-   - `wiki bind <project> <page> <source-path...> [--mode replace|merge]`
-6. If the close path is unclear, compare:
-   - `wiki verify-slice`
-   - `wiki closeout`
-   - `wiki gate`
-7. Return to `wiki forge run` once the contradiction is resolved.
-
-Do not stay on the low-level surface longer than necessary. Repair there; continue delivery on `forge run`.
-
-## Warning Classes
-
-Treat warnings by class:
-
-- active slice blockers = action now
-- parent warnings = action now if they affect the active hierarchy
-- project debt warnings = background debt unless they block the current slice
-- historical warnings = context only; do not treat them as current blockers
-
-`closeout` and `gate` may pass while still showing project/historical warnings. Do not reopen slice work just because the output is noisy.
-
-## Closeout Rule
-
-`wiki forge run` handles the full closeout automatically. No manual steps needed.
-
-If you must drop lower for debugging:
-1. `wiki maintain` — also auto-resolves mechanical drift (FEAT-028): stamps `computed_status` on parent feature/PRD, cascade-refreshes pages whose `source_paths` still hash to `verified_against`, flips the backlog row of a cancelled slice to `[-]`, and advances the forge ledger phase from detected artifacts. Audit trail goes to `log.md` under `auto-heal | …`.
-2. If stale pages are accepted as current after review, stamp them with `wiki acknowledge-impact` and reconcile with `wiki refresh-from-git`.
-3. If stale pages keep resurfacing because the bindings are too wide, narrow `source_paths` with `wiki bind`.
-4. update impacted pages from code/tests only when sources genuinely changed — unchanged-source cascade is auto-handled above
-5. `wiki verify-page` only when page content actually drifted
-6. `wiki verify-slice`
-7. `wiki closeout`
-8. `wiki gate`
-9. `wiki close-slice`
-
-Remember:
-- `closeout` is review, not completion by itself
-- `gate` must pass before declaring done
-- stronger verification levels are preserved unless explicitly downgraded
-- parent `computed_status` is derived, not manually authored truth — let `wiki maintain` persist it
-- ambiguous drift (e.g. children partly cancelled partly in-progress with a complete parent) still escalates as a `scope: parent` warning with inverse command hints; that one is intentionally agent-resolved, not auto-healed
 
 ## Install Parity
 
@@ -238,34 +182,3 @@ Then restart the agent session so installed skill copies, not just repo files, a
 3. Research comes before PRD; domain modeling comes before committing the design.
 4. Update wiki pages from code/tests, not memory.
 5. Do not create extra repo markdown outside the allowed set.
-6. `wiki handover` is user-invoked only.
-
-## Local Refresh Rule
-
-When you edit any of these locally:
-- `skills/*/SKILL.md`
-- README / setup text that teaches the operator surface
-- `scripts/sync-local.ts`
-
-run:
-
-```bash
-bun run sync:local
-bun run sync:local -- --audit
-```
-
-`sync:local` is the local install step for the CLI, qmd, and repo-owned skills. `--audit` checks whether the installed repo-owned skill copies have drifted from the repo. Restart the agent session after syncing so the refreshed skills are loaded.
-
-## Planning Notes
-
-- Keep slice docs as the authored lifecycle source.
-- Let backlog, parent rollups, protocol surfaces, and derived indexes be computed by code.
-- Prefer direct markdown editing plus reconciliation over long command choreography.
-- Use `wiki help` for the raw CLI inventory; do not restate the full catalog in prompts unless a repair path truly needs it.
-
-## Source Of Truth
-
-- code = implemented behavior
-- PRD / slice / test-plan = current delivery intent
-- wiki = compiled memory maintained from sources
-- research = evidence behind decisions

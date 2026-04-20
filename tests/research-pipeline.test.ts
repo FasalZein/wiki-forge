@@ -84,4 +84,39 @@ describe("research pipeline surface", () => {
     expect(content).toContain("status: reviewed");
     expect(content).toContain("projects/demo/architecture/domain-language");
   });
+
+  test("distill rejects slice docs as targets and adopt bridges research into the parent PRD", () => {
+    const vault = tempDir("wiki-vault");
+    initVault(vault);
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    expect(runWiki(["create-feature", "demo", "auth platform"], env).exitCode).toBe(0);
+    expect(runWiki(["create-prd", "demo", "--feature", "FEAT-001", "auth workflow"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice", "--prd", "PRD-001"], env).exitCode).toBe(0);
+    expect(runWiki(["research", "scaffold", "demo-topic"], env).exitCode).toBe(0);
+
+    const pagePath = join(vault, "research", "demo-topic", "verified-note.md");
+    writeFileSync(pagePath, `---\ntitle: Verified Note\ntype: research\ntopic: demo-topic\nproject: demo\nstatus: verified\nsource_type: article\nsources:\n  - url: https://example.com\n    accessed: 2026-04-20\n    claim: Verified claim\ninfluenced_by: []\nupdated: 2026-04-20\nverification_level: source-checked\n---\n# Verified Note\n\n## Key Findings\n\n- source: [1]\n`, "utf8");
+
+    const badDistill = runWiki(["research", "distill", "research/demo-topic/verified-note", "projects/demo/specs/slices/DEMO-001/index"], env);
+    expect(badDistill.exitCode).toBe(1);
+    expect(badDistill.stderr.toString()).toContain("invalid distill target");
+
+    const distill = runWiki(["research", "distill", "research/demo-topic/verified-note", "projects/demo/decisions", "--json"], env);
+    expect(distill.exitCode).toBe(0);
+    expect(JSON.parse(distill.stdout.toString()).target).toBe("projects/demo/decisions");
+
+    const adopt = runWiki(["research", "adopt", "research/demo-topic/verified-note", "--project", "demo", "--slice", "DEMO-001", "--json"], env);
+    expect(adopt.exitCode).toBe(0);
+    const adoptJson = JSON.parse(adopt.stdout.toString());
+    expect(adoptJson.parentPrd).toBe("PRD-001");
+    expect(adoptJson.addedToPrd).toBe(true);
+
+    const prdContent = readFileSync(join(vault, "projects", "demo", "specs", "prds", "PRD-001-auth-workflow.md"), "utf8");
+    expect(prdContent).toContain("[[research/demo-topic/verified-note]]");
+
+    const noteContent = readFileSync(pagePath, "utf8");
+    expect(noteContent).toContain("projects/demo/specs/prds/PRD-001-auth-workflow");
+  });
 });

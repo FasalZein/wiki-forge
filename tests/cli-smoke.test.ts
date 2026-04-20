@@ -765,11 +765,14 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("wiki dependency-graph <project> [--write] [--json]");
     expect(output).toContain("wiki research file <topic>");
     expect(output).toContain("wiki research distill <research-page> <projects/<project>/decisions|projects/<project>/architecture/domain-language>");
+    expect(output).toContain("wiki research adopt <research-page> --project <project> --slice <slice-id> [--json]");
     expect(output).toContain("wiki source ingest");
     expect(output).toContain("Agent Surface");
     expect(output).toContain("wiki forge plan");
     expect(output).toContain("wiki forge run");
     expect(output).toContain("wiki forge next");
+    expect(output).toContain("Research-to-forge bridge:");
+    expect(output).toContain("Authority order when outputs disagree:");
   });
 
   test("onboard-plan treats repo research docs as source material and points net-new research to /research", () => {

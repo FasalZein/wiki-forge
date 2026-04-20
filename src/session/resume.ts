@@ -8,7 +8,7 @@ import { readSliceHandoff } from "../lib/slice-progress";
 import { isPrePhaseTriage } from "../lib/forge-triage";
 import { collectSessionActivity, resolveSessionId } from "../lib/tracker";
 import { assertGitRepo, resolveRepoPath } from "../lib/verification";
-import { collectCheckpoint, collectMaintenancePlan } from "../maintenance";
+import { collectCheckpoint, collectMaintenancePlan, collapseActions } from "../maintenance";
 import { renderSteeringPacket } from "../lib/forge-steering";
 import { resolveWorkflowSteering } from "../protocol";
 import {
@@ -82,6 +82,7 @@ export async function resumeProject(args: string[]) {
   }
 
   const actions = maintain.actions.slice(0, 8);
+  const actionSummary = collapseActions(maintain.actions).slice(0, 6);
   const handoverIso = handoverMeta?.created_at ?? null;
   const handoffIso = handoff?.lastForgeRun ?? null;
   const handoverStale = Boolean(
@@ -100,6 +101,8 @@ export async function resumeProject(args: string[]) {
     stalePages,
     recentNotes,
     actions,
+    actionSummary,
+    actionCount: maintain.actions.length,
     handoverStale,
     noHandoverButBreadcrumb,
     ...(workflowNextPhase !== null ? { workflowNextPhase } : {}),
@@ -150,13 +153,17 @@ export async function resumeProject(args: string[]) {
     console.log(`- recent commits:`);
     for (const commit of recentCommits.slice(0, 3)) console.log(`  - ${commit}`);
   }
-  if (stalePages.length || recentNotes.length || payload.actions.length) {
+  if (stalePages.length || recentNotes.length || payload.actionSummary.length) {
     console.log("");
-    console.log(`context (for reference, not blocking):`);
+    const hasOnlyBackgroundDebt = stalePages.length === 0 && recentNotes.length === 0;
+    console.log(hasOnlyBackgroundDebt ? `background debt (not blocking):` : `context (for reference, not blocking):`);
     for (const page of stalePages) console.log(`- stale: ${page}`);
     for (const note of recentNotes) console.log(`- note: ${compactLogEntry(note)}`);
-    if (payload.actions.length) {
-      for (const action of payload.actions) console.log(`- [${action.scope ?? "unspecified"}][${action.kind}] ${action.message}`);
+    if (payload.actionSummary.length) {
+      for (const line of payload.actionSummary) console.log(`- ${line}`);
+      if (payload.actionCount > payload.actionSummary.length) {
+        console.log(`- +${payload.actionCount - payload.actionSummary.length} more action(s); run wiki maintain ${options.project} --repo ${repo}${options.base ? ` --base ${options.base}` : ""} for full detail`);
+      }
     }
   }
   renderSessionActivity(sessionActivity);

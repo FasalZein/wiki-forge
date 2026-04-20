@@ -57,6 +57,21 @@ function readUpdatedField(filePath: string) {
   return readFileSync(filePath, "utf8").match(/^updated:\s*['"]?([^'"\n]+)/mu)?.[1] ?? null;
 }
 
+function addProjectDebtNotes(vault: string) {
+  const reviewsDir = join(vault, "projects", "wf145c", "architecture", "reviews");
+  mkdirSync(reviewsDir, { recursive: true });
+  writeFileSync(
+    join(reviewsDir, "resume-noise-audit.md"),
+    "---\ntitle: Resume Noise Audit\ntype: notes\nproject: wf145c\nupdated: 2026-04-20\nstatus: current\nverification_level: inferred\n---\n\n# Resume Noise Audit\n",
+    "utf8",
+  );
+  writeFileSync(
+    join(reviewsDir, "resume-noise-follow-up.md"),
+    "---\ntitle: Resume Noise Follow Up\ntype: notes\nproject: wf145c\nupdated: 2026-04-20\nstatus: current\nverification_level: inferred\n---\n\n# Resume Noise Follow Up\n",
+    "utf8",
+  );
+}
+
 describe("WIKI-FORGE-145 clean-repo cascade refresh", () => {
   test("checkpoint --base HEAD ignores mtime-only stale pages on a clean committed repo", () => {
     const { repo, env, pages } = setupCascadeFixture();
@@ -81,6 +96,21 @@ describe("WIKI-FORGE-145 clean-repo cascade refresh", () => {
     expect(result.exitCode).toBe(0);
     const payload = JSON.parse(result.stdout.toString());
     expect(payload.stalePages).toEqual([]);
+  });
+
+  test("resume collapses background bind-page debt instead of printing raw action spam", () => {
+    const { vault, repo, env, pages } = setupCascadeFixture();
+    for (const page of pages) backdateUpdatedField(page);
+    addProjectDebtNotes(vault);
+
+    const result = runWiki(["resume", "wf145c", "--repo", repo, "--base", "HEAD"], env);
+
+    expect(result.exitCode).toBe(0);
+    const output = result.stdout.toString();
+    expect(output).toContain("background debt (not blocking):");
+    expect(output).toContain("[project][bind-page]");
+    expect(output).toContain("items (first:");
+    expect(output).not.toContain("resume-noise-audit.md has no source_paths\n- [project][bind-page] resume-noise-follow-up.md has no source_paths");
   });
 
   test("refresh-from-git --base HEAD stamps acknowledged pages whose only drift is mtime/update skew", () => {

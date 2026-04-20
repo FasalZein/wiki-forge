@@ -6,3 +6,4 @@ export { lintResearch, collectResearchLintResult } from "./lint";
 export { auditResearch } from "./audit";
 export { createResearchPage } from "./file";
 export { distillResearch } from "./distill";
+export { adoptResearch } from "./adopt";

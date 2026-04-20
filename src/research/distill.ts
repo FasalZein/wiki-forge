@@ -3,7 +3,6 @@ import { VAULT_ROOT } from "../constants";
 import { nowIso, orderFrontmatter, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { exists, readText } from "../lib/fs";
 import { classifyResearchPath, normalizeInfluencedBy, normalizeResearchPageRef, normalizeWikiTarget } from "../lib/research";
-import { classifyProjectDocPath } from "../lib/structure";
 
 export async function distillResearch(args: string[]) {
   const { pageRef, targetRef, json } = parseDistillArgs(args);
@@ -67,8 +66,5 @@ function parseDistillArgs(args: string[]) {
 }
 
 function isValidDistillTarget(targetRef: string) {
-  const match = targetRef.match(/^projects\/([^/]+)\/(.+)$/u);
-  if (!match) return false;
-  const projectRelativePath = `${match[2]}.md`;
-  return classifyProjectDocPath(projectRelativePath) !== null;
+  return /^projects\/[^/]+\/(?:decisions|architecture\/domain-language)$/u.test(targetRef);
 }

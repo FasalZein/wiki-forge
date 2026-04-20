@@ -8,7 +8,25 @@ import type { FrontmatterData } from "./types";
 export const FORCE_CONFIRM_FLAG = "--yes-really-force";
 
 export function printHelp() {
-  console.log(`wiki CLI — Three commands for agents. Everything else is automated pipeline internals.
+  console.log(`wiki CLI — Thin agent surface plus explicit repair paths.
+
+Start here:
+  1. Session state: wiki resume <project> [--repo <path>] [--base <rev>]
+  2. Active or ready slice: wiki forge next <project>
+  3. Implementation-ready slice: wiki forge run <project> [slice-id] --repo <path>
+  4. Pre-implementation gate: follow the skill/command named by wiki forge status <project> <slice-id>
+  5. Freshness conflict: wiki checkpoint -> wiki maintain -> acknowledge-impact/refresh-from-git/bind
+
+Authority order when outputs disagree:
+  1. wiki checkpoint = current freshness truth
+  2. wiki maintain = repair/reconciliation plan
+  3. wiki forge status = workflow ledger truth
+  4. wiki resume = operator context summary only
+
+Research-to-forge bridge:
+  1. wiki research file <topic> --project <project> <title>
+  2. wiki research distill <research-page> <projects/<project>/decisions|projects/<project>/architecture/domain-language>
+  3. wiki research adopt <research-page> --project <project> --slice <slice-id>
 
 Agent Surface (agents use only these):
   wiki forge plan <project> <feature-name> [--feature FEAT-xxx] [--prd-name <name>] [--title <slice-title>] [--slices "title1,title2,..."] [--agent <name>] [--repo <path>]
@@ -114,6 +132,7 @@ Research:
   wiki research audit [topic] [--json]
   wiki research file <topic> [--project <project>] <title...>
   wiki research distill <research-page> <projects/<project>/decisions|projects/<project>/architecture/domain-language>
+  wiki research adopt <research-page> --project <project> --slice <slice-id> [--json]
   wiki source ingest <path-or-url...> [--topic <topic>] [--title <title>] [--bucket <name>]
 
 Obsidian:

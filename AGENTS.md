@@ -42,16 +42,10 @@ Session start: `wiki resume wiki-forge --repo <path> --base <rev>`
 
 # AGENTS
 
-## Required workflow
-
-Load `/forge` for the full workflow. Load `/wiki` for knowledge-layer work.
-
-Decision rule:
-- changing runtime/product behavior -> `/forge`
-- researching, retrieving, documenting, or verifying without active product changes -> `/wiki`
-- research as part of a larger feature/refactor/perf effort -> `/forge` (with research as phase 1)
-
-Do not silently skip missing skills. If a required skill is unavailable, say so explicitly.
+Bootstrap only:
+- runtime/product changes -> `/forge`
+- retrieval / refresh / verification without product changes -> `/wiki`
+- if a required skill is unavailable, say so explicitly instead of improvising
 
 ## Default project setup
 
