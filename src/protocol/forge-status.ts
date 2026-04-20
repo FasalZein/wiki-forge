@@ -12,7 +12,6 @@ import {
   validateForgeWorkflowLedger,
 } from "../lib/forge-ledger";
 import { applyDerivedLedger } from "../lib/forge-ledger-detect";
-import { phaseRecommendation } from "../lib/forge-phase-commands";
 import { buildForgeSteering } from "../lib/forge-steering";
 import { type ForgeTriage } from "../lib/forge-triage";
 import { collectPriorResearchRefs, extractMarkdownSection, readMatterDoc, readPlanningDoc, type MatterDoc } from "../lib/forge-evidence";
@@ -23,6 +22,7 @@ import {
   collectTaskContextForId,
   detectTaskDocState,
 } from "../hierarchy";
+import { classifyWorkflowSteeringTriage } from "./steering-triage";
 
 type TaskDocState = BacklogTaskContext["planStatus"];
 
@@ -132,46 +132,24 @@ export async function collectForgeStatus(project: string, sliceId: string, repo?
 }
 
 export function buildForgeTriage(project: string, sliceId: string, input: ForgeTriageInput): ForgeTriage {
-  const docsReady = isSliceDocsReady({
-    planStatus: input.planStatus as TaskDocState,
-    testPlanStatus: input.testPlanStatus as TaskDocState,
+  return classifyWorkflowSteeringTriage({
+    project,
+    repo: input.repo ?? "<path>",
+    base: undefined,
+    activeTask: input.activeSlice ? { id: input.activeSlice } : null,
+    nextTask: null,
+    targetTask: {
+      id: sliceId,
+      planStatus: input.planStatus as TaskDocState,
+      testPlanStatus: input.testPlanStatus as TaskDocState,
+      ...(input.sliceStatus ? { sliceStatus: input.sliceStatus } : {}),
+      ...(input.section ? { section: input.section } : {}),
+    },
+    workflowNextPhase: input.nextPhase,
+    verificationLevel: input.verificationLevel,
+    targetSliceStatus: input.sliceStatus,
+    targetSection: input.section,
   });
-  if (!docsReady && input.nextPhase) {
-    return phaseRecommendation(project, sliceId, input.nextPhase, input.repo);
-  }
-  if (!docsReady) {
-    return {
-      kind: "fill-docs",
-      reason: `plan=${input.planStatus} test-plan=${input.testPlanStatus}`,
-      command: `update projects/${project}/specs/slices/${sliceId}/plan.md and test-plan.md`,
-    };
-  }
-  if (input.sliceStatus === "done" || input.section === "Done") {
-    return {
-      kind: "completed",
-      reason: "slice is done",
-      command: `wiki forge next ${project}`,
-    };
-  }
-  if (input.verificationLevel !== "test-verified") {
-    return {
-      kind: "close-slice",
-      reason: `verification level is ${input.verificationLevel ?? "missing"}`,
-      command: `wiki forge run ${project} ${sliceId} --repo <path>`,
-    };
-  }
-  if (input.activeSlice === sliceId) {
-    return {
-      kind: "close-slice",
-      reason: "slice is test-verified; close it",
-      command: `wiki forge run ${project} ${sliceId} --repo <path>`,
-    };
-  }
-  return {
-    kind: "open-slice",
-    reason: `slice ${sliceId} is not the active slice`,
-    command: `wiki forge run ${project} ${sliceId} --repo <path>`,
-  };
 }
 
 export function compactForgeStatusForJson(workflow: Awaited<ReturnType<typeof collectForgeStatus>>) {

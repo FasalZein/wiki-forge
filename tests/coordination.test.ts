@@ -23,6 +23,37 @@ describe("wiki coordination commands", () => {
     expect(json.recommendation.reason).toContain("active");
   });
 
+  test("next surfaces shared steering for active pre-implementation slices", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice"], env).exitCode).toBe(0);
+    expect(runWiki(["move-task", "demo", "DEMO-001", "--to", "In Progress"], env).exitCode).toBe(0);
+
+    const planPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "plan.md");
+    const testPlanPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "test-plan.md");
+    writeFileSync(
+      planPath,
+      "---\ntitle: demo plan\ntype: spec\nspec_kind: plan\nproject: demo\ntask_id: DEMO-001\nstatus: ready\nupdated: 2026-04-20\n---\n\n# Plan\n\n## Scope\n\n- auth slice\n\n## Vertical Slice\n\n1. wire shared steering\n\n## Acceptance Criteria\n\n- [ ] adopt shared steering\n",
+      "utf8",
+    );
+    writeFileSync(
+      testPlanPath,
+      "---\ntitle: demo test plan\ntype: spec\nspec_kind: test-plan\nproject: demo\ntask_id: DEMO-001\nstatus: ready\nupdated: 2026-04-20\nverification_commands:\n  - command: bun test\n---\n\n# Test Plan\n\n## Red Tests\n\n- [ ] adopt shared steering\n\n## Green Criteria\n\n- [ ] All red tests pass\n",
+      "utf8",
+    );
+
+    const result = runWiki(["next", "demo", "--repo", repo, "--json"], env);
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.recommendation.id).toBe("DEMO-001");
+    expect(json.triage.kind).toBe("needs-research");
+    expect(json.steering.lane).toBe("domain-work");
+    expect(json.steering.nextCommand).not.toContain("wiki forge run demo DEMO-001");
+  });
+
   test("start-slice moves the slice to in-progress, stamps claim metadata, and returns a plan summary", () => {
     const { vault, repo } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
