@@ -99,6 +99,10 @@ describe("skill layer separation", () => {
     expect(wikiSkill).toContain("2. `wiki maintain` = repair/reconciliation plan");
     expect(wikiSkill).toContain("3. `wiki resume` = context summary only");
     expect(wikiSkill).toContain("Generated/derived pages:");
+    expect(wikiSkill).toContain("`wiki refresh-from-git <project> --repo <path> --base <rev>`");
+    expect(wikiSkill).toContain("`wiki acknowledge-impact <project> <page...> --repo <path>`");
+    expect(wikiSkill).toContain("`wiki bind <project> <page> <source-path...>`");
+    expect(wikiSkill).toContain("## Freshness Repair Path");
   });
 
   test("domain-model skill and templates stay wiki-native for forge-managed projects", () => {
@@ -133,6 +137,9 @@ describe("skill layer separation", () => {
     expect(forgeSkill).toContain("4. `wiki resume` = operator context summary only");
     expect(forgeSkill).toContain("Do not improvise lower-level lifecycle commands during normal execution.");
     expect(forgeSkill).toContain("When debugging, prefer the slice-scoped form.");
+    expect(forgeSkill).toContain("`wiki acknowledge-impact <project> <page...> --repo <path>`");
+    expect(forgeSkill).toContain("`wiki refresh-from-git <project> --repo <path> --base <rev>`");
+    expect(forgeSkill).toContain("`wiki bind <project> <page> <source-path...> [--mode replace|merge]`");
 
     expect(grillSkill).toContain("Compatibility note");
     expect(grillSkill).toContain("Use `/domain-model` as the primary path");

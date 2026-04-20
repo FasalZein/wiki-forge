@@ -123,6 +123,10 @@ Agent commands (the only 3 an agent needs):
 - `wiki forge run` = auto-start + check + verify + close in a single pass; writes progress to slice index.md
 - `wiki forge next` = read backlog, pick the next slice, print recommended action
 
+Default agent surface remains `wiki forge plan|run|next`.
+Lower-level `wiki` commands are allowed only for diagnosis and repair.
+When you drop lower, choose one repair branch explicitly; do not improvise manual markdown repair if a canonical command exists.
+
 Internal/repair (debugging only, not for normal workflow):
 - `wiki forge start/open` = manually start a single slice
 - `wiki forge check` = run slice-local verification/closeout review
@@ -140,11 +144,15 @@ When debugging, prefer the slice-scoped form. It is the safer surface because it
 
 Use lower-level verbs only for repair, debugging, or very explicit control:
 - `wiki sync`
+- `wiki refresh-from-git`
 - `wiki start-slice`
 - `wiki verify-slice`
+- `wiki verify-page`
 - `wiki closeout`
 - `wiki gate`
 - `wiki close-slice`
+- `wiki acknowledge-impact`
+- `wiki bind`
 - `wiki feature-status`
 
 They still exist, but they are not the primary operator surface anymore.
@@ -153,17 +161,24 @@ They still exist, but they are not the primary operator surface anymore.
 
 Use this only when outputs conflict or a `forge run` path looks wrong.
 
+Rule: prefer canonical reconciliation commands over manual markdown edits when the issue is freshness metadata, accepted impact, or source binding.
+
 1. Run `wiki forge status <project> <slice> --json`
    Use this to read the workflow ledger and next required phase for one slice.
 2. Run `wiki checkpoint <project> --repo <path> [--base <rev>]`
    Use this to answer only one question: are pages currently stale?
 3. Run `wiki maintain <project> --repo <path> --base <rev>`
    Use this to get the repair/reconciliation plan after freshness/workflow truth is known.
-4. If the close path is unclear, compare:
+4. If pages are stale only because review already happened or the source hash is intentionally accepted, use:
+   - `wiki acknowledge-impact <project> <page...> --repo <path>`
+   - `wiki refresh-from-git <project> --repo <path> --base <rev>`
+5. If the real issue is broad `source_paths`, narrow the binding instead of repeatedly restamping stale pages:
+   - `wiki bind <project> <page> <source-path...> [--mode replace|merge]`
+6. If the close path is unclear, compare:
    - `wiki verify-slice`
    - `wiki closeout`
    - `wiki gate`
-5. Return to `wiki forge run` once the contradiction is resolved.
+7. Return to `wiki forge run` once the contradiction is resolved.
 
 Do not stay on the low-level surface longer than necessary. Repair there; continue delivery on `forge run`.
 
@@ -184,12 +199,14 @@ Treat warnings by class:
 
 If you must drop lower for debugging:
 1. `wiki maintain` — also auto-resolves mechanical drift (FEAT-028): stamps `computed_status` on parent feature/PRD, cascade-refreshes pages whose `source_paths` still hash to `verified_against`, flips the backlog row of a cancelled slice to `[-]`, and advances the forge ledger phase from detected artifacts. Audit trail goes to `log.md` under `auto-heal | …`.
-2. update impacted pages from code/tests (only when sources genuinely changed — unchanged-source cascade is auto-handled above)
-3. `wiki verify-page` (when content actually drifted)
-4. `wiki verify-slice`
-5. `wiki closeout`
-6. `wiki gate`
-7. `wiki close-slice`
+2. If stale pages are accepted as current after review, stamp them with `wiki acknowledge-impact` and reconcile with `wiki refresh-from-git`.
+3. If stale pages keep resurfacing because the bindings are too wide, narrow `source_paths` with `wiki bind`.
+4. update impacted pages from code/tests only when sources genuinely changed — unchanged-source cascade is auto-handled above
+5. `wiki verify-page` only when page content actually drifted
+6. `wiki verify-slice`
+7. `wiki closeout`
+8. `wiki gate`
+9. `wiki close-slice`
 
 Remember:
 - `closeout` is review, not completion by itself

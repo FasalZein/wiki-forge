@@ -60,7 +60,10 @@ Use the smallest fitting surface.
 | Default maintenance entry point | `wiki maintain <project> --base <rev>` |
 | Report-first reconciliation | `wiki sync <project> [--write]` |
 | Git-independent freshness check | `wiki checkpoint <project> --repo <path>` |
+| Git-based drift reconciliation | `wiki refresh-from-git <project> --repo <path> --base <rev>` |
+| Accept reviewed impact as current | `wiki acknowledge-impact <project> <page...> --repo <path>` |
 | Re-verify changed pages | `wiki verify-page <project> <page> <level>` |
+| Narrow or repair source bindings | `wiki bind <project> <page> <source-path...>` |
 | Compact review surface | `wiki closeout <project> --repo <path> --base <rev>` |
 | Pass/fail completion gate | `wiki gate <project> --repo <path> --base <rev>` |
 | Refresh navigation | `wiki update-index <project> --write` |
@@ -97,6 +100,25 @@ Use this when implementation decisions are already made and you are just refresh
 ```
 
 If this turns into active slice work, switch to `/forge`.
+
+## Freshness Repair Path
+
+Use this when a page keeps resurfacing as stale and you need to decide whether the problem is content drift, accepted impact, or bad bindings.
+
+Rule: prefer canonical reconciliation commands over manual markdown edits when the issue is freshness metadata, accepted impact, or source binding.
+
+1. `wiki checkpoint <project> --repo <path> [--base <rev>]`
+   Use this to confirm whether freshness is actually broken right now.
+2. `wiki maintain <project> --repo <path> --base <rev>`
+   Use this to apply deterministic reconciliation and read the repair plan.
+3. If source intent was already reviewed and the page is still correct, stamp:
+   - `wiki acknowledge-impact <project> <page...> --repo <path>`
+4. If you need the git-based reconciler to honor that acknowledgement and cascade-refresh unchanged-source pages, run:
+   - `wiki refresh-from-git <project> --repo <path> --base <rev>`
+5. If the page content itself changed, update the page and then run:
+   - `wiki verify-page <project> <page> <level>`
+6. If the same page keeps resurfacing because its `source_paths` are too broad, repair the binding:
+   - `wiki bind <project> <page> <source-path...> [--mode replace|merge]`
 
 ## Debug Playbook
 
