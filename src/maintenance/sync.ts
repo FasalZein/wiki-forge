@@ -1,6 +1,6 @@
 import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { projectRoot, requireValue, safeMatter } from "../cli-shared";
+import { nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { VAULT_ROOT } from "../constants";
 import { exists, readText } from "../lib/fs";
 import { END_MARKER, PROTOCOL_FILES, START_MARKER, renderProtocolSurface, type ProtocolScope } from "../lib/protocol-source";
@@ -40,6 +40,7 @@ type SyncPlan = {
   writes: {
     navigationTargets: string[];
     protocolTargets: string[];
+    projectTargets: string[];
     total: number;
   };
 };
@@ -66,10 +67,12 @@ export async function collectSyncPlan(project: string, explicitRepo?: string, op
 
   const navigationTargets = staleTargets;
   const protocolWriteTargets = protocolTargets.filter((target) => target.status !== "ok").map((target) => target.path);
+  const projectWriteTargets = collectProjectWriteTargets(repoChanges);
 
   if (options.write) {
     if (navigationTargets.length) await writeNamedNavigationTargets(project, navigationTargets);
     if (protocolWriteTargets.length) await writeProtocolTargets(project, repo, protocolTargets.filter((target) => target.status !== "ok"));
+    if (projectWriteTargets.includes("_summary.md")) await writeProjectSummary(project, repoChanges);
   }
 
   return {
@@ -83,7 +86,8 @@ export async function collectSyncPlan(project: string, explicitRepo?: string, op
     writes: {
       navigationTargets,
       protocolTargets: protocolWriteTargets,
-      total: navigationTargets.length + protocolWriteTargets.length,
+      projectTargets: projectWriteTargets,
+      total: navigationTargets.length + protocolWriteTargets.length + projectWriteTargets.length,
     },
   };
 }
@@ -166,6 +170,96 @@ async function writeProtocolTargets(project: string, repo: string, targets: Prot
   }
 }
 
+function collectProjectWriteTargets(repoChanges: Awaited<ReturnType<typeof collectRefreshFromWorktree>>) {
+  return repoChanges.impactedPages
+    .filter((page) => page.page === "_summary.md" && page.stale)
+    .map((page) => page.page);
+}
+
+async function writeProjectSummary(project: string, repoChanges: Awaited<ReturnType<typeof collectRefreshFromWorktree>>) {
+  const summaryPath = join(projectRoot(project), "_summary.md");
+  if (!await exists(summaryPath)) return;
+  const raw = await readText(summaryPath);
+  const parsed = safeMatter(relative(VAULT_ROOT, summaryPath), raw, { silent: true });
+  if (!parsed) return;
+
+  let content = parsed.content.trim();
+  const currentFocus = extractSection(content, "Current Focus");
+  if (shouldRewriteCurrentFocus(currentFocus)) {
+    content = upsertSection(content, "Current Focus", buildCurrentFocusBody(repoChanges));
+  }
+  content = upsertSection(content, "Change Digest", buildChangeDigestBody(repoChanges));
+
+  writeNormalizedPage(
+    summaryPath,
+    content,
+    orderFrontmatter(
+      {
+        ...parsed.data,
+        updated: nowIso(),
+      },
+      ["title", "type", "project", "repo", "code_paths", "source_paths", "updated", "status", "verification_level", "protocol_scopes"],
+    ),
+  );
+}
+
+function buildCurrentFocusBody(repoChanges: Awaited<ReturnType<typeof collectRefreshFromWorktree>>) {
+  const lines = ["<!-- generated: sync-current-focus -->"];
+  if (repoChanges.changedFiles.length > 0) {
+    lines.push(`- Repo worktree has ${repoChanges.changedFiles.length} changed file(s).`);
+  }
+  if (repoChanges.impactedPages.length > 0) {
+    lines.push(`- ${repoChanges.impactedPages.length} bound wiki page(s) are impacted by current repo changes.`);
+  }
+  if (repoChanges.outsideActiveHierarchyFiles.length > 0) {
+    lines.push(`- ${repoChanges.outsideActiveHierarchyFiles.length} changed file(s) sit outside the active slice hierarchy.`);
+  }
+  return lines.join("\n");
+}
+
+function buildChangeDigestBody(repoChanges: Awaited<ReturnType<typeof collectRefreshFromWorktree>>) {
+  const summaryEntry = repoChanges.impactedPages.find((page) => page.page === "_summary.md");
+  const lines = [
+    "<!-- generated: sync-change-digest -->",
+    repoChanges.base === "WORKTREE"
+      ? "- Updated from current worktree changes"
+      : `- Updated from git diff base \`${repoChanges.base}\``,
+  ];
+  if (summaryEntry) {
+    for (const source of summaryEntry.matchedSourcePaths) lines.push(`- Source: \`${source}\``);
+    lines.push(`- Last source change: \`${summaryEntry.lastSourceChange}\``);
+  } else {
+    lines.push(`- Changed files: ${repoChanges.changedFiles.length}`);
+  }
+  return lines.join("\n");
+}
+
+function shouldRewriteCurrentFocus(section: string) {
+  const normalized = section.trim();
+  return normalized.length === 0 || normalized === "-" || normalized.includes("<!-- generated: sync-current-focus -->");
+}
+
+function extractSection(markdown: string, heading: string) {
+  const sections = markdown.split(/^## /mu);
+  for (const section of sections) {
+    const firstLineEnd = section.indexOf("\n");
+    if (firstLineEnd === -1) continue;
+    const sectionHeading = section.slice(0, firstLineEnd).trim();
+    if (sectionHeading === heading) return section.slice(firstLineEnd).trim();
+  }
+  return "";
+}
+
+function upsertSection(markdown: string, heading: string, body: string) {
+  const marker = `## ${heading}`;
+  const sectionStart = markdown.indexOf(`\n${marker}\n`);
+  if (sectionStart === -1) return `${markdown.trimEnd()}\n\n${marker}\n\n${body.trim()}\n`;
+  const bodyStart = sectionStart + marker.length + 2;
+  const nextHeading = markdown.indexOf("\n## ", bodyStart);
+  const bodyEnd = nextHeading === -1 ? markdown.length : nextHeading;
+  return `${markdown.slice(0, bodyStart)}${body.trim()}\n\n${markdown.slice(bodyEnd).trimStart()}`.trimEnd();
+}
+
 function protocolFilePath(repo: string, scopePath: string, file: string) {
   return join(repo, scopePath === "." ? "" : scopePath, file);
 }
@@ -189,9 +283,11 @@ function renderSyncPlan(plan: SyncPlan) {
   console.log(`- dirty authored pages: ${plan.dirtyPages.length}`);
   console.log(`- navigation targets: ${plan.writes.navigationTargets.length}`);
   console.log(`- protocol targets: ${plan.writes.protocolTargets.length}`);
+  console.log(`- project targets: ${plan.writes.projectTargets.length}`);
   console.log(`- repo changed files: ${plan.repoChanges.changedFiles.length}`);
   console.log(`- repo impacted pages: ${plan.repoChanges.impactedPages.length}`);
   for (const page of plan.dirtyPages.slice(0, 10)) console.log(`  - dirty: ${page.page} [${page.contractId}]`);
   for (const target of plan.writes.navigationTargets.slice(0, 10)) console.log(`  - nav: ${target}`);
   for (const target of plan.protocol.targets.filter((row) => row.status !== "ok").slice(0, 10)) console.log(`  - protocol: ${target.status} ${target.path}`);
+  for (const target of plan.writes.projectTargets.slice(0, 10)) console.log(`  - project: ${target}`);
 }

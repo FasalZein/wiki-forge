@@ -9,6 +9,15 @@ export type ResolvedForgeWorkflow = Awaited<ReturnType<typeof collectForgeStatus
   steering: ForgeSteeringPacket;
 };
 
+export type ForgeStatusWithoutSlice = {
+  project: string;
+  sliceId: null;
+  activeSlice: string | null;
+  recommendedSlice: string | null;
+  triage: ForgeTriage;
+  steering: ForgeSteeringPacket;
+};
+
 export function renderForgePipeline(
   action: "check" | "close",
   workflow: ResolvedForgeWorkflow,
@@ -70,6 +79,15 @@ export function renderForgeStatus(workflow: ResolvedForgeWorkflow) {
     else if (status.ready) state = "ready";
     console.log(`  - ${status.phase}: ${state}${status.missing.length ? ` | unmet ${status.missing.join(", ")}` : ""}`);
   }
+}
+
+export function renderForgeStatusWithoutSlice(status: ForgeStatusWithoutSlice) {
+  console.log(`forge status for ${status.project}`);
+  for (const line of renderSteeringPacket(status.steering)) console.log(`- ${line}`);
+  console.log(`- active slice: ${status.activeSlice ?? "none"}`);
+  console.log(`- recommended slice: ${status.recommendedSlice ?? "none"}`);
+  console.log(`- next action: ${status.triage.command}`);
+  console.log(`  reason: ${status.triage.reason}`);
 }
 
 export function classifyStepFailure(stepId: string, error: string | null): string {

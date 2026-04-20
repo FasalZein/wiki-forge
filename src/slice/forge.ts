@@ -13,9 +13,9 @@ import { collectForgeStatus, compactForgeStatusForJson, resolveTargetWorkflowSte
 import { createIssueSlice } from "./slice-scaffold";
 import { startSlice, startSliceCore } from "./start";
 import { writeSliceProgress, type SlicePipelineProgress, type PipelineStepProgress } from "../lib/slice-progress";
-import { parseForgeArgs } from "./forge-args";
+import { parseForgeArgs, parseForgeStatusArgs } from "./forge-args";
 import { autoFillSliceDocs, buildSlicePromptData, forgeNextAll, renderSlicePrompt } from "./forge-planning";
-import { applyResolvedSteering, classifyStepFailure, renderForgePipeline, renderForgeStatus } from "./forge-output";
+import { applyResolvedSteering, classifyStepFailure, renderForgePipeline, renderForgeStatus, renderForgeStatusWithoutSlice } from "./forge-output";
 import { collectForgeReview } from "./forge-docs";
 
 export async function forgeStart(args: string[]) {
@@ -64,8 +64,32 @@ export async function forgeClose(args: string[]) {
 }
 
 export async function forgeStatus(args: string[]) {
-  const parsed = await parseForgeArgs(args, "status");
+  const parsed = await parseForgeStatusArgs(args);
   const focus = await collectBacklogFocus(parsed.project);
+  if (!parsed.sliceId) {
+    const resolution = await resolveWorkflowSteering(parsed.project, {
+      repo: parsed.repo ?? process.cwd(),
+      base: parsed.base,
+      focus,
+    });
+    if (!resolution.workflow || !resolution.focusTask) {
+      const payload = {
+        project: parsed.project,
+        sliceId: null,
+        activeSlice: focus.activeTask?.id ?? null,
+        recommendedSlice: focus.recommendedTask?.id ?? null,
+        triage: resolution.triage,
+        steering: resolution.steering,
+      };
+      if (parsed.json) console.log(JSON.stringify(payload, null, 2));
+      else renderForgeStatusWithoutSlice(payload);
+      return;
+    }
+    const workflow = applyResolvedSteering(resolution.workflow, resolution.triage, resolution.steering);
+    if (parsed.json) console.log(JSON.stringify(compactForgeStatusForJson(workflow), null, 2));
+    else renderForgeStatus(workflow);
+    return;
+  }
   const resolution = await resolveTargetWorkflowSteering(parsed.project, {
     repo: parsed.repo ?? process.cwd(),
     sliceId: parsed.sliceId,

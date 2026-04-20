@@ -15,6 +15,10 @@ export type ParsedForgeArgs = {
   worktree: boolean;
 };
 
+export type ParsedForgeStatusArgs = Omit<ParsedForgeArgs, "sliceId"> & {
+  sliceId?: string;
+};
+
 export async function parseForgeArgs(args: string[], mode: ForgeMode): Promise<ParsedForgeArgs> {
   const { positional, passthrough } = splitForgeArgs(args);
   const project = positional[0];
@@ -26,6 +30,19 @@ export async function parseForgeArgs(args: string[], mode: ForgeMode): Promise<P
   const json = passthrough.includes("--json");
   const dryRun = passthrough.includes("--dry-run");
   const worktree = passthrough.includes("--worktree") || (!base && mode !== "start");
+  return { project, sliceId, passthrough, repo, base, json, dryRun, worktree };
+}
+
+export async function parseForgeStatusArgs(args: string[]): Promise<ParsedForgeStatusArgs> {
+  const { positional, passthrough } = splitForgeArgs(args);
+  const project = positional[0];
+  requireValue(project, "project");
+  const repo = readFlagValue(passthrough, "--repo");
+  const base = readFlagValue(passthrough, "--base");
+  const json = passthrough.includes("--json");
+  const dryRun = passthrough.includes("--dry-run");
+  const worktree = passthrough.includes("--worktree") || !base;
+  const sliceId = positional[1] ? await resolveForgeSliceId(project, positional[1], "status") : undefined;
   return { project, sliceId, passthrough, repo, base, json, dryRun, worktree };
 }
 

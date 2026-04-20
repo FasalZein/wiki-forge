@@ -131,6 +131,39 @@ describe("wiki forge thin surface", () => {
     expect(json.context).not.toHaveProperty("hasSliceDocs");
   });
 
+  test("forge status without a slice id uses the recommended slice when one exists", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "statusproj"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "statusproj");
+    expect(runWiki(["create-issue-slice", "statusproj", "payments slice"], env).exitCode).toBe(0);
+
+    const status = runWiki(["forge", "status", "statusproj", "--json"], env);
+    expect(status.exitCode).toBe(0);
+    const json = JSON.parse(status.stdout.toString());
+    expect(json.sliceId).toBe("STATUSPROJ-001");
+    expect(json.recommendedSlice).toBe("STATUSPROJ-001");
+    expect(json.triage.kind).toBe("needs-research");
+  });
+
+  test("forge status without any slice returns structured no-active output", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "emptystatus"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "emptystatus");
+
+    const status = runWiki(["forge", "status", "emptystatus", "--json"], env);
+    expect(status.exitCode).toBe(0);
+    const json = JSON.parse(status.stdout.toString());
+    expect(json.project).toBe("emptystatus");
+    expect(json.sliceId).toBeNull();
+    expect(json.activeSlice).toBeNull();
+    expect(json.recommendedSlice).toBeNull();
+    expect(json.triage.kind).toBe("plan-next");
+  });
+
   test("forge plan scaffolds feature, prd, slice, and starts the slice", () => {
     const { vault, repo } = setupPassingRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
