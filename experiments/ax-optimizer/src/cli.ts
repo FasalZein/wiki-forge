@@ -1,5 +1,5 @@
 import { loadConfig } from "./config";
-import { runBaseline, runOptimization } from "./optimize";
+import { runBaseline, runEvaluation, runOptimization, runSkillCandidates } from "./optimize";
 import type { OptimizeTarget } from "./types";
 
 function parseTarget(value: string | undefined): OptimizeTarget {
@@ -20,8 +20,15 @@ async function main() {
     case "optimize":
       console.log(JSON.stringify(await runOptimization(parseTarget(rawTarget)), null, 2));
       return;
+    case "evaluate":
+      console.log(JSON.stringify(await runEvaluation(parseTarget(rawTarget)), null, 2));
+      return;
+    case "candidates":
+      if (rawTarget !== "skill") throw new Error("candidates currently supports only: skill");
+      console.log(JSON.stringify(await runSkillCandidates(), null, 2));
+      return;
     default:
-      throw new Error("usage: bun src/cli.ts <print-config|baseline|optimize> [workflow|skill]");
+      throw new Error("usage: bun src/cli.ts <print-config|baseline|optimize|evaluate> [workflow|skill] | bun src/cli.ts candidates skill");
   }
 }
 

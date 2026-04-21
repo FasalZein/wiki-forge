@@ -17,6 +17,9 @@ describe("AX optimizer scaffold", () => {
     expect(pkg.scripts["baseline:skill"]).toBe("bun src/cli.ts baseline skill");
     expect(pkg.scripts["optimize:workflow"]).toBe("bun src/cli.ts optimize workflow");
     expect(pkg.scripts["optimize:skill"]).toBe("bun src/cli.ts optimize skill");
+    expect(pkg.scripts["evaluate:workflow"]).toBe("bun src/cli.ts evaluate workflow");
+    expect(pkg.scripts["evaluate:skill"]).toBe("bun src/cli.ts evaluate skill");
+    expect(pkg.scripts["candidates:skill"]).toBe("bun src/cli.ts candidates skill");
   });
 
   test("env example is proxy-friendly and does not require a direct OpenAI key", () => {
@@ -41,5 +44,12 @@ describe("AX optimizer scaffold", () => {
     expect(skill.length).toBeGreaterThan(0);
     expect(workflow[0].expected.nextCommand).toContain("wiki ");
     expect(skill[0].expected.mustInclude).toContain("sync:local");
+  });
+
+  test("skill candidate targets point at real repo-owned skill files", () => {
+    const targets = JSON.parse(read(join(AX_DIR, "targets", "skill-candidates.json")));
+    expect(targets.length).toBeGreaterThan(0);
+    expect(targets.some((target: { sourcePath: string }) => target.sourcePath === "skills/wiki/SKILL.md")).toBe(true);
+    expect(targets.some((target: { sourcePath: string }) => target.sourcePath === "skills/forge/SKILL.md")).toBe(true);
   });
 });

@@ -40,6 +40,7 @@ specs/
 experiments/ax-optimizer/.env
 experiments/ax-optimizer/node_modules/
 experiments/ax-optimizer/outputs/*.json
+experiments/ax-optimizer/outputs/skill-candidates/
 
 # Salvage patches from pruned worktrees — reviewed manually, then deleted or applied.
 salvaged-*.patch

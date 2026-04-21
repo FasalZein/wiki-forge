@@ -8,6 +8,9 @@
     "baseline:skill": "bun src/cli.ts baseline skill",
     "optimize:workflow": "bun src/cli.ts optimize workflow",
     "optimize:skill": "bun src/cli.ts optimize skill",
+    "evaluate:workflow": "bun src/cli.ts evaluate workflow",
+    "evaluate:skill": "bun src/cli.ts evaluate skill",
+    "candidates:skill": "bun src/cli.ts candidates skill",
     "check": "tsc --noEmit"
   },
   "dependencies": {

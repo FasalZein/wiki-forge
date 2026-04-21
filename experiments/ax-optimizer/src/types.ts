@@ -45,3 +45,11 @@ export type OptimizeConfig = {
 };
 
 export type ScoreCard = Record<string, number>;
+
+export type SkillCandidateTarget = {
+  skillName: string;
+  sourcePath: string;
+  taskBrief: string;
+  acceptanceCriteria: string;
+  repoContext: string;
+};

@@ -21,6 +21,9 @@ Common commands
 - bun run baseline:skill
 - bun run optimize:workflow
 - bun run optimize:skill
+- bun run evaluate:workflow
+- bun run evaluate:skill
+- bun run candidates:skill
 
 Promotion and reload rules
 - Running experiments does not require reloads.
@@ -28,3 +31,8 @@ Promotion and reload rules
   bun run sync:local
   bun run sync:local -- --audit
 - Then restart the agent session so installed skill copies are reloaded.
+
+Outputs
+- optimized program artifacts live in outputs/*.optimized-program.json
+- evaluation summaries live in outputs/*.evaluation.json
+- candidate skill rewrites live in outputs/skill-candidates/

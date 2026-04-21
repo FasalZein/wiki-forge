@@ -1,13 +1,16 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { AxAI, AxGEPA, AxOptimizedProgramImpl } from "@ax-llm/ax";
+import { AxGEPA, AxOptimizedProgramImpl } from "@ax-llm/ax";
+import type { AxAI } from "@ax-llm/ax";
 
 import { loadConfig } from "./config";
 import { loadDataset } from "./dataset";
 import { skillMetric, workflowMetric } from "./metrics";
 import { createProgram } from "./programs";
-import type { OptimizeTarget, ScoreCard, SkillExample, WorkflowExample } from "./types";
+import { createAi, createProgramWithOptimization } from "./runtime";
+import { loadSkillCandidateTargets } from "./targets";
+import type { OptimizeTarget, ScoreCard, SkillCandidateTarget, SkillExample, WorkflowExample } from "./types";
 
 type PreparedWorkflowExample = WorkflowExample["input"] & {
   _expected: WorkflowExample["expected"];
@@ -16,19 +19,6 @@ type PreparedWorkflowExample = WorkflowExample["input"] & {
 type PreparedSkillExample = SkillExample["input"] & {
   _expected: SkillExample["expected"];
 };
-
-function createAi(model: string) {
-  const config = loadConfig();
-  return new AxAI({
-    name: config.provider as never,
-    apiKey: config.apiKey,
-    apiURL: config.apiURL,
-    config: {
-      model,
-      ...(config.headers ? { headers: config.headers } : {}),
-    },
-  });
-}
 
 function averageScores(scores: ScoreCard[]) {
   const totals = new Map<string, number>();
@@ -41,6 +31,17 @@ function averageScores(scores: ScoreCard[]) {
   return Object.fromEntries(
     [...totals.entries()].map(([key, total]) => [key, total / scores.length]),
   );
+}
+
+async function ensureOutputsDir() {
+  await mkdir(join(import.meta.dir, "..", "outputs"), { recursive: true });
+}
+
+async function writeJsonOutput(name: string, payload: unknown) {
+  await ensureOutputsDir();
+  const path = join(import.meta.dir, "..", "outputs", name);
+  await writeFile(path, JSON.stringify(payload, null, 2), "utf8");
+  return path;
 }
 
 async function evaluateWorkflow(program: ReturnType<typeof createProgram>, student: AxAI, examples: WorkflowExample[]) {
@@ -148,7 +149,7 @@ export async function runOptimization(target: OptimizeTarget) {
       },
     );
 
-    await mkdir(join(import.meta.dir, "..", "outputs"), { recursive: true });
+    await ensureOutputsDir();
     const outputPath = join(import.meta.dir, "..", "outputs", `${target}.optimized-program.json`);
     const optimizedProgram = (result as { optimizedProgram?: unknown }).optimizedProgram;
     if (optimizedProgram) {
@@ -201,7 +202,7 @@ export async function runOptimization(target: OptimizeTarget) {
     },
   );
 
-  await mkdir(join(import.meta.dir, "..", "outputs"), { recursive: true });
+  await ensureOutputsDir();
   const outputPath = join(import.meta.dir, "..", "outputs", `${target}.optimized-program.json`);
   const optimizedProgram = (result as { optimizedProgram?: unknown }).optimizedProgram;
   if (optimizedProgram) {
@@ -220,4 +221,116 @@ export async function runOptimization(target: OptimizeTarget) {
     hypervolume: result.hypervolume ?? null,
     hasOptimizedProgram: Boolean(optimizedProgram),
   };
+}
+
+export async function runEvaluation(target: OptimizeTarget) {
+  const config = loadConfig();
+  const student = createAi(config.model);
+
+  if (target === "workflow") {
+    const baselineProgram = createProgram("workflow");
+    const { program: optimizedProgram, optimized } = await createProgramWithOptimization("workflow");
+    const examples = await loadDataset("workflow");
+    const baselineScores = await evaluateWorkflow(baselineProgram, student, examples);
+    const optimizedScores = await evaluateWorkflow(optimizedProgram, student, examples);
+    const outputPath = await writeJsonOutput("workflow.evaluation.json", {
+      target,
+      baselineScores,
+      optimizedScores,
+      hasOptimizedProgram: Boolean(optimized),
+    });
+    return { target, outputPath, baselineScores, optimizedScores, hasOptimizedProgram: Boolean(optimized) };
+  }
+
+  const baselineProgram = createProgram("skill");
+  const { program: optimizedProgram, optimized } = await createProgramWithOptimization("skill");
+  const examples = await loadDataset("skill");
+  const baselineScores = await evaluateSkill(baselineProgram, student, examples);
+  const optimizedScores = await evaluateSkill(optimizedProgram, student, examples);
+  const outputPath = await writeJsonOutput("skill.evaluation.json", {
+    target,
+    baselineScores,
+    optimizedScores,
+    hasOptimizedProgram: Boolean(optimized),
+  });
+  return { target, outputPath, baselineScores, optimizedScores, hasOptimizedProgram: Boolean(optimized) };
+}
+
+async function generateSkillCandidate(
+  target: SkillCandidateTarget,
+  currentSkill: string,
+) {
+  const config = loadConfig();
+  const generator = createAi(config.teacherModel);
+  const { program } = await createProgramWithOptimization("skill");
+  const prediction = await program.forward(generator, {
+    skillName: target.skillName,
+    taskBrief: target.taskBrief,
+    currentSkill,
+    acceptanceCriteria: target.acceptanceCriteria,
+    repoContext: target.repoContext,
+  }) as {
+    revisedSkill: string;
+    rationale: string;
+    rolloutNote: string;
+  };
+
+  return {
+    skillName: target.skillName,
+    sourcePath: target.sourcePath,
+    revisedSkill: normalizeGeneratedText(prediction.revisedSkill),
+    rationale: prediction.rationale,
+    rolloutNote: prediction.rolloutNote,
+  };
+}
+
+function normalizeGeneratedText(value: string) {
+  return value.includes("\\n") ? value.replace(/\\n/g, "\n") : value;
+}
+
+function renderSkillCandidateMarkdown(candidate: {
+  skillName: string;
+  sourcePath: string;
+  revisedSkill: string;
+  rationale: string;
+  rolloutNote: string;
+}) {
+  return [
+    `# ${candidate.skillName} Candidate`,
+    "",
+    `- source: ${candidate.sourcePath}`,
+    "",
+    "## Rationale",
+    "",
+    candidate.rationale,
+    "",
+    "## Rollout Note",
+    "",
+    candidate.rolloutNote,
+    "",
+    "## Suggested Revision",
+    "",
+    candidate.revisedSkill,
+    "",
+  ].join("\n");
+}
+
+export async function runSkillCandidates() {
+  const targets = await loadSkillCandidateTargets();
+  const outDir = join(import.meta.dir, "..", "outputs", "skill-candidates");
+  await mkdir(outDir, { recursive: true });
+
+  const generated = [];
+  for (const target of targets) {
+    const sourcePath = join(import.meta.dir, "..", "..", "..", target.sourcePath);
+    const currentSkill = await readFile(sourcePath, "utf8");
+    const candidate = await generateSkillCandidate(target, currentSkill);
+    const jsonPath = join(outDir, `${target.skillName}.candidate.json`);
+    const markdownPath = join(outDir, `${target.skillName}.candidate.md`);
+    await writeFile(jsonPath, JSON.stringify(candidate, null, 2), "utf8");
+    await writeFile(markdownPath, renderSkillCandidateMarkdown(candidate), "utf8");
+    generated.push({ skillName: target.skillName, jsonPath, markdownPath });
+  }
+
+  return { generated };
 }

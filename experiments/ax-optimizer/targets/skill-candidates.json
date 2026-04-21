@@ -1,0 +1,16 @@
+[
+  {
+    "skillName": "wiki",
+    "sourcePath": "skills/wiki/SKILL.md",
+    "taskBrief": "Tighten command authority, generated-page handling, and freshness repair guidance without collapsing wiki into forge policy.",
+    "acceptanceCriteria": "Preserve the wiki scope boundary, keep checkpoint and maintain authoritative, mention generated pages, and keep sync:local plus restart guidance only for skill edits.",
+    "repoContext": "This repo uses wiki as the second-brain layer and forge as the SDLC layer. After editing skills/*/SKILL.md, run bun run sync:local, optionally bun run sync:local -- --audit, then restart the agent session."
+  },
+  {
+    "skillName": "forge",
+    "sourcePath": "skills/forge/SKILL.md",
+    "taskBrief": "Improve workflow-vs-repair routing so stale-page closeout or checkpoint debt routes to explicit maintenance commands rather than generic forge reruns.",
+    "acceptanceCriteria": "Preserve command authority, keep forge as the workflow layer, prefer concrete repair commands when verify/close fails, and mention sync:local plus restart guidance only for applied skill changes.",
+    "repoContext": "This repo separates wiki from forge. The current product bug class is stale-page closeout noise surfacing as a verify loop. The skill must preserve checkpoint as freshness truth, maintain as repair plan, forge status as workflow truth, and resume as context only."
+  }
+]
