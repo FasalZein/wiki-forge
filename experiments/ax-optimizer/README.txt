@@ -24,9 +24,11 @@ Common commands
 - bun run evaluate:workflow
 - bun run evaluate:skill
 - bun run candidates:skill
+- bun run promote:skill
 
 Promotion and reload rules
 - Running experiments does not require reloads.
+- `promote:skill` generates patch files only; it does not modify `skills/*/SKILL.md`.
 - If you apply optimized output into skills/*/SKILL.md, run:
   bun run sync:local
   bun run sync:local -- --audit
@@ -36,3 +38,4 @@ Outputs
 - optimized program artifacts live in outputs/*.optimized-program.json
 - evaluation summaries live in outputs/*.evaluation.json
 - candidate skill rewrites live in outputs/skill-candidates/
+- promotion patches live in outputs/skill-candidates/*.candidate.patch

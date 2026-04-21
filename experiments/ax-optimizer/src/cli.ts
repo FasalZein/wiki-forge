@@ -1,5 +1,6 @@
 import { loadConfig } from "./config";
 import { runBaseline, runEvaluation, runOptimization, runSkillCandidates } from "./optimize";
+import { runSkillPromotion } from "./promote";
 import type { OptimizeTarget } from "./types";
 
 function parseTarget(value: string | undefined): OptimizeTarget {
@@ -27,8 +28,12 @@ async function main() {
       if (rawTarget !== "skill") throw new Error("candidates currently supports only: skill");
       console.log(JSON.stringify(await runSkillCandidates(), null, 2));
       return;
+    case "promote":
+      if (rawTarget !== "skill") throw new Error("promote currently supports only: skill");
+      console.log(JSON.stringify(await runSkillPromotion(process.argv.slice(4)[0]), null, 2));
+      return;
     default:
-      throw new Error("usage: bun src/cli.ts <print-config|baseline|optimize|evaluate> [workflow|skill] | bun src/cli.ts candidates skill");
+      throw new Error("usage: bun src/cli.ts <print-config|baseline|optimize|evaluate> [workflow|skill] | bun src/cli.ts candidates skill | bun src/cli.ts promote skill [wiki|forge]");
   }
 }
 

@@ -29,6 +29,7 @@
     "ax:optimizer:evaluate:workflow": "bun run --cwd experiments/ax-optimizer evaluate:workflow",
     "ax:optimizer:evaluate:skill": "bun run --cwd experiments/ax-optimizer evaluate:skill",
     "ax:optimizer:candidates:skill": "bun run --cwd experiments/ax-optimizer candidates:skill",
+    "ax:optimizer:promote:skill": "bun run --cwd experiments/ax-optimizer promote:skill",
     "bench:qmd": "bun scripts/qmd-bench.ts",
     "bench:maint": "bun scripts/wiki-maintenance-bench.ts"
   },

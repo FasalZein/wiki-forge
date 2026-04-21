@@ -11,6 +11,7 @@
     "evaluate:workflow": "bun src/cli.ts evaluate workflow",
     "evaluate:skill": "bun src/cli.ts evaluate skill",
     "candidates:skill": "bun src/cli.ts candidates skill",
+    "promote:skill": "bun src/cli.ts promote skill",
     "check": "tsc --noEmit"
   },
   "dependencies": {

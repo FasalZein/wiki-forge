@@ -60,3 +60,11 @@ export type SkillCandidateTarget = {
   mustInclude?: string[];
   mustAvoid?: string[];
 };
+
+export type SkillCandidateRecord = {
+  skillName: string;
+  sourcePath: string;
+  revisedSkill: string;
+  rationale: string;
+  rolloutNote: string;
+};

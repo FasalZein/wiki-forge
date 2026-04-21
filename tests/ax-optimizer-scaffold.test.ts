@@ -20,6 +20,7 @@ describe("AX optimizer scaffold", () => {
     expect(pkg.scripts["evaluate:workflow"]).toBe("bun src/cli.ts evaluate workflow");
     expect(pkg.scripts["evaluate:skill"]).toBe("bun src/cli.ts evaluate skill");
     expect(pkg.scripts["candidates:skill"]).toBe("bun src/cli.ts candidates skill");
+    expect(pkg.scripts["promote:skill"]).toBe("bun src/cli.ts promote skill");
   });
 
   test("env example is proxy-friendly and does not require a direct OpenAI key", () => {

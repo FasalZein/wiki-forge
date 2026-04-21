@@ -74,11 +74,13 @@ bun run ax:optimizer:baseline:skill
 bun run ax:optimizer:evaluate:workflow
 bun run ax:optimizer:evaluate:skill
 bun run ax:optimizer:candidates:skill
+bun run ax:optimizer:promote:skill
 ```
 
 The sidecar is proxy-friendly. Set `AX_BASE_URL` to your local OpenAI-compatible proxy and use `AX_API_KEY=local-proxy` if the proxy does not enforce auth headers.
 The checked-in defaults currently target the local proxy at `http://127.0.0.1:8317/v1` with `AX_API_KEY=dummy`, `AX_MODEL=gpt-5.4-mini`, and `AX_TEACHER_MODEL=gpt-5.4`.
 `evaluate:*` compares baseline vs optimized programs on the current datasets, and `candidates:skill` emits candidate rewrites for the repo-owned skill files into `experiments/ax-optimizer/outputs/skill-candidates/`.
+`promote:skill` is non-destructive: it turns the current candidate JSON files into `.patch` files against the real repo skills without applying them.
 
 Reload rules:
 
