@@ -34,19 +34,17 @@ export type WorkflowSteeringTriageContext = {
 
 export function classifyWorkflowSteeringTriage(context: WorkflowSteeringTriageContext): ForgeTriage {
   const selectedTask = context.targetTask ?? context.activeTask ?? context.nextTask;
-  const verifyCloseSteps = new Set(["verify-slice", "closeout", "gate", "close-slice"]);
   const targetTaskId = context.targetTask?.id ?? null;
 
   if (context.activeTask && context.handoff?.lastForgeOk === false && context.handoff.nextAction) {
     if (
       (!context.workflowNextPhase || context.workflowNextPhase === "verify")
       && (!targetTaskId || context.activeTask.id === targetTaskId)
-      && (context.verificationLevel === "test-verified" || verifyCloseSteps.has(context.handoff.lastForgeStep ?? ""))
     ) {
       return {
         kind: "resume-failed-forge",
         reason: context.handoff.failureSummary ?? `forge run failed at ${context.handoff.lastForgeStep}`,
-        command: `wiki forge run ${context.project} ${context.activeTask.id} --repo ${context.repo}${context.base ? ` --base ${context.base}` : ""}`,
+        command: context.handoff.nextAction,
       };
     }
   }

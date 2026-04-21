@@ -1,5 +1,5 @@
 import type { PipelineResult } from "../lib/pipeline";
-import { renderSteeringPacket, type ForgeSteeringPacket } from "../lib/forge-steering";
+import { buildForgeSteering, renderSteeringPacket, type ForgeSteeringPacket } from "../lib/forge-steering";
 import type { ForgeTriage } from "../lib/forge-triage";
 import { collectForgeStatus } from "../protocol";
 import type { ForgeReview } from "./forge-docs";
@@ -18,17 +18,20 @@ export type ForgeStatusWithoutSlice = {
   steering: ForgeSteeringPacket;
 };
 
+type PipelineStepResult = PipelineResult["steps"][number];
+
 export function renderForgePipeline(
   action: "check" | "close",
   workflow: ResolvedForgeWorkflow,
   result: PipelineResult,
   review?: ForgeReview | null,
 ) {
+  const resolvedWorkflow = applyPipelineFailureRecovery(workflow, result);
   console.log(`forge ${action} ${workflow.project}/${workflow.sliceId}: ${result.ok ? "PASS" : "FAIL"}`);
-  for (const line of renderSteeringPacket(workflow.steering)) console.log(`- ${line}`);
-  console.log(`- active slice: ${workflow.activeSlice ?? "none"}`);
-  console.log(`- workflow next phase: ${workflow.workflow.validation.nextPhase ?? "complete"}`);
-  console.log(`- next action: ${workflow.triage.command}`);
+  for (const line of renderSteeringPacket(resolvedWorkflow.steering)) console.log(`- ${line}`);
+  console.log(`- active slice: ${resolvedWorkflow.activeSlice ?? "none"}`);
+  console.log(`- workflow next phase: ${resolvedWorkflow.workflow.validation.nextPhase ?? "complete"}`);
+  console.log(`- next action: ${resolvedWorkflow.triage.command}`);
   for (const step of result.steps) {
     let status = "FAILED";
     if (step.skipped) status = "skipped";
@@ -90,18 +93,42 @@ export function renderForgeStatusWithoutSlice(status: ForgeStatusWithoutSlice) {
   console.log(`  reason: ${status.triage.reason}`);
 }
 
-export function classifyStepFailure(stepId: string, error: string | null): string {
-  if (!error) return "Check pipeline output for details";
-  switch (stepId) {
-    case "checkpoint": return "Update stale wiki pages related to this slice";
-    case "lint-repo": return "Move disallowed repo markdown files to wiki vault";
-    case "maintain": return "Run wiki maintain manually for diagnostics";
-    case "verify-slice": return `Fix failing verification commands: ${error}`;
-    case "closeout": return "Update impacted wiki pages and re-verify";
-    case "gate": return "Add tests for changed code files or add test_exemptions";
-    case "close-slice": return error;
-    default: return error;
-  }
+export function resolveFailedPipelineStep(result: PipelineResult): PipelineStepResult | undefined {
+  return result.steps.find((step) => step.id === result.stoppedAt);
+}
+
+export function classifyStepFailure(step: PipelineStepResult | undefined): string {
+  if (!step) return "Check pipeline output for details";
+  return step.rerunCommand || step.error || "Check pipeline output for details";
+}
+
+export function applyPipelineFailureRecovery(
+  workflow: ResolvedForgeWorkflow,
+  result: PipelineResult,
+): ResolvedForgeWorkflow {
+  if (result.ok) return workflow;
+  const failedStep = resolveFailedPipelineStep(result);
+  if (!failedStep) return workflow;
+  const triage: ForgeTriage = {
+    kind: "resume-failed-forge",
+    reason: `${result.phase} failed at ${failedStep.id}`,
+    command: classifyStepFailure(failedStep),
+  };
+  return {
+    ...workflow,
+    triage,
+    steering: buildForgeSteering({
+      project: workflow.project,
+      sliceId: workflow.sliceId,
+      triage,
+      nextPhase: workflow.workflow.validation.nextPhase ?? null,
+      planStatus: workflow.planStatus,
+      testPlanStatus: workflow.testPlanStatus,
+      verificationLevel: workflow.verificationLevel,
+      sliceStatus: workflow.context?.sliceStatus ?? null,
+      section: workflow.context?.section ?? null,
+    }),
+  };
 }
 
 export function applyResolvedSteering(

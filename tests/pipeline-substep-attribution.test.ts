@@ -109,6 +109,39 @@ describe("WIKI-FORGE-146 pipeline sub-step attribution", () => {
     expect(failedStep.upstreamMutated).toBe(false);
   });
 
+  test("forge run checkpoint failure surfaces checkpoint recovery instead of a forge-run loop", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = makeRunnableSlice(
+      vault,
+      repo,
+      "attrrepair",
+      "ATTRREPAIR-001",
+      "bun test tests/payments.test.ts",
+    );
+    const pagesDir = join(vault, "projects", "attrrepair", "architecture");
+    mkdirSync(pagesDir, { recursive: true });
+    writeFileSync(
+      join(pagesDir, "stale-payments.md"),
+      "---\ntitle: stale\ntype: notes\nproject: attrrepair\nsource_paths:\n  - src/payments.ts\nupdated: '2010-01-01T00:00:00.000Z'\nstatus: current\nverification_level: code-verified\n---\n# stale\n",
+      "utf8",
+    );
+
+    const result = runWiki(["forge", "run", "attrrepair", "ATTRREPAIR-001", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    expect(result.exitCode).toBe(1);
+
+    const payload = JSON.parse(result.stdout.toString());
+    expect(payload.check.ok).toBe(false);
+    expect(payload.check.stoppedAt).toBe("checkpoint");
+    expect(payload.triage.command).toContain("wiki checkpoint attrrepair");
+    expect(payload.steering.nextCommand).toContain("wiki checkpoint attrrepair");
+    expect(payload.steering.nextCommand).not.toContain("wiki forge run attrrepair ATTRREPAIR-001");
+
+    const text = runWiki(["forge", "run", "attrrepair", "ATTRREPAIR-001", "--repo", repo, "--base", "HEAD~1"], env);
+    expect(text.exitCode).toBe(1);
+    expect(text.stdout.toString()).toContain("next: wiki checkpoint attrrepair");
+    expect(text.stdout.toString()).not.toContain("next: wiki forge run attrrepair ATTRREPAIR-001");
+  });
+
   test("non-json failure output prints rerun command and upstream mutation hint", () => {
     const { vault, repo } = setupPassingRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };

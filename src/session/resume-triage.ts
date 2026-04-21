@@ -28,16 +28,15 @@ export const TRIAGE_RULES: TriageRule[] = [
     kind: "resume-failed-forge",
     priority: 10,
     when: (context) => {
-      const { activeTask, handoff, verificationLevel, workflowNextPhase } = context;
+      const { activeTask, handoff, workflowNextPhase } = context;
       if (!activeTask || !handoff || handoff.lastForgeOk !== false || !handoff.nextAction) return false;
       if (workflowNextPhase && workflowNextPhase !== "verify") return false;
-      const verifyCloseSteps = new Set(["verify-slice", "closeout", "gate", "close-slice"]);
-      return verificationLevel === "test-verified" || verifyCloseSteps.has(handoff.lastForgeStep ?? "");
+      return true;
     },
-    build: ({ project, repo, base, activeTask, handoff }) => ({
+    build: ({ handoff }) => ({
       kind: "resume-failed-forge",
       reason: handoff?.failureSummary ?? `forge run failed at ${handoff?.lastForgeStep}`,
-      command: `wiki forge run ${project} ${activeTask!.id} --repo ${repo}${base ? ` --base ${base}` : ""}`,
+      command: handoff!.nextAction!,
     }),
   },
   {

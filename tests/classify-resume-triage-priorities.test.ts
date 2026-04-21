@@ -53,7 +53,29 @@ describe("resume triage priorities", () => {
     });
 
     expect(triage.kind).toBe("resume-failed-forge");
-    expect(triage.command).toContain("wiki forge run demo DEMO-001 --repo /repo --base HEAD");
+    expect(triage.command).toBe("rerun verify-slice");
+  });
+
+  test("verify-phase maintenance breadcrumbs preserve the concrete repair command", () => {
+    const triage = classifyResumeTriage({
+      project: "demo",
+      repo: "/repo",
+      base: "HEAD",
+      activeTask: { id: "DEMO-001" },
+      nextTask: { id: "DEMO-002" },
+      handoff: {
+        lastForgeOk: false,
+        lastForgeStep: "checkpoint",
+        nextAction: "wiki checkpoint demo --repo /repo --base HEAD --slice-local --slice-id DEMO-001",
+        failureSummary: "close failed at checkpoint",
+      },
+      workflowNextPhase: "verify",
+      earlyPhase: false,
+      verificationLevel: "code-verified",
+    });
+
+    expect(triage.kind).toBe("resume-failed-forge");
+    expect(triage.command).toBe("wiki checkpoint demo --repo /repo --base HEAD --slice-local --slice-id DEMO-001");
   });
 
   test("pre-phase gate beats continue-active-slice when docs are not ready", () => {

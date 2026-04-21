@@ -6,7 +6,13 @@ import { collectBacklogFocus, collectTaskContextForId } from "../hierarchy";
 import { resolveTargetWorkflowSteering } from "../protocol";
 import { collectForgeReview } from "./forge-docs";
 import { parseForgeArgs } from "./forge-args";
-import { applyResolvedSteering, classifyStepFailure, renderForgePipeline } from "./forge-output";
+import {
+  applyPipelineFailureRecovery,
+  applyResolvedSteering,
+  classifyStepFailure,
+  renderForgePipeline,
+  resolveFailedPipelineStep,
+} from "./forge-output";
 import { startSliceCore } from "./start";
 
 export async function forgeRun(args: string[]) {
@@ -89,11 +95,13 @@ export async function forgeRun(args: string[]) {
     : await collectForgeReview(parsed.project, parsed.sliceId, parsed.repo, parsed.base, parsed.worktree);
   if (!parsed.json) renderForgePipeline("check", workflow, checkResult, review);
   if (!checkResult.ok) {
-    const failedStep = checkResult.stoppedAt ?? "unknown";
-    const failedStepError = checkResult.steps.find((step) => step.id === failedStep)?.error ?? null;
-    const nextAction = classifyStepFailure(failedStep, failedStepError);
-    await writeProgress("failed", nextAction, `check failed at ${failedStep}`);
-    throw new Error(`forge run: check failed at ${failedStep}`);
+    if (parsed.json) {
+      console.log(JSON.stringify({ ...applyPipelineFailureRecovery(workflow, checkResult), check: checkResult }, null, 2));
+    }
+    const failedStep = resolveFailedPipelineStep(checkResult);
+    const nextAction = classifyStepFailure(failedStep);
+    await writeProgress("failed", nextAction, `check failed at ${failedStep?.id ?? "unknown"}`);
+    throw new Error(`forge run: check failed at ${failedStep?.id ?? "unknown"}`);
   }
   if (review && !review.ok) {
     await writeProgress("failed", "Resolve slice-local blockers reported by forge check", "check found slice-local blockers");
@@ -112,14 +120,16 @@ export async function forgeRun(args: string[]) {
     upstreamMutatedBeforeStart: true,
     onStepComplete,
   });
-  if (parsed.json) console.log(JSON.stringify({ ...workflow, check: checkResult, close: closeResult }, null, 2));
+  if (parsed.json) {
+    const outputWorkflow = closeResult.ok ? workflow : applyPipelineFailureRecovery(workflow, closeResult);
+    console.log(JSON.stringify({ ...outputWorkflow, check: checkResult, close: closeResult }, null, 2));
+  }
   else renderForgePipeline("close", workflow, closeResult);
   if (!closeResult.ok) {
-    const failedStep = closeResult.stoppedAt ?? "unknown";
-    const failedStepError = closeResult.steps.find((step) => step.id === failedStep)?.error ?? null;
-    const nextAction = classifyStepFailure(failedStep, failedStepError);
-    await writeProgress("failed", nextAction, `close failed at ${failedStep}`);
-    throw new Error(`forge run: close failed at ${failedStep}`);
+    const failedStep = resolveFailedPipelineStep(closeResult);
+    const nextAction = classifyStepFailure(failedStep);
+    await writeProgress("failed", nextAction, `close failed at ${failedStep?.id ?? "unknown"}`);
+    throw new Error(`forge run: close failed at ${failedStep?.id ?? "unknown"}`);
   }
 
   await writeProgress("passed");

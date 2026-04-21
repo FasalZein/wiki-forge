@@ -15,7 +15,7 @@ describe("protocol source", () => {
     expect(source.protocolVersion).toBe(2);
     expect(rendered).toContain("managed_by: wiki-forge");
     expect(rendered).toContain(source.workflowLines[0]);
-    expect(rendered).toContain("wiki forge plan|run|next demo");
+    expect(rendered).toContain("Agent surface (3 commands): `wiki forge plan demo <feature-name>`, `wiki forge run demo [slice-id] --repo <path>`, `wiki forge next demo`");
     expect(rendered).toContain("Workflow Enforcement");
   });
 

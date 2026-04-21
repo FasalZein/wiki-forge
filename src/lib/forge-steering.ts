@@ -16,6 +16,19 @@ export type ForgeSteeringPacket = {
   loadSkill?: string;
 };
 
+const MAINTENANCE_REPAIR_COMMAND_PREFIXES = [
+  "wiki checkpoint ",
+  "wiki lint-repo ",
+  "wiki maintain ",
+  "wiki update-index ",
+  "wiki closeout ",
+  "wiki sync ",
+  "wiki refresh-from-git ",
+  "wiki acknowledge-impact ",
+  "wiki bind ",
+  "wiki verify-page ",
+] as const;
+
 type BuildForgeSteeringInput = {
   project: string;
   sliceId: string | null;
@@ -45,7 +58,7 @@ export function buildForgeSteering(input: BuildForgeSteeringInput): ForgeSteerin
 
   if (input.triage.kind === "resume-failed-forge") {
     return {
-      lane: "verify-close",
+      lane: isMaintenanceRepairCommand(input.triage.command) ? "maintenance-refresh" : "verify-close",
       phase,
       nextCommand: input.triage.command,
       why: input.triage.reason,
@@ -118,6 +131,11 @@ export function buildForgeSteering(input: BuildForgeSteeringInput): ForgeSteerin
     why: input.triage.reason,
     ...(input.triage.loadSkill ? { loadSkill: input.triage.loadSkill } : {}),
   };
+}
+
+export function isMaintenanceRepairCommand(command: string | null | undefined): boolean {
+  if (!command) return false;
+  return MAINTENANCE_REPAIR_COMMAND_PREFIXES.some((prefix) => command.startsWith(prefix));
 }
 
 export function renderSteeringPacket(steering: ForgeSteeringPacket): string[] {

@@ -504,7 +504,7 @@ describe("non-blocking workflow improvements", () => {
     expect(runWiki(["protocol", "sync", "prototest", "--repo", repo], env).exitCode).toBe(0);
 
     const agents = readFileSync(join(repo, "AGENTS.md"), "utf8");
-    expect(agents).toContain("wiki forge plan|run|next prototest");
+    expect(agents).toContain("Agent surface (3 commands): `wiki forge plan prototest <feature-name>`, `wiki forge run prototest [slice-id] --repo <path>`, `wiki forge next prototest`");
     expect(agents).not.toContain("start|check");
     expect(agents).not.toContain("close|next|status");
   });

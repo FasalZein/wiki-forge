@@ -260,4 +260,43 @@ describe("wiki workflow handoff improvements", () => {
     expect(text.exitCode).toBe(0);
     expect(text.stdout.toString()).toContain("last forge run: INCOMPLETE");
   });
+
+  test("resume preserves verify-phase maintenance recovery commands instead of falling back to forge run", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "payments slice"], env).exitCode).toBe(0);
+    expect(runWiki(["move-task", "demo", "DEMO-001", "--to", "In Progress"], env).exitCode).toBe(0);
+
+    writeFileSync(
+      join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "plan.md"),
+      "---\ntitle: DEMO-001 payments slice\ntype: spec\nspec_kind: plan\nproject: demo\ntask_id: DEMO-001\nupdated: 2026-04-19\nstatus: ready\n---\n\n# DEMO-001 payments slice\n\n## Scope\n\n- Ship the payments change\n",
+      "utf8",
+    );
+    writeFileSync(
+      join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "test-plan.md"),
+      "---\ntitle: DEMO-001 payments slice\ntype: spec\nspec_kind: test-plan\nproject: demo\ntask_id: DEMO-001\nupdated: 2026-04-19\nstatus: ready\nverification_level: test-verified\nverification_commands:\n  - command: bun test tests/payments.test.ts\n---\n\n# DEMO-001 payments slice\n\n## Red Tests\n\n- [x] Payments behavior is covered through the public API.\n",
+      "utf8",
+    );
+
+    const indexPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "index.md");
+    const withBreadcrumb = readFileSync(indexPath, "utf8").replace(
+      /^---\n/,
+      `---\nlast_forge_run: '2026-04-18T10:00:00.000Z'\nlast_forge_step: closeout\nlast_forge_ok: false\nnext_action: wiki closeout demo --repo ${repo} --base HEAD --slice-local --slice-id DEMO-001\nfailure_summary: close failed at closeout\n`,
+    );
+    writeFileSync(indexPath, withBreadcrumb, "utf8");
+
+    const resume = runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD", "--json"], env);
+    expect(resume.exitCode).toBe(0);
+    const json = JSON.parse(resume.stdout.toString());
+    expect(json.workflowNextPhase).toBeUndefined();
+    expect(json.triage.kind).toBe("resume-failed-forge");
+    expect(json.lastForgeRun.nextAction).toBe(`wiki closeout demo --repo ${repo} --base HEAD --slice-local --slice-id DEMO-001`);
+    expect(json.triage.command).toBe(`wiki closeout demo --repo ${repo} --base HEAD --slice-local --slice-id DEMO-001`);
+    expect(json.steering.nextCommand).toBe(`wiki closeout demo --repo ${repo} --base HEAD --slice-local --slice-id DEMO-001`);
+    expect(json.steering.lane).toBe("maintenance-refresh");
+    expect(json.steering.nextCommand).not.toContain("wiki forge run demo DEMO-001");
+  });
 });

@@ -62,7 +62,7 @@ describe("WIKI-FORGE-149 steering packet", () => {
     });
 
     expect(verifyRecovery.kind).toBe("resume-failed-forge");
-    expect(verifyRecovery.command).toContain("wiki forge run demo DEMO-001 --repo /repo --base HEAD");
+    expect(verifyRecovery.command).toBe("rerun verify-slice");
   });
 
   test("shared triage boundary owns close and backlog continuation decisions", () => {
@@ -186,6 +186,20 @@ describe("WIKI-FORGE-149 steering packet", () => {
     });
     expect(verifyCloseSteering.lane).toBe("verify-close");
     expect(verifyCloseSteering.loadSkill).toBeUndefined();
+
+    const maintenanceRecoverySteering = buildForgeSteering({
+      project: "demo",
+      sliceId: "DEMO-001",
+      triage: {
+        kind: "resume-failed-forge",
+        reason: "verify failed at closeout",
+        command: "wiki closeout demo --repo /repo --base HEAD --slice-local --slice-id DEMO-001",
+      },
+      nextPhase: "verify",
+      verificationLevel: "test-verified",
+    });
+    expect(maintenanceRecoverySteering.lane).toBe("maintenance-refresh");
+    expect(maintenanceRecoverySteering.nextCommand).toContain("wiki closeout demo");
   });
 
   test("resume json includes shared steering for domain-work", () => {

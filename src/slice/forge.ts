@@ -13,7 +13,13 @@ import { createIssueSlice } from "./slice-scaffold";
 import { startSlice } from "./start";
 import { parseForgeArgs, parseForgeStatusArgs } from "./forge-args";
 import { autoFillSliceDocs, buildSlicePromptData, forgeNextAll, renderSlicePrompt } from "./forge-planning";
-import { applyResolvedSteering, renderForgePipeline, renderForgeStatus, renderForgeStatusWithoutSlice } from "./forge-output";
+import {
+  applyPipelineFailureRecovery,
+  applyResolvedSteering,
+  renderForgePipeline,
+  renderForgeStatus,
+  renderForgeStatusWithoutSlice,
+} from "./forge-output";
 import { collectForgeReview } from "./forge-docs";
 import { projectTaskHubPath } from "../lib/structure";
 export { forgeRun } from "./forge-run";
@@ -39,7 +45,8 @@ export async function forgeCheck(args: string[]) {
   const review = parsed.dryRun
     ? null
     : await collectForgeReview(parsed.project, parsed.sliceId, parsed.repo, parsed.base, parsed.worktree);
-  if (parsed.json) console.log(JSON.stringify({ ...workflow, pipeline: result, ...(review ? { review } : {}) }, null, 2));
+  const outputWorkflow = result.ok ? workflow : applyPipelineFailureRecovery(workflow, result);
+  if (parsed.json) console.log(JSON.stringify({ ...outputWorkflow, pipeline: result, ...(review ? { review } : {}) }, null, 2));
   else renderForgePipeline("check", workflow, result, review);
   if (!result.ok) throw new Error(`forge check failed at ${result.stoppedAt}`);
   if (review && !review.ok) throw new Error("forge check found slice-local blockers");
@@ -58,7 +65,8 @@ export async function forgeClose(args: string[]) {
     worktree: parsed.worktree,
     sliceLocal: true,
   });
-  if (parsed.json) console.log(JSON.stringify({ ...workflow, pipeline: result }, null, 2));
+  const outputWorkflow = result.ok ? workflow : applyPipelineFailureRecovery(workflow, result);
+  if (parsed.json) console.log(JSON.stringify({ ...outputWorkflow, pipeline: result }, null, 2));
   else renderForgePipeline("close", workflow, result);
   if (!result.ok) throw new Error(`forge close failed at ${result.stoppedAt}`);
 }
