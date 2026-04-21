@@ -2,9 +2,7 @@ import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { projectRoot } from "../cli-shared";
 import { safeMatter } from "../cli-shared";
-import { fileFingerprint, readCache, writeCache } from "./cache";
 import { exists, readText } from "./fs";
-import { gitMarkdownStatusFingerprint } from "../git-utils";
 import { isIgnoredDir, loadConfig, matchesAnyIgnore } from "./config";
 
 export const SCAFFOLD_DIRS = new Set(["src", "lib", "app", "apps", "packages", "services", "workers", "server", "api", "functions", "cmd", "internal"]);
@@ -37,12 +35,6 @@ export function listCodeFiles(repo: string, customPaths?: string[]) {
 }
 
 export async function listRepoMarkdownDocs(repo: string) {
-  const configFingerprint = fileFingerprint(join(repo, "wiki.config.jsonc"));
-  const fingerprint = `${fileFingerprint(join(repo, ".git", "index"))}:${fileFingerprint(join(repo, ".git", "HEAD"))}:${await gitMarkdownStatusFingerprint(repo)}:cfg=${configFingerprint}`;
-  const cacheKey = `repo-docs:${repo}`;
-  const cached = await readCache<string[]>("repo-scan", cacheKey, "5", fingerprint);
-  if (cached) return cached;
-
   const userIgnore = loadConfig(repo).repo.ignore.value;
   const files = new Set<string>();
   const visit = (dir: string, prefix = "") => {
@@ -63,10 +55,10 @@ export async function listRepoMarkdownDocs(repo: string) {
     }
   };
   visit(repo);
-
-  const result = [...files].sort();
-  void writeCache("repo-scan", cacheKey, "5", fingerprint, result);
-  return result;
+  // Do not cache repo markdown violations off git status. Ignored markdown files
+  // can appear and disappear without changing git-visible fingerprints, which
+  // produces stale false positives until a manual cache clear.
+  return [...files].sort();
 }
 
 export function isAllowedRepoMarkdownDoc(rel: string) {
