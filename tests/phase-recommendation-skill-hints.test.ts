@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { phaseRecommendation } from "../src/lib/forge-phase-commands";
 import { buildForgeSteering } from "../src/lib/forge-steering";
-import { buildForgeTriage } from "../src/protocol/forge-status";
+import { buildForgeTriage } from "../src/protocol";
 import { runWiki } from "./_helpers/wiki-subprocess";
 import { cleanupTempPaths, initVault, runGit, setRepoFrontmatter, tempDir } from "./test-helpers";
 
