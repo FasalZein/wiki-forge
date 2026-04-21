@@ -16,7 +16,9 @@ type PreparedWorkflowExample = WorkflowExample["input"] & {
   _expected: WorkflowExample["expected"];
 };
 
-type PreparedSkillExample = SkillExample["input"] & {
+type PreparedSkillExample = Omit<SkillExample["input"], "requiredPhrases" | "forbiddenPhrases"> & {
+  requiredPhrases: string;
+  forbiddenPhrases: string;
   _expected: SkillExample["expected"];
 };
 
@@ -56,7 +58,7 @@ async function evaluateWorkflow(program: ReturnType<typeof createProgram>, stude
 async function evaluateSkill(program: ReturnType<typeof createProgram>, student: AxAI, examples: SkillExample[]) {
   const scores: ScoreCard[] = [];
   for (const example of examples) {
-    const prediction = await program.forward(student, example.input);
+    const prediction = await program.forward(student, buildSkillProgramInput(example.input, example.expected));
     scores.push(await skillMetric({ prediction: prediction as Record<string, unknown>, example }));
   }
   return averageScores(scores);
@@ -71,9 +73,22 @@ function prepareWorkflowExamples(examples: WorkflowExample[]) {
 
 function prepareSkillExamples(examples: SkillExample[]) {
   return examples.map((example): PreparedSkillExample => ({
-    ...example.input,
+    ...buildSkillProgramInput(example.input, example.expected),
     _expected: example.expected,
   }));
+}
+
+function buildSkillProgramInput(
+  input: SkillExample["input"],
+  expected: Pick<SkillExample["expected"], "mustInclude" | "mustAvoid">,
+) {
+  const requiredPhrases = input.requiredPhrases ?? expected.mustInclude;
+  const forbiddenPhrases = input.forbiddenPhrases ?? expected.mustAvoid ?? [];
+  return {
+    ...input,
+    requiredPhrases: requiredPhrases.join("\n"),
+    forbiddenPhrases: forbiddenPhrases.join("\n"),
+  };
 }
 
 export async function runBaseline(target: OptimizeTarget) {
@@ -190,6 +205,8 @@ export async function runOptimization(target: OptimizeTarget) {
           currentSkill: example.currentSkill,
           acceptanceCriteria: example.acceptanceCriteria,
           repoContext: example.repoContext,
+          requiredPhrases: example.requiredPhrases.split("\n").filter(Boolean),
+          forbiddenPhrases: example.forbiddenPhrases.split("\n").filter(Boolean),
         },
         expected: example._expected,
       },
@@ -264,11 +281,21 @@ async function generateSkillCandidate(
   const generator = createAi(config.teacherModel);
   const { program } = await createProgramWithOptimization("skill");
   const prediction = await program.forward(generator, {
-    skillName: target.skillName,
-    taskBrief: target.taskBrief,
-    currentSkill,
-    acceptanceCriteria: target.acceptanceCriteria,
-    repoContext: target.repoContext,
+    ...buildSkillProgramInput(
+      {
+        skillName: target.skillName,
+        taskBrief: target.taskBrief,
+        currentSkill,
+        acceptanceCriteria: target.acceptanceCriteria,
+        repoContext: target.repoContext,
+        requiredPhrases: target.mustInclude,
+        forbiddenPhrases: target.mustAvoid,
+      },
+      {
+        mustInclude: target.mustInclude ?? [],
+        mustAvoid: target.mustAvoid ?? [],
+      },
+    ),
   }) as {
     revisedSkill: string;
     rationale: string;

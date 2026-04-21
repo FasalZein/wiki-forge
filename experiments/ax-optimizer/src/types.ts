@@ -25,6 +25,8 @@ export type SkillExample = {
     currentSkill: string;
     acceptanceCriteria: string;
     repoContext: string;
+    requiredPhrases?: string[];
+    forbiddenPhrases?: string[];
   };
   expected: {
     mustInclude: string[];
@@ -52,4 +54,6 @@ export type SkillCandidateTarget = {
   taskBrief: string;
   acceptanceCriteria: string;
   repoContext: string;
+  mustInclude?: string[];
+  mustAvoid?: string[];
 };

@@ -26,11 +26,13 @@ function createSkillProgram() {
       + ', currentSkill:string "Current skill text"'
       + ', acceptanceCriteria:string "What the revision must preserve or improve"'
       + ', repoContext:string "Repo-specific constraints and workflow rules"'
+      + ', requiredPhrases:string "Exact phrases or commands that must stay present in the revised skill"'
+      + ', forbiddenPhrases:string "Exact phrases or commands to avoid in the revised skill"'
       + ' -> revisedSkill:string "Rewritten skill text"'
       + ', rationale:string "Short explanation of what changed and why"'
       + ', rolloutNote:string "What must be re-synced or reloaded after applying the change"',
     {
-      description: "Optimize repo-owned skill instructions while preserving repo protocol, command authority, and local sync semantics.",
+      description: "Optimize repo-owned skill instructions while preserving exact repo protocol phrases, command authority, local sync semantics, and required CLI guidance.",
     },
   );
 }
