@@ -22,11 +22,15 @@ export async function workflowMetric({
     .map((command) => normalizeCommand(command))
     .some((command) => command && nextCommand.includes(command));
   const maxReasonLength = example.expected.maxReasonLength ?? 140;
+  const blockerAccuracy = blockerType === example.expected.blockerType ? 1 : 0;
+  const laneAccuracy = lane === example.expected.lane ? 1 : 0;
+  const commandAccuracy = nextCommand === expectedCommand ? 1 : 0;
 
   return {
-    blockerAccuracy: blockerType === example.expected.blockerType ? 1 : 0,
-    laneAccuracy: lane === example.expected.lane ? 1 : 0,
-    commandAccuracy: nextCommand === expectedCommand ? 1 : 0,
+    blockerAccuracy,
+    laneAccuracy,
+    commandAccuracy,
+    decisionQuality: (blockerAccuracy + laneAccuracy + commandAccuracy) / 3,
     noLoop: forbiddenHit ? 0 : 1,
     reasonBrevity: reason.length > 0 && reason.length <= maxReasonLength ? 1 : 0.25,
     compactness: compactResponse.length > 0 && compactResponse.length <= 280 ? 1 : 0.25,
