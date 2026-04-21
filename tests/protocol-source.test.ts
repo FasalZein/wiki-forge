@@ -13,7 +13,9 @@ describe("protocol source library", () => {
 
     expect(source.workflowLines).toContain("Use `/forge` for non-trivial implementation work.");
     expect(rendered).toContain("## Workflow Enforcement");
-    expect(rendered).toContain("wiki forge plan|run|next demo");
+    expect(rendered).toContain("`wiki forge plan demo <feature-name>`");
+    expect(rendered).toContain("`wiki forge run demo [slice-id] --repo <path>`");
+    expect(rendered).toContain("`wiki forge next demo`");
   });
 
   test("renders prompt and handover reminders from the same source", () => {

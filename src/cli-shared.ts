@@ -15,7 +15,7 @@ Start here:
   2. Active or ready slice: wiki forge next <project>
   3. Implementation-ready slice: wiki forge run <project> [slice-id] --repo <path>
   4. Pre-implementation gate: follow the skill/command named by wiki forge status <project> <slice-id>
-  5. Freshness conflict: wiki checkpoint -> wiki maintain -> acknowledge-impact/refresh-from-git/bind
+  5. Freshness conflict: wiki checkpoint -> wiki maintain -> wiki sync --report-only -> acknowledge-impact/refresh-from-git/verify-page/bind
 
 Authority order when outputs disagree:
   1. wiki checkpoint = current freshness truth

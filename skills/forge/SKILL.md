@@ -11,7 +11,7 @@ Forge is the workflow layer.
 
 - `wiki` = knowledge, verification, drift, retrieval, filing
 - `forge` = delivery policy over those primitives
-- agent surface (3 commands) = `wiki forge plan|run|next`
+- agent surface (3 commands) = `wiki forge plan`, `wiki forge run`, `wiki forge next`
 - internal/repair = `wiki forge start|check|close|status|release`
 - default reconciliation primitive = `wiki sync`
 
@@ -80,12 +80,13 @@ When debugging, prefer the slice-scoped form. It is the safer surface because it
 
 1. `wiki checkpoint <project> --repo <path> [--base <rev>]`
 2. `wiki maintain <project> --repo <path> --base <rev>`
-3. choose one repair path:
+3. optionally scope the reconciler with `wiki sync <project> [--repo <path>] [--report-only]`
+4. choose one repair path:
    - accepted impact: `wiki acknowledge-impact <project> <page...> --repo <path>`
    - git reconciliation: `wiki refresh-from-git <project> --repo <path> --base <rev>`
    - broad bindings: `wiki bind <project> <page> <source-path...> [--mode replace|merge]`
    - real page drift: update the page, then `wiki verify-page <project> <page> <level>`
-4. return to `wiki forge run`
+5. return to `wiki forge run`
 
 ### Research Bridge
 

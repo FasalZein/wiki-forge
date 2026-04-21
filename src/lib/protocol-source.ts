@@ -94,7 +94,7 @@ export function renderManagedProtocolBlock(source: CanonicalProtocolSource) {
     "Load `/forge` for tracked slice work. Load `/wiki` for knowledge-layer work.",
     "The skills define all available commands. This block enforces the contract, not the command surface.",
     "",
-    `Agent surface (3 commands): \`wiki forge plan|run|next ${source.project}\``,
+    `Agent surface (3 commands): \`wiki forge plan ${source.project} <feature-name>\`, \`wiki forge run ${source.project} [slice-id] --repo <path>\`, \`wiki forge next ${source.project}\``,
     `Session start: \`wiki resume ${source.project} --repo <path> --base <rev>\``,
     "",
     END_MARKER,

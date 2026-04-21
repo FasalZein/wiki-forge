@@ -41,7 +41,7 @@ Use the smallest fitting command:
 
 | Need | Command |
 |---|---|
-| default maintenance entry point | `wiki maintain <project> --base <rev>` |
+| default maintenance entry point | `wiki maintain <project> [--repo <path>] [--base <rev>]` |
 | git-independent freshness truth | `wiki checkpoint <project> --repo <path>` |
 | git-based reconciliation | `wiki refresh-from-git <project> --repo <path> --base <rev>` |
 | accept reviewed impact as current | `wiki acknowledge-impact <project> <page...> --repo <path>` |
@@ -72,7 +72,7 @@ Demotion state: `stale`.
 Use this when implementation decisions are already made and you are only refreshing the knowledge layer.
 
 ```text
-1. wiki maintain <project> --base <rev>
+1. wiki maintain <project> [--repo <path>] [--base <rev>]
 2. wiki checkpoint <project> --repo <path>
 3. update impacted pages from code / source material
 4. wiki verify-page <project> <page> <level>
@@ -89,7 +89,9 @@ Rule: prefer canonical reconciliation commands over manual markdown edits when t
 
 1. `wiki checkpoint <project> --repo <path> [--base <rev>]`
 2. `wiki maintain <project> --repo <path> --base <rev>`
-3. choose one repair branch:
+3. optionally scope the reconciler before mutating pages:
+   - `wiki sync <project> [--repo <path>] [--report-only]`
+4. choose one repair branch:
    - reviewed-but-still-correct pages: `wiki acknowledge-impact <project> <page...> --repo <path>`
    - reconcile that acceptance against git: `wiki refresh-from-git <project> --repo <path> --base <rev>`
    - real content drift: update the page, then `wiki verify-page <project> <page> <level>`
@@ -117,7 +119,8 @@ Use this only when freshness output disagrees:
 
 1. `wiki checkpoint <project> --repo <path> [--base <rev>]`
 2. `wiki maintain <project> --repo <path> --base <rev>`
-3. `wiki resume <project> --repo <path> --base <rev>`
+3. `wiki sync <project> [--repo <path>] [--report-only]`
+4. `wiki resume <project> --repo <path> --base <rev>`
 
 Treat `resume` as context only, not as the authority for current staleness.
 
