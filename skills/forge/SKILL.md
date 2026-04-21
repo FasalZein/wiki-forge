@@ -22,7 +22,7 @@ Decide the state first. Then run the command for that state.
 - memory-only or verification-only work: use `/wiki`
 - active slice, pre-implementation gate: follow `wiki forge status <project> <slice>` and load the named skill
 - active slice, implementation-ready: run `wiki forge run <project> <slice> --repo <path>`
-- stale, conflicting, or failed state: use the repair branch below, then return to `wiki forge run`
+- stale, conflicting, failed, verify-loop, or closeout-blocked state: use the repair branch that matches the blocker; return to `wiki forge run` only after the blocker is cleared
 
 Do not start with low-level verbs. Start by classifying the state.
 
@@ -40,6 +40,7 @@ Interpretation rule:
 - If `checkpoint` is clean, freshness is clean even if `resume` still prints historical context.
 - If `forge status` says a phase is incomplete, treat that as the workflow truth even if an older failed run breadcrumb suggests otherwise.
 - If `maintain` and `checkpoint` disagree, prefer `checkpoint` for current stale/not-stale truth and use `maintain` for repair actions.
+- If verify/close emits stale-page or checkpoint debt noise, treat that as a freshness/maintenance problem first, not as evidence that the workflow phase should be rerun.
 
 ## State Table
 
@@ -49,9 +50,12 @@ Interpretation rule:
 | no active/ready slice | `wiki forge next <project>` | one recommended slice or `no ready slices` | if none, plan the next feature/PRD/slices |
 | research missing | `wiki forge status <project> <slice> --json` | `nextPhase: research` | `/research`, then `wiki research distill`, then `wiki research adopt` |
 | domain-model missing | `wiki forge status <project> <slice> --json` | `nextPhase: domain-model` | `/domain-model`, update `projects/<project>/decisions.md` and `projects/<project>/architecture/domain-language.md` |
-| implementation-ready | `wiki forge run <project> <slice> --repo <path>` | pipeline execution across check/verify/close | continue on `forge run` until done |
+| implementation-ready | `wiki forge run <project> <slice> --repo <path>` | pipeline execution across check/verify/close | continue on `forge run` while the blocker is inside the active phase |
+| failed verify step | exact rerun/recovery command from `wiki resume` or `wiki forge status` | verify or checkpoint repair command | rerun that exact command before falling back to a broader workflow rerun |
 | failed breadcrumb | `wiki forge status <project> <slice> --json` | current phase vs failed step | obey current phase if earlier than the failed step; otherwise rerun `forge run` |
-| freshness contradiction | `wiki checkpoint` then `wiki maintain` | current stale truth + repair plan | use one repair branch, then return to `forge run` |
+| freshness contradiction | `wiki checkpoint` then `wiki maintain` | current stale truth + repair plan | execute the indicated maintenance command, then resume workflow |
+| stale-page closeout noise | `wiki checkpoint` then `wiki maintain` | stale truth + page-level repair path | repair freshness debt explicitly; do not use generic reruns as the first response |
+| close-path checkpoint debt | `wiki checkpoint` then close-path commands | close blocked by freshness mismatch | clear checkpoint debt with the maintenance path before retrying close |
 
 ## Default Surface
 
@@ -81,12 +85,15 @@ When debugging, prefer the slice-scoped form. It is the safer surface because it
 1. `wiki checkpoint <project> --repo <path> [--base <rev>]`
 2. `wiki maintain <project> --repo <path> --base <rev>`
 3. optionally scope the reconciler with `wiki sync <project> [--repo <path>] [--report-only]`
-4. choose one repair path:
+4. choose one repair path from the maintain/checkpoint result:
    - accepted impact: `wiki acknowledge-impact <project> <page...> --repo <path>`
    - git reconciliation: `wiki refresh-from-git <project> --repo <path> --base <rev>`
    - broad bindings: `wiki bind <project> <page> <source-path...> [--mode replace|merge]`
    - real page drift: update the page, then `wiki verify-page <project> <page> <level>`
-5. return to `wiki forge run`
+5. re-run the blocked verifier/close command only after the freshness issue is cleared
+6. return to `wiki forge run` only if workflow status still points at active implementation work
+
+If `wiki resume` or `wiki forge status` already names a concrete recovery command such as `rerun verify-slice` or a slice-scoped `wiki checkpoint ... --slice-local --slice-id <slice>`, prefer that exact command over a generic rerun.
 
 ### Research Bridge
 
@@ -102,18 +109,24 @@ If research already exists, do not guess at frontmatter or caches. Adopt it expl
 ### Close-Path Divergence
 
 1. `wiki verify-slice <project> <slice>`
-2. `wiki closeout <project> --repo <path> --base <rev>`
-3. `wiki gate <project> --repo <path> --base <rev>`
-4. `wiki close-slice <project> <slice> --repo <path> --base <rev>`
+2. if verify already failed and the tooling names a concrete rerun command, use that exact rerun first
+3. if closeout/gate/close-slice reports stale pages, checkpoint mismatch, or historical checkpoint debt, run `wiki checkpoint <project> --repo <path> --base <rev> --slice-local --slice-id <slice>`
+4. then run `wiki maintain <project> --repo <path> --base <rev>`
+5. when debugging worktree-local or historical closeout noise, prefer `wiki closeout <project> --repo <path> --worktree --slice-local --slice-id <slice>` and the matching `wiki gate ... --worktree --slice-local --slice-id <slice>`
+6. apply the named maintenance action before retrying close-path commands
+7. if close-slice returns a review-pass hint, either finish the named closeout steps or rerun `wiki close-slice <project> <slice> --repo <path> --base <rev> --force-review`
+8. `wiki closeout <project> --repo <path> --base <rev>`
+9. `wiki gate <project> --repo <path> --base <rev>`
+10. `wiki close-slice <project> <slice> --repo <path> --base <rev>`
 
-Treat active slice blockers as current work. Treat project debt and historical warnings as background unless they block the slice.
+Treat active slice blockers as current work. Treat project debt and historical warnings as background unless they block the slice. If the blocker is stale-page closeout noise, route to freshness maintenance first, not to a blind workflow rerun.
 
 ### Claim / Recovery
 
 1. `wiki forge status <project> <slice> --json`
-2. if the slice should continue, rerun `wiki forge run <project> <slice> --repo <path>`
+2. if the slice should continue and no freshness blocker remains, rerun `wiki forge run <project> <slice> --repo <path>`
 3. if the claim is wrong/stale, use `wiki forge release <project> <slice>`
-4. if the slice is being explicitly cancelled, use `wiki close-slice <project> <slice> --reason "<reason>"`
+4. if the slice is being explicitly cancelled, use `wiki close-slice <project> <slice> --reason \"<reason>\"`
 
 ## Workflow Contract
 
@@ -162,7 +175,7 @@ If one is unavailable, stop and name it.
 
 ## Install Parity
 
-After fixing CLI or skill behavior, validate both:
+After applying skill changes that affect CLI or skill behavior, validate both:
 
 - repo-local/dev path: the checked-out repo commands and tests
 - installed/synced path: the globally installed `wiki` binary + installed repo-owned skill copies

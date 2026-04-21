@@ -96,18 +96,19 @@ describe("skill layer separation", () => {
     expect(wikiSkill).not.toContain("create-feature`, `create-prd`, `create-issue-slice`, `start-slice`");
     expect(wikiSkill).not.toContain("start-feature`, `close-feature`, `start-prd`, `close-prd`");
     expect(wikiSkill).toContain("1. `wiki checkpoint` = current freshness truth");
-    expect(wikiSkill).toContain("2. `wiki maintain` = repair/reconciliation plan");
-    expect(wikiSkill).toContain("3. `wiki resume` = context summary only");
+    expect(wikiSkill).toContain("2. `wiki maintain` = repair and reconciliation guidance");
+    expect(wikiSkill).toContain("3. `wiki resume` = convenience context only; may include historical or stale-looking notes");
     expect(wikiSkill).toContain("## Router");
     expect(wikiSkill).toContain("## Main Commands");
     expect(wikiSkill.indexOf("## Router")).toBeLessThan(wikiSkill.indexOf("## Main Commands"));
-    expect(wikiSkill).toContain("Generated/derived pages:");
+    expect(wikiSkill).toContain("## Generated and Derived Pages");
     expect(wikiSkill).toContain("`wiki refresh-from-git <project> --repo <path> --base <rev>`");
     expect(wikiSkill).toContain("`wiki acknowledge-impact <project> <page...> --repo <path>`");
     expect(wikiSkill).toContain("`wiki bind <project> <page> <source-path...>`");
     expect(wikiSkill).toContain("## Freshness Repair Path");
     expect(wikiSkill).toContain("`wiki research adopt <research-page> --project <project> --slice <slice-id>`");
-    expect(wikiSkill).toContain("Distill updates project truth targets. Adopt bridges");
+    expect(wikiSkill).toContain("Distill updates project truth. Adopt bridges accepted findings into forge-visible slice workflow.");
+    expect(wikiSkill).toContain("run `bun run sync:local`, then `bun run sync:local -- --audit`, then restart the agent session");
   });
 
   test("domain-model skill and templates stay wiki-native for forge-managed projects", () => {
@@ -152,6 +153,9 @@ describe("skill layer separation", () => {
     expect(forgeSkill).toContain("`wiki refresh-from-git <project> --repo <path> --base <rev>`");
     expect(forgeSkill).toContain("`wiki bind <project> <page> <source-path...> [--mode replace|merge]`");
     expect(forgeSkill).toContain("wiki research adopt <research-page> --project <project> --slice <slice-id>");
+    expect(forgeSkill).toContain("rerun verify-slice");
+    expect(forgeSkill).toContain("--slice-local --slice-id <slice>");
+    expect(forgeSkill).toContain("--force-review");
 
     expect(grillSkill).toContain("Compatibility note");
     expect(grillSkill).toContain("Use `/domain-model` as the primary path");

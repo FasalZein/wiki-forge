@@ -15,13 +15,13 @@ Start here:
   2. Active or ready slice: wiki forge next <project>
   3. Implementation-ready slice: wiki forge run <project> [slice-id] --repo <path>
   4. Pre-implementation gate: follow the skill/command named by wiki forge status <project> <slice-id>
-  5. Freshness conflict: wiki checkpoint -> wiki maintain -> wiki sync --report-only -> acknowledge-impact/refresh-from-git/verify-page/bind
+  5. Freshness conflict or stale-page closeout noise: wiki checkpoint -> wiki maintain -> wiki sync --report-only -> acknowledge-impact/refresh-from-git/verify-page/bind
 
 Authority order when outputs disagree:
   1. wiki checkpoint = current freshness truth
   2. wiki maintain = repair/reconciliation plan
   3. wiki forge status = workflow ledger truth
-  4. wiki resume = operator context summary only
+  4. wiki resume = operator context summary only; may include historical notes
 
 Research-to-forge bridge:
   1. wiki research file <topic> --project <project> <title>
