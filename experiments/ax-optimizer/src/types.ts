@@ -37,7 +37,7 @@ export type TargetExample = WorkflowExample | SkillExample;
 
 export type OptimizeConfig = {
   provider: string;
-  baseURL: string | undefined;
+  apiURL: string | undefined;
   apiKey: string;
   model: string;
   teacherModel: string;

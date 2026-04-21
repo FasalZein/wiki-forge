@@ -22,9 +22,9 @@ function createAi(model: string) {
   return new AxAI({
     name: config.provider as never,
     apiKey: config.apiKey,
+    apiURL: config.apiURL,
     config: {
       model,
-      ...(config.baseURL ? { baseURL: config.baseURL } : {}),
       ...(config.headers ? { headers: config.headers } : {}),
     },
   });
@@ -103,13 +103,13 @@ export async function runOptimization(target: OptimizeTarget) {
   const optimizer = new AxGEPA({
     studentAI: student,
     teacherAI: teacher,
-    numTrials: 8,
+    numTrials: 2,
     minibatch: true,
-    minibatchSize: 4,
-    earlyStoppingTrials: 3,
+    minibatchSize: 2,
+    earlyStoppingTrials: 2,
     minImprovementThreshold: -0.001,
     sampleCount: 1,
-    verbose: true,
+    verbose: false,
     debugOptimizer: false,
     seed: 42,
   });
@@ -141,10 +141,10 @@ export async function runOptimization(target: OptimizeTarget) {
         },
       })) as never,
       {
-        auto: "medium",
-        verbose: true,
+        auto: "light",
+        verbose: false,
         validationExamples: train as never,
-        maxMetricCalls: 80,
+        maxMetricCalls: 12,
       },
     );
 
@@ -194,10 +194,10 @@ export async function runOptimization(target: OptimizeTarget) {
       },
     })) as never,
     {
-      auto: "medium",
-      verbose: true,
+      auto: "light",
+      verbose: false,
       validationExamples: train as never,
-      maxMetricCalls: 80,
+      maxMetricCalls: 12,
     },
   );
 

@@ -74,6 +74,7 @@ bun run ax:optimizer:baseline:skill
 ```
 
 The sidecar is proxy-friendly. Set `AX_BASE_URL` to your local OpenAI-compatible proxy and use `AX_API_KEY=local-proxy` if the proxy does not enforce auth headers.
+The checked-in defaults currently target the local proxy at `http://127.0.0.1:8317/v1` with `AX_API_KEY=dummy`, `AX_MODEL=gpt-5.4-mini`, and `AX_TEACHER_MODEL=gpt-5.4`.
 
 Reload rules:
 

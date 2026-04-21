@@ -8,8 +8,11 @@ Purpose
 Local proxy setup
 - AX supports config.baseURL and config.headers.
 - Set AX_BASE_URL to your OpenAI-compatible local proxy, for example:
-  http://127.0.0.1:4000/v1
-- If your proxy ignores auth, AX_API_KEY=local-proxy is sufficient.
+  http://127.0.0.1:8317/v1
+- The repo defaults target the current local proxy with:
+  AX_API_KEY=dummy
+  AX_MODEL=gpt-5.4-mini
+  AX_TEACHER_MODEL=gpt-5.4
 - If your proxy needs custom headers, set AX_HEADERS_JSON to a JSON object.
 
 Common commands

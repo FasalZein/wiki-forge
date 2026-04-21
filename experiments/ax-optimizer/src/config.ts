@@ -22,10 +22,10 @@ function parseHeaders(raw: string | undefined) {
 export function loadConfig(): OptimizeConfig {
   return {
     provider: process.env.AX_PROVIDER?.trim() || "openai",
-    baseURL: process.env.AX_BASE_URL?.trim() || undefined,
-    apiKey: process.env.AX_API_KEY?.trim() || process.env.OPENAI_APIKEY?.trim() || "local-proxy",
-    model: process.env.AX_MODEL?.trim() || "gpt-4.1-mini",
-    teacherModel: process.env.AX_TEACHER_MODEL?.trim() || process.env.AX_MODEL?.trim() || "gpt-4.1-mini",
+    apiURL: process.env.AX_BASE_URL?.trim() || "http://127.0.0.1:8317/v1",
+    apiKey: process.env.AX_API_KEY?.trim() || process.env.OPENAI_APIKEY?.trim() || "dummy",
+    model: process.env.AX_MODEL?.trim() || "gpt-5.4-mini",
+    teacherModel: process.env.AX_TEACHER_MODEL?.trim() || "gpt-5.4",
     headers: parseHeaders(process.env.AX_HEADERS_JSON),
   };
 }
