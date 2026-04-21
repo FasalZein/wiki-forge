@@ -37,6 +37,9 @@ skills-lock.json
 specs/
 .desloppify/
 .ralph/
+experiments/ax-optimizer/.env
+experiments/ax-optimizer/node_modules/
+experiments/ax-optimizer/outputs/*.json
 
 # Salvage patches from pruned worktrees — reviewed manually, then deleted or applied.
 salvaged-*.patch

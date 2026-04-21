@@ -20,6 +20,12 @@
     "lint": "eslint src/",
     "check": "tsc --noEmit && eslint src/ --max-warnings 50",
     "test": "bun test",
+    "ax:optimizer:install": "bun install --cwd experiments/ax-optimizer",
+    "ax:optimizer:check": "bun run --cwd experiments/ax-optimizer check",
+    "ax:optimizer:baseline:workflow": "bun run --cwd experiments/ax-optimizer baseline:workflow",
+    "ax:optimizer:baseline:skill": "bun run --cwd experiments/ax-optimizer baseline:skill",
+    "ax:optimizer:optimize:workflow": "bun run --cwd experiments/ax-optimizer optimize:workflow",
+    "ax:optimizer:optimize:skill": "bun run --cwd experiments/ax-optimizer optimize:skill",
     "bench:qmd": "bun scripts/qmd-bench.ts",
     "bench:maint": "bun scripts/wiki-maintenance-bench.ts"
   },

@@ -57,6 +57,31 @@ bun run sync:local -- --install-set wiki-only --audit   # audit only the wiki-on
 
 Use this after pulling repo changes or editing `skills/*/SKILL.md`. Restart the agent session after syncing so it reloads the updated installed skills.
 
+## AX Optimizer Lab
+
+The repo includes an isolated AX sidecar under `experiments/ax-optimizer/` for offline optimization of:
+
+- workflow-facing surfaces such as `resume`, `handover`, repair guidance, and compact next-command outputs
+- repo-owned skills such as `/wiki` and `/forge`
+
+Setup and use:
+
+```bash
+bun run ax:optimizer:install
+bun run ax:optimizer:check
+bun run ax:optimizer:baseline:workflow
+bun run ax:optimizer:baseline:skill
+```
+
+The sidecar is proxy-friendly. Set `AX_BASE_URL` to your local OpenAI-compatible proxy and use `AX_API_KEY=local-proxy` if the proxy does not enforce auth headers.
+
+Reload rules:
+
+- running AX experiments alone does not require `sync:local` or an agent restart
+- after applying optimized output into `skills/*/SKILL.md`, run `bun run sync:local`
+- for parity checks after skill edits, run `bun run sync:local -- --audit`
+- restart the agent session after syncing so installed skill copies are reloaded
+
 `/wiki` and `/forge` stay separate:
 
 - `/wiki` = second-brain layer: retrieval, maintenance, verification, filing, drift

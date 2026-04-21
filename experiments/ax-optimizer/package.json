@@ -1,0 +1,21 @@
+{
+  "name": "wiki-forge-ax-optimizer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "print-config": "bun src/cli.ts print-config",
+    "baseline:workflow": "bun src/cli.ts baseline workflow",
+    "baseline:skill": "bun src/cli.ts baseline skill",
+    "optimize:workflow": "bun src/cli.ts optimize workflow",
+    "optimize:skill": "bun src/cli.ts optimize skill",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ax-llm/ax": "^19.0.45",
+    "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "bun-types": "1.3.11",
+    "typescript": "^5.9.2"
+  }
+}
