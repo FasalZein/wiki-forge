@@ -11,7 +11,7 @@ import {
   type ForgeWorkflowValidation,
   validateForgeWorkflowLedger,
 } from "../lib/forge-ledger";
-import { applyDerivedLedger } from "../lib/forge-ledger-detect";
+import { applyDerivedLedger } from "./forge-ledger-detect";
 import { buildForgeSteering } from "../lib/forge-steering";
 import { type ForgeTriage } from "../lib/forge-triage";
 import { collectPriorResearchRefs, extractMarkdownSection, readMatterDoc, readPlanningDoc, type MatterDoc } from "../lib/forge-evidence";

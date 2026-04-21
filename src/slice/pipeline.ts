@@ -1,7 +1,9 @@
 import { requireValue } from "../cli-shared";
 import { readFlagValue } from "../lib/cli-utils";
+import { PipelineState } from "../lib/pipeline-state";
 import { resolveDefaultBase } from "../git-utils";
-import { PipelineState, runPipeline, type PipelinePhase } from "../lib/pipeline";
+import { runPipeline } from "./pipeline-runner";
+import type { PipelinePhase } from "./pipeline-plan";
 
 export async function pipelineCommand(args: string[]) {
   const project = args[0];

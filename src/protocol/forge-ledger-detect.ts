@@ -24,26 +24,27 @@
  *   and in production callers that already resolved the vault path.
  */
 
-import { join, basename, relative } from "node:path";
-import { readdirSync } from "node:fs";
+import { join, relative } from "node:path";
 import { VAULT_ROOT, STALE_UNVERIFIED_DAYS } from "../constants";
 import { safeMatter } from "../cli-shared";
-import { appendText, ensureDir, exists, readText } from "./fs";
-import { collectPriorResearchRefs, extractMarkdownSection, readPlanningDoc } from "./forge-evidence";
-import { FORGE_PHASES, readForgeLedgerPhase, writeForgeLedgerPhase, type ForgeWorkflowLedger, type ForgePhase } from "./forge-ledger";
-import { extractVerificationSpecsFromTestPlan } from "./slices";
-import { normalizePath, stripMarkdownExtension, walkMarkdown } from "./vault";
+import { appendText, ensureDir, exists, readText } from "../lib/fs";
+import { FORGE_PHASES, readForgeLedgerPhase, writeForgeLedgerPhase, type ForgeWorkflowLedger, type ForgePhase } from "../lib/forge-ledger";
+import {
+  detectDomainModelRefs,
+  detectPrdRefs,
+  detectResearchRefs,
+  detectSlicesPhase,
+  detectTddEvidence,
+  detectVerifyPhase,
+  tailLogFromPath,
+  type DetectionFinding,
+} from "../slice/index";
 
 // ---------------------------------------------------------------------------
 // Public types
 // ---------------------------------------------------------------------------
 
-export type DetectionFinding = {
-  phase: ForgePhase;
-  scope: "slice" | "parent";
-  severity: "warning" | "info";
-  message: string;
-};
+export type { DetectionFinding } from "../slice/index";
 
 export type DerivedForgeLedger = {
   /** Fields that should fill gaps in the authored ledger. */
@@ -208,292 +209,6 @@ async function _derive(project: string, sliceId: string, vaultRoot: string): Pro
 }
 
 // ---------------------------------------------------------------------------
-// Phase detectors
-// ---------------------------------------------------------------------------
-
-async function detectResearchRefs(
-  project: string,
-  sliceId: string,
-  parentPrd: string | undefined,
-  vaultRoot: string,
-): Promise<{ refs: string[]; legacyFallbackUsed: boolean }> {
-  const researchDir = join(vaultRoot, "research");
-
-  // Gather reference sets from the PRD's source_paths
-  const prdSourcePaths = new Set<string>();
-  const prdsDir = join(vaultRoot, "projects", project, "specs", "prds");
-  const prdDoc = parentPrd ? await readPlanningDoc(prdsDir, parentPrd, vaultRoot) : null;
-  if (prdDoc && Array.isArray(prdDoc.data.source_paths)) {
-    for (const sp of prdDoc.data.source_paths) {
-      if (typeof sp === "string") prdSourcePaths.add(sp.trim());
-    }
-  }
-
-  const refs: string[] = collectPriorResearchRefs(prdDoc);
-  let legacyFallbackUsed = false;
-  const sliceIdLower = sliceId.toLowerCase();
-  const prdIdLower = parentPrd ? parentPrd.toLowerCase() : null;
-
-  if (!await exists(researchDir)) {
-    return { refs: [...new Set(refs)], legacyFallbackUsed };
-  }
-
-  for (const file of await walkMarkdown(researchDir)) {
-    const relVaultPath = normalizePath(relative(vaultRoot, file));
-    const relNoExt = stripMarkdownExtension(relVaultPath);
-    const base = basename(file, ".md").toLowerCase();
-    const matchesByName =
-      (prdIdLower && (base.startsWith(`${prdIdLower}-`) || base === prdIdLower)) ||
-      base.startsWith(`${sliceIdLower}-`) ||
-      base === sliceIdLower;
-    const matchesBySourcePath = prdSourcePaths.has(relVaultPath) || prdSourcePaths.has(relNoExt);
-    const parsed = safeMatter(relVaultPath, await readText(file), { silent: true });
-    const taskId = typeof parsed?.data.task_id === "string" ? parsed.data.task_id.trim() : "";
-    const sliceFrontmatterId = typeof parsed?.data.slice_id === "string" ? parsed.data.slice_id.trim() : "";
-    const matchesByFrontmatter = taskId === sliceId || sliceFrontmatterId === sliceId;
-
-    if (matchesByFrontmatter || matchesBySourcePath || matchesByName) {
-      refs.push(relNoExt);
-      if (!matchesByFrontmatter && !matchesBySourcePath && matchesByName) {
-        legacyFallbackUsed = true;
-      }
-    }
-  }
-
-  return { refs: [...new Set(refs)], legacyFallbackUsed };
-}
-
-async function detectDomainModelRefs(
-  project: string,
-  sliceId: string,
-  parentPrd: string | undefined,
-  sliceCreatedAt: string | null,
-  vaultRoot: string,
-): Promise<{ decisionRefs: string[] }> {
-  const decisionsPath = join(vaultRoot, "projects", project, "decisions.md");
-  if (!await exists(decisionsPath)) return { decisionRefs: [] };
-
-  const raw = await readText(decisionsPath);
-  const vaultRelPath = `projects/${project}/decisions.md`;
-  const parsed = safeMatter(vaultRelPath, raw, { silent: true });
-  if (!parsed) return { decisionRefs: [] };
-
-  // Extract the decisions.md `updated` field to use as a rough authored-time proxy.
-  // We check if the file was updated on or after the slice's created_at.
-  // This is the best proxy available — decisions.md does not have per-entry timestamps.
-  const decisionsUpdated = typeof parsed.data.updated === "string" ? parsed.data.updated.trim() : null;
-
-  // Lifetime check: decisions.md must have been updated at or after slice creation.
-  // If slice created_at is unknown, we skip the lifetime check (permissive).
-  if (sliceCreatedAt && decisionsUpdated) {
-    const sliceStart = new Date(sliceCreatedAt).getTime();
-    const decisionsUpdate = new Date(decisionsUpdated).getTime();
-    if (decisionsUpdate < sliceStart) {
-      return { decisionRefs: [] };
-    }
-  }
-
-  // Scan for lines containing [PRD-<id>] or [<sliceId>] tags
-  const content = parsed.content;
-  const sliceTag = `[${sliceId}]`;
-  const prdTag = parentPrd ? `[${parentPrd}]` : null;
-
-  const hasSliceTag = content.includes(sliceTag);
-  const hasPrdTag = prdTag ? content.includes(prdTag) : false;
-
-  if (!hasSliceTag && !hasPrdTag) return { decisionRefs: [] };
-
-  // Build refs: each matching heading section as an anchor
-  const refs: string[] = [];
-  const lines = content.split("\n");
-  for (const line of lines) {
-    if (line.includes(sliceTag) || (prdTag && line.includes(prdTag))) {
-      // Extract anchor from heading lines
-      const headingMatch = line.match(/^#{1,6}\s+(.+)/u);
-      if (headingMatch) {
-        const anchor = headingMatch[1].toLowerCase().replace(/[^\w\s-]/gu, "").replace(/\s+/gu, "-");
-        refs.push(`${vaultRelPath}#${anchor}`);
-      }
-    }
-  }
-
-  // If no heading match, just reference the Current Decisions section
-  if (refs.length === 0 && (hasSliceTag || hasPrdTag)) {
-    refs.push(`${vaultRelPath}#current-decisions`);
-  }
-
-  return { decisionRefs: refs };
-}
-
-async function detectPrdRefs(
-  project: string,
-  sliceId: string,
-  parentPrd: string | undefined,
-  parentFeature: string | undefined,
-  findings: DetectionFinding[],
-  vaultRoot: string,
-): Promise<{ prdRef: string; parentPrd: string } | null> {
-  const prdsDir = join(vaultRoot, "projects", project, "specs", "prds");
-  if (!await exists(prdsDir)) return null;
-
-  const entries = readdirSync(prdsDir).filter((f) => f.endsWith(".md") && /^PRD-\d+/u.test(f));
-
-  const candidates: Array<{ prdId: string }> = [];
-
-  for (const file of entries) {
-    const raw = await readText(join(prdsDir, file));
-    const prdParsed = safeMatter(`projects/${project}/specs/prds/${file}`, raw, { silent: true });
-    if (!prdParsed) continue;
-
-    const filePrdId = typeof prdParsed.data.prd_id === "string" ? prdParsed.data.prd_id.trim() : null;
-    const fileParentFeature = typeof prdParsed.data.parent_feature === "string" ? prdParsed.data.parent_feature.trim() : null;
-
-    if (!filePrdId || !fileParentFeature) continue;
-
-    // If the slice has a known parentPrd, only match that specific PRD
-    if (parentPrd && filePrdId !== parentPrd) continue;
-
-    // If the slice has a known parentFeature, the PRD's parent_feature must match
-    if (parentFeature && fileParentFeature !== parentFeature) continue;
-
-    // Without a specific parentPrd, match any PRD whose parent_feature matches
-    // and which references this slice in its Child Slices section
-    if (!parentPrd) {
-      const childSlicesSection = extractMarkdownSection(prdParsed.content, "Child Slices");
-      if (!childSlicesSection.includes(sliceId)) continue;
-    }
-
-    candidates.push({ prdId: filePrdId });
-  }
-
-  if (candidates.length === 0) return null;
-
-  if (candidates.length > 1) {
-    findings.push({
-      phase: "prd",
-      scope: "parent",
-      severity: "warning",
-      message: `ambiguous PRD: ${candidates.map((c) => c.prdId).join(", ")} all reference slice ${sliceId} — phase left incomplete`,
-    });
-    return null;
-  }
-
-  const { prdId } = candidates[0];
-  const resolvedParent = parentPrd ?? prdId;
-  return { prdRef: prdId, parentPrd: resolvedParent };
-}
-
-async function detectSlicesPhase(
-  project: string,
-  sliceId: string,
-  parentPrd: string | undefined,
-  vaultRoot: string,
-): Promise<string[]> {
-  // Rule: slice hub index.md must exist
-  const hubPath = join(vaultRoot, "projects", project, "specs", "slices", sliceId, "index.md");
-  if (!await exists(hubPath)) return [];
-
-  // Rule: parent PRD's ## Child Slices section must list this slice
-  if (!parentPrd) return [];
-  const prdsDir = join(vaultRoot, "projects", project, "specs", "prds");
-  if (!await exists(prdsDir)) return [];
-  const entries = readdirSync(prdsDir);
-  const prdFile = entries.find((f) => f.startsWith(`${parentPrd}-`) && f.endsWith(".md"));
-  if (!prdFile) return [];
-
-  const raw = await readText(join(prdsDir, prdFile));
-  const prdParsed = safeMatter(`projects/${project}/specs/prds/${prdFile}`, raw, { silent: true });
-  if (!prdParsed) return [];
-
-  const childSlices = extractMarkdownSection(prdParsed.content, "Child Slices");
-  if (!childSlices.includes(sliceId)) return [];
-
-  return [sliceId];
-}
-
-async function detectTddEvidence(project: string, sliceId: string, vaultRoot: string): Promise<string[]> {
-  const planPath = join(vaultRoot, "projects", project, "specs", "slices", sliceId, "plan.md");
-  const testPlanPath = join(vaultRoot, "projects", project, "specs", "slices", sliceId, "test-plan.md");
-
-  if (!await exists(planPath) || !await exists(testPlanPath)) return [];
-
-  const [planRaw, testPlanRaw] = await Promise.all([readText(planPath), readText(testPlanPath)]);
-
-  const planParsed = safeMatter(`projects/${project}/specs/slices/${sliceId}/plan.md`, planRaw, { silent: true });
-  const testPlanParsed = safeMatter(`projects/${project}/specs/slices/${sliceId}/test-plan.md`, testPlanRaw, { silent: true });
-
-  if (!planParsed || !testPlanParsed) return [];
-
-  const planStatus = typeof planParsed.data.status === "string" ? planParsed.data.status.trim() : "";
-  const testPlanStatus = typeof testPlanParsed.data.status === "string" ? testPlanParsed.data.status.trim() : "";
-
-  // Both must be status: ready (not draft, not current, not anything else)
-  if (planStatus !== "ready" || testPlanStatus !== "ready") return [];
-
-  const redTestsSection = extractMarkdownSection(testPlanParsed.content, "Red Tests");
-  if (!/^\s*-\s*\[(?: |x|X)\]/mu.test(redTestsSection)) return [];
-
-  const verificationCommands = extractVerificationSpecsFromTestPlan(testPlanParsed.content, testPlanParsed.data)
-    .map((entry) => entry.command.trim())
-    .filter(Boolean);
-  if (verificationCommands.length === 0) return [];
-
-  return [`projects/${project}/specs/slices/${sliceId}/test-plan.md`];
-}
-
-async function detectVerifyPhase(project: string, sliceId: string, vaultRoot: string): Promise<string[]> {
-  const testPlanPath = join(vaultRoot, "projects", project, "specs", "slices", sliceId, "test-plan.md");
-  if (!await exists(testPlanPath)) return [];
-
-  const raw = await readText(testPlanPath);
-  const parsed = safeMatter(`projects/${project}/specs/slices/${sliceId}/test-plan.md`, raw, { silent: true });
-  if (!parsed) return [];
-
-  const verificationLevel = typeof parsed.data.verification_level === "string"
-    ? parsed.data.verification_level.trim()
-    : "";
-
-  // verification_level must be present and non-empty
-  if (!verificationLevel) return [];
-
-  // Check log for a recent verify-slice entry referencing this slice.
-  // "Recent" = within STALE_UNVERIFIED_DAYS (30) days, using the same staleness
-  // window as page verification staleness (see STALE_UNVERIFIED_DAYS in constants.ts).
-  const cutoffMs = STALE_UNVERIFIED_DAYS * 24 * 60 * 60 * 1000;
-  const cutoffDate = new Date(Date.now() - cutoffMs);
-
-  // tailLog reads from VAULT_ROOT/log.md. For tests we rely on the vaultRoot-aware
-  // log path resolved from the tail of the log file at the vault's log.md path.
-  const logPath = join(vaultRoot, "log.md");
-  const logEntries = await tailLogFromPath(logPath, 200);
-  const hasRecentVerify = logEntries.some((entry) => {
-    if (!entry.includes(`verify-slice | ${sliceId}`)) return false;
-    const dateMatch = entry.match(/^## \[(\d{4}-\d{2}-\d{2})\]/u);
-    if (!dateMatch) return false;
-    const entryDate = new Date(dateMatch[1]);
-    return entryDate >= cutoffDate;
-  });
-
-  if (!hasRecentVerify) return [];
-
-  // Extract first shell command from test-plan verification blocks
-  const commands: string[] = [];
-  const codeBlockPattern = /```(?:bash|sh|shell)\n([\s\S]*?)```/gu;
-  let match: RegExpExecArray | null;
-  while ((match = codeBlockPattern.exec(parsed.content)) !== null) {
-    const block = match[1].trim();
-    const firstLine = block.split("\n").find((l) => l.trim() && !l.trim().startsWith("#"));
-    if (firstLine) commands.push(firstLine.trim());
-  }
-
-  if (commands.length === 0) {
-    commands.push(`wiki verify-slice ${project} ${sliceId}`);
-  }
-
-  return commands;
-}
-
-// ---------------------------------------------------------------------------
 // Merge helper
 // ---------------------------------------------------------------------------
 
@@ -626,11 +341,4 @@ function appendOverrideEntry(logPath: string, sliceId: string, project: string, 
     "",
   ];
   appendText(logPath, `${lines.join("\n")}\n`);
-}
-
-async function tailLogFromPath(logPath: string, count: number): Promise<string[]> {
-  if (!await exists(logPath)) return [];
-  const content = (await readText(logPath)).replace(/\r\n/g, "\n");
-  const entries = content.split(/^## /mu).filter(Boolean).map((chunk) => `## ${chunk.trimEnd()}`);
-  return entries.slice(-count);
 }

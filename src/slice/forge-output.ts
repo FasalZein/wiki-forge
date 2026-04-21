@@ -1,8 +1,8 @@
-import type { PipelineResult } from "../lib/pipeline";
 import { buildForgeSteering, renderSteeringPacket, type ForgeSteeringPacket } from "../lib/forge-steering";
 import type { ForgeTriage } from "../lib/forge-triage";
 import { collectForgeStatus } from "../protocol";
 import type { ForgeReview } from "./forge-docs";
+import type { PipelineResult } from "./pipeline-runner";
 
 export type ResolvedForgeWorkflow = Awaited<ReturnType<typeof collectForgeStatus>> & {
   triage: ForgeTriage;

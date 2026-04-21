@@ -89,11 +89,10 @@ describe("WIKI-FORGE-146 pipeline sub-step attribution", () => {
     expect(runWiki(["scaffold-project", "attrcheck"], env).exitCode).toBe(0);
     setRepoFrontmatter(vault, repo, "attrcheck");
     expect(runWiki(["create-issue-slice", "attrcheck", "payments slice", "--source", "src/payments.ts"], env).exitCode).toBe(0);
-    const pagesDir = join(vault, "projects", "attrcheck", "architecture");
-    mkdirSync(pagesDir, { recursive: true });
+    const indexPath = join(vault, "projects", "attrcheck", "specs", "slices", "ATTRCHECK-001", "index.md");
     writeFileSync(
-      join(pagesDir, "stale-payments.md"),
-      "---\ntitle: stale\ntype: notes\nproject: attrcheck\nsource_paths:\n  - src/payments.ts\nupdated: '2010-01-01T00:00:00.000Z'\nstatus: current\nverification_level: code-verified\n---\n# stale\n",
+      indexPath,
+      readFileSync(indexPath, "utf8").replace(/^updated:.*$/mu, "updated: '2010-01-01T00:00:00.000Z'"),
       "utf8",
     );
 
@@ -118,11 +117,11 @@ describe("WIKI-FORGE-146 pipeline sub-step attribution", () => {
       "ATTRREPAIR-001",
       "bun test tests/payments.test.ts",
     );
-    const pagesDir = join(vault, "projects", "attrrepair", "architecture");
-    mkdirSync(pagesDir, { recursive: true });
+    expect(runWiki(["forge", "start", "attrrepair", "ATTRREPAIR-001", "--agent", "codex", "--repo", repo], env).exitCode).toBe(0);
+    const indexPath = join(vault, "projects", "attrrepair", "specs", "slices", "ATTRREPAIR-001", "index.md");
     writeFileSync(
-      join(pagesDir, "stale-payments.md"),
-      "---\ntitle: stale\ntype: notes\nproject: attrrepair\nsource_paths:\n  - src/payments.ts\nupdated: '2010-01-01T00:00:00.000Z'\nstatus: current\nverification_level: code-verified\n---\n# stale\n",
+      indexPath,
+      readFileSync(indexPath, "utf8").replace(/^updated:.*$/mu, "updated: '2010-01-01T00:00:00.000Z'"),
       "utf8",
     );
 
@@ -136,6 +135,11 @@ describe("WIKI-FORGE-146 pipeline sub-step attribution", () => {
     expect(payload.steering.nextCommand).toContain("wiki checkpoint attrrepair");
     expect(payload.steering.nextCommand).not.toContain("wiki forge run attrrepair ATTRREPAIR-001");
 
+    writeFileSync(
+      indexPath,
+      readFileSync(indexPath, "utf8").replace(/^updated:.*$/mu, "updated: '2010-01-01T00:00:00.000Z'"),
+      "utf8",
+    );
     const text = runWiki(["forge", "run", "attrrepair", "ATTRREPAIR-001", "--repo", repo, "--base", "HEAD~1"], env);
     expect(text.exitCode).toBe(1);
     expect(text.stdout.toString()).toContain("next: wiki checkpoint attrrepair");
@@ -149,11 +153,10 @@ describe("WIKI-FORGE-146 pipeline sub-step attribution", () => {
     expect(runWiki(["scaffold-project", "attrtext"], env).exitCode).toBe(0);
     setRepoFrontmatter(vault, repo, "attrtext");
     expect(runWiki(["create-issue-slice", "attrtext", "payments slice", "--source", "src/payments.ts"], env).exitCode).toBe(0);
-    const pagesDir = join(vault, "projects", "attrtext", "architecture");
-    mkdirSync(pagesDir, { recursive: true });
+    const indexPath = join(vault, "projects", "attrtext", "specs", "slices", "ATTRTEXT-001", "index.md");
     writeFileSync(
-      join(pagesDir, "stale-payments.md"),
-      "---\ntitle: stale\ntype: notes\nproject: attrtext\nsource_paths:\n  - src/payments.ts\nupdated: '2010-01-01T00:00:00.000Z'\nstatus: current\nverification_level: code-verified\n---\n# stale\n",
+      indexPath,
+      readFileSync(indexPath, "utf8").replace(/^updated:.*$/mu, "updated: '2010-01-01T00:00:00.000Z'"),
       "utf8",
     );
 

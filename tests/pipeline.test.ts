@@ -1,6 +1,8 @@
 import { describe, expect, it, beforeEach, afterEach } from "bun:test";
 import { Database } from "bun:sqlite";
-import { pipelineSteps, PipelineState, runPipeline, type PipelinePhase } from "../src/lib/pipeline";
+import { PipelineState } from "../src/lib/pipeline-state";
+import { runPipeline } from "../src/slice/pipeline-runner";
+import { pipelineSteps, type PipelinePhase } from "../src/slice/pipeline-plan";
 
 describe("pipelineSteps", () => {
   it("returns close phase steps in order", () => {

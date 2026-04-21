@@ -15,7 +15,7 @@ import {
   deriveForgeLedgerFromArtifacts,
   mergeDerivedForgeLedger,
   applyDerivedLedger,
-} from "../src/lib/forge-ledger-detect";
+} from "../src/protocol/forge-ledger-detect";
 import type { ForgeWorkflowLedger } from "../src/lib/forge-ledger";
 
 afterEach(() => {
@@ -507,6 +507,24 @@ describe("deriveForgeLedgerFromArtifacts — verify phase", () => {
     expect(result.patch.verify).toBeDefined();
     expect(result.patch.verify?.verificationCommands).toBeDefined();
     expect(result.patch.verify?.verificationCommands?.length).toBeGreaterThan(0);
+  });
+
+  test("falls back to wiki verify-slice when verify evidence has no explicit shell commands", async () => {
+    const vault = setupVault();
+    makeSliceHub(vault, "myproject", "MYPROJECT-001");
+    const dir = join(vault, "projects", "myproject", "specs", "slices", "MYPROJECT-001");
+    writeFileSync(
+      join(dir, "test-plan.md"),
+      "---\ntitle: MYPROJECT-001 test-plan\ntype: spec\nspec_kind: test-plan\nproject: myproject\ntask_id: MYPROJECT-001\nupdated: '2026-04-17T00:00:00.000Z'\nstatus: ready\nverification_level: test-verified\n---\n\n# Test Plan\n\n## Red Tests\n\n- [x] it works\n\n## Verification Notes\n\nNo shell command captured yet.\n",
+      "utf8",
+    );
+    addVerifyLogEntry(vault, "MYPROJECT-001", "myproject", "2026-04-18");
+
+    const result = await d(vault, "myproject", "MYPROJECT-001");
+    expect(result.patch.verify).toBeDefined();
+    expect(result.patch.verify?.verificationCommands).toEqual([
+      "wiki verify-slice myproject MYPROJECT-001",
+    ]);
   });
 
   test("skips verify phase when no verification_level in frontmatter", async () => {

@@ -1,5 +1,4 @@
 import { defaultAgentName } from "../lib/cli-utils";
-import { runPipeline } from "../lib/pipeline";
 import { writeSliceProgress, type PipelineStepProgress, type SlicePipelineProgress } from "../lib/slice-progress";
 import { renderSteeringPacket } from "../lib/forge-steering";
 import { collectBacklogFocus, collectTaskContextForId } from "../hierarchy";
@@ -13,6 +12,7 @@ import {
   renderForgePipeline,
   resolveFailedPipelineStep,
 } from "./forge-output";
+import { runPipeline } from "./pipeline-runner";
 import { startSliceCore } from "./start";
 
 export async function forgeRun(args: string[]) {

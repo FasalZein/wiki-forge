@@ -4,3 +4,13 @@ export { verifySlice } from "./verify";
 export { closeSlice } from "./close";
 export { createIssueSlice } from "./slice-scaffold";
 export { repairHistoricalDoneSlices, isHistoricalDoneSlicePage } from "./slice-repair";
+export {
+  detectDomainModelRefs,
+  detectPrdRefs,
+  detectResearchRefs,
+  detectSlicesPhase,
+  detectTddEvidence,
+  detectVerifyPhase,
+  tailLogFromPath,
+  type DetectionFinding,
+} from "./forge-evidence-readers";

@@ -3,7 +3,6 @@ import { nowIso, orderFrontmatter, requireValue, safeMatter, writeNormalizedPage
 import { VAULT_ROOT } from "../constants";
 import { readFlagValue } from "../lib/cli-utils";
 import { exists, readText } from "../lib/fs";
-import { runPipeline } from "../lib/pipeline";
 import { type ForgeWorkflowLedger } from "../lib/forge-ledger";
 import { renderSteeringPacket } from "../lib/forge-steering";
 import { collectBacklogFocus, collectTaskContextForId, createFeatureReturningId, createPrdReturningId, moveTaskToSection } from "../hierarchy";
@@ -21,6 +20,7 @@ import {
   renderForgeStatusWithoutSlice,
 } from "./forge-output";
 import { collectForgeReview } from "./forge-docs";
+import { runPipeline } from "./pipeline-runner";
 import { projectTaskHubPath } from "../lib/structure";
 export { forgeRun } from "./forge-run";
 

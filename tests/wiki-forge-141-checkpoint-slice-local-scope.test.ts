@@ -59,7 +59,7 @@ function setupBroadBindingFixture() {
 
 describe("WIKI-FORGE-141 slice-local checkpoint scope (F3)", () => {
   test("slice-local checkpoint ignores modified files outside the slice's source_paths", () => {
-    const { vault, repo, env } = setupBroadBindingFixture();
+    const { repo, env } = setupBroadBindingFixture();
 
     const result = runWiki([
       "checkpoint",
@@ -79,6 +79,8 @@ describe("WIKI-FORGE-141 slice-local checkpoint scope (F3)", () => {
     const payload = JSON.parse(result.stdout.toString());
     expect(payload.clean).toBe(true);
     expect(payload.stalePages.length).toBe(0);
+    expect(payload.pageStatuses).toEqual([]);
+    expect(payload.nonBlockingStalePages).toEqual([]);
   });
 
   test("non-slice-local checkpoint still reports the broad-binding page as stale (no regression)", () => {
