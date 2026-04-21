@@ -14,6 +14,7 @@ export async function workflowMetric({
   const nextCommand = normalizeCommand(typeof prediction.nextCommand === "string" ? prediction.nextCommand : "");
   const expectedCommand = normalizeCommand(example.expected.nextCommand);
   const lane = typeof prediction.lane === "string" ? prediction.lane : "";
+  const blockerType = typeof prediction.blockerType === "string" ? prediction.blockerType : "";
   const reason = typeof prediction.reason === "string" ? prediction.reason : "";
   const compactResponse = typeof prediction.compactResponse === "string" ? prediction.compactResponse : "";
 
@@ -23,6 +24,7 @@ export async function workflowMetric({
   const maxReasonLength = example.expected.maxReasonLength ?? 140;
 
   return {
+    blockerAccuracy: blockerType === example.expected.blockerType ? 1 : 0,
     laneAccuracy: lane === example.expected.lane ? 1 : 0,
     commandAccuracy: nextCommand === expectedCommand ? 1 : 0,
     noLoop: forbiddenHit ? 0 : 1,

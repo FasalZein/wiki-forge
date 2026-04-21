@@ -12,7 +12,9 @@ import { createAi, createProgramWithOptimization } from "./runtime";
 import { loadSkillCandidateTargets } from "./targets";
 import type { OptimizeTarget, ScoreCard, SkillCandidateTarget, SkillExample, WorkflowExample } from "./types";
 
-type PreparedWorkflowExample = WorkflowExample["input"] & {
+type PreparedWorkflowExample = Omit<WorkflowExample["input"], "allowedCommands" | "forbiddenCommands"> & {
+  allowedCommands: string;
+  forbiddenCommands: string;
   _expected: WorkflowExample["expected"];
 };
 
@@ -49,7 +51,7 @@ async function writeJsonOutput(name: string, payload: unknown) {
 async function evaluateWorkflow(program: ReturnType<typeof createProgram>, student: AxAI, examples: WorkflowExample[]) {
   const scores: ScoreCard[] = [];
   for (const example of examples) {
-    const prediction = await program.forward(student, example.input);
+    const prediction = await program.forward(student, buildWorkflowProgramInput(example.input, example.expected));
     scores.push(await workflowMetric({ prediction: prediction as Record<string, unknown>, example }));
   }
   return averageScores(scores);
@@ -66,7 +68,7 @@ async function evaluateSkill(program: ReturnType<typeof createProgram>, student:
 
 function prepareWorkflowExamples(examples: WorkflowExample[]) {
   return examples.map((example): PreparedWorkflowExample => ({
-    ...example.input,
+    ...buildWorkflowProgramInput(example.input, example.expected),
     _expected: example.expected,
   }));
 }
@@ -88,6 +90,19 @@ function buildSkillProgramInput(
     ...input,
     requiredPhrases: requiredPhrases.join("\n"),
     forbiddenPhrases: forbiddenPhrases.join("\n"),
+  };
+}
+
+function buildWorkflowProgramInput(
+  input: WorkflowExample["input"],
+  expected: Pick<WorkflowExample["expected"], "nextCommand" | "forbiddenCommands">,
+) {
+  const allowedCommands = input.allowedCommands ?? [expected.nextCommand];
+  const forbiddenCommands = input.forbiddenCommands ?? expected.forbiddenCommands ?? [];
+  return {
+    ...input,
+    allowedCommands: allowedCommands.join("\n"),
+    forbiddenCommands: forbiddenCommands.join("\n"),
   };
 }
 
@@ -152,6 +167,8 @@ export async function runOptimization(target: OptimizeTarget) {
             currentOutput: example.currentOutput,
             repairContext: example.repairContext,
             goal: example.goal,
+            allowedCommands: example.allowedCommands.split("\n").filter(Boolean),
+            forbiddenCommands: example.forbiddenCommands.split("\n").filter(Boolean),
           },
           expected: example._expected,
         },

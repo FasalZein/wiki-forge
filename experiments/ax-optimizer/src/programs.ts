@@ -9,12 +9,15 @@ function createWorkflowProgram() {
       + ', currentOutput:string "Current agent-facing output to improve"'
       + ', repairContext:string "Known failure modes, repair constraints, and authority order"'
       + ', goal:string "What the surface should achieve"'
-      + ' -> lane:class "domain-work, implementation-work, maintenance-refresh, verify-close, audited-exception" "Best operator lane"'
+      + ', allowedCommands:string "Exact next-command candidates that are valid in this state. Choose one exactly."'
+      + ', forbiddenCommands:string "Commands that must not be chosen in this state"'
+      + ' -> blockerType:class "freshness, pre-phase, close-path, completion, debugging" "What kind of blocker or decision this state represents"'
+      + ', lane:class "domain-work, implementation-work, maintenance-refresh, verify-close, audited-exception" "Best operator lane"'
       + ', nextCommand:string "Single best next command with exact CLI form"'
       + ', reason:string "Short reason for that next command"'
       + ', compactResponse:string "Compact operator-facing response that does not add loop-inducing noise"',
     {
-      description: "Optimize workflow-facing guidance so the agent chooses the correct lane and next command without falling into stale repair loops.",
+      description: "Optimize workflow-facing guidance so the agent classifies the blocker correctly and chooses an exact next command without falling into stale repair loops.",
     },
   );
 }

@@ -8,8 +8,11 @@ export type WorkflowExample = {
     currentOutput: string;
     repairContext: string;
     goal: string;
+    allowedCommands?: string[];
+    forbiddenCommands?: string[];
   };
   expected: {
+    blockerType: string;
     lane: string;
     nextCommand: string;
     forbiddenCommands?: string[];
