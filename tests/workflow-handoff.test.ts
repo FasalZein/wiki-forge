@@ -88,7 +88,7 @@ describe("wiki workflow handoff improvements", () => {
     expect(failing.exitCode).toBe(1);
     const failingJson = JSON.parse(failing.stdout.toString());
     expect(failingJson.blockers[0]).toContain("changed code file(s)");
-    expect(failingJson.warnings.some((warning: string) => warning.includes("marked done in slice docs"))).toBe(false);
+    expect(failingJson.warnings.some((warning: string) => warning.includes("marked done in slice docs"))).toBe(true);
 
     const structural = runWiki(["gate", "demo", "--repo", repo, "--base", "HEAD~1", "--structural-refactor", "--json"], env);
     expect(structural.exitCode).toBe(0);
@@ -120,6 +120,9 @@ describe("wiki workflow handoff improvements", () => {
     const testPlan = readFileSync(join(vault, "projects", "gated", "specs", "slices", "GATED-001", "test-plan.md"), "utf8");
     expect(index).toContain("status: done");
     expect(index).toContain("completed_at:");
+    expect(index).toContain("last_forge_step: close-slice");
+    expect(index).toContain("last_forge_state: passed");
+    expect(index).toContain("last_forge_ok: true");
     expect(index).toContain("verification_level: test-verified");
     expect(testPlan).toContain("verification_level: test-verified");
   });

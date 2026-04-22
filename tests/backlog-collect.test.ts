@@ -26,7 +26,34 @@ function setupPassingRepo() {
 }
 
 describe("backlog projection from slice docs", () => {
-  test("projects a done slice into Done even when backlog text is stale", () => {
+  test("projects a canonically closed slice into Done even when backlog text is stale", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "demo");
+    expect(runWiki(["create-issue-slice", "demo", "auth slice"], env).exitCode).toBe(0);
+    const sliceDir = join(vault, "projects", "demo", "specs", "slices", "DEMO-001");
+    writeFileSync(join(sliceDir, "plan.md"), "---\ntitle: DEMO-001 auth slice\ntype: spec\nspec_kind: plan\nproject: demo\ntask_id: DEMO-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# DEMO-001 auth slice\n\n## Scope\n\n- close the slice\n", "utf8");
+    writeFileSync(join(sliceDir, "test-plan.md"), "---\ntitle: DEMO-001 auth slice\ntype: spec\nspec_kind: test-plan\nproject: demo\ntask_id: DEMO-001\nupdated: 2026-04-13\nstatus: current\nverification_level: test-verified\nverified_against: HEAD\nverification_commands:\n  - command: bun test tests/payments.test.ts\n---\n\n# DEMO-001 auth slice\n\n## Red Tests\n\n- [x] covered\n", "utf8");
+    expect(runWiki(["bind", "demo", "specs/slices/DEMO-001/index.md", "src/payments.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["move-task", "demo", "DEMO-001", "--to", "In Progress"], env).exitCode).toBe(0);
+    expect(runWiki(["close-slice", "demo", "DEMO-001", "--repo", repo, "--base", "HEAD~1"], env).exitCode).toBe(0);
+
+    const backlogPath = join(vault, "projects", "demo", "backlog.md");
+    const staleBacklog = readFileSync(backlogPath, "utf8")
+      .replace("## Done", "## Todo")
+      .replace("- [x] **DEMO-001**", "- [ ] **DEMO-001**");
+    writeFileSync(backlogPath, staleBacklog, "utf8");
+
+    const backlog = runWiki(["backlog", "demo", "--json"], env);
+    expect(backlog.exitCode).toBe(0);
+    const json = JSON.parse(backlog.stdout.toString());
+    expect(json.sections.Done[0].id).toBe("DEMO-001");
+    expect((json.sections.Todo ?? []).some((item: { id: string }) => item.id === "DEMO-001")).toBe(false);
+  });
+
+  test("keeps docs-only done slices out of Done until canonical close evidence exists", () => {
     const vault = tempDir("wiki-vault");
     initVault(vault);
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
@@ -40,8 +67,8 @@ describe("backlog projection from slice docs", () => {
     const backlog = runWiki(["backlog", "demo", "--json"], env);
     expect(backlog.exitCode).toBe(0);
     const json = JSON.parse(backlog.stdout.toString());
-    expect(json.sections.Done[0].id).toBe("DEMO-001");
-    expect((json.sections.Todo ?? []).some((item: { id: string }) => item.id === "DEMO-001")).toBe(false);
+    expect((json.sections.Done ?? []).some((item: { id: string }) => item.id === "DEMO-001")).toBe(false);
+    expect(json.sections.Todo[0].id).toBe("DEMO-001");
   });
 
   test("projects a reopened slice out of Done and back into In Progress", () => {
