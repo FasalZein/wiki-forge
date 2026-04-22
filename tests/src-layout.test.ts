@@ -73,6 +73,15 @@ describe("WIKI-FORGE-107 src-layout foundation", () => {
     }
   });
 
+  test("src/ exposes top-level wiki and forge seams", () => {
+    for (const seam of ["wiki", "forge"] as const) {
+      const path = join(srcRoot, seam);
+      expect(existsSync(path)).toBe(true);
+      expect(statSync(path).isDirectory()).toBe(true);
+      expect(existsSync(join(path, "index.ts"))).toBe(true);
+    }
+  });
+
   test("architecture/src-layout.md exists and lists every currently-tracked command basename", () => {
     const vault = resolveVaultRoot();
     if (!vault) {
@@ -94,6 +103,36 @@ describe("WIKI-FORGE-107 src-layout foundation", () => {
 
     for (const basename of expectedBasenames) {
       expect(content).toContain(basename);
+    }
+  });
+});
+
+describe("WIKI-FORGE-180 lib drainage and first-wave contract", () => {
+  test("architecture/src-layout.md records the first-wave pack-out rules", () => {
+    const vault = resolveVaultRoot();
+    if (!vault) {
+      return;
+    }
+
+    const page = join(vault, "projects", "wiki-forge", "architecture", "src-layout.md");
+    expect(existsSync(page)).toBe(true);
+
+    const content = readFileSync(page, "utf8");
+    expect(content).toContain("`src/lib/` is infrastructure-only");
+    expect(content).toContain("The first migration wave targets only the overloaded domains");
+    expect(content).toContain("Subdomain maps are capability / lifecycle first");
+    expect(content).toContain("The campaign starts with `lib` drainage");
+    expect(content).toContain("1. `lib` drainage");
+    expect(content).toContain("maintenance/checkpoint");
+    expect(content).toContain("slice/verification");
+  });
+
+  test("slice-specific lib helpers are namespaced under src/lib/slices", () => {
+    const helpers = ["plan-summary.ts", "placeholders.ts"] as const;
+    for (const file of helpers) {
+      const path = join(srcRoot, "lib", "slices", file);
+      expect(existsSync(path), `expected src/lib/slices/${file}`).toBe(true);
+      expect(statSync(path).isFile()).toBe(true);
     }
   });
 });
@@ -317,5 +356,209 @@ describe("WIKI-FORGE-113 hierarchy-commands split + curated domain barrels", () 
       const content = readFileSync(indexPath, "utf8");
       expect(content, `src/${domain}/index.ts must not use export *`).not.toMatch(/export\s+\*/u);
     }
+  });
+});
+
+describe("PRD-079 session subdomain pack-out", () => {
+  const sessionRoot = join(srcRoot, "session");
+  const sessionSubdomains = ["resume", "handover", "note", "continuation", "shared"] as const;
+  const sessionEntryShims = [
+    ["resume.ts", './resume/index'],
+    ["handover.ts", './handover/index'],
+    ["note.ts", './note/index'],
+    ["next.ts", './continuation/next'],
+    ["resume-triage.ts", './continuation/resume-triage'],
+    ["handover-narrative.ts", './continuation/handover-narrative'],
+    ["_shared.ts", './shared'],
+  ] as const;
+
+  test("src/session/ exposes the accepted subdomain folders", () => {
+    for (const subdomain of sessionSubdomains) {
+      const path = join(sessionRoot, subdomain);
+      expect(existsSync(path), `expected src/session/${subdomain}`).toBe(true);
+      expect(statSync(path).isDirectory()).toBe(true);
+    }
+  });
+
+  test("session root files are thin shims into the new subdomain surfaces", () => {
+    for (const [file, target] of sessionEntryShims) {
+      const path = join(sessionRoot, file);
+      const content = readFileSync(path, "utf8");
+      expect(content).toContain(target);
+      expect(content.split("\n").length, `${file} should stay thin`).toBeLessThanOrEqual(12);
+    }
+  });
+});
+
+describe("PRD-079 hierarchy subdomain pack-out", () => {
+  const hierarchyRoot = join(srcRoot, "hierarchy");
+  const hierarchySubdomains = ["backlog", "lifecycle", "planning", "graph", "status", "projection"] as const;
+  const hierarchyEntryShims = [
+    ["backlog.ts", "./backlog/index"],
+    ["lifecycle.ts", "./lifecycle/index"],
+    ["planning.ts", "./planning/index"],
+    ["dependency-graph.ts", "./graph"],
+    ["feature-status.ts", "./status"],
+    ["index-log.ts", "./projection/index-log"],
+    ["summary.ts", "./projection/summary"],
+    ["layers.ts", "./projection/layers"],
+  ] as const;
+
+  test("src/hierarchy/ exposes the accepted subdomain folders", () => {
+    for (const subdomain of hierarchySubdomains) {
+      const path = join(hierarchyRoot, subdomain);
+      expect(existsSync(path), `expected src/hierarchy/${subdomain}`).toBe(true);
+      expect(statSync(path).isDirectory()).toBe(true);
+    }
+  });
+
+  test("hierarchy root files are thin shims into the new subdomain surfaces", () => {
+    for (const [file, target] of hierarchyEntryShims) {
+      const path = join(hierarchyRoot, file);
+      const content = readFileSync(path, "utf8");
+      expect(content).toContain(target);
+      expect(content.split("\n").length, `${file} should stay thin`).toBeLessThanOrEqual(20);
+    }
+  });
+});
+
+describe("PRD-079 maintenance subdomain pack-out", () => {
+  const maintenanceRoot = join(srcRoot, "maintenance");
+  const maintenanceSubdomains = ["checkpoint", "lint", "drift", "sync", "closeout", "doctor", "health", "shared"] as const;
+  const maintenanceEntryShims = [
+    ["checkpoint.ts", "./checkpoint/index"],
+    ["lint-repo.ts", "./lint/index"],
+    ["drift.ts", "./drift/index"],
+    ["sync.ts", "./sync/index"],
+    ["refresh.ts", "./sync/refresh"],
+    ["commit-check.ts", "./sync/commit-check"],
+    ["closeout.ts", "./closeout/index"],
+    ["gate.ts", "./closeout/gate"],
+    ["maintain.ts", "./closeout/maintain"],
+    ["doctor.ts", "./doctor/index"],
+    ["dashboard.ts", "./doctor/dashboard"],
+    ["discover.ts", "./doctor/discover"],
+    ["test-health.ts", "./health/index"],
+    ["_shared.ts", "./shared/index"],
+  ] as const;
+
+  test("src/maintenance/ exposes the accepted subdomain folders", () => {
+    for (const subdomain of maintenanceSubdomains) {
+      const path = join(maintenanceRoot, subdomain);
+      expect(existsSync(path), `expected src/maintenance/${subdomain}`).toBe(true);
+      expect(statSync(path).isDirectory()).toBe(true);
+    }
+  });
+
+  test("maintenance root files are thin shims into the new subdomain surfaces", () => {
+    for (const [file, target] of maintenanceEntryShims) {
+      const path = join(maintenanceRoot, file);
+      const content = readFileSync(path, "utf8");
+      expect(content).toContain(target);
+      expect(content.split("\n").length, `${file} should stay thin`).toBeLessThanOrEqual(20);
+    }
+  });
+
+  test("maintenance-owned helper seams no longer live under src/lib", () => {
+    expect(existsSync(join(srcRoot, "lib", "diagnostics.ts"))).toBe(false);
+    expect(existsSync(join(srcRoot, "lib", "dirty-repo.ts"))).toBe(false);
+    expect(existsSync(join(srcRoot, "lib", "drift-query.ts"))).toBe(false);
+  });
+});
+
+describe("PRD-079 slice subdomain pack-out", () => {
+  const sliceRoot = join(srcRoot, "slice");
+  const sliceSubdomains = ["verification", "lifecycle", "coordination", "forge", "repair", "docs", "pipeline", "shared"] as const;
+  const sliceEntryShims = [
+    ["_shared.ts", "./shared/index"],
+    ["claim.ts", "./coordination/claim"],
+    ["coordination.ts", "./coordination/index"],
+    ["start.ts", "./lifecycle/start"],
+    ["close.ts", "./lifecycle/close"],
+    ["verify.ts", "./verification/index"],
+    ["slice-repair.ts", "./repair/index"],
+    ["slice-scaffold.ts", "./docs/scaffold"],
+    ["forge.ts", "./forge/index"],
+    ["forge-run.ts", "./forge/run"],
+    ["forge-args.ts", "./forge/args"],
+    ["forge-docs.ts", "./forge/docs"],
+    ["forge-evidence-readers.ts", "./forge/evidence-readers"],
+    ["forge-output.ts", "./forge/output"],
+    ["forge-planning.ts", "./forge/planning"],
+    ["pipeline.ts", "./pipeline/index"],
+    ["pipeline-plan.ts", "./pipeline/plan"],
+    ["pipeline-runner.ts", "./pipeline/runner"],
+  ] as const;
+
+  test("src/slice/ exposes the accepted subdomain folders", () => {
+    for (const subdomain of sliceSubdomains) {
+      const path = join(sliceRoot, subdomain);
+      expect(existsSync(path), `expected src/slice/${subdomain}`).toBe(true);
+      expect(statSync(path).isDirectory()).toBe(true);
+    }
+  });
+
+  test("slice root files are thin shims into the new subdomain surfaces", () => {
+    for (const [file, target] of sliceEntryShims) {
+      const path = join(sliceRoot, file);
+      const content = readFileSync(path, "utf8");
+      expect(content).toContain(target);
+      expect(content.split("\n").length, `${file} should stay thin`).toBeLessThanOrEqual(20);
+    }
+  });
+
+  test("slice-owned helper seams no longer live under src/lib", () => {
+    expect(existsSync(join(srcRoot, "lib", "slices.ts"))).toBe(false);
+    expect(existsSync(join(srcRoot, "lib", "slice-progress.ts"))).toBe(false);
+    expect(existsSync(join(srcRoot, "lib", "slice-local.ts"))).toBe(false);
+    expect(existsSync(join(srcRoot, "lib", "slice-query.ts"))).toBe(false);
+  });
+});
+
+describe("PRD-079 protocol subdomain pack-out", () => {
+  const protocolRoot = join(srcRoot, "protocol");
+  const protocolSubdomains = ["source", "status", "steering", "setup", "discovery", "integrations"] as const;
+  const protocolEntryShims = [
+    ["source.ts", "./source/index"],
+    ["forge-status.ts", "./status/index"],
+    ["forge-status-format.ts", "./status/format"],
+    ["forge-status-ledger.ts", "./status/ledger"],
+    ["forge-status-triage.ts", "./status/triage"],
+    ["forge-ledger-detect.ts", "./status/detect"],
+    ["steering.ts", "./steering/index"],
+    ["steering-triage.ts", "./steering/triage"],
+    ["protocol.ts", "./setup/index"],
+    ["project-setup.ts", "./setup/project"],
+    ["setup.ts", "./setup/shell"],
+    ["repo-scan.ts", "./discovery/index"],
+    ["obsidian.ts", "./integrations/obsidian"],
+  ] as const;
+
+  test("src/protocol/ exposes the accepted subdomain folders", () => {
+    for (const subdomain of protocolSubdomains) {
+      const path = join(protocolRoot, subdomain);
+      expect(existsSync(path), `expected src/protocol/${subdomain}`).toBe(true);
+      expect(statSync(path).isDirectory()).toBe(true);
+    }
+  });
+
+  test("protocol root files are thin shims into the new subdomain surfaces", () => {
+    for (const [file, target] of protocolEntryShims) {
+      const path = join(protocolRoot, file);
+      const content = readFileSync(path, "utf8");
+      expect(content).toContain(target);
+      expect(content.split("\n").length, `${file} should stay thin`).toBeLessThanOrEqual(20);
+    }
+  });
+
+  test("protocol-owned helper seams no longer live under src/lib", () => {
+    expect(existsSync(join(srcRoot, "lib", "protocol-source.ts"))).toBe(false);
+    expect(existsSync(join(srcRoot, "lib", "repo-scan.ts"))).toBe(false);
+    expect(existsSync(join(srcRoot, "lib", "obsidian.ts"))).toBe(false);
+    expect(existsSync(join(srcRoot, "lib", "forge-evidence.ts"))).toBe(false);
+    expect(existsSync(join(srcRoot, "lib", "forge-ledger.ts"))).toBe(false);
+    expect(existsSync(join(srcRoot, "lib", "forge-phase-commands.ts"))).toBe(false);
+    expect(existsSync(join(srcRoot, "lib", "forge-steering.ts"))).toBe(false);
+    expect(existsSync(join(srcRoot, "lib", "forge-triage.ts"))).toBe(false);
   });
 });

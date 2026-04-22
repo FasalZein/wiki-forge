@@ -468,31 +468,34 @@ describe("non-blocking workflow improvements", () => {
     expect(json.context).toHaveProperty("testPlanStatus");
   });
 
-  test("help output shows three-tier structure with no human-in-the-loop language", () => {
+  test("help output stays wiki-first by default and keeps forge behind --all", () => {
     const result = runWiki(["help"]);
     expect(result.exitCode).toBe(0);
     const output = result.stdout.toString();
 
-    // Agent surface tier exists
-    expect(output).toContain("Agent Surface");
-    expect(output).toContain("wiki forge plan");
-    expect(output).toContain("wiki forge run");
-    expect(output).toContain("wiki forge next");
-
-    // No "human" language anywhere in help
+    expect(output).toContain("wiki ask <project> <question...>");
+    expect(output).toContain("wiki search [--hybrid] <query...>");
+    expect(output).toContain("wiki query [--expand] <query...>");
+    expect(output).toContain("wiki research file <topic> --project <project> <title>");
+    expect(output).toContain("wiki help --all");
+    expect(output).toContain("forge = optional workflow layer");
     expect(output).not.toContain("Human");
     expect(output).not.toContain("human");
+    expect(output).not.toContain("Agent Surface");
+    expect(output).not.toContain("Internal / Repair");
+    expect(output).not.toContain("wiki forge plan");
+    expect(output).not.toContain("wiki forge run");
+    expect(output).not.toContain("wiki forge next");
+    expect(output).not.toContain("wiki forge start");
+    expect(output).not.toContain("wiki forge check");
+    expect(output).not.toContain("wiki forge close");
 
-    // Internal/Repair tier exists with debug commands
-    expect(output).toContain("Internal / Repair");
-    expect(output).toContain("wiki forge start");
-    expect(output).toContain("wiki forge check");
-
-    // Agent surface does NOT include start/check/close
-    const agentSection = output.split("Session:")[0];
-    expect(agentSection).not.toContain("wiki forge start");
-    expect(agentSection).not.toContain("wiki forge check");
-    expect(agentSection).not.toContain("wiki forge close");
+    const fullHelp = runWiki(["help", "--all"]);
+    expect(fullHelp.exitCode).toBe(0);
+    const fullOutput = fullHelp.stdout.toString();
+    expect(fullOutput).toContain("Internal / Repair");
+    expect(fullOutput).toContain("wiki forge start");
+    expect(fullOutput).toContain("wiki forge check");
   });
 
   test("protocol block contains only 3-command agent surface", () => {

@@ -9,16 +9,36 @@ afterEach(() => {
 });
 
 describe("wiki forge thin surface", () => {
-  test("help organizes commands into agent, human, and internal tiers", () => {
+  test("default help presents wiki as a standalone second-brain surface and keeps forge optional", () => {
     const result = runWiki(["help"]);
     expect(result.exitCode).toBe(0);
     const output = result.stdout.toString();
-    expect(output).toContain("Agent Surface");
+    expect(output).toContain("wiki = second brain / memory");
+    expect(output).toContain("forge = optional workflow layer");
+    expect(output).toContain("wiki help --all");
+    expect(output).toContain("wiki ask <project> <question...>");
+    expect(output).toContain("wiki search [--hybrid] <query...>");
+    expect(output).toContain("wiki query [--expand] <query...>");
+    expect(output).toContain("wiki qmd-status");
+    expect(output).toContain("wiki research file <topic> --project <project> <title>");
+    expect(output).toContain("wiki scaffold-project <project>");
+    expect(output).toContain("wiki summary <project>");
+    expect(output).not.toContain("Agent Surface");
+    expect(output).not.toContain("wiki forge plan");
+    expect(output).not.toContain("wiki forge run");
+    expect(output).not.toContain("wiki forge next");
+    expect(output).not.toContain("Internal / Repair");
+    expect(output).not.toContain("wiki forge start");
+    expect(output).not.toContain("wiki forge check");
+  });
+
+  test("help --all exposes the full catalog including forge", () => {
+    const result = runWiki(["help", "--all"]);
+    expect(result.exitCode).toBe(0);
+    const output = result.stdout.toString();
+    expect(output).toContain("Full command catalog:");
     expect(output).toContain("Session:");
     expect(output).toContain("Internal / Repair");
-    expect(output).toContain("wiki forge plan");
-    expect(output).toContain("wiki forge run");
-    expect(output).toContain("wiki forge next");
     expect(output).toContain("wiki forge start");
     expect(output).toContain("wiki forge status");
   });
@@ -114,12 +134,10 @@ describe("wiki forge thin surface", () => {
     const planPath = join(vault, "projects", "triageproj", "specs", "slices", "TRIAGEPROJ-001", "plan.md");
     const testPlanPath = join(vault, "projects", "triageproj", "specs", "slices", "TRIAGEPROJ-001", "test-plan.md");
     writeFileSync(planPath, "---\ntitle: TRIAGEPROJ-001 done slice\ntype: spec\nspec_kind: plan\nproject: triageproj\ntask_id: TRIAGEPROJ-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# TRIAGEPROJ-001 done slice\n\n## Scope\n\n- Done already\n", "utf8");
-    writeFileSync(testPlanPath, "---\ntitle: TRIAGEPROJ-001 done slice\ntype: spec\nspec_kind: test-plan\nproject: triageproj\ntask_id: TRIAGEPROJ-001\nupdated: 2026-04-13\nstatus: current\nverification_level: test-verified\n---\n\n# TRIAGEPROJ-001 done slice\n\n## Red Tests\n\n- [x] Done.\n", "utf8");
-    expect(runWiki(["move-task", "triageproj", "TRIAGEPROJ-001", "--to", "Done"], env).exitCode).toBe(0);
-
-    const indexPath = join(vault, "projects", "triageproj", "specs", "slices", "TRIAGEPROJ-001", "index.md");
-    const raw = readFileSync(indexPath, "utf8");
-    writeFileSync(indexPath, raw.replace("status: draft", "status: done"), "utf8");
+    writeFileSync(testPlanPath, "---\ntitle: TRIAGEPROJ-001 done slice\ntype: spec\nspec_kind: test-plan\nproject: triageproj\ntask_id: TRIAGEPROJ-001\nupdated: 2026-04-13\nstatus: current\nverification_level: test-verified\nverification_commands:\n  - command: bun test tests/payments.test.ts\nverified_against: HEAD\n---\n\n# TRIAGEPROJ-001 done slice\n\n## Red Tests\n\n- [x] Done.\n", "utf8");
+    expect(runWiki(["bind", "triageproj", "specs/slices/TRIAGEPROJ-001/index.md", "src/payments.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["move-task", "triageproj", "TRIAGEPROJ-001", "--to", "In Progress"], env).exitCode).toBe(0);
+    expect(runWiki(["close-slice", "triageproj", "TRIAGEPROJ-001", "--repo", repo, "--base", "HEAD~1"], env).exitCode).toBe(0);
 
     const status = runWiki(["forge", "status", "triageproj", "TRIAGEPROJ-001", "--json"], env);
     expect(status.exitCode).toBe(0);
@@ -129,6 +147,30 @@ describe("wiki forge thin surface", () => {
     expect(json.context.id).toBe("TRIAGEPROJ-001");
     expect(json.context).not.toHaveProperty("taskHubPath");
     expect(json.context).not.toHaveProperty("hasSliceDocs");
+  });
+
+  test("forge status keeps docs-only done slices on the close path until canonical completion is stamped", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "triagepending"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "triagepending");
+    expect(runWiki(["create-issue-slice", "triagepending", "pending done slice"], env).exitCode).toBe(0);
+
+    const planPath = join(vault, "projects", "triagepending", "specs", "slices", "TRIAGEPENDING-001", "plan.md");
+    const testPlanPath = join(vault, "projects", "triagepending", "specs", "slices", "TRIAGEPENDING-001", "test-plan.md");
+    writeFileSync(planPath, "---\ntitle: TRIAGEPENDING-001 pending done slice\ntype: spec\nspec_kind: plan\nproject: triagepending\ntask_id: TRIAGEPENDING-001\nupdated: 2026-04-13\nstatus: current\n---\n\n# TRIAGEPENDING-001 pending done slice\n\n## Scope\n\n- Done already\n", "utf8");
+    writeFileSync(testPlanPath, "---\ntitle: TRIAGEPENDING-001 pending done slice\ntype: spec\nspec_kind: test-plan\nproject: triagepending\ntask_id: TRIAGEPENDING-001\nupdated: 2026-04-13\nstatus: current\nverification_level: test-verified\nverification_commands:\n  - command: bun test tests/payments.test.ts\nverified_against: HEAD\n---\n\n# TRIAGEPENDING-001 pending done slice\n\n## Red Tests\n\n- [x] Done.\n", "utf8");
+
+    const indexPath = join(vault, "projects", "triagepending", "specs", "slices", "TRIAGEPENDING-001", "index.md");
+    const raw = readFileSync(indexPath, "utf8");
+    writeFileSync(indexPath, raw.replace("status: draft", "status: done\ncompleted_at: 2026-04-20T00:00:00.000Z"), "utf8");
+
+    const status = runWiki(["forge", "status", "triagepending", "TRIAGEPENDING-001", "--repo", repo, "--json"], env);
+    expect(status.exitCode).toBe(0);
+    const json = JSON.parse(status.stdout.toString());
+    expect(json.triage.kind).not.toBe("completed");
+    expect(json.triage.command).toContain("wiki forge run triagepending TRIAGEPENDING-001 --repo");
   });
 
   test("forge status without a slice id uses the recommended slice when one exists", () => {
