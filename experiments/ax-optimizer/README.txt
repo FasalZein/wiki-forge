@@ -37,5 +37,5 @@ Promotion and reload rules
 Outputs
 - optimized program artifacts live in outputs/*.optimized-program.json
 - evaluation summaries live in outputs/*.evaluation.json
-- candidate skill rewrites live in outputs/skill-candidates/
+- candidate skill rewrites live in outputs/skill-candidates/*.candidate.json
 - promotion patches live in outputs/skill-candidates/*.candidate.patch

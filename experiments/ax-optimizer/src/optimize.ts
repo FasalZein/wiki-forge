@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { AxGEPA, AxOptimizedProgramImpl } from "@ax-llm/ax";
@@ -9,6 +9,7 @@ import { loadDataset } from "./dataset";
 import { skillMetric, workflowMetric } from "./metrics";
 import { createProgram } from "./programs";
 import { createAi, createProgramWithOptimization } from "./runtime";
+import { assertValidSkillCandidateRewrite } from "./skill-guard";
 import { loadSkillCandidateTargets } from "./targets";
 import type { OptimizeTarget, ScoreCard, SkillCandidateTarget, SkillExample, WorkflowExample } from "./types";
 
@@ -319,10 +320,17 @@ async function generateSkillCandidate(
     rolloutNote: string;
   };
 
+  const revisedSkill = normalizeGeneratedText(prediction.revisedSkill);
+  assertValidSkillCandidateRewrite({
+    currentSkill,
+    revisedSkill,
+    target,
+  });
+
   return {
     skillName: target.skillName,
     sourcePath: target.sourcePath,
-    revisedSkill: normalizeGeneratedText(prediction.revisedSkill),
+    revisedSkill,
     rationale: prediction.rationale,
     rolloutNote: prediction.rolloutNote,
   };
@@ -332,49 +340,34 @@ function normalizeGeneratedText(value: string) {
   return value.includes("\\n") ? value.replace(/\\n/g, "\n") : value;
 }
 
-function renderSkillCandidateMarkdown(candidate: {
-  skillName: string;
-  sourcePath: string;
-  revisedSkill: string;
-  rationale: string;
-  rolloutNote: string;
-}) {
-  return [
-    `# ${candidate.skillName} Candidate`,
-    "",
-    `- source: ${candidate.sourcePath}`,
-    "",
-    "## Rationale",
-    "",
-    candidate.rationale,
-    "",
-    "## Rollout Note",
-    "",
-    candidate.rolloutNote,
-    "",
-    "## Suggested Revision",
-    "",
-    candidate.revisedSkill,
-    "",
-  ].join("\n");
-}
-
 export async function runSkillCandidates() {
   const targets = await loadSkillCandidateTargets();
   const outDir = join(import.meta.dir, "..", "outputs", "skill-candidates");
   await mkdir(outDir, { recursive: true });
 
   const generated = [];
+  const rejected = [];
   for (const target of targets) {
     const sourcePath = join(import.meta.dir, "..", "..", "..", target.sourcePath);
     const currentSkill = await readFile(sourcePath, "utf8");
-    const candidate = await generateSkillCandidate(target, currentSkill);
     const jsonPath = join(outDir, `${target.skillName}.candidate.json`);
-    const markdownPath = join(outDir, `${target.skillName}.candidate.md`);
-    await writeFile(jsonPath, JSON.stringify(candidate, null, 2), "utf8");
-    await writeFile(markdownPath, renderSkillCandidateMarkdown(candidate), "utf8");
-    generated.push({ skillName: target.skillName, jsonPath, markdownPath });
+    const patchPath = join(outDir, `${target.skillName}.candidate.patch`);
+    const proposedPath = join(outDir, "proposed", target.sourcePath);
+    try {
+      const candidate = await generateSkillCandidate(target, currentSkill);
+      await writeFile(jsonPath, JSON.stringify(candidate, null, 2), "utf8");
+      generated.push({ skillName: target.skillName, jsonPath });
+    } catch (error) {
+      await rm(jsonPath, { force: true });
+      await rm(patchPath, { force: true });
+      await rm(proposedPath, { force: true });
+      rejected.push({
+        skillName: target.skillName,
+        sourcePath: target.sourcePath,
+        reason: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
-  return { generated };
+  return { generated, rejected };
 }
