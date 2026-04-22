@@ -31,7 +31,8 @@
     "ax:optimizer:candidates:skill": "bun run --cwd experiments/ax-optimizer candidates:skill",
     "ax:optimizer:promote:skill": "bun run --cwd experiments/ax-optimizer promote:skill",
     "bench:qmd": "bun scripts/qmd-bench.ts",
-    "bench:maint": "bun scripts/wiki-maintenance-bench.ts"
+    "bench:maint": "bun scripts/wiki-maintenance-bench.ts",
+    "audit:output-tokens": "bun scripts/wiki-output-tokens.ts"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "8.58.2",
@@ -40,6 +41,7 @@
     "eslint": "10.2.0",
     "eslint-import-resolver-typescript": "4.4.4",
     "eslint-plugin-boundaries": "6.0.2",
+    "gpt-tokenizer": "3.4.0",
     "typescript": "^5.9.2"
   },
   "dependencies": {

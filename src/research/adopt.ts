@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { nowIso, orderFrontmatter, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { VAULT_ROOT } from "../constants";
-import { readPlanningDoc, collectPriorResearchRefs, type MatterDoc } from "../lib/forge-evidence";
+import { readPlanningDoc, collectPriorResearchRefs, type MatterDoc } from "../protocol/status/index";
 import { exists, readText } from "../lib/fs";
 import { normalizeInfluencedBy, normalizeResearchPageRef } from "../lib/research";
 import { projectPrdsDir, projectTaskHubPath, toVaultWikilinkPath } from "../lib/structure";

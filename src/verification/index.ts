@@ -3,3 +3,9 @@ export { statusProject, lintProject, lintSemanticProject, verifyProject, cacheCl
 export type { LintingSnapshot } from "./linting";
 export { applyVerificationLevel } from "./verification-shared";
 export { acknowledgeImpact } from "./acknowledge-impact";
+export {
+  extractShellCommandBlocks,
+  extractVerificationSpecs,
+  extractVerificationSpecsFromTestPlan,
+} from "./verification-specs";
+export type { VerificationCommandSpec } from "./verification-specs";

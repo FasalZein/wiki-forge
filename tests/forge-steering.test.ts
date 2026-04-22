@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { buildForgeSteering } from "../src/lib/forge-steering";
+import { buildForgeSteering } from "../src/protocol/steering/packet";
 import { classifyWorkflowSteeringTriage } from "../src/protocol/steering-triage";
 import { runWiki } from "./_helpers/wiki-subprocess";
 import { cleanupTempPaths, initVault, runGit, setRepoFrontmatter, tempDir } from "./test-helpers";
@@ -105,8 +105,24 @@ describe("WIKI-FORGE-149 steering packet", () => {
       verificationLevel: "test-verified",
       targetSliceStatus: "done",
       targetSection: "Done",
+      targetCanonicalCompletion: true,
     });
     expect(completedDoneSlice.kind).toBe("completed");
+
+    const docsOnlyDoneSlice = classifyWorkflowSteeringTriage({
+      project: "demo",
+      repo: "/repo",
+      base: undefined,
+      activeTask: null,
+      nextTask: null,
+      targetTask: { id: "DEMO-001", planStatus: "ready", testPlanStatus: "ready", sliceStatus: "done", section: "Done" },
+      workflowNextPhase: null,
+      verificationLevel: "test-verified",
+      targetSliceStatus: "done",
+      targetSection: "Done",
+      targetCanonicalCompletion: false,
+    });
+    expect(docsOnlyDoneSlice.kind).toBe("open-slice");
 
     const continueActive = classifyWorkflowSteeringTriage({
       project: "demo",

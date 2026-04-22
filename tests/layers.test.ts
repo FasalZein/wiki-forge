@@ -108,6 +108,9 @@ describe("skill layer separation", () => {
     expect(wikiSkill).toContain("## Freshness Repair Path");
     expect(wikiSkill).toContain("`wiki research adopt <research-page> --project <project> --slice <slice-id>`");
     expect(wikiSkill).toContain("Distill updates project truth. Adopt bridges accepted findings into forge-visible slice workflow.");
+    expect(wikiSkill).toContain("wiki help --all");
+    expect(wikiSkill).toContain("one authoritative wiki/vault");
+    expect(wikiSkill).toContain("wiki = second brain / memory");
     expect(wikiSkill).toContain("run `bun run sync:local`, then `bun run sync:local -- --audit`, then restart the agent session");
   });
 
@@ -153,6 +156,8 @@ describe("skill layer separation", () => {
     expect(forgeSkill).toContain("`wiki refresh-from-git <project> --repo <path> --base <rev>`");
     expect(forgeSkill).toContain("`wiki bind <project> <page> <source-path...> [--mode replace|merge]`");
     expect(forgeSkill).toContain("wiki research adopt <research-page> --project <project> --slice <slice-id>");
+    expect(forgeSkill).toContain("one authoritative wiki/vault");
+    expect(forgeSkill).toContain("wiki help --all");
     expect(forgeSkill).toContain("rerun verify-slice");
     expect(forgeSkill).toContain("--slice-local --slice-id <slice>");
     expect(forgeSkill).toContain("--force-review");

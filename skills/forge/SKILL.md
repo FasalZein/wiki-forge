@@ -14,6 +14,8 @@ Forge is the workflow layer.
 - agent surface (3 commands) = `wiki forge plan`, `wiki forge run`, `wiki forge next`
 - internal/repair = `wiki forge start|check|close|status|release`
 - default reconciliation primitive = `wiki sync`
+- default `wiki help` is workflow-first; use `wiki help --all` for the exhaustive CLI catalog
+- one project should use one authoritative wiki/vault; parallel agents should share that vault and claim different slices
 
 ## Router
 
@@ -67,6 +69,15 @@ Agents should use only this default surface unless debugging:
 - `wiki forge run <project> [slice-id] --repo <path>`
 
 Do not improvise lower-level lifecycle commands during normal execution.
+
+## Handover Contract
+
+When ending a tracked session, the durable handover is not supposed to be auto-only summary text.
+
+- use `wiki handover <project> ... --accomplished "<what changed>" --blocker "<what remains>"` when a blocker exists
+- use `wiki handover <project> ... --accomplished "<what changed>" --no-blockers` when there is no blocker
+- `--allow-auto-only` is an explicit bypass, not the default path
+- the goal is for the next session to pick up authored delta plus tracked artifacts, not to reconstruct context from scratch
 
 ## Repair Branches
 

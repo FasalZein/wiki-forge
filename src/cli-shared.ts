@@ -7,40 +7,47 @@ import type { FrontmatterData } from "./types";
 
 export const FORCE_CONFIRM_FLAG = "--yes-really-force";
 
-export function printHelp() {
-  console.log(`wiki CLI — Thin agent surface plus explicit repair paths.
+const DEFAULT_HELP_TEXT = `wiki CLI — Second-brain help.
 
-Start here:
-  1. Session state: wiki resume <project> [--repo <path>] [--base <rev>]
-  2. Active or ready slice: wiki forge next <project>
-  3. Implementation-ready slice: wiki forge run <project> [slice-id] --repo <path>
-  4. Pre-implementation gate: follow the skill/command named by wiki forge status <project> <slice-id>
-  5. Freshness conflict or stale-page closeout noise: wiki checkpoint -> wiki maintain -> wiki sync --report-only -> acknowledge-impact/refresh-from-git/verify-page/bind
+Contract:
+  wiki = second brain / memory
+  forge = optional workflow layer
+  full catalog: wiki help --all
 
-Authority order when outputs disagree:
-  1. wiki checkpoint = current freshness truth
-  2. wiki maintain = repair/reconciliation plan
-  3. wiki forge status = workflow ledger truth
-  4. wiki resume = operator context summary only; may include historical notes
+Retrieval:
+  wiki ask <project> <question...>
+  wiki search [--hybrid] <query...>
+  wiki query [--expand] <query...>
+  wiki qmd-status
 
-Research-to-forge bridge:
-  1. wiki research file <topic> --project <project> <title>
-  2. wiki research distill <research-page> <projects/<project>/decisions|projects/<project>/architecture/domain-language>
-  3. wiki research adopt <research-page> --project <project> --slice <slice-id>
+Research:
+  wiki research file <topic> --project <project> <title>
+  wiki research status [topic] [--json]
+  wiki research ingest <topic> <source-url-or-path...>
 
-Agent Surface (agents use only these):
-  wiki forge plan <project> <feature-name> [--feature FEAT-xxx] [--prd-name <name>] [--title <slice-title>] [--slices "title1,title2,..."] [--agent <name>] [--repo <path>]
-  wiki forge run <project> [slice-id] [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
-  wiki forge next <project> [--json] [--prompt] [--prompt-json] [--all --prompt-json]
-
-Session:
+Second-brain management:
+  wiki scaffold-project <project>
+  wiki summary <project> [--repo <path>] [--json]
+  wiki status [project] [--json]
   wiki resume <project> [--repo <path>] [--base <rev>] [--json]
-  wiki handover <project> [--repo <path>] [--base <rev>] [--json]
+
+Optional workflow:
+  forge lives under: wiki forge ...
+`;
+
+const FULL_HELP_CATALOG = `Session:
+  wiki resume <project> [--repo <path>] [--base <rev>] [--json]
+  wiki handover <project> [--repo <path>] [--base <rev>] --accomplished <text> [--accomplished <text> ...] [--blocker <text> ...|--no-blockers] [--allow-auto-only] [--json]
   wiki next <project> [--json]
   wiki note <project> <message...> [--agent <name>] [--slice <slice-id>] [--json]
   wiki log append <kind> <title> [--project <p>] [--details <text>]
   wiki log tail [n]
   wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]
+
+Workflow / Forge:
+  wiki forge plan <project> <feature-name> [--repo <path>]
+  wiki forge run <project> [slice-id] --repo <path>
+  wiki forge next <project>
 
 Internal / Repair:
   wiki forge start <project> [slice-id] [--agent <name>] [--repo <path>] [--json]
@@ -153,7 +160,11 @@ Environment:
   WIKI_SESSION_ID      group activity tracking entries by session (defaults to ppid+date)
   WIKI_AGENT_NAME      identify the agent in activity tracking (defaults to USER)
   QMD_INDEX_NAME       route wiki/qmd commands to a named qmd index
-`);
+`;
+
+export function printHelp(args: string[] = []) {
+  const showAll = args.includes("--all");
+  console.log(showAll ? `${DEFAULT_HELP_TEXT}\nFull command catalog:\n${FULL_HELP_CATALOG}` : DEFAULT_HELP_TEXT);
 }
 
 export function projectRoot(project: string) {

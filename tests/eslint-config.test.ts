@@ -33,6 +33,78 @@ describe("WIKI-FORGE-114 eslint config", () => {
     expect(result.errorCount).toBeGreaterThan(0);
   });
 
+  test("a synthetic cross-domain import through a public surface passes lint", async () => {
+    const eslint = await newESLint();
+    const [result] = await eslint.lintText(
+      "import { resolveWorkflowSteering } from '../protocol';\nexport const x = resolveWorkflowSteering;\n",
+      { filePath: resolve(REPO_ROOT, "src/session/__eslint_synthetic_public_surface_import__.ts") },
+    );
+    const ruleIds = result.messages.map((m) => m.ruleId);
+    const hasBoundaryViolation = ruleIds.some((id) => id && id.startsWith("boundaries/"));
+    expect(hasBoundaryViolation).toBe(false);
+    expect(result.errorCount).toBe(0);
+  });
+
+  test("a synthetic cross-domain import through an approved subdomain entrypoint passes lint", async () => {
+    const eslint = await newESLint();
+    const [result] = await eslint.lintText(
+      "import { collectDirtyRepoStatus } from '../maintenance/shared';\nexport const x = collectDirtyRepoStatus;\n",
+      { filePath: resolve(REPO_ROOT, "src/session/__eslint_synthetic_subdomain_surface_import__.ts") },
+    );
+    const ruleIds = result.messages.map((m) => m.ruleId);
+    const hasBoundaryViolation = ruleIds.some((id) => id && id.startsWith("boundaries/"));
+    expect(hasBoundaryViolation).toBe(false);
+    expect(result.errorCount).toBe(0);
+  });
+
+  test("a synthetic slice docs subdomain import through an approved entrypoint passes lint", async () => {
+    const eslint = await newESLint();
+    const [result] = await eslint.lintText(
+      "import { readSliceHub } from '../slice/docs';\nexport const x = readSliceHub;\n",
+      { filePath: resolve(REPO_ROOT, "src/session/__eslint_synthetic_slice_docs_surface_import__.ts") },
+    );
+    const ruleIds = result.messages.map((m) => m.ruleId);
+    const hasBoundaryViolation = ruleIds.some((id) => id && id.startsWith("boundaries/"));
+    expect(hasBoundaryViolation).toBe(false);
+    expect(result.errorCount).toBe(0);
+  });
+
+  test("a synthetic slice pipeline subdomain import through an approved entrypoint passes lint", async () => {
+    const eslint = await newESLint();
+    const [result] = await eslint.lintText(
+      "import { writeSliceProgress } from '../slice/pipeline/index';\nexport const x = writeSliceProgress;\n",
+      { filePath: resolve(REPO_ROOT, "src/session/__eslint_synthetic_slice_pipeline_surface_import__.ts") },
+    );
+    const ruleIds = result.messages.map((m) => m.ruleId);
+    const hasBoundaryViolation = ruleIds.some((id) => id && id.startsWith("boundaries/"));
+    expect(hasBoundaryViolation).toBe(false);
+    expect(result.errorCount).toBe(0);
+  });
+
+  test("a synthetic protocol source subdomain import through an approved entrypoint passes lint", async () => {
+    const eslint = await newESLint();
+    const [result] = await eslint.lintText(
+      "import { renderPromptProtocolReminders } from '../protocol/source/index';\nexport const x = renderPromptProtocolReminders;\n",
+      { filePath: resolve(REPO_ROOT, "src/session/__eslint_synthetic_protocol_source_surface_import__.ts") },
+    );
+    const ruleIds = result.messages.map((m) => m.ruleId);
+    const hasBoundaryViolation = ruleIds.some((id) => id && id.startsWith("boundaries/"));
+    expect(hasBoundaryViolation).toBe(false);
+    expect(result.errorCount).toBe(0);
+  });
+
+  test("a synthetic protocol discovery subdomain import through an approved entrypoint passes lint", async () => {
+    const eslint = await newESLint();
+    const [result] = await eslint.lintText(
+      "import { listCodeFiles } from '../protocol/discovery/index';\nexport const x = listCodeFiles;\n",
+      { filePath: resolve(REPO_ROOT, "src/maintenance/__eslint_synthetic_protocol_discovery_surface_import__.ts") },
+    );
+    const ruleIds = result.messages.map((m) => m.ruleId);
+    const hasBoundaryViolation = ruleIds.some((id) => id && id.startsWith("boundaries/"));
+    expect(hasBoundaryViolation).toBe(false);
+    expect(result.errorCount).toBe(0);
+  });
+
   test("a file over 500 non-blank non-comment lines warns with max-lines", async () => {
     const eslint = await newESLint();
     const body = Array.from({ length: 600 }, (_, i) => `export const v${i} = ${i};`).join("\n");

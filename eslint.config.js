@@ -19,6 +19,12 @@ const publicEntries = DOMAINS.map((domain) => ({
   mode: "full",
 }));
 
+const subdomainPublicEntries = DOMAINS.map((domain) => ({
+  type: `${domain}-subdomain-public`,
+  pattern: `src/${domain}/*/index.ts`,
+  mode: "full",
+}));
+
 const internalElements = DOMAINS.map((domain) => ({
   type: domain,
   pattern: `src/${domain}/**/*`,
@@ -29,9 +35,21 @@ const dependencyRules = [
   { from: { type: "lib" }, allow: { to: { type: "lib" } } },
   ...DOMAINS.map((domain) => {
     const otherDomainsPublic = DOMAINS.filter((other) => other !== domain).map((other) => `${other}-public`);
+    const otherDomainsSubdomainPublic = DOMAINS.filter((other) => other !== domain).map((other) => `${other}-subdomain-public`);
     return {
-      from: { type: [domain, `${domain}-public`] },
-      allow: { to: { type: [domain, `${domain}-public`, "lib", ...otherDomainsPublic] } },
+      from: { type: [domain, `${domain}-public`, `${domain}-subdomain-public`] },
+      allow: {
+        to: {
+          type: [
+            domain,
+            `${domain}-public`,
+            `${domain}-subdomain-public`,
+            "lib",
+            ...otherDomainsPublic,
+            ...otherDomainsSubdomainPublic,
+          ],
+        },
+      },
     };
   }),
 ];
@@ -73,6 +91,7 @@ export default [
       ],
       "boundaries/elements": [
         ...publicEntries,
+        ...subdomainPublicEntries,
         ...internalElements,
         { type: "lib", pattern: "src/lib/**/*", mode: "full" },
       ],

@@ -196,7 +196,8 @@ function extractTaskFromListItem(li: ListItem): WikiTask | null {
 function countTodos(body: string): number {
   // Intentionally counts ALL TODO occurrences including inside code blocks,
   // since these represent work items regardless of context.
-  return (body.match(/\bTODO\b/g) || []).length;
+  const matches = body.match(/\bTODO\b/g);
+  return matches ? matches.length : 0;
 }
 
 function walkTree(node: Root | Content, visitor: (node: Content) => void) {

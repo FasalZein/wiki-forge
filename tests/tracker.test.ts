@@ -1,16 +1,29 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { cleanupTempPaths, runWiki, setupVaultAndRepo, tempDir } from "./test-helpers";
+import { cleanupTempPaths, initVault, runWiki, setupVaultAndRepo, tempDir } from "./test-helpers";
 
 afterEach(() => {
   cleanupTempPaths();
 });
 
+function runTrackerScript<T>(vault: string, script: string, env: Record<string, string> = {}): T {
+  const proc = Bun.spawnSync(["bun", "-e", script], {
+    cwd: import.meta.dir + "/..",
+    stdout: "pipe",
+    stderr: "pipe",
+    env: { ...process.env, KNOWLEDGE_VAULT_ROOT: vault, ...env },
+  });
+  if (proc.exitCode !== 0) {
+    throw new Error(proc.stderr.toString() || "tracker subprocess failed");
+  }
+  return JSON.parse(proc.stdout.toString().trim()) as T;
+}
+
 describe("activity tracker", () => {
   describe("extractProject", () => {
     // Import the functions directly for unit testing
-    const { extractProject, extractTarget, resolveSessionId } = require("../src/lib/tracker");
+    const { extractProject, extractTarget, resolveSessionId } = require("../src/session/shared");
 
     test("extracts project from positional arg", () => {
       expect(extractProject("backlog", ["myproject", "--json"])).toBe("myproject");
@@ -37,7 +50,7 @@ describe("activity tracker", () => {
   });
 
   describe("extractTarget", () => {
-    const { extractTarget } = require("../src/lib/tracker");
+    const { extractTarget } = require("../src/session/shared");
 
     test("extracts slice ID for slice commands", () => {
       expect(extractTarget("start-slice", ["myproject", "PROJ-001", "--agent", "claude"])).toBe("PROJ-001");
@@ -53,7 +66,7 @@ describe("activity tracker", () => {
   });
 
   describe("resolveSessionId", () => {
-    const { resolveSessionId } = require("../src/lib/tracker");
+    const { resolveSessionId } = require("../src/session/shared");
 
     test("uses WIKI_SESSION_ID env when set", () => {
       const original = process.env.WIKI_SESSION_ID;
@@ -110,52 +123,46 @@ describe("activity tracker", () => {
   });
 
   describe("collectSessionActivity", () => {
-    const { collectSessionActivity } = require("../src/lib/tracker");
+    test("filters by session ID and skips malformed lines", () => {
+      const vault = tempDir("tracker-vault");
+      initVault(vault);
+      mkdirSync(join(vault, "projects", "demo"), { recursive: true });
+      const activityPath = join(vault, "projects", "demo", ".activity.jsonl");
+      writeFileSync(activityPath, [
+        JSON.stringify({ ts: "2026-04-16T10:00:00Z", sid: "sess-A", cmd: "start-slice", project: "demo", target: "DEMO-001", durationMs: 50, ok: true }),
+        "not-json",
+        JSON.stringify({ ts: "2026-04-16T10:01:00Z", sid: "sess-B", cmd: "verify-slice", project: "demo", target: "DEMO-999", durationMs: 100, ok: false, error: "wrong session" }),
+        JSON.stringify({ ts: "2026-04-16T10:02:00Z", sid: "sess-A", cmd: "verify-slice", project: "demo", target: "DEMO-001", durationMs: 120, ok: false, error: "test plan not verified" }),
+        JSON.stringify({ ts: "2026-04-16T10:03:00Z", sid: "sess-A", cmd: "close-slice", project: "demo", target: "DEMO-001", durationMs: 150, ok: true }),
+      ].join("\n") + "\n", "utf8");
 
-    test("filters by session ID", async () => {
-      const vault = tempDir("tracker-test");
-      const activityPath = join(vault, ".activity.jsonl");
-      const entries = [
-        { ts: "2026-04-16T10:00:00Z", sid: "sess-A", cmd: "backlog", project: "demo", durationMs: 50, ok: true },
-        { ts: "2026-04-16T10:01:00Z", sid: "sess-B", cmd: "gate", project: "demo", durationMs: 100, ok: true },
-        { ts: "2026-04-16T10:02:00Z", sid: "sess-A", cmd: "maintain", project: "demo", durationMs: 200, ok: true },
-      ];
-      writeFileSync(activityPath, entries.map((e) => JSON.stringify(e)).join("\n") + "\n", "utf8");
+      const summary = runTrackerScript<{
+        sessionId: string | null;
+        totalCommands: number;
+        durationMinutes: number;
+        commandCounts: Record<string, number>;
+        sliceTransitions: Array<{ cmd: string; target: string; ok: boolean }>;
+        errors: Array<{ cmd: string; error: string; target?: string }>;
+      }>(vault, `
+        const { collectSessionActivity } = await import("./src/session/shared");
+        const summary = await collectSessionActivity("demo", "sess-A");
+        console.log(JSON.stringify(summary));
+      `);
 
-      // collectSessionActivity reads from VAULT_ROOT which we can't easily override
-      // So we test the aggregation logic directly
-      const filtered = entries.filter((e) => e.sid === "sess-A" && e.project === "demo");
-      expect(filtered).toHaveLength(2);
-      expect(filtered[0].cmd).toBe("backlog");
-      expect(filtered[1].cmd).toBe("maintain");
-    });
-
-    test("aggregates command counts and slice transitions", () => {
-      const entries = [
-        { ts: "2026-04-16T10:00:00Z", sid: "s1", cmd: "start-slice", project: "demo", target: "DEMO-001", durationMs: 50, ok: true },
-        { ts: "2026-04-16T10:05:00Z", sid: "s1", cmd: "verify-slice", project: "demo", target: "DEMO-001", durationMs: 100, ok: false, error: "test plan not verified" },
-        { ts: "2026-04-16T10:10:00Z", sid: "s1", cmd: "verify-slice", project: "demo", target: "DEMO-001", durationMs: 100, ok: true },
-        { ts: "2026-04-16T10:12:00Z", sid: "s1", cmd: "close-slice", project: "demo", target: "DEMO-001", durationMs: 150, ok: true },
-      ];
-
-      const commandCounts: Record<string, number> = {};
-      const sliceTransitions: Array<{ cmd: string; target: string; ok: boolean }> = [];
-      const errors: Array<{ cmd: string; error: string }> = [];
-      const SLICE_COMMANDS = new Set(["claim", "start-slice", "verify-slice", "close-slice"]);
-
-      for (const e of entries) {
-        commandCounts[e.cmd] = (commandCounts[e.cmd] || 0) + 1;
-        if (SLICE_COMMANDS.has(e.cmd) && e.target) sliceTransitions.push({ cmd: e.cmd, target: e.target, ok: e.ok });
-        if (!e.ok && e.error) errors.push({ cmd: e.cmd, error: e.error });
-      }
-
-      expect(commandCounts["start-slice"]).toBe(1);
-      expect(commandCounts["verify-slice"]).toBe(2);
-      expect(commandCounts["close-slice"]).toBe(1);
-      expect(sliceTransitions).toHaveLength(4);
-      expect(sliceTransitions.filter((t) => t.cmd === "close-slice" && t.ok).map((t) => t.target)).toEqual(["DEMO-001"]);
-      expect(errors).toHaveLength(1);
-      expect(errors[0].error).toContain("test plan not verified");
+      expect(summary.sessionId).toBe("sess-A");
+      expect(summary.totalCommands).toBe(3);
+      expect(summary.durationMinutes).toBe(3);
+      expect(summary.commandCounts["start-slice"]).toBe(1);
+      expect(summary.commandCounts["verify-slice"]).toBe(1);
+      expect(summary.commandCounts["close-slice"]).toBe(1);
+      expect(summary.sliceTransitions).toEqual([
+        { cmd: "start-slice", target: "DEMO-001", ok: true },
+        { cmd: "verify-slice", target: "DEMO-001", ok: false },
+        { cmd: "close-slice", target: "DEMO-001", ok: true },
+      ]);
+      expect(summary.errors).toEqual([
+        { cmd: "verify-slice", error: "test plan not verified", target: "DEMO-001" },
+      ]);
     });
   });
 
@@ -226,7 +233,15 @@ describe("activity tracker", () => {
       expect(runWiki(["backlog", "demo"], env).exitCode).toBe(0);
       expect(runWiki(["create-issue-slice", "demo", "test slice"], env).exitCode).toBe(0);
 
-      const result = runWiki(["handover", "demo", "--repo", repo, "--base", "main", "--json"], env);
+      const result = runWiki([
+        "handover",
+        "demo",
+        "--repo", repo,
+        "--base", "main",
+        "--accomplished", "Tracked the session activity counters.",
+        "--no-blockers",
+        "--json",
+      ], env);
       expect(result.exitCode).toBe(0);
       const json = JSON.parse(result.stdout.toString());
       expect(typeof json.sessionActivity.totalCommands).toBe("number");

@@ -1,12 +1,12 @@
 export {
   buildCanonicalProtocolSource,
+  END_MARKER,
+  PROTOCOL_FILES,
+  PROTOCOL_VERSION,
   renderHandoverAlignmentReminder,
   renderManagedProtocolBlock,
   renderPromptProtocolReminders,
   renderProtocolSurface,
-  PROTOCOL_FILES,
-  PROTOCOL_VERSION,
   START_MARKER,
-  END_MARKER,
-} from "../lib/protocol-source";
-export type { CanonicalProtocolSource, ProtocolScope } from "../lib/protocol-source";
+} from "./source/index";
+export type { CanonicalProtocolSource, ProtocolScope } from "./source/index";

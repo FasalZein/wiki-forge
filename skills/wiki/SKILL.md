@@ -10,6 +10,12 @@ description: >
 
 > Scope: memory, retrieval, verification, research filing, and freshness repair. For active implementation workflow, load `/forge`.
 
+Quick contract:
+
+- `wiki = second brain / memory`
+- default `wiki help` is workflow-first; use `wiki help --all` for the full command catalog
+- one project should use one authoritative wiki/vault; parallel agents should share that vault and claim different slices
+
 ## Router
 
 Choose the smallest fitting surface.
@@ -54,6 +60,13 @@ Use the smallest fitting command:
 | bridge accepted research into a tracked slice | `wiki research adopt <research-page> --project <project> --slice <slice-id>` |
 | project Q&A | `wiki ask <project> <question>` |
 | resume session context | `wiki resume <project> --repo <path> --base <rev>` |
+
+Session handover contract:
+
+- `wiki handover` is not a generated summary only
+- by default it requires authored context via `--accomplished <text>` and either `--blocker <text>` or `--no-blockers`
+- `--allow-auto-only` is the explicit escape hatch when you intentionally want the old generated-only behavior
+- the authored handoff is what `wiki resume` should surface first-class next session
 
 SDLC scaffolds may exist on the `wiki` CLI, but their workflow policy belongs to `forge`, not here.
 
@@ -138,5 +151,5 @@ If the disagreement is really about slice workflow state, leave `/wiki` and swit
 - Set `repo:` in `_summary.md` for code projects or pass `--repo <path>`.
 - Use `wiki maintain` as the default maintenance entry point.
 - Verify after updating.
-- `wiki handover` is user-invoked only.
+- `wiki handover` is user-invoked only, and by default requires authored context (`--accomplished ...` plus `--blocker ...|--no-blockers`).
 - Do not invent CLI features or ad hoc document layouts.

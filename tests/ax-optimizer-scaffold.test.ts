@@ -35,6 +35,9 @@ describe("AX optimizer scaffold", () => {
     expect(notes).toContain("Running experiments does not require reloads.");
     expect(notes).toContain("bun run sync:local");
     expect(notes).toContain("restart the agent session");
+    expect(notes).toContain("outputs/skill-candidates/*.candidate.json");
+    expect(notes).toContain("outputs/skill-candidates/*.candidate.patch");
+    expect(notes).not.toContain(".candidate.md");
   });
 
   test("sample datasets exist for workflow and skill optimization", () => {

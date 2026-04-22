@@ -23,6 +23,7 @@ describe("forge status triage adapter", () => {
       activeSlice: null,
       sliceStatus: "done",
       section: "Done",
+      canonicalCompletion: true,
       planStatus: "ready",
       testPlanStatus: "ready",
       verificationLevel: "test-verified",
@@ -31,5 +32,21 @@ describe("forge status triage adapter", () => {
 
     expect(triage.kind).toBe("completed");
     expect(triage.command).toBe("wiki forge next demo");
+  });
+
+  test("does not map docs-only done slices to completed without canonical close evidence", () => {
+    const triage = buildForgeTriage("demo", "DEMO-001", {
+      activeSlice: null,
+      sliceStatus: "done",
+      section: "Done",
+      canonicalCompletion: false,
+      planStatus: "ready",
+      testPlanStatus: "ready",
+      verificationLevel: "test-verified",
+      nextPhase: null,
+    });
+
+    expect(triage.kind).not.toBe("completed");
+    expect(triage.command).toContain("wiki forge run demo DEMO-001");
   });
 });

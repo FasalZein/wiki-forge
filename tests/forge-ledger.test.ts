@@ -4,7 +4,7 @@ import {
   canAdvanceForgePhase,
   type ForgeWorkflowLedger,
   validateForgeWorkflowLedger,
-} from "../src/lib/forge-ledger";
+} from "../src/protocol/status/workflow-ledger";
 
 describe("forge workflow ledger", () => {
   test("keeps the forge phase chain in canonical order", () => {

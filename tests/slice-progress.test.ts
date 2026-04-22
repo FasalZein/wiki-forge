@@ -18,7 +18,7 @@ function parseFm(filePath: string) {
 
 function callWriteProgress(vault: string, project: string, sliceId: string, progress: Record<string, unknown>) {
   const script = `
-    const { writeSliceProgress } = await import("./src/lib/slice-progress");
+    const { writeSliceProgress } = await import("./src/slice/pipeline");
     await writeSliceProgress(${JSON.stringify(project)}, ${JSON.stringify(sliceId)}, ${JSON.stringify(progress)});
   `;
   const result = Bun.spawnSync(["bun", "-e", script], { cwd: import.meta.dir + "/..", env: { ...process.env, KNOWLEDGE_VAULT_ROOT: vault } });
@@ -27,7 +27,7 @@ function callWriteProgress(vault: string, project: string, sliceId: string, prog
 
 function callReadHandoff(vault: string, project: string, sliceId: string): Record<string, unknown> | null {
   const script = `
-    const { readSliceHandoff } = await import("./src/lib/slice-progress");
+    const { readSliceHandoff } = await import("./src/slice/pipeline");
     const result = await readSliceHandoff(${JSON.stringify(project)}, ${JSON.stringify(sliceId)});
     console.log(JSON.stringify(result));
   `;

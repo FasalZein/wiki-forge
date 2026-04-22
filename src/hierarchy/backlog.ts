@@ -1,6 +1,15 @@
-// Re-export facade — see backlog-io.ts, backlog-collect.ts, backlog-commands.ts
-export type { BacklogItem } from "./backlog-io";
-export { moveTaskToSection, rewriteBacklogRowMarker, getBacklogRowMarker } from "./backlog-io";
-export type { TaskDocState, BacklogTaskContext, BacklogFocus } from "./backlog-collect";
-export { collectBacklog, collectBacklogView, collectBacklogFocus, collectTaskContextForId, detectTaskDocState } from "./backlog-collect";
-export { backlogCommand, addTask, moveTask, completeTask } from "./backlog-commands";
+export type { BacklogItem } from "./backlog/index";
+export {
+  backlogCommand,
+  addTask,
+  collectBacklog,
+  collectBacklogFocus,
+  collectBacklogView,
+  collectTaskContextForId,
+  completeTask,
+  detectTaskDocState,
+  moveTask,
+  moveTaskToSection,
+  rewriteBacklogRowMarker,
+} from "./backlog/index";
+export type { BacklogFocus, BacklogTaskContext, TaskDocState } from "./backlog/index";

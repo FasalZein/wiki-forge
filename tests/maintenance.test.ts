@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { findProjectArg, parseProjectRepoArgs, parseProjectRepoBaseArgs } from "../src/git-utils";
-import { isTestFile } from "../src/maintenance";
+import { isTestFile } from "../src/maintenance/test-health";
 
 describe("findProjectArg", () => {
   test("keeps the leading project arg while ignoring repo/base flag values later", () => {

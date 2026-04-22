@@ -100,6 +100,23 @@ describe("wiki coordination commands", () => {
     expect(result.stderr.toString()).toContain("blocked by unfinished dependencies");
   });
 
+  test("start-slice does not treat docs-only done slices as canonically closed", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+
+    const indexPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "index.md");
+    writeFileSync(indexPath, readFileSync(indexPath, "utf8").replace("status: draft", "status: done\ncompleted_at: 2026-04-20T00:00:00.000Z"), "utf8");
+
+    const result = runWiki(["start-slice", "demo", "DEMO-001", "--agent", "codex", "--repo", repo, "--json"], env);
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.status).toBe("in-progress");
+  });
+
   test("start-slice reports claim conflicts with exit code 2", () => {
     const { vault, repo } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
@@ -164,7 +181,15 @@ describe("wiki coordination commands", () => {
     writeFileSync(join(repo, "src", "auth.ts"), "export const a = 3\n", "utf8");
     writeFileSync(join(repo, "src", "new.ts"), "export const n = 1\n", "utf8");
 
-    const result = runWiki(["handover", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
+    const result = runWiki([
+      "handover",
+      "demo",
+      "--repo", repo,
+      "--base", "HEAD~1",
+      "--accomplished", "Updated the auth handoff and captured the parser stopping point.",
+      "--blocker", "Parser follow-up is still pending.",
+      "--json",
+    ], env);
     expect(result.exitCode).toBe(0);
     const json = JSON.parse(result.stdout.toString());
     expect(json.focus.activeTask.id).toBe("DEMO-001");
@@ -175,7 +200,9 @@ describe("wiki coordination commands", () => {
     expect(json.shortPrompt).toContain("/research");
     expect(json.shortPrompt).not.toContain("wiki forge run demo DEMO-001");
     expect(Array.isArray(json.accomplishments)).toBe(true);
+    expect(json.accomplishments).toContain("Updated the auth handoff and captured the parser stopping point.");
     expect(Array.isArray(json.blockers)).toBe(true);
+    expect(json.blockers).toContain("Parser follow-up is still pending.");
     expect(json.recentNotes.some((entry: string) => entry.includes("left off at parser"))).toBe(true);
     // Verify handover file was written (WIKI-FORGE-073)
     expect(json.handoverPath).toContain("handovers/");
@@ -192,21 +219,29 @@ describe("wiki coordination commands", () => {
     expect(handoverContent).toContain("## Recent Commits");
     expect(handoverContent).toContain("## Dirty State");
     expect(handoverContent).toContain("## Next Session Priorities");
+    expect(handoverContent).toContain("## Tracked Artifacts");
     expect(handoverContent).toContain("## What Was Accomplished");
     expect(handoverContent).toContain("## Blockers & Open Questions");
     expect(handoverContent).toContain("```text");
     expect(handoverContent).toContain("Load /wiki and /forge.");
+    expect(handoverContent).toContain("[[projects/demo/specs/slices/DEMO-001/index|DEMO-001 auth slice]]");
+    expect(handoverContent).toContain("[[projects/demo/specs/slices/DEMO-001/plan|DEMO-001 plan]]");
+    expect(handoverContent).toContain("[[projects/demo/specs/slices/DEMO-001/test-plan|DEMO-001 test plan]]");
+    expect(handoverContent).toContain("Updated the auth handoff and captured the parser stopping point.");
+    expect(handoverContent).toContain("Parser follow-up is still pending.");
     expect(handoverContent).not.toContain("<!-- LLM: fill in what was accomplished during this session -->");
     expect(handoverContent).not.toContain("<!-- LLM: fill in any blockers or open questions -->");
     // WIKI-FORGE-101: agent-alignment callout + priorities precede auto sections
     expect(handoverContent).toContain("> [!note] Agent alignment");
     const shortPromptIdx = handoverContent.indexOf("## Short Prompt");
     const priorityIdx = handoverContent.indexOf("## Next Session Priorities");
+    const artifactsIdx = handoverContent.indexOf("## Tracked Artifacts");
     const summaryIdx = handoverContent.indexOf("## Session Summary");
     expect(shortPromptIdx).toBeGreaterThan(0);
     expect(priorityIdx).toBeGreaterThan(shortPromptIdx);
     expect(priorityIdx).toBeGreaterThan(0);
-    expect(summaryIdx).toBeGreaterThan(priorityIdx);
+    expect(artifactsIdx).toBeGreaterThan(priorityIdx);
+    expect(summaryIdx).toBeGreaterThan(artifactsIdx);
   });
 
   test("handover short prompt uses steering when the next slice is still in pre-implementation phases", () => {
@@ -230,12 +265,70 @@ describe("wiki coordination commands", () => {
       "utf8",
     );
 
-    const result = runWiki(["handover", "demo", "--repo", repo, "--base", "HEAD~1", "--json", "--no-write"], env);
+    const result = runWiki([
+      "handover",
+      "demo",
+      "--repo", repo,
+      "--base", "HEAD~1",
+      "--accomplished", "Captured the research gap for the auth slice.",
+      "--no-blockers",
+      "--json",
+      "--no-write",
+    ], env);
     expect(result.exitCode).toBe(0);
     const json = JSON.parse(result.stdout.toString());
     expect(json.steering.lane).toBe("domain-work");
     expect(json.shortPrompt).toContain("/research");
     expect(json.shortPrompt).not.toContain("wiki forge run demo DEMO-001");
+  });
+
+  test("handover requires authored context by default and keeps an explicit auto-only escape hatch", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+
+    const failing = runWiki(["handover", "demo", "--repo", repo, "--base", "HEAD~1", "--json", "--no-write"], env);
+    expect(failing.exitCode).toBe(1);
+    expect(failing.stderr.toString()).toContain("--accomplished <text>");
+
+    const autoOnly = runWiki(["handover", "demo", "--repo", repo, "--base", "HEAD~1", "--allow-auto-only", "--json", "--no-write"], env);
+    expect(autoOnly.exitCode).toBe(0);
+    const json = JSON.parse(autoOnly.stdout.toString());
+    expect(json.handoverMode).toBe("auto-only");
+    expect(Array.isArray(json.accomplishments)).toBe(true);
+    expect(Array.isArray(json.blockers)).toBe(true);
+  });
+
+  test("handover falls back to recommended task artifacts when no slice is active", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-feature", "demo", "workflow handoff"], env).exitCode).toBe(0);
+    expect(runWiki(["create-prd", "demo", "--feature", "FEAT-001", "workflow handoff"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice", "--prd", "PRD-001"], env).exitCode).toBe(0);
+
+    const result = runWiki([
+      "handover",
+      "demo",
+      "--repo", repo,
+      "--base", "HEAD~1",
+      "--accomplished", "Queued the next slice and recorded the lineage artifacts.",
+      "--no-blockers",
+      "--json",
+    ], env);
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout.toString());
+    const handoverPath = join(vault, json.handoverPath);
+    const handoverContent = readFileSync(handoverPath, "utf8");
+
+    expect(handoverContent).toContain("- Recommended Slice:");
+    expect(handoverContent).toContain("[[projects/demo/specs/features/FEAT-001-workflow-handoff|FEAT-001 workflow handoff]]");
+    expect(handoverContent).toContain("[[projects/demo/specs/prds/PRD-001-workflow-handoff|PRD-001 workflow handoff]]");
+    expect(handoverContent).toContain("[[projects/demo/specs/slices/DEMO-001/index|DEMO-001 auth slice]]");
+    expect(handoverContent).toContain("[[projects/demo/specs/slices/DEMO-001/plan|DEMO-001 plan]]");
+    expect(handoverContent).toContain("[[projects/demo/specs/slices/DEMO-001/test-plan|DEMO-001 test plan]]");
   });
 
   test("handover stdout survives tail -N: pointer at top, prompt at end, path as last line", () => {
@@ -244,7 +337,14 @@ describe("wiki coordination commands", () => {
     expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
     setRepoFrontmatter(vault, repo);
 
-    const result = runWiki(["handover", "demo", "--repo", repo, "--base", "HEAD~1"], env);
+    const result = runWiki([
+      "handover",
+      "demo",
+      "--repo", repo,
+      "--base", "HEAD~1",
+      "--accomplished", "Prepared the next session handoff.",
+      "--no-blockers",
+    ], env);
     expect(result.exitCode).toBe(0);
     const stdout = result.stdout.toString();
     const lines = stdout.split("\n");
@@ -278,7 +378,16 @@ describe("wiki coordination commands", () => {
     expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
     setRepoFrontmatter(vault, repo);
 
-    const result = runWiki(["handover", "demo", "--repo", repo, "--base", "HEAD~1", "--json", "--no-write"], env);
+    const result = runWiki([
+      "handover",
+      "demo",
+      "--repo", repo,
+      "--base", "HEAD~1",
+      "--accomplished", "Kept the handover ephemeral for this test.",
+      "--no-blockers",
+      "--json",
+      "--no-write",
+    ], env);
     expect(result.exitCode).toBe(0);
     const json = JSON.parse(result.stdout.toString());
     expect(json.handoverPath).toBeUndefined();
@@ -291,7 +400,16 @@ describe("wiki coordination commands", () => {
     expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
     setRepoFrontmatter(vault, repo);
 
-    const result = runWiki(["handover", "demo", "--repo", repo, "--base", "HEAD~1", "--json", "--harness", "claude-code"], env);
+    const result = runWiki([
+      "handover",
+      "demo",
+      "--repo", repo,
+      "--base", "HEAD~1",
+      "--accomplished", "Tagged the handover with a harness.",
+      "--no-blockers",
+      "--json",
+      "--harness", "claude-code",
+    ], env);
     expect(result.exitCode).toBe(0);
     const handoverDir = join(vault, "projects", "demo", "handovers");
     const handoverFiles = readdirSync(handoverDir).filter((f: string) => f.endsWith(".md"));
@@ -304,9 +422,20 @@ describe("wiki coordination commands", () => {
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
     expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
     setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-feature", "demo", "workflow handoff"], env).exitCode).toBe(0);
+    expect(runWiki(["create-prd", "demo", "--feature", "FEAT-001", "workflow handoff"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice", "--prd", "PRD-001"], env).exitCode).toBe(0);
 
     // First create a handover
-    expect(runWiki(["handover", "demo", "--repo", repo, "--base", "HEAD~1", "--harness", "test-harness"], env).exitCode).toBe(0);
+    expect(runWiki([
+      "handover",
+      "demo",
+      "--repo", repo,
+      "--base", "HEAD~1",
+      "--accomplished", "Captured the handover metadata for the next run.",
+      "--blocker", "Resume should surface this authored blocker.",
+      "--harness", "test-harness",
+    ], env).exitCode).toBe(0);
 
     // Then resume should detect it
     const result = runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env);
@@ -315,6 +444,19 @@ describe("wiki coordination commands", () => {
     expect(typeof json.lastHandover).toBe("object");
     expect(json.lastHandover.harness).toBe("test-harness");
     expect(json.lastHandover.path).toContain("handovers/");
+    expect(json.lastHandover.accomplishments).toContain("Captured the handover metadata for the next run.");
+    expect(json.lastHandover.blockers).toContain("Resume should surface this authored blocker.");
+    expect(json.lastHandover.trackedArtifacts).toContain("Recommended Slice");
+    expect(json.lastHandover.trackedArtifacts).toContain("[[projects/demo/specs/slices/DEMO-001/plan|DEMO-001 plan]]");
+
+    const text = runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD~1"], env);
+    expect(text.exitCode).toBe(0);
+    expect(text.stdout.toString()).toContain("- handover accomplishments:");
+    expect(text.stdout.toString()).toContain("Captured the handover metadata for the next run.");
+    expect(text.stdout.toString()).toContain("- handover blockers:");
+    expect(text.stdout.toString()).toContain("Resume should surface this authored blocker.");
+    expect(text.stdout.toString()).toContain("- tracked artifacts:");
+    expect(text.stdout.toString()).toContain("[[projects/demo/specs/prds/PRD-001-workflow-handoff|PRD-001 workflow handoff]]");
   });
 
   test("close-slice moves a passing slice to done", () => {

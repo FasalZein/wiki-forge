@@ -1,6 +1,8 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
+import { loadSkillCandidateTargets } from "./targets";
+import { assertValidSkillCandidateRewrite } from "./skill-guard";
 import type { SkillCandidateRecord } from "./types";
 
 async function readCandidate(skillName: string) {
@@ -28,6 +30,13 @@ function normalizePatchPaths(
 async function generatePatch(candidate: SkillCandidateRecord) {
   const repoRoot = join(import.meta.dir, "..", "..", "..");
   const sourcePath = join(repoRoot, candidate.sourcePath);
+  const currentSkill = await readFile(sourcePath, "utf8");
+  const target = (await loadSkillCandidateTargets()).find((entry) => entry.skillName === candidate.skillName);
+  assertValidSkillCandidateRewrite({
+    currentSkill,
+    revisedSkill: candidate.revisedSkill,
+    target,
+  });
   const proposedPath = join(import.meta.dir, "..", "outputs", "skill-candidates", "proposed", candidate.sourcePath);
   const patchPath = join(import.meta.dir, "..", "outputs", "skill-candidates", `${candidate.skillName}.candidate.patch`);
 
@@ -70,9 +79,19 @@ async function generatePatch(candidate: SkillCandidateRecord) {
 export async function runSkillPromotion(skillName?: string) {
   const targets = skillName ? [skillName] : ["wiki", "forge"];
   const results = [];
+  const rejected = [];
   for (const target of targets) {
-    const candidate = await readCandidate(target);
-    results.push(await generatePatch(candidate));
+    const patchPath = join(import.meta.dir, "..", "outputs", "skill-candidates", `${target}.candidate.patch`);
+    try {
+      const candidate = await readCandidate(target);
+      results.push(await generatePatch(candidate));
+    } catch (error) {
+      await rm(patchPath, { force: true });
+      rejected.push({
+        skillName: target,
+        reason: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
-  return { promoted: results };
+  return { promoted: results, rejected };
 }

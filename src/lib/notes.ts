@@ -98,7 +98,7 @@ async function buildNoteInfo(file: string, includeHeadings: boolean): Promise<No
   const vaultPath = toVaultPath(file);
   let headings: Set<string>;
   if (includeHeadings) {
-    headings = extractHeadingSlugs(parsed?.content ?? raw);
+    headings = extractHeadingSlugs(resolveHeadingSource(raw, parsed?.content ?? null));
   } else {
     headings = new Set<string>();
   }
@@ -264,18 +264,55 @@ function toPlainText(node: unknown): string {
 }
 
 function pushIndex(map: Map<string, NoteInfo[]>, key: string, note: NoteInfo) {
-  const current = map.get(key) ?? [];
-  current.push(note);
-  map.set(key, current);
+  const existingNotes = map.get(key);
+  if (existingNotes) {
+    existingNotes.push(note);
+    return;
+  }
+
+  map.set(key, [note]);
 }
 
 function safeMatter(pathLabel: string, content: string, options?: { silent?: boolean }) {
   try {
     return matter(content) as { content: string; data: Record<string, unknown> };
   } catch (error) {
-    if (!options?.silent) {
-      console.warn(`warning: could not parse frontmatter for ${pathLabel}: ${error instanceof Error ? error.message : String(error)}`);
+    if (isFrontmatterParseError(error)) {
+      if (!options?.silent) {
+        console.warn(`warning: could not parse frontmatter for ${pathLabel}: ${error.message}`);
+      }
+      return null;
     }
-    return null;
+    throw error;
   }
+}
+
+function resolveHeadingSource(raw: string, parsedContent: string | null) {
+  if (parsedContent !== null) {
+    return parsedContent;
+  }
+  return stripFrontmatterBlock(raw);
+}
+
+function stripFrontmatterBlock(raw: string) {
+  const normalized = raw.replace(/\r\n/g, "\n");
+  if (!normalized.startsWith("---\n")) {
+    return normalized;
+  }
+
+  const frontmatterEnd = normalized.indexOf("\n---\n", 4);
+  if (frontmatterEnd >= 0) {
+    return normalized.slice(frontmatterEnd + "\n---\n".length);
+  }
+
+  const explicitEnd = normalized.indexOf("\n...\n", 4);
+  if (explicitEnd >= 0) {
+    return normalized.slice(explicitEnd + "\n...\n".length);
+  }
+
+  return normalized;
+}
+
+function isFrontmatterParseError(error: unknown): error is Error & { name: "YAMLException" } {
+  return error instanceof Error && error.name === "YAMLException";
 }

@@ -10,8 +10,10 @@ describe("forge status facade", () => {
   });
 
   test("keeps orchestration in the facade and delegates helper concerns", () => {
-    const source = readFileSync(join(repoRoot, "src", "protocol", "forge-status.ts"), "utf8");
+    const shim = readFileSync(join(repoRoot, "src", "protocol", "forge-status.ts"), "utf8");
+    const source = readFileSync(join(repoRoot, "src", "protocol", "status", "index.ts"), "utf8");
 
+    expect(shim).toContain('./status/index');
     expect(source).toContain("buildAuthoredForgeStatusLedger");
     expect(source).toContain("resolveForgeStatusLedger");
     expect(source).toContain("buildForgeTriage");

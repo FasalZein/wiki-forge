@@ -736,8 +736,34 @@ describe("wiki CLI smoke", () => {
     expect(resultSource.stderr.toString()).toContain("missing source subcommand");
   });
 
-  test("help lists all major command groups and key commands", () => {
+  test("help defaults to wiki-first guidance", () => {
     const result = runWiki(["help"]);
+    expect(result.exitCode).toBe(0);
+    const output = result.stdout.toString();
+    expect(output).toContain("wiki = second brain / memory");
+    expect(output).toContain("forge = optional workflow layer");
+    expect(output).toContain("wiki help --all");
+    expect(output).toContain("wiki ask <project> <question...>");
+    expect(output).toContain("wiki search [--hybrid] <query...>");
+    expect(output).toContain("wiki query [--expand] <query...>");
+    expect(output).toContain("wiki qmd-status");
+    expect(output).toContain("wiki research file <topic> --project <project> <title>");
+    expect(output).toContain("wiki scaffold-project <project>");
+    expect(output).toContain("wiki summary <project>");
+    expect(output).not.toContain("one authoritative wiki/vault");
+    expect(output).not.toContain("wiki forge plan");
+    expect(output).not.toContain("wiki forge run");
+    expect(output).not.toContain("wiki forge next");
+    expect(output).not.toContain("wiki handover <project> [--repo <path>] [--base <rev>] --accomplished <text>");
+    expect(output).not.toContain("Research-to-forge bridge:");
+    expect(output).not.toContain("Authority order when outputs disagree:");
+    expect(output).not.toContain("wiki research audit [topic] [--json]");
+    expect(output).not.toContain("wiki scaffold-layer <name>");
+    expect(output).not.toContain("wiki qmd-embed");
+  });
+
+  test("help --all keeps the full command catalog available", () => {
+    const result = runWiki(["help", "--all"]);
     expect(result.exitCode).toBe(0);
     const output = result.stdout.toString();
     expect(output).toContain("wiki research audit [topic] [--json]");
@@ -762,17 +788,24 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("wiki start-slice <project> <slice-id> [--agent <name>] [--repo <path>] [--json]");
     expect(output).toContain("wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]");
     expect(output).toContain("wiki resume <project> [--repo <path>] [--base <rev>] [--json]");
+    expect(output).toContain("wiki handover <project> [--repo <path>] [--base <rev>] --accomplished <text> [--accomplished <text> ...] [--blocker <text> ...|--no-blockers] [--allow-auto-only] [--json]");
     expect(output).toContain("wiki dependency-graph <project> [--write] [--json]");
     expect(output).toContain("wiki research file <topic>");
     expect(output).toContain("wiki research distill <research-page> <projects/<project>/decisions|projects/<project>/architecture/domain-language>");
     expect(output).toContain("wiki research adopt <research-page> --project <project> --slice <slice-id> [--json]");
     expect(output).toContain("wiki source ingest");
-    expect(output).toContain("Agent Surface");
+    expect(output).toContain("Full command catalog:");
     expect(output).toContain("wiki forge plan");
     expect(output).toContain("wiki forge run");
     expect(output).toContain("wiki forge next");
-    expect(output).toContain("Research-to-forge bridge:");
-    expect(output).toContain("Authority order when outputs disagree:");
+  });
+
+  test("shell-standard --help path also accepts --all", () => {
+    const result = runWiki(["--help", "--all"]);
+    expect(result.exitCode).toBe(0);
+    const output = result.stdout.toString();
+    expect(output).toContain("wiki research audit [topic] [--json]");
+    expect(output).toContain("wiki scaffold-layer <name>");
   });
 
   test("onboard-plan treats repo research docs as source material and points net-new research to /research", () => {

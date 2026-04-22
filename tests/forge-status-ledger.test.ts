@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { validateForgeWorkflowLedger, type ForgeWorkflowLedger } from "../src/lib/forge-ledger";
+import { validateForgeWorkflowLedger, type ForgeWorkflowLedger } from "../src/protocol/status/workflow-ledger";
 import {
   isSliceDocsReady,
   mergeAuthoredLedgers,

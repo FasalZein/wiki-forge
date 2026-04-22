@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { listCodeFiles, listRepoMarkdownDocs } from "../src/lib/repo-scan";
+import { listCodeFiles, listRepoMarkdownDocs } from "../src/protocol/discovery/index";
 import { cleanupTempPaths, runGit, tempDir } from "./test-helpers";
 
 afterEach(() => {
