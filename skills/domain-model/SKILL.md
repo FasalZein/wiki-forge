@@ -1,7 +1,6 @@
 ---
 name: domain-model
 description: Stress-test a plan against the existing domain model, sharpen terminology, and record decisions/context in the project's canonical knowledge surfaces as they crystallise. Use when user wants to challenge a plan against the project's language and documented decisions.
-disable-model-invocation: true
 ---
 
 For wiki-forge-managed projects, the domain-model phase is wiki-native:
