@@ -1,24 +1,13 @@
-export { maintainProject, collectMaintenancePlan, collapseActions, compactMaintainForJson, autoRefreshIndex } from "./maintain";
-export { closeoutProject, collectCloseout, compactCloseoutForJson, renderCloseout } from "./closeout";
+export { maintainProject, collectMaintenancePlan, collapseActions } from "./maintain";
+export { closeoutProject, collectCloseout } from "./closeout";
 export { refreshProject, refreshFromGit, refreshOnMerge } from "./refresh";
-export { syncProject, collectSyncPlan } from "./sync";
-export { discoverProject, collectDiscoverSummary, collectIngestDiff, ingestDiff } from "./discover";
-export { dashboardProject, collectDashboard } from "./dashboard";
+export { syncProject } from "./sync";
+export { discoverProject, ingestDiff } from "./discover";
+export { dashboardProject } from "./dashboard";
 export { checkpoint, collectCheckpoint } from "./checkpoint";
-export { commitCheck, collectCommitCheck, installGitHook } from "./commit-check";
-export { doctorProject, collectDoctor, compactDoctorForJson } from "./doctor";
+export { commitCheck, installGitHook } from "./commit-check";
+export { doctorProject, compactDoctorForJson } from "./doctor";
 export { gateProject, collectGate } from "./gate";
 export { lintRepo } from "./lint-repo";
-export { driftCheck, collectDriftSummary } from "./drift";
-export {
-  STRIP_SUFFIXES,
-  STRIP_DOTTED,
-  STRIP_HYPHEN,
-  normalizeBasename,
-  isTestFile,
-  isCodeFile,
-  codeMatchKeys,
-  testMatchKeys,
-  guessModuleName,
-  collectChangedTestHealth,
-} from "./test-health";
+export { driftCheck } from "./drift";
+export { isTestFile } from "./test-health";

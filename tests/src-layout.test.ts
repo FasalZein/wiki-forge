@@ -135,6 +135,19 @@ describe("WIKI-FORGE-180 lib drainage and first-wave contract", () => {
       expect(statSync(path).isFile()).toBe(true);
     }
   });
+
+  test("domain registries are namespaced under explicit lib folders", () => {
+    const expectedFiles = [
+      ["project-paths", "index.ts"],
+      ["workflow-config", "index.ts"],
+      ["wiki-contracts", "state-contract.ts"],
+    ] as const;
+    for (const [dir, file] of expectedFiles) {
+      const path = join(srcRoot, "lib", dir, file);
+      expect(existsSync(path), `expected src/lib/${dir}/${file}`).toBe(true);
+      expect(statSync(path).isFile()).toBe(true);
+    }
+  });
 });
 
 describe("WIKI-FORGE-108 leaf-file moves into domain folders", () => {

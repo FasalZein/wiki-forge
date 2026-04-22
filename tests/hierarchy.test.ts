@@ -1,7 +1,7 @@
 import { describe, expect, test, afterAll } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { computeStatus, type SliceState } from "../src/lib/hierarchy";
+import { computeStatus, type SliceState } from "../src/hierarchy/status";
 import { tempDir, cleanupTempPaths, initVault, runWiki } from "./test-helpers";
 
 afterAll(cleanupTempPaths);

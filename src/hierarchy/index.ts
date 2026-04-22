@@ -1,5 +1,4 @@
-export { featureStatusCommand, collectFeatureStatuses } from "./feature-status";
-export type { FeatureStatusRow, PrdStatusRow } from "./feature-status";
+export { featureStatusCommand } from "./feature-status";
 export {
   computeEntityStatus,
   lifecycleOpen,
@@ -24,9 +23,8 @@ export {
   detectTaskDocState,
   moveTaskToSection,
   rewriteBacklogRowMarker,
-  getBacklogRowMarker,
 } from "./backlog";
-export type { BacklogItem, TaskDocState, BacklogTaskContext, BacklogFocus } from "./backlog";
+export type { BacklogTaskContext, BacklogFocus } from "./backlog";
 export { appendTaskToBacklog, parseTaskArgs } from "./backlog-io";
 export { collectCancelledSyncActions } from "./lifecycle-drift";
 export { createFeature, createPrd, createPlan, createTestPlan, createFeatureReturningId, createPrdReturningId, slugify } from "./planning";

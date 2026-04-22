@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { VAULT_ROOT } from "../constants";
-import { readJson, statFingerprint, writeText } from "./fs";
+import { exists, readJson, statFingerprint, writeText } from "./fs";
 
 const CACHE_ROOT = join(VAULT_ROOT, ".cache", "wiki-cli");
 
@@ -16,17 +16,25 @@ function cachePath(namespace: string, key: string) {
 
 export async function readCache<T>(namespace: string, key: string, version: string, fingerprint: string): Promise<T | null> {
   const filePath = cachePath(namespace, key);
-  // No exists() guard needed: readJson throws if the file is missing, and the
-  // catch below returns null in that case — one fewer async stat call per lookup.
+  if (!(await exists(filePath))) {
+    return null;
+  }
+
   try {
     const parsed = await readJson<CacheEnvelope<T>>(filePath);
     if (parsed.version !== version || parsed.fingerprint !== fingerprint) {
       return null;
     }
     return parsed.value;
-  } catch {
-    return null;
+  } catch (error) {
+    return handleCacheReadFailure(error);
   }
+}
+
+function handleCacheReadFailure(_error: unknown): null {
+  // Cache reads stay best-effort: malformed or unreadable cache entries fall
+  // back to a cache miss so callers recompute from source-of-truth inputs.
+  return null;
 }
 
 export async function writeCache<T>(namespace: string, key: string, version: string, fingerprint: string, value: T) {

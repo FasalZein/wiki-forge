@@ -16,7 +16,7 @@ import {
   mergeDerivedForgeLedger,
   applyDerivedLedger,
 } from "../src/protocol/forge-ledger-detect";
-import type { ForgeWorkflowLedger } from "../src/lib/forge-ledger";
+import type { ForgeWorkflowLedger } from "../src/protocol/status/workflow-ledger";
 
 afterEach(() => {
   cleanupTempPaths();

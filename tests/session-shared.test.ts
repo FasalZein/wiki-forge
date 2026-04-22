@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { compactLogEntry } from "../src/session/_shared";
+import { compactLogEntry } from "../src/session/shared";
 
 describe("session shared helpers", () => {
   test("compacts log entries while dropping the project detail line", () => {

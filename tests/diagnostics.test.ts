@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formatMaintenanceActionLabel } from "../src/lib/diagnostics";
+import { formatMaintenanceActionLabel } from "../src/maintenance/shared";
 
 describe("diagnostics", () => {
   test("formatMaintenanceActionLabel includes scope when present", () => {

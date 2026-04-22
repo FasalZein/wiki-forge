@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileFingerprint, filesFingerprint, readCache, writeCache } from "../src/lib/cache";
 import { cleanupTempPaths, tempDir } from "./test-helpers";
@@ -75,5 +75,26 @@ describe("cache", () => {
     await writeCache(ns, key, "v1", "fp1", { x: 1 });
     const result = await readCache(ns, key, "v1", "fp2");
     expect(result).toBeNull();
+  });
+
+  test("readCache returns null for malformed cache JSON", async () => {
+    const vault = tempDir("cache-vault");
+    const cacheDir = join(vault, ".cache", "wiki-cli", "broken");
+    mkdirSync(cacheDir, { recursive: true });
+    const hash = Bun.hash("bad-key").toString(16);
+    writeFileSync(join(cacheDir, `${hash}.json`), "{ not-json", "utf8");
+
+    const script = `
+      const { readCache } = await import("./src/lib/cache");
+      const result = await readCache("broken", "bad-key", "v1", "fp1");
+      console.log(JSON.stringify(result));
+    `;
+    const proc = Bun.spawnSync(["bun", "-e", script], {
+      cwd: import.meta.dir + "/..",
+      env: { ...process.env, KNOWLEDGE_VAULT_ROOT: vault },
+    });
+
+    expect(proc.exitCode).toBe(0);
+    expect(proc.stdout.toString().trim()).toBe("null");
   });
 });

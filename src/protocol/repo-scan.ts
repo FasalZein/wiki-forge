@@ -1,9 +1,9 @@
 export {
-  SCAFFOLD_DIRS,
+  buildDirectoryTree,
   DEFAULT_CODE_PATTERNS,
+  isAllowedRepoMarkdownDoc,
   listCodeFiles,
   listRepoMarkdownDocs,
-  isAllowedRepoMarkdownDoc,
-  buildDirectoryTree,
   readCodePaths,
-} from "../lib/repo-scan";
+  SCAFFOLD_DIRS,
+} from "./discovery/index";

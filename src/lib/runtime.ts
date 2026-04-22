@@ -5,11 +5,9 @@ import { exists } from "./fs";
 const commandCache = new Map<string, string | null>();
 const commandListCache = new Map<string, string[]>();
 
-async function resolveCommandsOnPath(command: string) {
-  if (commandListCache.has(command)) return commandListCache.get(command) ?? [];
-  const extnames = process.platform === "win32"
-    ? (process.env.PATHEXT?.split(";").filter(Boolean) ?? [".EXE", ".CMD", ".BAT", ".COM"])
-    : [""];
+async function resolveCommandsOnPath(command: string): Promise<string[]> {
+  if (commandListCache.has(command)) return commandListCache.get(command)!;
+  const extnames = resolveExecutableExtensions();
   const seen = new Set<string>();
   const resolved: string[] = [];
   for (const entry of (process.env.PATH ?? "").split(delimiter).filter(Boolean)) {
@@ -35,10 +33,24 @@ async function resolveCommandsOnPath(command: string) {
   return resolved;
 }
 
-export async function resolveCommandOnPath(command: string) {
-  if (commandCache.has(command)) return commandCache.get(command) ?? null;
-  const resolved = (await resolveCommandsOnPath(command))[0] ?? null;
+export async function resolveCommandOnPath(command: string): Promise<string | null> {
+  if (commandCache.has(command)) return commandCache.get(command)!;
+  const candidates = await resolveCommandsOnPath(command);
+  const resolved = candidates.length > 0 ? candidates[0]! : null;
   commandCache.set(command, resolved);
   return resolved;
 }
 
+function resolveExecutableExtensions() {
+  if (process.platform !== "win32") {
+    return [""];
+  }
+
+  const configured = process.env.PATHEXT
+    ?.split(";")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return configured && configured.length > 0
+    ? configured
+    : [".EXE", ".CMD", ".BAT", ".COM"];
+}

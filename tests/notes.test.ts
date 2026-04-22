@@ -1,6 +1,13 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { findNoteByVaultPath, buildEvidenceExcerpt } from "../src/lib/notes";
 import type { NoteIndex, NoteInfo, QmdResult } from "../src/types";
+import { cleanupTempPaths, tempDir } from "./test-helpers";
+
+afterEach(() => {
+  cleanupTempPaths();
+});
 
 function makeNoteIndex(): NoteIndex {
   return {
@@ -35,6 +42,45 @@ function makeQmdResult(snippet = ""): QmdResult {
     snippet,
     score: 0.5,
   };
+}
+
+function buildIndexedNote(vault: string, relPath: string) {
+  const script = `
+    const { buildNoteIndex } = await import("./src/lib/notes");
+    const index = await buildNoteIndex();
+    const note = index.byVaultPath.get(${JSON.stringify(relPath.replace(/\.md$/u, ""))});
+    if (!note) throw new Error("note missing from index");
+    console.log(JSON.stringify({
+      vaultPath: note.vaultPath,
+      aliases: note.aliases,
+      headings: [...note.headings],
+    }));
+  `;
+  const proc = Bun.spawnSync(["bun", "-e", script], {
+    cwd: import.meta.dir + "/..",
+    env: { ...process.env, KNOWLEDGE_VAULT_ROOT: vault },
+  });
+  if (proc.exitCode !== 0) {
+    throw new Error(proc.stderr.toString() || "buildNoteIndex subprocess failed");
+  }
+  return JSON.parse(proc.stdout.toString().trim()) as { vaultPath: string; aliases: string[]; headings: string[] };
+}
+
+function buildAliasMatches(vault: string, alias: string) {
+  const script = `
+    const { buildNoteIndex } = await import("./src/lib/notes");
+    const index = await buildNoteIndex();
+    const matches = (index.byAlias.get(${JSON.stringify(alias.toLowerCase())}) ?? []).map((note) => note.vaultPath);
+    console.log(JSON.stringify(matches));
+  `;
+  const proc = Bun.spawnSync(["bun", "-e", script], {
+    cwd: import.meta.dir + "/..",
+    env: { ...process.env, KNOWLEDGE_VAULT_ROOT: vault },
+  });
+  if (proc.exitCode !== 0) {
+    throw new Error(proc.stderr.toString() || "buildNoteIndex alias subprocess failed");
+  }
+  return JSON.parse(proc.stdout.toString().trim()) as string[];
 }
 
 describe("findNoteByVaultPath", () => {
@@ -96,5 +142,47 @@ describe("buildEvidenceExcerpt", () => {
     const result = makeQmdResult("");
     const excerpt = buildEvidenceExcerpt(note, result, "authentication token");
     expect(excerpt.text.length).toBeLessThanOrEqual(223); // 220 + "..."
+  });
+});
+
+describe("buildNoteIndex", () => {
+  test("does not turn malformed frontmatter into fake heading slugs", () => {
+    const vault = tempDir("notes-vault");
+    mkdirSync(join(vault, "projects", "demo"), { recursive: true });
+    writeFileSync(join(vault, "AGENTS.md"), "# Agents\n", "utf8");
+    writeFileSync(join(vault, "index.md"), "# Index\n", "utf8");
+    writeFileSync(join(vault, "projects", "demo", "page.md"), `---
+aliases: [oops
+updated: 2026-04-22
+---
+# Real Heading
+`, "utf8");
+
+    const note = buildIndexedNote(vault, "projects/demo/page.md");
+    expect(note.headings).toEqual(["real-heading"]);
+  });
+
+  test("keeps all notes for shared aliases", () => {
+    const vault = tempDir("notes-alias-vault");
+    mkdirSync(join(vault, "projects", "demo"), { recursive: true });
+    writeFileSync(join(vault, "AGENTS.md"), "# Agents\n", "utf8");
+    writeFileSync(join(vault, "index.md"), "# Index\n", "utf8");
+    writeFileSync(join(vault, "projects", "demo", "first.md"), `---
+aliases:
+  - Shared Alias
+---
+# First
+`, "utf8");
+    writeFileSync(join(vault, "projects", "demo", "second.md"), `---
+aliases:
+  - Shared Alias
+---
+# Second
+`, "utf8");
+
+    expect(buildAliasMatches(vault, "Shared Alias")).toEqual([
+      "projects/demo/first",
+      "projects/demo/second",
+    ]);
   });
 });
