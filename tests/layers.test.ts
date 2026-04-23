@@ -15,6 +15,10 @@ function setupVault() {
   return vault;
 }
 
+function nonEmptyLineCount(markdown: string) {
+  return markdown.split("\n").filter((line) => line.trim().length > 0).length;
+}
+
 describe("scaffold-layer", () => {
   test("creates books layer index file", () => {
     const vault = setupVault();
@@ -87,31 +91,21 @@ describe("create-layer-page", () => {
 });
 
 describe("skill layer separation", () => {
-  test("wiki skill does not reintroduce SDLC command catalogs or closeout policy", () => {
+  test("wiki skill stays a compact wiki-layer entrypoint", () => {
     const wikiSkill = readFileSync(join(process.cwd(), "skills", "wiki", "SKILL.md"), "utf8");
+    expect(nonEmptyLineCount(wikiSkill)).toBeLessThanOrEqual(40);
     expect(wikiSkill).not.toContain("## Canonical Code-Driven Closeout Sequence");
     expect(wikiSkill).not.toContain("## Definition of Done");
     expect(wikiSkill).not.toContain("## Greenfield Project");
     expect(wikiSkill).not.toContain("computed_status");
     expect(wikiSkill).not.toContain("create-feature`, `create-prd`, `create-issue-slice`, `start-slice`");
     expect(wikiSkill).not.toContain("start-feature`, `close-feature`, `start-prd`, `close-prd`");
-    expect(wikiSkill).toContain("1. `wiki checkpoint` = current freshness truth");
-    expect(wikiSkill).toContain("2. `wiki maintain` = repair and reconciliation guidance");
-    expect(wikiSkill).toContain("3. `wiki resume` = convenience context only; may include historical or stale-looking notes");
-    expect(wikiSkill).toContain("## Router");
-    expect(wikiSkill).toContain("## Main Commands");
-    expect(wikiSkill.indexOf("## Router")).toBeLessThan(wikiSkill.indexOf("## Main Commands"));
-    expect(wikiSkill).toContain("## Generated and Derived Pages");
-    expect(wikiSkill).toContain("`wiki refresh-from-git <project> --repo <path> --base <rev>`");
-    expect(wikiSkill).toContain("`wiki acknowledge-impact <project> <page...> --repo <path>`");
-    expect(wikiSkill).toContain("`wiki bind <project> <page> <source-path...>`");
-    expect(wikiSkill).toContain("## Freshness Repair Path");
-    expect(wikiSkill).toContain("`wiki research bridge <research-page> --project <project> --slice <slice-id>`");
-    expect(wikiSkill).toContain("Handoff updates project truth. Bridge links accepted findings into forge-visible slice workflow.");
+    expect(wikiSkill).toContain("Wiki is the knowledge, retrieval, freshness, and verification layer.");
+    expect(wikiSkill).toContain("wiki checkpoint");
+    expect(wikiSkill).toContain("wiki maintain");
+    expect(wikiSkill).toContain("wiki research bridge");
     expect(wikiSkill).toContain("wiki help --all");
-    expect(wikiSkill).toContain("one authoritative wiki/vault");
-    expect(wikiSkill).toContain("wiki = second brain / memory");
-    expect(wikiSkill).toContain("run `bun run sync:local`, then `bun run sync:local -- --audit`, then restart the agent session");
+    expect(wikiSkill).toContain("After editing repo skill files");
   });
 
   test("domain-model skill and templates stay wiki-native for forge-managed projects", () => {
@@ -120,6 +114,7 @@ describe("skill layer separation", () => {
     const contextFormat = readFileSync(join(process.cwd(), "skills", "domain-model", "CONTEXT-FORMAT.md"), "utf8");
     const writePrdSkill = readFileSync(join(process.cwd(), "skills", "write-a-prd", "SKILL.md"), "utf8");
     const forgeSkill = readFileSync(join(process.cwd(), "skills", "forge", "SKILL.md"), "utf8");
+    const tddSkill = readFileSync(join(process.cwd(), "skills", "tdd", "SKILL.md"), "utf8");
     const grillSkill = readFileSync(join(process.cwd(), "skills", "grill-me", "SKILL.md"), "utf8");
     const agents = readFileSync(join(process.cwd(), "AGENTS.md"), "utf8");
     const agentsLocal = agents.split("# AGENTS")[1] ?? "";
@@ -139,30 +134,25 @@ describe("skill layer separation", () => {
     expect(writePrdSkill).toContain("projects/<project>/architecture/domain-language.md");
     expect(writePrdSkill).not.toContain("research and grilling");
 
+    expect(nonEmptyLineCount(forgeSkill)).toBeLessThanOrEqual(40);
+    expect(forgeSkill).toContain("Forge is the delivery workflow layer");
+    expect(forgeSkill).toContain("wiki forge status");
+    expect(forgeSkill).toContain("wiki forge run");
     expect(forgeSkill).toContain("wiki research -> /domain-model");
     expect(forgeSkill).toContain("/torpathy");
     expect(forgeSkill).toContain("/write-a-prd -> /prd-to-slices -> /tdd -> /desloppify");
-    expect(forgeSkill).not.toContain("companion skills");
-    expect(forgeSkill).toContain("## Router");
-    expect(forgeSkill).toContain("## State Table");
-    expect(forgeSkill).toContain("## Repair Branches");
-    expect(forgeSkill.indexOf("## Router")).toBeLessThan(forgeSkill.indexOf("## Default Surface"));
-    expect(forgeSkill).toContain("Use this precedence:");
-    expect(forgeSkill).toContain("1. `wiki checkpoint` = current freshness truth");
-    expect(forgeSkill).toContain("2. `wiki maintain` = repair/reconciliation plan");
-    expect(forgeSkill).toContain("3. `wiki forge status` = workflow ledger truth");
-    expect(forgeSkill).toContain("4. `wiki resume` = operator context summary only");
-    expect(forgeSkill).toContain("Do not improvise lower-level lifecycle commands during normal execution.");
-    expect(forgeSkill).toContain("When debugging, prefer the slice-scoped form.");
-    expect(forgeSkill).toContain("`wiki acknowledge-impact <project> <page...> --repo <path>`");
-    expect(forgeSkill).toContain("`wiki refresh-from-git <project> --repo <path> --base <rev>`");
-    expect(forgeSkill).toContain("`wiki bind <project> <page> <source-path...> [--mode replace|merge]`");
-    expect(forgeSkill).toContain("wiki research bridge <research-page> --project <project> --slice <slice-id>");
-    expect(forgeSkill).toContain("one authoritative wiki/vault");
-    expect(forgeSkill).toContain("wiki help --all");
-    expect(forgeSkill).toContain("rerun verify-slice");
-    expect(forgeSkill).toContain("--slice-local --slice-id <slice>");
-    expect(forgeSkill).toContain("--force-review");
+    expect(forgeSkill).not.toContain("## State Table");
+    expect(forgeSkill).not.toContain("## Repair Branches");
+    expect(forgeSkill).not.toContain("Use this precedence:");
+    expect(forgeSkill).not.toContain("rerun verify-slice");
+    expect(forgeSkill).not.toContain("--force-review");
+
+    expect(nonEmptyLineCount(tddSkill)).toBeLessThanOrEqual(40);
+    expect(tddSkill).toContain("No code without a behavior test");
+    expect(tddSkill).toContain("wiki verify-slice");
+    expect(tddSkill).toContain("wiki forge run");
+    expect(tddSkill).not.toContain("## Philosophy");
+    expect(tddSkill).not.toContain("## Anti-Pattern: Horizontal Slices");
 
     expect(grillSkill).toContain("Compatibility note");
     expect(grillSkill).toContain("Use `/domain-model` as the primary path");

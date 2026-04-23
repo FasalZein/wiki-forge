@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { buildForgeSteering } from "../src/protocol/steering/packet";
+import { buildForgeSteering, isMaintenanceRepairCommand } from "../src/protocol/steering/packet";
 import { classifyWorkflowSteeringTriage } from "../src/protocol/steering-triage";
 import { runWiki } from "./_helpers/wiki-subprocess";
 import { cleanupTempPaths, initVault, runGit, setRepoFrontmatter, tempDir } from "./test-helpers";
@@ -28,6 +28,12 @@ function setupRepo(project: string) {
   setRepoFrontmatter(vault, repo, project);
   expect(runWiki(["create-issue-slice", project, "auth slice"], env).exitCode).toBe(0);
   return { vault, repo, env };
+}
+
+function steeringLines(output: string): string[] {
+  return output
+    .split("\n")
+    .filter((line) => /^- (lane|phase|load-skill|next|why):/u.test(line));
 }
 
 describe("WIKI-FORGE-149 steering packet", () => {
@@ -189,6 +195,20 @@ describe("WIKI-FORGE-149 steering packet", () => {
     expect(tddSteering.lane).toBe("implementation-work");
     expect(tddSteering.loadSkill).toBe("/tdd");
 
+    const verifyGateSteering = buildForgeSteering({
+      project: "demo",
+      sliceId: "DEMO-001",
+      triage: {
+        kind: "close-slice",
+        reason: "verification level is missing",
+        command: "wiki forge run demo DEMO-001 --repo /repo",
+      },
+      nextPhase: "verify",
+      verificationLevel: null,
+    });
+    expect(verifyGateSteering.lane).toBe("implementation-work");
+    expect(verifyGateSteering.loadSkill).toBe("/desloppify");
+
     const verifyCloseSteering = buildForgeSteering({
       project: "demo",
       sliceId: "DEMO-001",
@@ -216,6 +236,63 @@ describe("WIKI-FORGE-149 steering packet", () => {
     });
     expect(maintenanceRecoverySteering.lane).toBe("maintenance-refresh");
     expect(maintenanceRecoverySteering.nextCommand).toContain("wiki closeout demo");
+  });
+
+  test("maintenance repair command detection parses wiki subcommands", () => {
+    expect(isMaintenanceRepairCommand("wiki checkpoint demo --repo /repo")).toBe(true);
+    expect(isMaintenanceRepairCommand("wiki   checkpoint demo --repo /repo")).toBe(true);
+    expect(isMaintenanceRepairCommand("wiki forge run demo DEMO-001 --repo /repo")).toBe(false);
+    expect(isMaintenanceRepairCommand("wiki-checkpoint demo --repo /repo")).toBe(false);
+  });
+
+  test("iteration contract carries the full forge chain and conditional torpathy", () => {
+    const steering = buildForgeSteering({
+      project: "demo",
+      sliceId: "DEMO-001",
+      triage: {
+        kind: "needs-domain-model",
+        reason: "domain model evidence is incomplete",
+        command: "/domain-model",
+        loadSkill: "/domain-model",
+      },
+      nextPhase: "domain-model",
+      verificationLevel: null,
+      designPressure: true,
+    });
+
+    expect(steering.iterationContract.designPressure).toBe("flagged");
+    expect(steering.iterationContract.requiredSkill).toBe("/domain-model");
+    expect(steering.iterationContract.remainingChain.slice(0, 4)).toEqual([
+      "domain-model",
+      "torpathy",
+      "write-a-prd",
+      "prd-to-slices",
+    ]);
+    expect(steering.iterationContract.qualityGates).toEqual(["verify", "desloppify"]);
+    expect(steering.iterationContract.reviewGates).toEqual(["review", "closeout", "gate"]);
+  });
+
+  test("resume, forge next, and forge status share one iteration contract", () => {
+    const { repo, env } = setupRepo("wf199contract");
+
+    const next = runWiki(["forge", "next", "wf199contract", "--repo", repo, "--json"], env);
+    const status = runWiki(["forge", "status", "wf199contract", "WF199CONTRACT-001", "--repo", repo, "--json"], env);
+    const resume = runWiki(["resume", "wf199contract", "--repo", repo, "--json"], env);
+    expect(next.exitCode).toBe(0);
+    expect(status.exitCode).toBe(0);
+    expect(resume.exitCode).toBe(0);
+
+    const nextContract = next.json<{ steering: { iterationContract: unknown } }>().steering.iterationContract;
+    const statusContract = status.json<{ steering: { iterationContract: unknown } }>().steering.iterationContract;
+    const resumeContract = resume.json<{ steering: { iterationContract: unknown } }>().steering.iterationContract;
+    expect(nextContract).toEqual(statusContract);
+    expect(resumeContract).toEqual(statusContract);
+
+    const text = runWiki(["forge", "next", "wf199contract", "--repo", repo], env);
+    expect(text.exitCode).toBe(0);
+    expect(text.stdout.toString()).toContain("- iteration-contract: research -> domain-model -> write-a-prd -> prd-to-slices -> tdd -> verify -> desloppify -> review -> closeout -> gate");
+    expect(text.stdout.toString()).toContain("- quality-gates: verify -> desloppify");
+    expect(text.stdout.toString()).toContain("- review-gates: review -> closeout -> gate");
   });
 
   test("resume json includes shared steering for domain-work", () => {
@@ -303,7 +380,7 @@ describe("WIKI-FORGE-149 steering packet", () => {
     expect(payload.steering.nextCommand).not.toContain("wiki forge run wf149placeholder WF149PLACEHOLDER-001");
   });
 
-  test("forge status advances to domain-model when the parent PRD already links prior research", () => {
+  test("forge status requires a research bridge before advancing from research to domain-model", () => {
     const { vault, env } = setupRepo("wf149prior");
     const sliceDir = join(vault, "projects", "wf149prior", "specs", "slices", "WF149PRIOR-001");
     writeFileSync(
@@ -336,8 +413,43 @@ describe("WIKI-FORGE-149 steering packet", () => {
     expect(result.exitCode).toBe(0);
     const payload = JSON.parse(result.stdout.toString());
 
-    expect(payload.workflow.validation.nextPhase).toBe("domain-model");
-    expect(payload.steering.phase).toBe("domain-model");
-    expect(payload.steering.loadSkill).toBe("/domain-model");
+    expect(payload.workflow.validation.nextPhase).toBe("research");
+    expect(payload.steering.phase).toBe("research");
+    expect(payload.steering.loadSkill).toBe("/research");
+  });
+
+  test("steering output is stable when the forge skill body is reduced to a stub", () => {
+    const { repo, env } = setupRepo("wf197stub");
+    const skillDir = join(repo, "skills", "forge");
+    mkdirSync(skillDir, { recursive: true });
+    writeFileSync(
+      join(skillDir, "SKILL.md"),
+      "---\nname: forge\ndescription: verbose fixture\n---\n\n# Forge\n\nLong local skill body that should not affect CLI steering.\n",
+      "utf8",
+    );
+
+    const beforeNext = runWiki(["forge", "next", "wf197stub"], env);
+    const beforeStatus = runWiki(["forge", "status", "wf197stub", "WF197STUB-001", "--json"], env);
+    const beforeResume = runWiki(["resume", "wf197stub", "--repo", repo, "--json"], env);
+    expect(beforeNext.exitCode).toBe(0);
+    expect(beforeStatus.exitCode).toBe(0);
+    expect(beforeResume.exitCode).toBe(0);
+
+    writeFileSync(
+      join(skillDir, "SKILL.md"),
+      "---\nname: forge\ndescription: stub\n---\n\n# Forge\n\nUse `wiki forge next|run|status`.\n",
+      "utf8",
+    );
+
+    const afterNext = runWiki(["forge", "next", "wf197stub"], env);
+    const afterStatus = runWiki(["forge", "status", "wf197stub", "WF197STUB-001", "--json"], env);
+    const afterResume = runWiki(["resume", "wf197stub", "--repo", repo, "--json"], env);
+    expect(afterNext.exitCode).toBe(0);
+    expect(afterStatus.exitCode).toBe(0);
+    expect(afterResume.exitCode).toBe(0);
+
+    expect(steeringLines(afterNext.stdout.toString())).toEqual(steeringLines(beforeNext.stdout.toString()));
+    expect(afterStatus.json<{ steering: unknown }>().steering).toEqual(beforeStatus.json<{ steering: unknown }>().steering);
+    expect(afterResume.json<{ steering: unknown }>().steering).toEqual(beforeResume.json<{ steering: unknown }>().steering);
   });
 });

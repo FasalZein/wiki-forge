@@ -127,6 +127,7 @@ export function applyPipelineFailureRecovery(
       sliceStatus: workflow.context?.sliceStatus ?? null,
       section: workflow.context?.section ?? null,
       canonicalCompletion: workflow.context?.canonicalCompletion ?? false,
+      designPressure: workflow.designPressure,
     }),
   };
 }

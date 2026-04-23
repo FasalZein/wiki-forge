@@ -117,9 +117,10 @@ async function _derive(project: string, sliceId: string, vaultRoot: string): Pro
 
   // -------------------------------------------------------------------
   // Phase: research
-  // Rule: authored PRD Prior Research links count as research evidence, and
+  // Rule: slice-scoped research bridge evidence counts as research evidence.
   // research/**/*.md can also match by frontmatter, source_paths, or
-  // legacy basename heuristics during migration.
+  // legacy basename heuristics during migration. Parent PRD Prior Research
+  // links alone are not enough; `wiki research bridge` must write slice evidence.
   // -------------------------------------------------------------------
   const researchRefs = await detectResearchRefs(project, sliceId, parentPrd, vaultRoot);
   if (researchRefs.refs.length > 0) {

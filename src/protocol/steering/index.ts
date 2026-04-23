@@ -56,6 +56,7 @@ export async function resolveWorkflowSteering(
         sliceStatus: focusTask.sliceStatus,
         section: focusTask.section,
         canonicalCompletion: focusTask.canonicalCompletion,
+        designPressure: workflow?.designPressure ?? false,
       })
     : buildForgeSteering({
         project,
@@ -124,6 +125,7 @@ export async function resolveTargetWorkflowSteering(
     sliceStatus: targetTask?.sliceStatus ?? workflow.context?.sliceStatus ?? null,
     section: targetTask?.section ?? workflow.context?.section ?? null,
     canonicalCompletion: targetTask?.canonicalCompletion ?? workflow.context?.canonicalCompletion ?? false,
+    designPressure: workflow.designPressure,
   });
   return {
     focus: input.focus,

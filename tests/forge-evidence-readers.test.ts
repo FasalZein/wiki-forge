@@ -27,7 +27,7 @@ function makePrd(vault: string, project: string, prdId: string, priorResearchRef
 }
 
 describe("forge evidence readers", () => {
-  test("research detection reads adopted Prior Research refs from the parent PRD", async () => {
+  test("research detection ignores unbridged Prior Research refs from the parent PRD", async () => {
     const vault = setupVault();
     makePrd(vault, "demo", "PRD-001", [
       "research/demo/_overview",
@@ -35,10 +35,7 @@ describe("forge evidence readers", () => {
     ]);
 
     const result = await detectResearchRefs("demo", "DEMO-001", "PRD-001", vault);
-    expect(result.refs).toEqual([
-      "research/demo/_overview",
-      "projects/demo/architecture/reviews/workflow-audit",
-    ]);
+    expect(result.refs).toEqual([]);
     expect(result.legacyFallbackUsed).toBe(false);
   });
 

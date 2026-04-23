@@ -1,5 +1,5 @@
 import { defaultAgentName } from "../../lib/cli-utils";
-import { renderSteeringPacket } from "../../protocol/steering/index";
+import { isForgeRunTriage, renderSteeringPacket } from "../../protocol/steering/index";
 import { collectBacklogFocus, collectTaskContextForId } from "../../hierarchy";
 import { resolveTargetWorkflowSteering } from "../../protocol";
 import { FORGE_PHASES, SKIPPABLE_FORGE_PHASES, isForgePhaseSkippable, type ForgePhase } from "../../protocol/status/index";
@@ -51,8 +51,9 @@ export async function forgeRun(args: string[]) {
     focus,
   });
   const preWorkflow = applyResolvedSteering(preResolution.workflow, preResolution.triage, preResolution.steering);
-  const expectedPrefix = `wiki forge run ${parsed.project} ${parsed.sliceId}`;
-  const canRunCurrentSlice = preWorkflow.steering.nextCommand.startsWith(expectedPrefix);
+  const canRunCurrentSlice = isForgeRunTriage(preResolution.triage)
+    && preResolution.targetTask?.id === parsed.sliceId
+    && (!preResolution.workflowNextPhase || preResolution.workflowNextPhase === "verify");
   if (!canRunCurrentSlice) {
     const payload = {
       ok: false,

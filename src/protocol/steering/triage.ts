@@ -1,3 +1,4 @@
+import { TEST_VERIFIED_LEVEL } from "../../constants";
 import type { BacklogFocus, BacklogTaskContext } from "../../hierarchy";
 import { type ForgePhase } from "../status/workflow-ledger";
 import { phaseRecommendation } from "./phase-commands";
@@ -63,7 +64,7 @@ export function classifyWorkflowSteeringTriage(context: WorkflowSteeringTriageCo
   }
 
   if (targetTaskId) {
-    if (context.verificationLevel !== "test-verified") {
+    if (context.verificationLevel !== TEST_VERIFIED_LEVEL) {
       return {
         kind: "close-slice",
         reason: `verification level is ${context.verificationLevel ?? "missing"}`,
@@ -74,7 +75,7 @@ export function classifyWorkflowSteeringTriage(context: WorkflowSteeringTriageCo
     if (context.activeTask?.id === targetTaskId) {
       return {
         kind: "close-slice",
-        reason: "slice is test-verified; close it",
+        reason: `slice is ${TEST_VERIFIED_LEVEL}; close it`,
         command: `wiki forge run ${context.project} ${targetTaskId} --repo ${context.repo}${context.base ? ` --base ${context.base}` : ""}`,
       };
     }

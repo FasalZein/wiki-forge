@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { VAULT_ROOT } from "../../constants";
+import { TEST_VERIFIED_LEVEL, VAULT_ROOT } from "../../constants";
 import {
   FORGE_PHASES,
   isForgePhaseSkippable,
@@ -13,7 +13,7 @@ import {
   type ForgeWorkflowLedger,
   type ForgeWorkflowValidation,
 } from "./workflow-ledger";
-import { collectPriorResearchRefs, extractMarkdownSection, readMatterDoc, type MatterDoc } from "./evidence";
+import { extractMarkdownSection, readMatterDoc, type MatterDoc } from "./evidence";
 import { applyDerivedLedger } from "./detect";
 import type { BacklogTaskContext } from "../../hierarchy";
 
@@ -50,13 +50,11 @@ export async function collectDecisionRefs(project: string): Promise<ForgeDecisio
 }
 
 export function buildAuthoredForgeStatusLedger(input: BuildAuthoredForgeStatusLedgerInput): Partial<ForgeWorkflowLedger> {
-  const researchRefs = collectPriorResearchRefs(input.prdDoc);
   return {
     project: input.project,
     sliceId: input.sliceId,
     workflowProfile: normalizeForgeWorkflowProfile(input.hub?.data.workflow_profile),
     ...(input.parentPrd ? { parentPrd: input.parentPrd } : {}),
-    ...(researchRefs.length ? { research: { completedAt: readUpdated(input.prdDoc?.data), researchRefs } } : {}),
     ...(input.decisionRefs.length
       ? {
           "domain-model": {
@@ -179,7 +177,7 @@ export function normalizeForgeValidationForCloseableSlice(
     planStatus: input.planStatus,
     testPlanStatus: input.testPlanStatus,
   });
-  if (!docsReady || input.verificationLevel !== "test-verified") return validation;
+  if (!docsReady || input.verificationLevel !== TEST_VERIFIED_LEVEL) return validation;
 
   return {
     ok: true,

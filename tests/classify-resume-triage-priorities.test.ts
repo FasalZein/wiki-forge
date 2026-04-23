@@ -26,7 +26,6 @@ describe("resume triage priorities", () => {
         failureSummary: "verify-slice exited 1",
       },
       workflowNextPhase: "research",
-      earlyPhase: true,
       verificationLevel: "test-verified",
     });
 
@@ -48,7 +47,6 @@ describe("resume triage priorities", () => {
         failureSummary: "verify-slice exited 1",
       },
       workflowNextPhase: "verify",
-      earlyPhase: false,
       verificationLevel: "test-verified",
     });
 
@@ -70,7 +68,6 @@ describe("resume triage priorities", () => {
         failureSummary: "close failed at checkpoint",
       },
       workflowNextPhase: "verify",
-      earlyPhase: false,
       verificationLevel: "code-verified",
     });
 
@@ -87,7 +84,6 @@ describe("resume triage priorities", () => {
       nextTask: { id: "DEMO-002" },
       handoff: null,
       workflowNextPhase: "research",
-      earlyPhase: true,
       verificationLevel: null,
     });
 
@@ -109,7 +105,6 @@ describe("resume triage priorities", () => {
         failureSummary: "checkpoint found 4 stale page(s)",
       },
       workflowNextPhase: "research",
-      earlyPhase: true,
       verificationLevel: null,
     });
 

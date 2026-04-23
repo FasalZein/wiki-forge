@@ -28,7 +28,8 @@ describe("wiki CLI smoke", () => {
     expect(planningIndexContent).toContain("[[projects/demo/specs/test-plan-auth-rollout|auth rollout]]");
     expect(runWiki(["add-task", "demo", "stabilize auth", "--priority", "p1", "--tag", "auth"], env).exitCode).toBe(0);
     expect(runWiki(["create-issue-slice", "demo", "auth slice", "--priority", "p1", "--tag", "auth", "--prd", "PRD-001"], env).exitCode).toBe(0);
-    expect(existsSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-002", "index.md"))).toBe(true);
+    const sliceHubPath = join(vault, "projects", "demo", "specs", "slices", "DEMO-002", "index.md");
+    expect(existsSync(sliceHubPath)).toBe(true);
     expect(existsSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-002", "plan.md"))).toBe(true);
     expect(existsSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-002", "test-plan.md"))).toBe(true);
     expect(runWiki(["move-task", "demo", "DEMO-001", "--to", "In Progress"], env).exitCode).toBe(0);
@@ -45,6 +46,17 @@ describe("wiki CLI smoke", () => {
     expect(prdContent).toContain("## Prior Research");
     expect(prdContent).toContain("Add topic-first research links here");
     expect(prdContent).toContain("wiki research file <topic> --project demo <title>");
+
+    mkdirSync(join(vault, "research", "demo"), { recursive: true });
+    writeFileSync(
+      join(vault, "research", "demo", "bridge-note.md"),
+      "---\ntitle: Bridge Note\ntype: research\ntopic: demo\nproject: demo\nstatus: verified\nsource_type: article\nsources:\n  - url: https://example.com\n    accessed: 2026-04-24\n    claim: Bridge smoke claim\ninfluenced_by: []\nupdated: 2026-04-24\nverification_level: source-checked\n---\n# Bridge Note\n\n## Key Findings\n\n- bridge smoke claim\n",
+      "utf8",
+    );
+    expect(runWiki(["research", "bridge", "research/demo/bridge-note", "--project", "demo", "--slice", "DEMO-002"], env).exitCode).toBe(0);
+    const sliceHub = readFileSync(sliceHubPath, "utf8");
+    expect(sliceHub).toContain("forge_workflow_ledger:");
+    expect(sliceHub).toContain("research/demo/bridge-note");
   });
 
   test("module and binding commands work", () => {

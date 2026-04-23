@@ -1,3 +1,5 @@
+import { TEST_VERIFIED_LEVEL } from "../../constants";
+import { buildForgeIterationContract, type ForgeIterationContract } from "./iteration-contract";
 import { isForgeRunTriage, isPrePhaseTriage, type ForgeTriage } from "./triage-types";
 import type { ForgePhase } from "../status/workflow-ledger";
 
@@ -14,20 +16,21 @@ export type ForgeSteeringPacket = {
   nextCommand: string;
   why: string;
   loadSkill?: string;
+  iterationContract: ForgeIterationContract;
 };
 
-const MAINTENANCE_REPAIR_COMMAND_PREFIXES = [
-  "wiki checkpoint ",
-  "wiki lint-repo ",
-  "wiki maintain ",
-  "wiki update-index ",
-  "wiki closeout ",
-  "wiki sync ",
-  "wiki refresh-from-git ",
-  "wiki acknowledge-impact ",
-  "wiki bind ",
-  "wiki verify-page ",
-] as const;
+const MAINTENANCE_REPAIR_SUBCOMMANDS = new Set([
+  "checkpoint",
+  "lint-repo",
+  "maintain",
+  "update-index",
+  "closeout",
+  "sync",
+  "refresh-from-git",
+  "acknowledge-impact",
+  "bind",
+  "verify-page",
+]);
 
 type BuildForgeSteeringInput = {
   project: string;
@@ -40,103 +43,119 @@ type BuildForgeSteeringInput = {
   sliceStatus?: string | null;
   section?: string | null;
   canonicalCompletion?: boolean;
+  designPressure?: boolean;
 };
 
 type TaskDocState = "missing" | "incomplete" | "ready";
 
 export function buildForgeSteering(input: BuildForgeSteeringInput): ForgeSteeringPacket {
   const phase = input.nextPhase ?? "complete";
+  const withContract = (packet: Omit<ForgeSteeringPacket, "iterationContract">): ForgeSteeringPacket => ({
+    ...packet,
+    iterationContract: buildForgeIterationContract({
+      phase: packet.phase,
+      triage: input.triage,
+      loadSkill: packet.loadSkill,
+      designPressure: input.designPressure,
+    }),
+  });
 
   if (!input.sliceId) {
-    return {
+    return withContract({
       lane: "maintenance-refresh",
       phase,
       nextCommand: input.triage.command,
       why: input.triage.reason,
       ...(input.triage.loadSkill ? { loadSkill: input.triage.loadSkill } : {}),
-    };
+    });
   }
 
   if (input.triage.kind === "resume-failed-forge") {
-    return {
+    return withContract({
       lane: isMaintenanceRepairCommand(input.triage.command) ? "maintenance-refresh" : "verify-close",
       phase,
       nextCommand: input.triage.command,
       why: input.triage.reason,
-    };
+    });
   }
 
   if (input.triage.kind === "completed") {
-    return {
+    return withContract({
       lane: "maintenance-refresh",
       phase,
       nextCommand: input.triage.command,
       why: input.triage.reason,
-    };
+    });
   }
 
   if (isPrePhaseTriage(input.triage)) {
     const lane = input.nextPhase === "tdd" ? "implementation-work" : "domain-work";
     const loadSkill = input.nextPhase === "tdd" ? "/tdd" : input.triage.loadSkill;
-    return {
+    return withContract({
       lane,
       phase,
       nextCommand: input.triage.command,
       why: input.triage.reason,
       ...(loadSkill ? { loadSkill } : {}),
-    };
+    });
   }
 
   if (isForgeRunTriage(input.triage)) {
-    return {
-      lane: input.verificationLevel === "test-verified" ? "verify-close" : "implementation-work",
+    const loadSkill = input.verificationLevel === TEST_VERIFIED_LEVEL
+      ? undefined
+      : input.nextPhase === "verify"
+        ? "/desloppify"
+        : "/tdd";
+    return withContract({
+      lane: input.verificationLevel === TEST_VERIFIED_LEVEL ? "verify-close" : "implementation-work",
       phase,
       nextCommand: input.triage.command,
       why: input.triage.reason,
-      ...(input.verificationLevel === "test-verified" ? {} : { loadSkill: "/tdd" }),
-    };
+      ...(loadSkill ? { loadSkill } : {}),
+    });
   }
 
   if (input.planStatus !== "ready" || input.testPlanStatus !== "ready" || input.triage.kind === "fill-docs") {
-    return {
+    return withContract({
       lane: "implementation-work",
       phase,
       nextCommand: input.triage.command,
       why: input.triage.reason,
       loadSkill: "/tdd",
-    };
+    });
   }
 
   if (input.canonicalCompletion) {
-    return {
+    return withContract({
       lane: "maintenance-refresh",
       phase,
       nextCommand: input.triage.command,
       why: input.triage.reason,
-    };
+    });
   }
 
-  if (input.verificationLevel === "test-verified") {
-    return {
+  if (input.verificationLevel === TEST_VERIFIED_LEVEL) {
+    return withContract({
       lane: "verify-close",
       phase,
       nextCommand: input.triage.command,
       why: input.triage.reason,
-    };
+    });
   }
 
-  return {
+  return withContract({
     lane: "implementation-work",
     phase,
     nextCommand: input.triage.command,
     why: input.triage.reason,
     ...(input.triage.loadSkill ? { loadSkill: input.triage.loadSkill } : {}),
-  };
+  });
 }
 
 export function isMaintenanceRepairCommand(command: string | null | undefined): boolean {
   if (!command) return false;
-  return MAINTENANCE_REPAIR_COMMAND_PREFIXES.some((prefix) => command.startsWith(prefix));
+  const match = command.trim().match(/^wiki\s+(\S+)/u);
+  return match ? MAINTENANCE_REPAIR_SUBCOMMANDS.has(match[1]) : false;
 }
 
 export function renderSteeringPacket(steering: ForgeSteeringPacket): string[] {
@@ -145,9 +164,15 @@ export function renderSteeringPacket(steering: ForgeSteeringPacket): string[] {
     `phase: ${steering.phase}`,
     `next: ${steering.nextCommand}`,
     `why: ${steering.why}`,
+    `iteration-contract: ${steering.iterationContract.remainingChain.join(" -> ")}`,
+    `quality-gates: ${steering.iterationContract.qualityGates.join(" -> ")}`,
+    `review-gates: ${steering.iterationContract.reviewGates.join(" -> ")}`,
   ];
   if (steering.loadSkill) {
     lines.splice(2, 0, `load-skill: ${steering.loadSkill}`);
+  }
+  if (steering.iterationContract.designPressure === "flagged") {
+    lines.push("design-pressure: torpathy required");
   }
   return lines;
 }

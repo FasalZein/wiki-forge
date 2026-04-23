@@ -2,7 +2,7 @@ import { readdirSync } from "node:fs";
 import { basename, join, relative } from "node:path";
 import { STALE_UNVERIFIED_DAYS } from "../../constants";
 import { safeMatter } from "../../cli-shared";
-import { collectPriorResearchRefs, extractMarkdownSection, readPlanningDoc } from "../../protocol/status/index";
+import { extractMarkdownSection, readPlanningDoc } from "../../protocol/status/index";
 import { exists, readText } from "../../lib/fs";
 import type { ForgePhase } from "../../protocol/status/index";
 import { normalizePath, stripMarkdownExtension, walkMarkdown } from "../../lib/vault";
@@ -32,7 +32,7 @@ export async function detectResearchRefs(
     }
   }
 
-  const refs: string[] = collectPriorResearchRefs(prdDoc);
+  const refs: string[] = [];
   let legacyFallbackUsed = false;
   const sliceIdLower = sliceId.toLowerCase();
   const prdIdLower = parentPrd ? parentPrd.toLowerCase() : null;

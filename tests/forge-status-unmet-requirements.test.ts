@@ -141,5 +141,9 @@ describe("forge status unmet requirements", () => {
     const afterJson = JSON.parse(afterBridge.stdout.toString());
     expect(afterJson.workflow.validation.nextPhase).toBe("domain-model");
     expect(afterJson.workflow.ledger.research.researchRefs).toContain("research/status-topic/verified-note");
+
+    const hub = readFileSync(join(vault, "projects", "wfstatus", "specs", "slices", "WFSTATUS-002", "index.md"), "utf8");
+    expect(hub).toContain("forge_workflow_ledger:");
+    expect(hub).toContain("research/status-topic/verified-note");
   });
 });

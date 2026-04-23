@@ -28,6 +28,7 @@ export async function collectForgeStatus(project: string, sliceId: string, repo?
   ]);
   const parentPrd = typeof hub?.data.parent_prd === "string" ? hub.data.parent_prd : undefined;
   const parentFeature = typeof hub?.data.parent_feature === "string" ? hub.data.parent_feature : undefined;
+  const designPressure = hub?.data.design_pressure === true || hub?.data.design_pressure === "flagged";
   const prdDoc = parentPrd ? await readPlanningDoc(projectPrdsDir(project), parentPrd) : null;
   const verificationCommands = testPlan
     ? extractVerificationSpecsFromTestPlan(testPlan.content, testPlan.data).map((entry) => entry.command)
@@ -76,6 +77,7 @@ export async function collectForgeStatus(project: string, sliceId: string, repo?
     context,
     parentPrd: parentPrd ?? null,
     parentFeature: parentFeature ?? null,
+    designPressure,
     planStatus: context?.planStatus ?? "missing",
     testPlanStatus: context?.testPlanStatus ?? "missing",
     verificationLevel,
@@ -95,7 +97,8 @@ export async function collectForgeStatus(project: string, sliceId: string, repo?
       sliceStatus: context?.sliceStatus ?? null,
       section: context?.section ?? null,
       canonicalCompletion: context?.canonicalCompletion ?? false,
-      }),
+      designPressure,
+    }),
   };
 }
 

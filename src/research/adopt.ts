@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { nowIso, orderFrontmatter, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { VAULT_ROOT } from "../constants";
 import { readPlanningDoc, collectPriorResearchRefs, type MatterDoc } from "../protocol/status/index";
+import { appendLogEntry } from "../lib/log";
 import { exists, readText } from "../lib/fs";
 import { normalizeInfluencedBy, normalizeResearchPageRef } from "../lib/research";
 import { projectPrdsDir, projectTaskHubPath, toVaultWikilinkPath } from "../lib/structure";
@@ -18,6 +19,30 @@ const RESEARCH_FRONTMATTER_ORDER = [
   "created_at",
   "updated",
   "verification_level",
+] as const;
+
+const SLICE_HUB_FRONTMATTER_ORDER = [
+  "title",
+  "type",
+  "spec_kind",
+  "project",
+  "source_paths",
+  "assignee",
+  "task_id",
+  "depends_on",
+  "parent_prd",
+  "parent_feature",
+  "claimed_by",
+  "claimed_at",
+  "claim_paths",
+  "created_at",
+  "updated",
+  "started_at",
+  "completed_at",
+  "status",
+  "verification_level",
+  "workflow_profile",
+  "forge_workflow_ledger",
 ] as const;
 
 export async function bridgeResearch(args: string[]) {
@@ -68,15 +93,24 @@ export async function bridgeResearch(args: string[]) {
     }, [...RESEARCH_FRONTMATTER_ORDER]));
   }
 
+  const ledgerChanged = recordSliceResearchBridge({
+    project,
+    sliceId,
+    pageRef,
+    sliceHubPath,
+    parsedHub,
+  });
+
   const result = {
     page: pageRef,
     project,
     sliceId,
     prdRef,
     parentPrd,
-    adopted: prdChanged || noteChanged,
+    adopted: prdChanged || noteChanged || ledgerChanged,
     addedToPrd: prdChanged,
     updatedInfluence: noteChanged,
+    recordedSliceEvidence: ledgerChanged,
     nextAction: `wiki forge status ${project} ${sliceId}`,
   };
   if (json) {
@@ -88,6 +122,7 @@ export async function bridgeResearch(args: string[]) {
   console.log(`- parent PRD: ${parentPrd}`);
   console.log(`- added to Prior Research: ${prdChanged ? "yes" : "already present"}`);
   console.log(`- recorded in influenced_by: ${noteChanged ? "yes" : "already present"}`);
+  console.log(`- recorded in slice ledger: ${ledgerChanged ? "yes" : "already present"}`);
   console.log(`- next: ${result.nextAction}`);
 }
 
@@ -122,6 +157,54 @@ function parseBridgeArgs(args: string[]) {
   if (!project?.trim()) throw new Error("missing --project <project>");
   if (!sliceId?.trim()) throw new Error("missing --slice <slice-id>");
   return { pageRef, project: project.trim(), sliceId: sliceId.trim(), json: args.includes("--json") };
+}
+
+function recordSliceResearchBridge(input: {
+  project: string;
+  sliceId: string;
+  pageRef: string;
+  sliceHubPath: string;
+  parsedHub: NonNullable<ReturnType<typeof safeMatter>>;
+}): boolean {
+  const existingLedger = input.parsedHub.data.forge_workflow_ledger && typeof input.parsedHub.data.forge_workflow_ledger === "object"
+    ? { ...(input.parsedHub.data.forge_workflow_ledger as Record<string, unknown>) }
+    : {};
+  const existingResearch = existingLedger.research && typeof existingLedger.research === "object"
+    ? { ...(existingLedger.research as Record<string, unknown>) }
+    : {};
+  const existingRefs = Array.isArray(existingResearch.researchRefs)
+    ? existingResearch.researchRefs.filter((ref): ref is string => typeof ref === "string" && ref.trim().length > 0)
+    : [];
+  const researchRefs = [...new Set([...existingRefs, input.pageRef])];
+  const completedAt = typeof existingResearch.completedAt === "string" && existingResearch.completedAt.trim()
+    ? existingResearch.completedAt
+    : nowIso();
+  const changed = researchRefs.length !== existingRefs.length || existingResearch.completedAt !== completedAt;
+  if (!changed) return false;
+
+  existingLedger.research = {
+    ...existingResearch,
+    completedAt,
+    researchRefs,
+  };
+  const updated = nowIso();
+  writeNormalizedPage(
+    input.sliceHubPath,
+    input.parsedHub.content,
+    orderFrontmatter(
+      {
+        ...input.parsedHub.data,
+        forge_workflow_ledger: existingLedger,
+        updated,
+      },
+      [...SLICE_HUB_FRONTMATTER_ORDER],
+    ),
+  );
+  appendLogEntry("research-bridge", input.sliceId, {
+    project: input.project,
+    details: [`page=${input.pageRef}`],
+  });
+  return true;
 }
 
 function upsertPriorResearchLink(markdown: string, pageRef: string, researchLink: string) {

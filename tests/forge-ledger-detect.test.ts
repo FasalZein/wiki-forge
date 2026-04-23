@@ -220,7 +220,7 @@ describe("deriveForgeLedgerFromArtifacts — research phase", () => {
     expect(result.patch.research?.researchRefs).toContain("research/auth/oauth/options");
   });
 
-  test("detects research evidence from the parent PRD Prior Research section", async () => {
+  test("does not derive slice research evidence from unbridged parent PRD Prior Research links", async () => {
     const vault = setupVault();
     makeSliceHub(vault, "myproject", "MYPROJECT-001", { parent_prd: "PRD-056", parent_feature: "FEAT-001" });
     makePrd(
@@ -234,11 +234,7 @@ describe("deriveForgeLedgerFromArtifacts — research phase", () => {
     );
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
-    expect(result.patch.research).toBeDefined();
-    expect(result.patch.research?.researchRefs).toEqual([
-      "research/myproject/_overview",
-      "projects/myproject/architecture/reviews/steering-audit",
-    ]);
+    expect(result.patch.research).toBeUndefined();
   });
 
   test("detects research file by PRD-<id>-* basename pattern", async () => {

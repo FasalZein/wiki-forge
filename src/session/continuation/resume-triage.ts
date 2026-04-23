@@ -10,7 +10,6 @@ export type ResumeTriageContext = {
   nextTask: ResumeTaskRef;
   handoff?: { lastForgeRun?: string; lastForgeStep?: string; lastForgeOk?: boolean; nextAction?: string; failureSummary?: string } | null;
   workflowNextPhase?: ForgePhase | null;
-  earlyPhase?: boolean | null;
   verificationLevel?: string | null;
 };
 
@@ -40,7 +39,7 @@ export const TRIAGE_RULES: TriageRule[] = [
   {
     kind: "needs-research",
     priority: 20,
-    when: ({ activeTask, nextTask, earlyPhase, workflowNextPhase }) => Boolean((activeTask ?? nextTask) && earlyPhase && workflowNextPhase && workflowNextPhase !== "verify"),
+    when: ({ activeTask, nextTask, workflowNextPhase }) => Boolean((activeTask ?? nextTask) && workflowNextPhase && workflowNextPhase !== "verify"),
     build: ({ project, repo, activeTask, nextTask, workflowNextPhase }) => phaseRecommendation(project, (activeTask ?? nextTask)!.id, workflowNextPhase!, repo),
   },
   {
