@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { buildForgeSteering, isMaintenanceRepairCommand } from "../src/protocol/steering/packet";
+import { buildForgeSteering, isMaintenanceRepairCommand, renderSteeringPacket } from "../src/protocol/steering/packet";
 import { classifyWorkflowSteeringTriage } from "../src/protocol/steering-triage";
 import { runWiki } from "./_helpers/wiki-subprocess";
 import { cleanupTempPaths, initVault, runGit, setRepoFrontmatter, tempDir } from "./test-helpers";
@@ -272,6 +272,155 @@ describe("WIKI-FORGE-149 steering packet", () => {
     expect(steering.iterationContract.reviewGates).toEqual(["review", "closeout", "gate"]);
   });
 
+  test("subagent policy stays optional during initial planning phases", () => {
+    const planningPhases = ["research", "domain-model", "prd", "slices"] as const;
+
+    for (const nextPhase of planningPhases) {
+      const steering = buildForgeSteering({
+        project: "demo",
+        sliceId: "DEMO-001",
+        triage: {
+          kind: "needs-research",
+          reason: "planning phase is incomplete",
+          command: "/research",
+          loadSkill: "/research",
+        },
+        nextPhase,
+        verificationLevel: null,
+      });
+
+      expect(steering.iterationContract.subagentPolicy.stage).toBe("planning-linear");
+      expect(steering.iterationContract.subagentPolicy.strategyEvaluationRequired).toBe(false);
+      expect(steering.iterationContract.subagentPolicy.implementationStrategies).toEqual(["linear"]);
+      expect(steering.iterationContract.subagentPolicy.requiredSubagents).toEqual([]);
+      expect(steering.iterationContract.subagentPolicy.iterationMode).toBe("slice-phase-contract");
+      expect(JSON.stringify(steering.iterationContract.subagentPolicy)).not.toContain("ralph");
+    }
+  });
+
+  test("tdd steering requires subagent-vs-linear evaluation before edits", () => {
+    const steering = buildForgeSteering({
+      project: "demo",
+      sliceId: "DEMO-001",
+      triage: {
+        kind: "needs-tdd",
+        reason: "tdd is incomplete",
+        command: "update test-plan",
+        loadSkill: "/tdd",
+      },
+      nextPhase: "tdd",
+      verificationLevel: null,
+    });
+
+    expect(steering.iterationContract.subagentPolicy.stage).toBe("implementation-evaluate");
+    expect(steering.iterationContract.subagentPolicy.strategyEvaluationRequired).toBe(true);
+    expect(steering.iterationContract.subagentPolicy.implementationStrategies).toEqual(["subagent-driven", "linear"]);
+    expect(steering.iterationContract.subagentPolicy.conflictChecks).toEqual(expect.arrayContaining([
+      "overlapping-file-ownership",
+      "shared-state-or-migration-risk",
+      "coordination-cost-exceeds-slice-size",
+    ]));
+    expect(steering.iterationContract.subagentPolicy.requiredSubagents).toEqual([
+      {
+        role: "strategy-evaluator",
+        count: 1,
+        requiredWhen: "before implementation edits",
+        artifact: "subagent-vs-linear decision with conflict rationale",
+      },
+    ]);
+  });
+
+  test("verify steering requires multiple GPT-5.5 review subagents and gap handling", () => {
+    const steering = buildForgeSteering({
+      project: "demo",
+      sliceId: "DEMO-001",
+      triage: {
+        kind: "close-slice",
+        reason: "verification level is missing",
+        command: "wiki forge run demo DEMO-001 --repo /repo",
+      },
+      nextPhase: "verify",
+      verificationLevel: null,
+    });
+
+    expect(steering.iterationContract.subagentPolicy.stage).toBe("review-multi-pass");
+    expect(steering.iterationContract.subagentPolicy.reviewPasses).toEqual({
+      minimum: 2,
+      model: "gpt-5.5",
+      requiredWhen: "after implementation changes before closeout",
+      gapHandling: "fix-now-or-record-follow-up-refactor",
+    });
+    expect(steering.iterationContract.subagentPolicy.requiredSubagents).toEqual([
+      {
+        role: "reviewer",
+        count: 2,
+        model: "gpt-5.5",
+        requiredWhen: "after implementation changes before closeout",
+        artifact: "blockers, regression risks, and residual refactor gaps",
+      },
+    ]);
+  });
+
+  test("text steering renders subagent policy without ralph-loop routing", () => {
+    const steering = buildForgeSteering({
+      project: "demo",
+      sliceId: "DEMO-001",
+      triage: {
+        kind: "needs-tdd",
+        reason: "tdd is incomplete",
+        command: "update test-plan",
+        loadSkill: "/tdd",
+      },
+      nextPhase: "tdd",
+      verificationLevel: null,
+    });
+
+    const lines = renderSteeringPacket(steering);
+    const text = lines.join("\n");
+    expect(text).toContain("subagent-policy: evaluate before edits; strategies=subagent|linear");
+    expect(text).toContain("subagent-artifact: strategy decision; conflicts=file/state/cost/context");
+    expect(text).not.toContain("ralph");
+    expect(JSON.stringify(steering.iterationContract.subagentPolicy)).not.toContain("ralph");
+  });
+
+  test("verify and complete review subagent policies have JSON and text parity", () => {
+    const verifySteering = buildForgeSteering({
+      project: "demo",
+      sliceId: "DEMO-001",
+      triage: {
+        kind: "close-slice",
+        reason: "verification level is missing",
+        command: "wiki forge run demo DEMO-001 --repo /repo",
+      },
+      nextPhase: "verify",
+      verificationLevel: null,
+    });
+    const completeSteering = buildForgeSteering({
+      project: "demo",
+      sliceId: "DEMO-001",
+      triage: {
+        kind: "completed",
+        reason: "slice is complete",
+        command: "wiki forge next demo",
+      },
+      nextPhase: null,
+      verificationLevel: "test-verified",
+    });
+
+    for (const steering of [verifySteering, completeSteering]) {
+      const policy = steering.iterationContract.subagentPolicy;
+      const text = renderSteeringPacket(steering).join("\n");
+      expect(policy.stage).toBe("review-multi-pass");
+      expect(policy.reviewPasses.minimum).toBe(2);
+      expect(policy.reviewPasses.model).toBe("gpt-5.5");
+      expect(text).toContain(`review-subagents: ${policy.reviewPasses.minimum} x ${policy.reviewPasses.model}; gaps=fix-or-follow-up`);
+      expect(policy.reviewPasses.gapHandling).toBe("fix-now-or-record-follow-up-refactor");
+      expect(text).toContain("subagent-artifact: blockers/risks/refactor-gaps");
+      expect(text).not.toContain("ralph");
+      expect(JSON.stringify(policy)).not.toContain("ralph");
+    }
+  });
+
   test("resume, forge next, and forge status share one iteration contract", () => {
     const { repo, env } = setupRepo("wf199contract");
 
@@ -293,6 +442,7 @@ describe("WIKI-FORGE-149 steering packet", () => {
     expect(text.stdout.toString()).toContain("- iteration-contract: research -> domain-model -> write-a-prd -> prd-to-slices -> tdd -> verify -> desloppify -> review -> closeout -> gate");
     expect(text.stdout.toString()).toContain("- quality-gates: verify -> desloppify");
     expect(text.stdout.toString()).toContain("- review-gates: review -> closeout -> gate");
+    expect(text.stdout.toString()).not.toContain("- subagent-policy: planning-linear");
   });
 
   test("resume json includes shared steering for domain-work", () => {

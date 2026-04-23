@@ -394,7 +394,9 @@ export async function forgeNext(args: string[]) {
     console.log(`- plan: ${result.planStatus}`);
     console.log(`- test-plan: ${result.testPlanStatus}`);
     console.log(`- verification: ${result.verificationLevel ?? "none"}`);
-    console.log(`- next action: ${steeringResolution.triage.command}`);
-    console.log(`  reason: ${steeringResolution.triage.reason}`);
+    if (steeringResolution.triage.command !== steeringResolution.steering.nextCommand) {
+      console.log(`- next action: ${steeringResolution.triage.command}`);
+      console.log(`  reason: ${steeringResolution.triage.reason}`);
+    }
   }
 }

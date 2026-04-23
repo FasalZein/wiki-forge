@@ -158,16 +158,40 @@ export function isMaintenanceRepairCommand(command: string | null | undefined): 
   return match ? MAINTENANCE_REPAIR_SUBCOMMANDS.has(match[1]) : false;
 }
 
+function compactNextCommandForText(command: string): string {
+  if (command.startsWith("/research —")) {
+    const bridgeMatch = command.match(/wiki research bridge <research-page> --project (\S+) --slice (\S+)/u);
+    if (bridgeMatch) {
+      return `/research; bridge with wiki research bridge <page> --project ${bridgeMatch[1]} --slice ${bridgeMatch[2]}`;
+    }
+    return "/research; file findings and bridge the slice";
+  }
+  return command;
+}
+
 export function renderSteeringPacket(steering: ForgeSteeringPacket): string[] {
+  const { subagentPolicy } = steering.iterationContract;
   const lines = [
     `lane: ${steering.lane}`,
     `phase: ${steering.phase}`,
-    `next: ${steering.nextCommand}`,
+    `next: ${compactNextCommandForText(steering.nextCommand)}`,
     `why: ${steering.why}`,
     `iteration-contract: ${steering.iterationContract.remainingChain.join(" -> ")}`,
     `quality-gates: ${steering.iterationContract.qualityGates.join(" -> ")}`,
     `review-gates: ${steering.iterationContract.reviewGates.join(" -> ")}`,
   ];
+  if (subagentPolicy.stage === "implementation-evaluate") {
+    lines.push(
+      "subagent-policy: evaluate before edits; strategies=subagent|linear",
+      "subagent-artifact: strategy decision; conflicts=file/state/cost/context",
+    );
+  }
+  if (subagentPolicy.stage === "review-multi-pass") {
+    lines.push(
+      `review-subagents: ${subagentPolicy.reviewPasses.minimum} x ${subagentPolicy.reviewPasses.model}; gaps=fix-or-follow-up`,
+      "subagent-artifact: blockers/risks/refactor-gaps",
+    );
+  }
   if (steering.loadSkill) {
     lines.splice(2, 0, `load-skill: ${steering.loadSkill}`);
   }
