@@ -7,6 +7,8 @@ import { DEFAULT_ASK_MAX_RESULTS, classifyAnswerScope, qualitySignalBoost, rende
 import { resolveQueryExecutionMode, resolveSearchRetrievalMode } from "../src/retrieval/qmd-commands";
 import { VAULT_ROOT } from "../src/constants";
 import { buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText, resolveRetrievalMode } from "../src/lib/qmd";
+import { resolveAskRetrievalModeWithFreshness } from "../src/retrieval/qmd-freshness";
+import { extractCanonicalReferenceIds, selectSpecMarkdownFileForId } from "../src/retrieval/project-references";
 import { fromQmdFile } from "../src/lib/vault";
 
 describe("qmd query shaping", () => {
@@ -101,6 +103,30 @@ describe("retrieval mode resolution", () => {
     expect(resolveRetrievalMode("why did we choose qmd", { expand: true })).toBe("expand");
     expect(resolveRetrievalMode("why did we choose qmd", { expand: true, sdkHybridAvailable: true })).toBe("expand");
   });
+
+  test("ask avoids vector retrieval while the refreshed index still needs embeddings", () => {
+    expect(resolveAskRetrievalModeWithFreshness("what did WIKI-FORGE-200 change", {
+      sdkHybridAvailable: true,
+      status: { hasVectorIndex: true, needsEmbedding: 12 },
+    })).toBe("bm25");
+    expect(resolveAskRetrievalModeWithFreshness("why did we choose qmd", {
+      sdkHybridAvailable: false,
+      status: { hasVectorIndex: true, needsEmbedding: 12 },
+    })).toBe("bm25");
+  });
+
+  test("ask uses sdk hybrid only when the refreshed vector index is complete", () => {
+    expect(resolveAskRetrievalModeWithFreshness("what did WIKI-FORGE-200 change", {
+      sdkHybridAvailable: true,
+      status: { hasVectorIndex: true, needsEmbedding: 0 },
+    })).toBe("sdk-hybrid");
+  });
+
+  test("ask honors explicit retrieval overrides even when embeddings are incomplete", () => {
+    const incompleteStatus = { hasVectorIndex: true, needsEmbedding: 99 };
+    expect(resolveAskRetrievalModeWithFreshness("why did we choose qmd", { expand: true, sdkHybridAvailable: true, status: incompleteStatus })).toBe("expand");
+    expect(resolveAskRetrievalModeWithFreshness("why did we choose qmd", { bm25: true, sdkHybridAvailable: true, status: incompleteStatus })).toBe("bm25");
+  });
 });
 
 describe("search retrieval mode", () => {
@@ -161,6 +187,15 @@ describe("ask defaults", () => {
     expect(DEFAULT_ASK_MAX_RESULTS).toBe(4);
     expect(resolveAskCandidateLimit(DEFAULT_ASK_MAX_RESULTS)).toBe(8);
     expect(resolveAskCandidateLimit(7)).toBe(14);
+  });
+
+  test("extracts canonical IDs for direct project reference seeding", () => {
+    expect(extractCanonicalReferenceIds("What did WIKI-FORGE-200 and prd-083 change? WIKI-FORGE-200 again")).toEqual(["WIKI-FORGE-200", "PRD-083"]);
+  });
+
+  test("selects exact project spec markdown before prefixed files", () => {
+    expect(selectSpecMarkdownFileForId(["PRD-083-backup.txt", "PRD-083-freshness.md", "PRD-083.md"], "PRD-083")).toBe("PRD-083.md");
+    expect(selectSpecMarkdownFileForId(["PRD-083-backup.txt", "PRD-083-freshness.md"], "PRD-083")).toBe("PRD-083-freshness.md");
   });
 
   test("renders compact briefs by default and richer output in verbose mode", () => {

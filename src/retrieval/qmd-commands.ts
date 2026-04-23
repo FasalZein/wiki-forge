@@ -1,14 +1,7 @@
 import { buildLexicalSearchQuery, buildStructuredHybridQuery, type RetrievalMode, resolveRetrievalMode } from "../lib/qmd";
 import { getQmdStore, sdkHybridAvailable, searchKnowledgeExpandedSdk, searchKnowledgeHybridSdk, searchKnowledgeLexicalSdk, searchKnowledgeStructuredSdk } from "../lib/qmd-sdk";
-import { QMD_INDEX_PATH, VAULT_ROOT } from "../constants";
-
-const KNOWLEDGE_COLLECTION = "knowledge";
-const KNOWLEDGE_CONTEXTS = [
-  { path: "/", text: "Knowledge vault: projects, wiki, research" },
-  { path: "/projects", text: "Project-specific maintained docs under projects/<name>. Prefer these for repo questions." },
-  { path: "/research", text: "Research notes and evidence. Prefer when the question asks why, compares options, or needs supporting sources." },
-  { path: "/wiki", text: "Cross-project concepts, entities, and syntheses. Use for shared patterns, not project-specific implementation unless no project docs exist." },
-] as const;
+import { QMD_INDEX_PATH } from "../constants";
+import { embedKnowledgeIndex, refreshKnowledgeIndex } from "./qmd-freshness";
 
 export async function searchVault(args: string[]) {
   const hybrid = args[0] === "--hybrid";
@@ -87,21 +80,12 @@ export async function qmdStatus() {
 
 export async function qmdUpdate(args: string[] = []) {
   const full = args.includes("--full");
-  const store = await getQmdStore({ dbPath: QMD_INDEX_PATH, forceNew: full });
-  await ensureKnowledgeCollectionSdk(store);
-  if (full) {
-    await store.removeCollection(KNOWLEDGE_COLLECTION);
-    await store.addCollection(KNOWLEDGE_COLLECTION, { path: VAULT_ROOT, pattern: "**/*.md" });
-    await ensureKnowledgeCollectionSdk(store);
-  }
-  const result = await store.update({ collections: [KNOWLEDGE_COLLECTION] });
-  console.log(`qmd-update: indexed=${result.indexed} updated=${result.updated} unchanged=${result.unchanged} removed=${result.removed} needsEmbedding=${result.needsEmbedding}${full ? " (full rebuild)" : ""}`);
+  const { update } = await refreshKnowledgeIndex({ full });
+  console.log(`qmd-update: indexed=${update.indexed} updated=${update.updated} unchanged=${update.unchanged} removed=${update.removed} needsEmbedding=${update.needsEmbedding}${full ? " (full rebuild)" : ""}`);
 }
 
 export async function qmdEmbed() {
-  const store = await getQmdStore({ dbPath: QMD_INDEX_PATH });
-  await ensureKnowledgeCollectionSdk(store);
-  const result = await store.embed({ chunkStrategy: "auto" });
+  const result = await embedKnowledgeIndex();
   console.log(JSON.stringify(result, null, 2));
 }
 
@@ -117,10 +101,8 @@ function renderQueryResults(results: Array<{ file: string; title: string; contex
 }
 
 export async function qmdSetup() {
-  const store = await getQmdStore({ dbPath: QMD_INDEX_PATH });
-  await ensureKnowledgeCollectionSdk(store);
-  await store.update({ collections: [KNOWLEDGE_COLLECTION] });
-  await store.embed({ chunkStrategy: "auto" });
+  await refreshKnowledgeIndex();
+  await embedKnowledgeIndex();
 }
 
 export function resolveSearchRetrievalMode(options: { hybrid?: boolean; sdkHybridAvailable?: boolean }) {
@@ -133,16 +115,4 @@ export function resolveQueryExecutionMode(mode: RetrievalMode) {
   if (mode === "bm25") return "sdk-bm25" as const;
   if (mode === "sdk-hybrid") return "sdk-hybrid" as const;
   return "sdk-structured" as const;
-}
-
-async function ensureKnowledgeCollectionSdk(store: Awaited<ReturnType<typeof getQmdStore>>) {
-  const collections = await store.listCollections();
-  if (!collections.some((collection) => collection.name === KNOWLEDGE_COLLECTION)) {
-    await store.addCollection(KNOWLEDGE_COLLECTION, { path: VAULT_ROOT, pattern: "**/*.md" });
-  }
-  const contexts = await store.listContexts();
-  for (const context of KNOWLEDGE_CONTEXTS) {
-    const exists = contexts.some((entry) => entry.collection === KNOWLEDGE_COLLECTION && entry.path === context.path && entry.context === context.text);
-    if (!exists) await store.addContext(KNOWLEDGE_COLLECTION, context.path, context.text);
-  }
 }

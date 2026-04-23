@@ -4,9 +4,11 @@ import { VAULT_ROOT } from "../constants";
 import { orderFrontmatter, projectRoot, mkdirIfMissing, readProjectTitle } from "../cli-shared";
 import { exists, writeText } from "../lib/fs";
 import { buildEvidenceExcerpt, buildScopedNoteIndex, findNoteByVaultPath, fromQmdFile, normalizePath, stripMarkdownExtension } from "../lib/notes";
-import { buildLexicalSearchQuery, normalizeSemanticQueryText, resolveRetrievalMode } from "../lib/qmd";
+import { buildLexicalSearchQuery, normalizeSemanticQueryText } from "../lib/qmd";
 import { appendLogEntry } from "../lib/log";
 import { sdkHybridAvailable, searchKnowledgeExpandedSdk, searchKnowledgeLexicalSdk, searchKnowledgeStructuredSdk } from "../lib/qmd-sdk";
+import { refreshKnowledgeIndex, resolveAskRetrievalModeWithFreshness } from "./qmd-freshness";
+import { resolveDirectProjectReferenceResults } from "./project-references";
 import { legacyProjectResearchTopic, questionTokens } from "../lib/research";
 import { createResearchPage } from "../research";
 import type { AnswerBrief, AnswerSource, AskOptions, NoteIndex, NoteInfo, NoteQualitySignals, QmdResult } from "../types";
@@ -89,15 +91,25 @@ async function buildAnswerBrief(options: AskOptions): Promise<AnswerBrief> {
   if (!await exists(root)) throw new Error(`project not found: ${options.project}`);
 
   const maxCandidates = resolveAskCandidateLimit(options.maxResults);
-  const retrievalMode = resolveRetrievalMode(options.question, { expand: options.expand, bm25: options.bm25, sdkHybridAvailable: await sdkHybridAvailable() });
+  const [hybridAvailable, indexFreshness] = await Promise.all([sdkHybridAvailable(), refreshKnowledgeIndex()]);
+  const retrievalMode = resolveAskRetrievalModeWithFreshness(options.question, {
+    expand: options.expand,
+    bm25: options.bm25,
+    sdkHybridAvailable: hybridAvailable,
+    status: indexFreshness.status,
+  });
   const retrievalQuery = options.expand
     ? options.question
     : retrievalMode === "bm25"
       ? buildProjectAwareLexicalQuery(options.project, options.question)
       : buildProjectAwareQuery(options.project, options.question);
-  const qmdResults = await resolveRetrieval(retrievalMode, retrievalQuery, options.project, maxCandidates);
-  const noteIndex = await buildScopedNoteIndex(qmdResults.map((result) => fromQmdFile(result.file)));
-  const sources = qmdResults
+  const [directResults, qmdResults] = await Promise.all([
+    resolveDirectProjectReferenceResults(options.project, options.question),
+    resolveRetrieval(retrievalMode, retrievalQuery, options.project, maxCandidates),
+  ]);
+  const candidateResults = mergeQmdResults([...directResults, ...qmdResults]);
+  const noteIndex = await buildScopedNoteIndex(candidateResults.map((result) => fromQmdFile(result.file)));
+  const sources = candidateResults
     .map((result) => toAnswerSource(options.project, options.question, result, noteIndex))
     .filter((result, index, results) => results.findIndex((entry) => entry.vaultPath === result.vaultPath) === index)
     .sort((left, right) => (right.adjustedScore !== left.adjustedScore ? right.adjustedScore - left.adjustedScore : right.result.score - left.result.score));
@@ -157,6 +169,10 @@ export function resolveAnswerRetrievalStrategy(mode: string) {
   if (mode === "bm25") return "sdk-bm25" as const;
   if (mode === "sdk-hybrid") return "sdk-hybrid" as const;
   return "sdk-structured" as const;
+}
+
+function mergeQmdResults(results: QmdResult[]) {
+  return results.filter((result, index) => results.findIndex((entry) => fromQmdFile(entry.file).toLowerCase() === fromQmdFile(result.file).toLowerCase()) === index);
 }
 
 function questionPrefersResearch(question: string) {
