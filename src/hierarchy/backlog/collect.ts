@@ -71,7 +71,7 @@ function projectTaskSectionFromSliceSummary(section: string, canonicalCompletion
 
 export async function collectBacklogView(project: string, assignee?: string) {
   const backlog = await collectBacklog(project);
-  const doneIds = new Set((backlog.sections["Done"] ?? []).map((task) => task.id));
+  const doneIds = await collectCanonicalDoneIds(project, backlog.sections);
   const sections = Object.fromEntries(await Promise.all(Object.entries(backlog.sections).map(async ([section, items]) => {
     const contexts = await Promise.all(items.map((item) => collectTaskContext(project, item, section, doneIds)));
     let filtered;
@@ -90,7 +90,7 @@ export async function collectBacklogFocus(project: string, preloadedBacklog?: Aw
   const backlog = preloadedBacklog ?? await collectBacklog(project);
   const inProgress = backlog.sections["In Progress"] ?? [];
   const todo = backlog.sections["Todo"] ?? [];
-  const doneIds = new Set((backlog.sections["Done"] ?? []).map((task) => task.id));
+  const doneIds = await collectCanonicalDoneIds(project, backlog.sections);
   const activeTask = inProgress[0] ? await collectTaskContext(project, inProgress[0], "In Progress", doneIds) : null;
   const todoContexts = await Promise.all(todo.map((item) => collectTaskContext(project, item, "Todo", doneIds)));
   const recommendedTask = activeTask ?? todoContexts.find((task) => task.blockedBy.length === 0) ?? null;
@@ -156,10 +156,20 @@ export async function detectTaskDocState(path: string): Promise<TaskDocState> {
 
 export async function collectTaskContextForId(project: string, taskId: string): Promise<BacklogTaskContext | null> {
   const backlog = await collectBacklog(project);
-  const doneIds = new Set((backlog.sections["Done"] ?? []).map((task) => task.id));
+  const doneIds = await collectCanonicalDoneIds(project, backlog.sections);
   for (const [section, items] of Object.entries(backlog.sections)) {
     const item = items.find((entry) => entry.id === taskId);
     if (item) return collectTaskContext(project, item, section, doneIds);
   }
   return null;
+}
+
+async function collectCanonicalDoneIds(project: string, sections: Record<string, BacklogItem[]>) {
+  const entries = Object.values(sections).flat();
+  const summaries = await Promise.all(entries.map((item) => readSliceSummary(project, item.id)));
+  const doneIds = new Set<string>();
+  for (let index = 0; index < entries.length; index += 1) {
+    if (summaries[index]?.canonicalCompletion) doneIds.add(entries[index]!.id);
+  }
+  return doneIds;
 }

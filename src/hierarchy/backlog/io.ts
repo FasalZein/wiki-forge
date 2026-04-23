@@ -3,7 +3,7 @@ import { VAULT_ROOT } from "../../constants";
 import { assertExists, projectRoot, requireValue } from "../../cli-shared";
 import { readText, writeText } from "../../lib/fs";
 import { appendLogEntry } from "../../lib/log";
-import { readSliceDependencies } from "../../slice/docs";
+import { readSliceDependencies, readSliceSummary } from "../../slice/docs";
 
 export type BacklogItem = { raw: string; id: string; title: string };
 type ParsedBacklog = { intro: string[]; sections: Record<string, BacklogItem[]>; extras: Record<string, string[]>; order: string[] };
@@ -50,9 +50,9 @@ export async function moveTaskToSection(project: string, taskId: string, to: str
   const found = removeTask(parsed, taskId);
   if (!found) throw new Error(`task not found: ${taskId}`);
   if (to === "In Progress") {
-    const doneIds = new Set((parsed.sections["Done"] ?? []).map((task) => task.id));
     const dependencies = await readSliceDependencies(project, taskId);
-    const blockedBy = dependencies.filter((dependency) => !doneIds.has(dependency));
+    const summaries = await Promise.all(dependencies.map((dependency) => readSliceSummary(project, dependency)));
+    const blockedBy = dependencies.filter((_, index) => !summaries[index]?.canonicalCompletion);
     if (blockedBy.length) throw new Error(`${taskId} is blocked by unfinished dependencies: ${blockedBy.join(", ")}`);
   }
   parsed.sections[to] = parsed.sections[to] ?? [];
