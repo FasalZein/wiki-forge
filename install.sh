@@ -109,7 +109,7 @@ echo ""
 echo "Next steps:"
 echo "  source $(basename "${RC_FILE:-your-shell-config}")"
 echo "  wiki help"
-echo "  bun run sync:local -- --install-set ${INSTALL_SET}   # refresh CLI/qmd/repo skills after local changes"
+echo "  bun run sync:local -- --install-set ${INSTALL_SET}   # refresh CLI/qmd/repo skills and external workflow companions after local changes"
 echo ""
 if [ "$INSTALL_SET" = "wiki-only" ]; then
   echo "Installed mode: wiki-only"
@@ -119,6 +119,7 @@ else
   echo "Installed mode: full"
   echo "  - wiki remains your second-brain layer"
   echo "  - forge adds the SDLC workflow layer on top"
+  echo "  - desloppify is installed as an external workflow companion"
 fi
 echo ""
 echo "Obsidian users: enable the Obsidian CLI in Settings → General → CLI."

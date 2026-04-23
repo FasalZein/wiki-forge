@@ -29,6 +29,21 @@ describe("wiki slice lifecycle", () => {
     expect(result.stderr.toString()).toContain("blocked by unfinished dependencies");
   });
 
+  test("move-task does not treat a raw done backlog row as a satisfied dependency", () => {
+    const { vault } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "first slice"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "second slice"], env).exitCode).toBe(0);
+    setDependsOn(vault, "demo", "DEMO-002", ["DEMO-001"]);
+    expect(runWiki(["complete-task", "demo", "DEMO-001"], env).exitCode).toBe(0);
+
+    const result = runWiki(["move-task", "demo", "DEMO-002", "--to", "In Progress"], env);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr.toString()).toContain("blocked by unfinished dependencies");
+  });
+
   test("next skips blocked slices and recommends the first ready dependency root", () => {
     const { vault } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
@@ -45,6 +60,40 @@ describe("wiki slice lifecycle", () => {
     expect(json.warnings.some((warning: string) => warning.includes("blocked by"))).toBe(true);
   });
 
+  test("backlog keeps a dependency blocked when the upstream row is done without canonical close evidence", () => {
+    const { vault } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "first slice"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "second slice"], env).exitCode).toBe(0);
+    setDependsOn(vault, "demo", "DEMO-002", ["DEMO-001"]);
+    expect(runWiki(["complete-task", "demo", "DEMO-001"], env).exitCode).toBe(0);
+
+    const result = runWiki(["backlog", "demo", "--json"], env);
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout.toString());
+    const second = json.sections.Todo.find((item: { id: string }) => item.id === "DEMO-002");
+    expect(second.blockedBy).toEqual(["DEMO-001"]);
+  });
+
+  test("next does not recommend a dependent slice when the upstream row is done without canonical close evidence", () => {
+    const { vault } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "first slice"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "second slice"], env).exitCode).toBe(0);
+    setDependsOn(vault, "demo", "DEMO-002", ["DEMO-001"]);
+    expect(runWiki(["complete-task", "demo", "DEMO-001"], env).exitCode).toBe(0);
+
+    const result = runWiki(["next", "demo", "--json"], env);
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout.toString());
+    expect(json.recommendation).toBeNull();
+    expect(json.warnings.some((warning: string) => warning.includes("DEMO-002 blocked by DEMO-001"))).toBe(true);
+  });
+
   test("claim blocks slices whose dependencies are not done", () => {
     const { vault } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
@@ -57,6 +106,22 @@ describe("wiki slice lifecycle", () => {
     const result = runWiki(["claim", "demo", "DEMO-002", "--json"], env);
     expect(result.exitCode).toBe(1);
     expect(result.stdout.toString()).toContain("blockedBy");
+  });
+
+  test("claim does not treat a raw done backlog row as a satisfied dependency", () => {
+    const { vault } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "first slice"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "second slice"], env).exitCode).toBe(0);
+    setDependsOn(vault, "demo", "DEMO-002", ["DEMO-001"]);
+    expect(runWiki(["complete-task", "demo", "DEMO-001"], env).exitCode).toBe(0);
+
+    const result = runWiki(["claim", "demo", "DEMO-002", "--json"], env);
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout.toString()).toContain("blockedBy");
+    expect(result.stdout.toString()).toContain("DEMO-001");
   });
 
   test("verify-slice supports expected nonzero exits and output assertions", () => {

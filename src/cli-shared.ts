@@ -138,8 +138,8 @@ Research:
   wiki research lint [topic] [--json]
   wiki research audit [topic] [--json]
   wiki research file <topic> [--project <project>] <title...>
-  wiki research distill <research-page> <projects/<project>/decisions|projects/<project>/architecture/domain-language>
-  wiki research adopt <research-page> --project <project> --slice <slice-id> [--json]
+  wiki research handoff <research-page> <projects/<project>/decisions|projects/<project>/architecture/domain-language>
+  wiki research bridge <research-page> --project <project> --slice <slice-id> [--json]
   wiki source ingest <path-or-url...> [--topic <topic>] [--title <title>] [--bucket <name>]
 
 Obsidian:

@@ -16,7 +16,7 @@ The install script handles first-time bootstrap: bun, dependencies, local sync o
 Install modes:
 
 - `wiki-only`: installs only the `/wiki` second-brain layer
-- `full`: installs `/wiki` plus the repo-owned `/forge` workflow stack
+- `full`: installs `/wiki`, the repo-owned `/forge` workflow stack, and the external `/desloppify` companion
 
 ## Manual Setup
 
@@ -59,7 +59,7 @@ The CLI auto-detects `~/Knowledge` if the env var is unset.
 
 ### 4. Install skills
 
-`sync:local` is the canonical install path. It relinks the CLI, refreshes qmd, and installs the selected repo-owned skill set discovered under `skills/*/SKILL.md`.
+`sync:local` is the canonical install path. It relinks the CLI, refreshes qmd, installs the selected repo-owned skill set discovered under `skills/*/SKILL.md`, and in `full` mode adds the external `/desloppify` companion.
 
 ```bash
 bun run sync:local                            # full wiki+forge install set
@@ -68,7 +68,6 @@ bun run sync:local -- --install-set wiki-only
 
 Current full repo-owned skill set:
 
-- `desloppify`
 - `domain-model`
 - `forge`
 - `grill-me` (optional compatibility skill; forge now routes through `domain-model`)
@@ -79,14 +78,18 @@ Current full repo-owned skill set:
 - `wiki`
 - `write-a-prd`
 
+External workflow companion:
+
+- `desloppify`
+
 `wiki-only` installs just:
 
 - `wiki`
 
-If you want to install specific skills from your local checkout:
+If you want to install specific skills from your local checkout, use the repo-owned paths plus the external `desloppify` package:
 
 ```bash
-npx skills@latest add ./skills/desloppify -g
+npx skills add FasalZein/desloppify
 npx skills@latest add ./skills/domain-model -g
 npx skills@latest add ./skills/forge -g
 npx skills@latest add ./skills/grill-me -g
@@ -101,7 +104,7 @@ npx skills@latest add ./skills/write-a-prd -g
 Or install them from GitHub:
 
 ```bash
-npx skills@latest add FasalZein/wiki-forge/skills/desloppify -g
+npx skills add FasalZein/desloppify
 npx skills@latest add FasalZein/wiki-forge/skills/domain-model -g
 npx skills@latest add FasalZein/wiki-forge/skills/forge -g
 npx skills@latest add FasalZein/wiki-forge/skills/grill-me -g
@@ -131,8 +134,9 @@ That refreshes:
 - the linked `wiki` CLI via `bun link`
 - the global `qmd` install plus native rebuild
 - repo-owned skills discovered from `skills/*/SKILL.md`
+- external workflow companions required by the full install set
 
-`bun run sync:local -- --with-companions` is still accepted for compatibility, but today it does the same thing as the default path because `COMPANION_SKILLS` is empty and the forge chain is repo-owned.
+`bun run sync:local -- --with-companions` is still accepted for compatibility, but today the default `full` install already includes the external workflow companion set.
 
 ```bash
 bun run sync:local -- --with-companions
@@ -194,7 +198,7 @@ After installing skills, Claude Code automatically picks them up. Start any non-
 /forge
 ```
 
-`/forge` expects these repo-owned workflow skills to already be installed:
+`/forge` expects these repo-owned workflow skills plus the external `/desloppify` companion to already be installed:
 - `/research`
 - `/domain-model`
 - `/write-a-prd`
@@ -223,7 +227,7 @@ Or use individual skills directly:
 /prd-to-slices # break a PRD into backlog items
 /tdd           # implement via red-green-refactor
 /improve-codebase-architecture # capture deeper refactor candidates
-/desloppify    # final code-quality pass
+/desloppify    # final code-quality pass (installed externally)
 ```
 
 ### For Other Agents (Cursor, Codex, Kiro, etc.)

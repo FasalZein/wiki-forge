@@ -27,7 +27,7 @@
       "wiki checkpoint",
       "wiki maintain",
       "wiki forge status <project> <slice> --json",
-      "wiki research adopt",
+      "wiki research bridge",
       "bun run sync:local",
       "restart the agent session"
     ],

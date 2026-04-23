@@ -511,4 +511,32 @@ describe("wiki forge thin surface", () => {
     const backlog = JSON.parse(runWiki(["backlog", "gated", "--json"], env).stdout.toString());
     expect(backlog.sections.Done[0].id).toBe("GATED-001");
   });
+
+  test("forge status honors bootstrap workflow profiles for scaffold slices", () => {
+    const { vault, repo } = setupPassingRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "bootproj"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo, "bootproj");
+
+    const plan = runWiki(["forge", "plan", "bootproj", "Bootstrap", "--agent", "codex", "--repo", repo], env);
+    expect(plan.exitCode).toBe(0);
+
+    const indexPath = join(vault, "projects", "bootproj", "specs", "slices", "BOOTPROJ-001", "index.md");
+    const planPath = join(vault, "projects", "bootproj", "specs", "slices", "BOOTPROJ-001", "plan.md");
+    const testPlanPath = join(vault, "projects", "bootproj", "specs", "slices", "BOOTPROJ-001", "test-plan.md");
+
+    writeFileSync(indexPath, readFileSync(indexPath, "utf8").replace("status: in-progress", "status: in-progress\nworkflow_profile: bootstrap"), "utf8");
+    writeFileSync(planPath, "---\ntitle: BOOTPROJ-001 bootstrap slice\ntype: spec\nspec_kind: plan\nproject: bootproj\ntask_id: BOOTPROJ-001\nparent_prd: PRD-001\nparent_feature: FEAT-001\nupdated: 2026-04-23\nstatus: ready\n---\n\n# BOOTPROJ-001 bootstrap slice\n\n## Scope\n\n- introduce bootstrap workflow profile coverage\n\n## Vertical Slice\n\n1. validate required phases from the profile\n2. skip research and domain-model for bootstrap slices\n3. preserve existing full-profile behavior\n\n## Acceptance Criteria\n\n- [ ] bootstrap slices route to verify instead of research when PRD, slices, and TDD prerequisites are present\n", "utf8");
+    writeFileSync(testPlanPath, "---\ntitle: BOOTPROJ-001 bootstrap slice\ntype: spec\nspec_kind: test-plan\nproject: bootproj\ntask_id: BOOTPROJ-001\nparent_prd: PRD-001\nparent_feature: FEAT-001\nupdated: 2026-04-23\nstatus: ready\nverification_commands:\n  - command: bun test tests/forge-ledger.test.ts tests/forge-surface.test.ts\n---\n\n# BOOTPROJ-001 bootstrap slice\n\n## Red Tests\n\n- [ ] bootstrap slices do not require research\n- [ ] bootstrap slices do not require domain-model\n- [ ] forge status reports verify as the next phase\n\n## Green Criteria\n\n- [ ] All red tests pass\n- [ ] No regressions in existing test suite\n\n## Refactor Checks\n\n- [ ] keep phase profile rules centralized in workflow validation\n\n## Verification Commands\n\n```bash\nbun test tests/forge-ledger.test.ts tests/forge-surface.test.ts\n```\n", "utf8");
+
+    const statusResult = runWiki(["forge", "status", "bootproj", "BOOTPROJ-001", "--repo", repo, "--json"], env);
+    expect(statusResult.exitCode).toBe(0);
+    const statusJson = JSON.parse(statusResult.stdout.toString());
+    expect(statusJson.planStatus).toBe("ready");
+    expect(statusJson.testPlanStatus).toBe("ready");
+    expect(statusJson.workflow.validation.nextPhase).toBe("verify");
+    expect(statusJson.triage.kind).toBe("close-slice");
+    expect(statusJson.triage.command).toContain("wiki forge run bootproj BOOTPROJ-001 --repo");
+  });
 });

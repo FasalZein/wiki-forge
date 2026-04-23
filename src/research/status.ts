@@ -12,11 +12,11 @@ export async function researchStatus(args: string[]) {
     console.log(`- missing sources: ${result.counts.missingSources}`);
     console.log(`- missing influence: ${result.counts.missingInfluence}`);
     console.log(`- stale unverified: ${result.counts.staleUnverified}`);
-    console.log(`- ready to distill: ${result.counts.readyToDistill}`);
+    console.log(`- ready to handoff: ${result.counts.readyToHandoff}`);
     console.log(`- status: ${RESEARCH_STATUSES.map((status) => `${status}=${result.byStatus[status] ?? 0}`).join(" ")}`);
     console.log(`- verification: ${RESEARCH_VERIFICATION_LEVELS.map((level) => `${level}=${result.byVerification[level] ?? 0}`).join(" ")}`);
     console.log(`- workflow: ${RESEARCH_WORKFLOW_STAGES.map((stage) => `${stage}=${result.workflow.byStage[stage] ?? 0}`).join(" ")}`);
-    console.log(`- distill handoff: ${result.workflow.nextCommand}`);
+    console.log(`- next handoff: ${result.workflow.nextCommand}`);
     if (result.workflow.canonicalTargets.length) {
       console.log(`- project-truth targets: ${result.workflow.canonicalTargets.join(", ")}`);
     }

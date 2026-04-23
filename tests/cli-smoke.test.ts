@@ -292,14 +292,14 @@ describe("wiki CLI smoke", () => {
       .replace("status: draft", "status: verified")
       .replace("verification_level: unverified", "verification_level: source-checked");
     writeFileSync(join(vault, "research", "demo", "auth-options-comparison.md"), verifiedResearch, "utf8");
-    const distillResearch = runWiki(["research", "distill", "research/demo/auth-options-comparison", "projects/demo/decisions", "--json"], env);
-    expect(distillResearch.exitCode).toBe(0);
-    const distillResearchJson = JSON.parse(distillResearch.stdout.toString());
-    expect(distillResearchJson.applied).toBe(true);
-    expect(distillResearchJson.target).toBe("projects/demo/decisions");
-    const distilledResearchContent = readFileSync(join(vault, "research", "demo", "auth-options-comparison.md"), "utf8");
-    expect(distilledResearchContent).toContain("status: applied");
-    expect(distilledResearchContent).toContain("projects/demo/decisions");
+    const handoffResearch = runWiki(["research", "handoff", "research/demo/auth-options-comparison", "projects/demo/decisions", "--json"], env);
+    expect(handoffResearch.exitCode).toBe(0);
+    const handoffResearchJson = JSON.parse(handoffResearch.stdout.toString());
+    expect(handoffResearchJson.applied).toBe(true);
+    expect(handoffResearchJson.target).toBe("projects/demo/decisions");
+    const handedOffResearchContent = readFileSync(join(vault, "research", "demo", "auth-options-comparison.md"), "utf8");
+    expect(handedOffResearchContent).toContain("status: applied");
+    expect(handedOffResearchContent).toContain("projects/demo/decisions");
 
     const nestedFileResearch = runWiki(["research", "file", "projects/demo", "--project", "demo", "nested alias check"], env);
     expect(nestedFileResearch.exitCode).toBe(0);
@@ -791,8 +791,8 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("wiki handover <project> [--repo <path>] [--base <rev>] --accomplished <text> [--accomplished <text> ...] [--blocker <text> ...|--no-blockers] [--allow-auto-only] [--json]");
     expect(output).toContain("wiki dependency-graph <project> [--write] [--json]");
     expect(output).toContain("wiki research file <topic>");
-    expect(output).toContain("wiki research distill <research-page> <projects/<project>/decisions|projects/<project>/architecture/domain-language>");
-    expect(output).toContain("wiki research adopt <research-page> --project <project> --slice <slice-id> [--json]");
+    expect(output).toContain("wiki research handoff <research-page> <projects/<project>/decisions|projects/<project>/architecture/domain-language>");
+    expect(output).toContain("wiki research bridge <research-page> --project <project> --slice <slice-id> [--json]");
     expect(output).toContain("wiki source ingest");
     expect(output).toContain("Full command catalog:");
     expect(output).toContain("wiki forge plan");

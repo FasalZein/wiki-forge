@@ -37,7 +37,7 @@ describe("WIKI-FORGE-141 recovery hint surface (F5)", () => {
     expect(payload.steering.lane).toBe("domain-work");
     expect(Array.isArray(payload.recovery)).toBe(true);
     expect(payload.recovery.some((c: string) => c.startsWith("wiki forge release"))).toBe(true);
-    expect(payload.recovery.some((c: string) => c.startsWith("wiki close-slice"))).toBe(true);
+    expect(payload.recovery.some((c: string) => c.startsWith("wiki close-slice"))).toBe(false);
   });
 
   test("forge run workflow-gate non-JSON output names recovery commands inline", () => {
@@ -46,7 +46,7 @@ describe("WIKI-FORGE-141 recovery hint surface (F5)", () => {
     expect(run.exitCode).not.toBe(0);
     const stdout = run.stdout.toString();
     expect(stdout).toContain("wiki forge release");
-    expect(stdout).toContain("wiki close-slice");
+    expect(stdout).not.toContain("wiki close-slice");
   });
 
   test("resume output surfaces recovery hints when triage is resume-failed-forge or a needs-* gate", () => {
@@ -58,6 +58,6 @@ describe("WIKI-FORGE-141 recovery hint surface (F5)", () => {
     expect(resume.exitCode).toBe(0);
     const stdout = resume.stdout.toString();
     expect(stdout).toContain("wiki forge release");
-    expect(stdout).toContain("wiki close-slice");
+    expect(stdout).not.toContain("wiki close-slice");
   });
 });

@@ -40,13 +40,8 @@ async function resolveDirtyOverlap(project: string, explicitRepo: string | undef
 }
 
 export async function readBlockedDependencies(project: string, sliceId: string) {
-  const context = await collectTaskContextForId(project, sliceId);
-  if (context?.blockedBy.length) return context.blockedBy;
-  const dependencies = await readSliceDependencies(project, sliceId);
-  if (!dependencies.length) return [] as string[];
-  const backlog = await collectBacklog(project);
-  const doneIds = new Set((backlog.sections["Done"] ?? []).map((task) => task.id));
-  return dependencies.filter((dependency) => !doneIds.has(dependency));
+  const dependencies = await collectDependencyStatuses(project, sliceId);
+  return dependencies.filter((dependency) => !dependency.done).map((dependency) => dependency.id);
 }
 
 export async function collectDependencyStatuses(project: string, sliceId: string): Promise<StartSliceDependency[]> {

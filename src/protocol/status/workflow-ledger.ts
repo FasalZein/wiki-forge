@@ -1,9 +1,34 @@
 export const FORGE_PHASES = ["research", "domain-model", "prd", "slices", "tdd", "verify"] as const;
 export type ForgePhase = (typeof FORGE_PHASES)[number];
+export const FORGE_WORKFLOW_PROFILES = ["full", "bootstrap"] as const;
+export type ForgeWorkflowProfile = (typeof FORGE_WORKFLOW_PROFILES)[number];
+
+// Only these phases may be skipped via `wiki forge skip` or `wiki forge run --skip-phase`.
+// tdd and verify are the code-level enforcement floor for PRD-082 and cannot be waived by a reason string.
+export const SKIPPABLE_FORGE_PHASES = ["research", "domain-model", "prd", "slices"] as const;
+export type SkippableForgePhase = (typeof SKIPPABLE_FORGE_PHASES)[number];
+
+export function isForgePhaseSkippable(phase: ForgePhase): phase is SkippableForgePhase {
+  return (SKIPPABLE_FORGE_PHASES as readonly ForgePhase[]).includes(phase);
+}
+
+export type SkippedPhaseRecord = {
+  phase: SkippableForgePhase;
+  reason: string;
+  skippedAt: string;
+  skippedBy?: string;
+};
+
+const REQUIRED_PHASES_BY_PROFILE: Record<ForgeWorkflowProfile, ForgePhase[]> = {
+  full: [...FORGE_PHASES],
+  bootstrap: ["prd", "slices", "tdd", "verify"],
+};
 
 export type ForgeWorkflowLedger = {
   project: string;
   sliceId: string;
+  workflowProfile?: ForgeWorkflowProfile;
+  skippedPhases?: SkippedPhaseRecord[];
   parentPrd?: string;
   research?: {
     completedAt?: string;
@@ -80,6 +105,14 @@ export function normalizeForgeLedger(ledger: Partial<ForgeWorkflowLedger>): Part
   return normalized;
 }
 
+export function normalizeForgeWorkflowProfile(value: unknown): ForgeWorkflowProfile {
+  return value === "bootstrap" ? "bootstrap" : "full";
+}
+
+export function requiredForgePhases(profile: ForgeWorkflowProfile): ForgePhase[] {
+  return REQUIRED_PHASES_BY_PROFILE[profile];
+}
+
 const PHASE_REQUIREMENTS: Record<ForgePhase, (ledger: ForgeWorkflowLedger) => string[]> = {
   research: (ledger) => {
     const missing: string[] = [];
@@ -122,10 +155,27 @@ const PHASE_REQUIREMENTS: Record<ForgePhase, (ledger: ForgeWorkflowLedger) => st
 };
 
 export function validateForgeWorkflowLedger(ledger: ForgeWorkflowLedger): ForgeWorkflowValidation {
+  const workflowProfile = normalizeForgeWorkflowProfile(ledger.workflowProfile);
+  const requiredPhases = new Set(requiredForgePhases(workflowProfile));
+  const skippedPhases = new Set(
+    (ledger.skippedPhases ?? [])
+      .map((entry) => entry?.phase)
+      .filter((phase): phase is SkippableForgePhase => typeof phase === "string" && isForgePhaseSkippable(phase as ForgePhase)),
+  );
   const statuses: ForgePhaseStatus[] = [];
   let previousIncomplete: ForgePhase[] = [];
 
   for (const phase of FORGE_PHASES) {
+    if (!requiredPhases.has(phase) || skippedPhases.has(phase as SkippableForgePhase)) {
+      statuses.push({
+        phase,
+        completed: true,
+        ready: true,
+        missing: [],
+        blockedBy: [],
+      });
+      continue;
+    }
     const missing = PHASE_REQUIREMENTS[phase](ledger);
     const completed = missing.length === 0 && previousIncomplete.length === 0;
     const ready = previousIncomplete.length === 0;

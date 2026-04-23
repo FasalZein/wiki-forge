@@ -227,7 +227,9 @@ export function mergeDerivedForgeLedger(
   // Top-level scalar fields: authored wins
   if (authored.project !== undefined) merged.project = authored.project;
   if (authored.sliceId !== undefined) merged.sliceId = authored.sliceId;
+  if (authored.workflowProfile !== undefined) merged.workflowProfile = authored.workflowProfile;
   if (authored.parentPrd !== undefined) merged.parentPrd = authored.parentPrd;
+  if (authored.skippedPhases !== undefined) merged.skippedPhases = authored.skippedPhases;
 
   // Per-phase: authored wins if the authored phase object exists and has completedAt
   for (const phase of FORGE_PHASES) {

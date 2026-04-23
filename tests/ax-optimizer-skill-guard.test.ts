@@ -41,11 +41,11 @@ describe("AX optimizer skill candidate guard", () => {
     const target = loadTarget("forge");
     const currentSkill = read(join(ROOT, target.sourcePath));
     const revised = currentSkill
-      .replaceAll("wiki research adopt", "wiki research bridge")
+      .replaceAll("wiki research bridge", "wiki research adopt")
       .concat("\nwiki forge run is always the next step\n");
     const result = validateSkillCandidateRewrite({ currentSkill, revisedSkill: revised, target });
     expect(result.ok).toBe(false);
-    expect(result.errors).toContain("missing required phrase: wiki research adopt");
+    expect(result.errors).toContain("missing required phrase: wiki research bridge");
     expect(result.errors).toContain("contains forbidden phrase: wiki forge run is always the next step");
   });
 });

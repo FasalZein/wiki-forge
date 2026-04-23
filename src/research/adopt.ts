@@ -20,8 +20,8 @@ const RESEARCH_FRONTMATTER_ORDER = [
   "verification_level",
 ] as const;
 
-export async function adoptResearch(args: string[]) {
-  const { pageRef, project, sliceId, json } = parseAdoptArgs(args);
+export async function bridgeResearch(args: string[]) {
+  const { pageRef, project, sliceId, json } = parseBridgeArgs(args);
   const notePath = join(VAULT_ROOT, `${pageRef}.md`);
   if (!await exists(notePath)) throw new Error(`research page not found: ${pageRef}`);
 
@@ -83,7 +83,7 @@ export async function adoptResearch(args: string[]) {
     console.log(JSON.stringify(result, null, 2));
     return;
   }
-  console.log(`research adopt: ${pageRef} -> ${sliceId}`);
+  console.log(`research bridge: ${pageRef} -> ${sliceId}`);
   console.log(`- project: ${project}`);
   console.log(`- parent PRD: ${parentPrd}`);
   console.log(`- added to Prior Research: ${prdChanged ? "yes" : "already present"}`);
@@ -91,7 +91,9 @@ export async function adoptResearch(args: string[]) {
   console.log(`- next: ${result.nextAction}`);
 }
 
-function parseAdoptArgs(args: string[]) {
+export const adoptResearch = bridgeResearch;
+
+function parseBridgeArgs(args: string[]) {
   let page: string | undefined;
   let project: string | undefined;
   let sliceId: string | undefined;

@@ -34,7 +34,7 @@ export async function createResearchPage(topic: string, title: string, project?:
     "",
     "> [!summary]",
     project
-      ? `> Research synthesis note. Capture conclusions here, then distill accepted findings into [[${projectTruthTargets(project)[0]}]] or [[${projectTruthTargets(project)[1]}]]. If this research unblocks a tracked slice, follow with \`wiki research adopt <research-page> --project ${project} --slice <slice-id>\`.`
+      ? `> Research synthesis note. Capture conclusions here, then hand off accepted findings into [[${projectTruthTargets(project)[0]}]] or [[${projectTruthTargets(project)[1]}]]. If this research unblocks a tracked slice, follow with \`wiki research bridge <research-page> --project ${project} --slice <slice-id>\`.`
       : "> Research synthesis note. Capture conclusions here, then link the evidence that supports them.",
     "",
     "## TL;DR",

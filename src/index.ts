@@ -2,9 +2,12 @@
 
 import { appendActivity, extractProject, extractTarget, resolveAgent, resolveSessionId } from "./session/shared";
 import { WIKI_COMMANDS, resolveWikiCommand } from "./wiki";
+import { FORGE_COMMANDS, resolveForgeCommand } from "./forge";
 
 const rawArgs = process.argv.slice(2);
-const { command, args } = resolveWikiCommand(rawArgs);
+const { command, args } = rawArgs[0] === "forge"
+  ? resolveForgeCommand(rawArgs.slice(1))
+  : resolveWikiCommand(rawArgs);
 const sessionId = resolveSessionId();
 const agent = resolveAgent();
 
@@ -13,7 +16,7 @@ try {
     await WIKI_COMMANDS.help(args);
     process.exit(0);
   }
-  const handler = WIKI_COMMANDS[command];
+  const handler = command.startsWith("forge:") ? FORGE_COMMANDS[command] : WIKI_COMMANDS[command];
   if (!handler) {
     throw new Error(`Unknown command: ${command}. Run 'wiki help' for usage.`);
   }
