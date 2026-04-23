@@ -1,10 +1,12 @@
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { statSync } from "node:fs";
-import { fail } from "../../cli-shared";
+import { VAULT_ROOT } from "../../constants";
+import { fail, nowIso, writeNormalizedPage } from "../../cli-shared";
 import { parseProjectRepoArgs, bindingMatchesFile, gitChangedFiles } from "../../git-utils";
 import { readFlagValue } from "../../lib/cli-utils";
 import { parseUpdatedDate } from "../../lib/verification";
 import { classifySliceLocalPageScope, collectSliceLocalContext, readSliceSourcePaths } from "../../slice/docs";
+import { classifyFreshnessChurn } from "../freshness-classifier";
 import { loadProjectSnapshot } from "../shared";
 
 type CheckpointPageStatus = {
@@ -23,17 +25,18 @@ export async function checkpoint(args: string[]) {
   const sliceLocal = args.includes("--slice-local");
   const sliceId = readFlagValue(args, "--slice-id");
   const base = readFlagValue(args, "--base");
+  const strictFreshness = args.includes("--strict-freshness");
   const result = await collectCheckpoint(
     options.project,
     options.repo,
-    sliceLocal && sliceId ? { sliceId, ...(base ? { base } : {}) } : (base ? { base } : undefined),
+    sliceLocal && sliceId ? { sliceId, ...(base ? { base } : {}), strictFreshness } : { ...(base ? { base } : {}), strictFreshness },
   );
   if (json) console.log(JSON.stringify(result, null, 2));
   else renderCheckpoint(result);
   if (!result.clean) fail(`checkpoint found ${result.stalePages.length} stale page(s) for ${options.project}`);
 }
 
-export async function collectCheckpoint(project: string, explicitRepo?: string, sliceFilter?: { sliceId?: string; base?: string }) {
+export async function collectCheckpoint(project: string, explicitRepo?: string, sliceFilter?: { sliceId?: string; base?: string; strictFreshness?: boolean }) {
   const snapshot = await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
   const sliceSourcePaths = sliceFilter?.sliceId
     ? await readSliceSourcePaths(project, sliceFilter.sliceId)
@@ -55,8 +58,12 @@ export async function collectCheckpoint(project: string, explicitRepo?: string, 
   const projectUpdated = parseUpdatedDate(summaryEntry?.rawUpdated) ?? new Date(0);
   const modifiedFiles = new Set<string>();
   const unboundFiles = new Set<string>();
-  const pageStatuses = new Map<string, { page: string; matchedSourcePaths: Set<string>; lastSourceChangeMs: number; pageUpdatedMs: number | null; pageUpdated: string; broadBinding: boolean }>();
+  const pageStatuses = new Map<string, { page: string; file: string; parsed: NonNullable<(typeof snapshot.pageEntries)[number]["parsed"]>; matchedSourcePaths: Set<string>; lastSourceChangeMs: number; pageUpdatedMs: number | null; pageUpdated: string; broadBinding: boolean }>();
   const filesToInspect = changedFiles ?? snapshot.repoFiles ?? [];
+  const churn = changedFiles !== null ? classifyFreshnessChurn(changedFiles) : null;
+  const canAutoHeal = changedFiles !== null && !sliceFilter?.strictFreshness && churn?.semanticNeutral === true;
+  const healedAt = nowIso();
+  const autoHealedPages: Array<{ page: string; matchedSourcePaths: string[]; healedAt: string; reason: string }> = [];
 
   // F3: under --slice-local, only files owned by the slice's source_paths drive
   // staleness. Without this, a broad-binding page (e.g. `architecture/src-layout.md`
@@ -76,7 +83,7 @@ export async function collectCheckpoint(project: string, explicitRepo?: string, 
     } catch {
       continue;
     }
-    const matchedEntries = pageEntries.filter((entry) => entry.parsed && entry.sourcePaths.some((sourcePath) => bindingMatchesFile(sourcePath, file)));
+    const matchedEntries = pageEntries.filter((entry): entry is (typeof pageEntries)[number] & { parsed: NonNullable<(typeof pageEntries)[number]["parsed"]> } => Boolean(entry.parsed) && entry.sourcePaths.some((sourcePath) => bindingMatchesFile(sourcePath, file)));
     if (mtimeMs > projectUpdated.getTime()) modifiedFiles.add(file);
     if (!matchedEntries.length) {
       if (mtimeMs > projectUpdated.getTime()) unboundFiles.add(file);
@@ -85,11 +92,13 @@ export async function collectCheckpoint(project: string, explicitRepo?: string, 
     for (const entry of matchedEntries) {
       const existing = pageStatuses.get(entry.page) ?? {
         page: entry.page,
+        file: entry.file,
+        parsed: entry.parsed,
         matchedSourcePaths: new Set<string>(),
         lastSourceChangeMs: 0,
         pageUpdatedMs: parseUpdatedDate(entry.rawUpdated)?.getTime() ?? null,
         pageUpdated: String(entry.rawUpdated ?? "missing"),
-        broadBinding: readBroadBinding(entry.parsed?.data),
+        broadBinding: readBroadBinding(entry.parsed.data),
       };
       existing.matchedSourcePaths.add(file);
       existing.lastSourceChangeMs = Math.max(existing.lastSourceChangeMs, mtimeMs);
@@ -98,17 +107,41 @@ export async function collectCheckpoint(project: string, explicitRepo?: string, 
   }
 
   const orderedPages: CheckpointPageStatus[] = [...pageStatuses.values()]
-    .map((entry) => ({
-      page: entry.page,
-      matchedSourcePaths: [...entry.matchedSourcePaths].sort(),
-      lastSourceChange: new Date(entry.lastSourceChangeMs).toISOString(),
-      pageUpdated: entry.pageUpdated,
-      stale: changedFiles !== null
-        ? entry.pageUpdatedMs === null || entry.lastSourceChangeMs > entry.pageUpdatedMs
-        : !entry.broadBinding && (entry.pageUpdatedMs === null || entry.lastSourceChangeMs > entry.pageUpdatedMs),
-      modified: entry.lastSourceChangeMs > projectUpdated.getTime(),
-      scope: null,
-    }))
+    .map((entry) => {
+      const matchedSourcePaths = [...entry.matchedSourcePaths].sort();
+      let pageUpdated = entry.pageUpdated;
+      let pageUpdatedMs = entry.pageUpdatedMs;
+      let stale = changedFiles !== null
+        ? pageUpdatedMs === null || entry.lastSourceChangeMs > pageUpdatedMs
+        : !entry.broadBinding && (pageUpdatedMs === null || entry.lastSourceChangeMs > pageUpdatedMs);
+
+      if (stale && canAutoHeal) {
+        pageUpdated = healedAt;
+        pageUpdatedMs = new Date(healedAt).getTime();
+        stale = false;
+        writeNormalizedPage(entry.file, entry.parsed.content, {
+          ...entry.parsed.data,
+          updated: healedAt,
+          freshness_healed_at: healedAt,
+        });
+        autoHealedPages.push({
+          page: entry.page,
+          matchedSourcePaths,
+          healedAt,
+          reason: churn?.reason ?? "semantic-neutral",
+        });
+      }
+
+      return {
+        page: entry.page,
+        matchedSourcePaths,
+        lastSourceChange: new Date(entry.lastSourceChangeMs).toISOString(),
+        pageUpdated,
+        stale,
+        modified: entry.lastSourceChangeMs > projectUpdated.getTime(),
+        scope: null,
+      };
+    })
     .filter((entry) => entry.modified || entry.stale)
     .sort((left, right) => left.page.localeCompare(right.page));
 
@@ -140,6 +173,11 @@ export async function collectCheckpoint(project: string, explicitRepo?: string, 
     nonBlockingBoundPages: nonBlockingPageStatuses.length,
     nonBlockingPageStatuses,
     nonBlockingStalePages,
+    autoHealed: {
+      count: autoHealedPages.length,
+      pages: autoHealedPages,
+      ...(churn ? { churn } : {}),
+    },
     clean: blockingPageStatuses.every((entry) => !entry.stale),
   };
 }
@@ -165,6 +203,11 @@ function renderCheckpoint(result: Awaited<ReturnType<typeof collectCheckpoint>>)
     if (warningCount > 0) console.log(`  ! ${warningCount} parent/project page(s) are stale but outside the active slice blocker surface`);
   }
   console.log("");
+  if (result.autoHealed.count > 0) {
+    console.log(`Auto-healed pages: ${result.autoHealed.count}`);
+    for (const page of result.autoHealed.pages.slice(0, 50)) console.log(`  ${page.page}`);
+    console.log("");
+  }
   console.log(`Unbound files: ${result.unboundFiles.length}`);
   for (const file of result.unboundFiles.slice(0, 50)) console.log(`  ${file}`);
   console.log("");
