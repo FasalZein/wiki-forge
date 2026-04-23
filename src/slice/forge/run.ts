@@ -35,7 +35,6 @@ export async function forgeRun(args: string[]) {
       steering: preWorkflow.steering,
       recovery: [
         `wiki forge release ${parsed.project} ${parsed.sliceId}`,
-        `wiki close-slice ${parsed.project} ${parsed.sliceId} --reason "<reason>"`,
       ],
     };
     if (parsed.json) console.log(JSON.stringify(payload, null, 2));

@@ -135,7 +135,7 @@ export async function resumeProject(args: string[]) {
     payload.triage.kind === "resume-failed-forge" || isPrePhaseTriage(payload.triage);
   const focusId = payload.activeTask?.id ?? payload.nextTask?.id ?? null;
   if (showsRecovery && focusId) {
-    console.log(`  recovery: wiki forge release ${options.project} ${focusId}  |  wiki close-slice ${options.project} ${focusId} --reason "<reason>"`);
+    console.log(`  recovery: wiki forge release ${options.project} ${focusId}`);
   }
   console.log("");
   if (noHandoverButBreadcrumb) {
