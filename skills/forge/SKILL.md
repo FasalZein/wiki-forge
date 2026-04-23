@@ -11,8 +11,9 @@ Forge is the workflow layer.
 
 - `wiki` = knowledge, verification, drift, retrieval, filing
 - `forge` = delivery policy over those primitives
-- agent surface (3 commands) = `wiki forge plan`, `wiki forge run`, `wiki forge next`
+- agent surface (4 commands) = `wiki forge plan`, `wiki forge run`, `wiki forge next`, `wiki forge skip`
 - internal/repair = `wiki forge start|check|close|status|release`
+- `wiki forge skip <project> <slice> <phase> --reason <text>` waives `research|domain-model|prd|slices` with a recorded reason. `tdd` and `verify` are the unskippable floor — no reason string can waive them. `wiki forge run` also accepts `--skip-phase <phase> [--skip-reason <text>]` to record the same skip inline.
 - default reconciliation primitive = `wiki sync`
 - default `wiki help` is workflow-first; use `wiki help --all` for the exhaustive CLI catalog
 - one project should use one authoritative wiki/vault; parallel agents should share that vault and claim different slices
@@ -59,8 +60,9 @@ Interpretation rule:
 |---|---|---|---|
 | session start | `wiki resume <project> --repo <path> --base <rev>` | steering packet + recovery hints | obey the next command unless you are debugging |
 | no active/ready slice | `wiki forge next <project>` | one recommended slice or `no ready slices` | if none, plan the next feature/PRD/slices |
-| research missing | `wiki forge status <project> <slice> --json` | `nextPhase: research` | `/research`, then `wiki research handoff`, then `wiki research bridge` |
-| domain-model missing | `wiki forge status <project> <slice> --json` | `nextPhase: domain-model` | `/domain-model`, update `projects/<project>/decisions.md` and `projects/<project>/architecture/domain-language.md` |
+| research missing | `wiki forge status <project> <slice> --json` | `nextPhase: research` | `/research`, then `wiki research handoff`, then `wiki research bridge`. If research is genuinely redundant (prior refactor already covers it), waive it: `wiki forge skip <project> <slice> research --reason "<text>"`. |
+| domain-model missing | `wiki forge status <project> <slice> --json` | `nextPhase: domain-model` | `/domain-model`, update `projects/<project>/decisions.md` and `projects/<project>/architecture/domain-language.md`. If the decision is settled elsewhere, waive it: `wiki forge skip <project> <slice> domain-model --reason "<text>"`. |
+| phase blocked on skippable floor | `wiki forge status <project> <slice> --json` | `nextPhase` in `research|domain-model|prd|slices` with no tractable path | `wiki forge skip <project> <slice> <phase> --reason "<text>"`. Floor (`tdd`, `verify`) cannot be skipped — do not try. |
 | implementation-ready | `wiki forge run <project> <slice> --repo <path>` | pipeline execution across check/verify/close | continue on `forge run` while the blocker is inside the active phase |
 | failed verify step | exact rerun/recovery command from `wiki resume` or `wiki forge status` | verify or checkpoint repair command | rerun that exact command before falling back to a broader workflow rerun |
 | failed breadcrumb | `wiki forge status <project> <slice> --json` | current phase vs failed step | obey current phase if earlier than the failed step; otherwise rerun `forge run` |
@@ -75,7 +77,8 @@ Agents should use only this default surface unless debugging:
 - `wiki resume <project> --repo <path> --base <rev>`
 - `wiki forge next <project>`
 - `wiki forge plan <project> ...`
-- `wiki forge run <project> [slice-id] --repo <path>`
+- `wiki forge run <project> [slice-id] --repo <path>` (accepts `--skip-phase <phase> [--skip-reason <text>]`)
+- `wiki forge skip <project> <slice> <phase> --reason <text>` — only when the phase is on the skippable floor
 
 Do not improvise lower-level lifecycle commands during normal execution.
 
@@ -213,6 +216,6 @@ Then restart the agent session so installed skill copies, not just repo files, a
 
 1. No code change without tests.
 2. No non-trivial implementation without PRD + slice tracking.
-3. Research comes before PRD; domain modeling comes before committing the design.
+3. Research comes before PRD; domain modeling comes before committing the design. Either may be waived via `wiki forge skip` when the evidence already exists outside the slice — `tdd` and `verify` cannot be waived.
 4. Update wiki pages from code/tests, not memory.
 5. Do not create extra repo markdown outside the allowed set.

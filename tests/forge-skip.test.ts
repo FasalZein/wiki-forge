@@ -89,6 +89,49 @@ describe("forge skip CLI (happy path)", () => {
     expect(skip.stderr.toString()).toContain("--reason is required");
   });
 
+  test("forge run --skip-phase --dry-run prints plan without writing ledger", () => {
+    const { vault, env, repo } = setupSkipFixture();
+
+    const run = runWiki(
+      [
+        "forge", "run", "skipfx", "SKIPFX-001",
+        "--repo", repo,
+        "--skip-phase", "research",
+        "--skip-reason", "dry-run test",
+        "--dry-run",
+      ],
+      env,
+    );
+    const output = run.stdout.toString() + run.stderr.toString();
+    expect(output).toContain("dry-run: would skip research on SKIPFX-001");
+
+    const indexPath = join(vault, "projects", "skipfx", "specs", "slices", "SKIPFX-001", "index.md");
+    const raw = readFileSync(indexPath, "utf8");
+    expect(raw).not.toContain("skippedPhases:");
+  });
+
+  test("forge run --skip-phase persists skip before the pipeline runs (write-intent semantics)", () => {
+    const { vault, env, repo } = setupSkipFixture();
+
+    // The pipeline will fail (slice is barely scaffolded — no plan/test-plan). We only
+    // assert that the skip write landed. Skip is a write-intent operation and must
+    // persist even when the subsequent pipeline execution bails out.
+    runWiki(
+      [
+        "forge", "run", "skipfx", "SKIPFX-001",
+        "--repo", repo,
+        "--skip-phase", "research",
+        "--skip-reason", "write-intent test",
+      ],
+      env,
+    );
+
+    const indexPath = join(vault, "projects", "skipfx", "specs", "slices", "SKIPFX-001", "index.md");
+    const raw = readFileSync(indexPath, "utf8");
+    expect(raw).toContain("skippedPhases:");
+    expect(raw).toContain("reason: write-intent test");
+  });
+
   test("re-skipping the same phase with a new reason overrides last-wins", () => {
     const { vault, env } = setupSkipFixture();
 
