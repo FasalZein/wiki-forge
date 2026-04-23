@@ -23,6 +23,7 @@ import {
 } from "./output";
 import { collectForgeReview } from "./docs";
 export { forgeRun } from "./run";
+export { forgeSkip } from "./skip";
 
 export async function forgeStart(args: string[]) {
   const parsed = await parseForgeArgs(args, "start");

@@ -2,10 +2,14 @@ import { join } from "node:path";
 import { VAULT_ROOT } from "../../constants";
 import {
   FORGE_PHASES,
+  isForgePhaseSkippable,
   normalizeForgeLedger,
   normalizeForgeWorkflowProfile,
   readForgeLedgerPhase,
   writeForgeLedgerPhase,
+  type ForgePhase,
+  type SkippableForgePhase,
+  type SkippedPhaseRecord,
   type ForgeWorkflowLedger,
   type ForgeWorkflowValidation,
 } from "./workflow-ledger";
@@ -111,6 +115,8 @@ export function readAuthoredHubLedger(value: unknown, project: string, sliceId: 
     }
   }
   if (typeof ledger.parentPrd === "string") out.parentPrd = ledger.parentPrd;
+  const skipped = coerceSkippedPhases(ledger.skippedPhases ?? ledger.skipped_phases);
+  if (skipped.length) out.skippedPhases = skipped;
   return out;
 }
 
@@ -126,7 +132,39 @@ export function mergeAuthoredLedgers(
       writeForgeLedgerPhase(merged, phase, { ...(basePhase ?? {}), ...(overridePhase ?? {}) });
     }
   }
+  const skipped = mergeSkippedPhases(base.skippedPhases, override.skippedPhases);
+  if (skipped.length) merged.skippedPhases = skipped;
+  else delete merged.skippedPhases;
   return merged;
+}
+
+function coerceSkippedPhases(raw: unknown): SkippedPhaseRecord[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Map<SkippableForgePhase, SkippedPhaseRecord>();
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const rec = entry as Record<string, unknown>;
+    const phase = rec.phase;
+    if (typeof phase !== "string" || !isForgePhaseSkippable(phase as ForgePhase)) continue;
+    const reason = typeof rec.reason === "string" ? rec.reason.trim() : "";
+    if (!reason) continue;
+    const skippedAt = typeof rec.skippedAt === "string" && rec.skippedAt.trim() ? rec.skippedAt : new Date(0).toISOString();
+    const skippedBy = typeof rec.skippedBy === "string" && rec.skippedBy.trim() ? rec.skippedBy : undefined;
+    seen.set(phase as SkippableForgePhase, skippedBy
+      ? { phase: phase as SkippableForgePhase, reason, skippedAt, skippedBy }
+      : { phase: phase as SkippableForgePhase, reason, skippedAt });
+  }
+  return [...seen.values()];
+}
+
+function mergeSkippedPhases(
+  base: SkippedPhaseRecord[] | undefined,
+  override: SkippedPhaseRecord[] | undefined,
+): SkippedPhaseRecord[] {
+  const out = new Map<SkippableForgePhase, SkippedPhaseRecord>();
+  for (const entry of base ?? []) out.set(entry.phase, entry);
+  for (const entry of override ?? []) out.set(entry.phase, entry);
+  return [...out.values()];
 }
 
 export function normalizeForgeValidationForCloseableSlice(

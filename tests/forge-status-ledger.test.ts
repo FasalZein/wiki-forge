@@ -23,6 +23,62 @@ describe("forge status ledger helpers", () => {
     expect(ledger.grill).toBeUndefined();
   });
 
+  test("readAuthoredHubLedger carries skippedPhases through snake_case and camelCase fields", () => {
+    const fromCamel = readAuthoredHubLedger(
+      {
+        skippedPhases: [
+          { phase: "research", reason: "spike", skippedAt: "2026-04-23T18:00:00.000Z", skippedBy: "agent" },
+          { phase: "tdd", reason: "ignored", skippedAt: "2026-04-23T18:00:00.000Z" },
+        ],
+      },
+      "demo",
+      "DEMO-001",
+    );
+    expect(fromCamel.skippedPhases).toEqual([
+      { phase: "research", reason: "spike", skippedAt: "2026-04-23T18:00:00.000Z", skippedBy: "agent" },
+    ]);
+
+    const fromSnake = readAuthoredHubLedger(
+      { skipped_phases: [{ phase: "slices", reason: "noop", skippedAt: "2026-04-23T18:00:00.000Z" }] },
+      "demo",
+      "DEMO-001",
+    );
+    expect(fromSnake.skippedPhases).toEqual([
+      { phase: "slices", reason: "noop", skippedAt: "2026-04-23T18:00:00.000Z" },
+    ]);
+
+    const fromBlankReason = readAuthoredHubLedger(
+      { skippedPhases: [{ phase: "research", reason: "   ", skippedAt: "2026-04-23T18:00:00.000Z" }] },
+      "demo",
+      "DEMO-001",
+    );
+    expect(fromBlankReason.skippedPhases).toBeUndefined();
+  });
+
+  test("mergeAuthoredLedgers merges skippedPhases by phase (override wins)", () => {
+    const merged = mergeAuthoredLedgers(
+      {
+        project: "demo",
+        sliceId: "DEMO-001",
+        skippedPhases: [
+          { phase: "research", reason: "old", skippedAt: "2026-04-23T17:00:00.000Z" },
+          { phase: "prd", reason: "old", skippedAt: "2026-04-23T17:00:00.000Z" },
+        ],
+      },
+      {
+        project: "demo",
+        sliceId: "DEMO-001",
+        skippedPhases: [
+          { phase: "research", reason: "new", skippedAt: "2026-04-23T18:00:00.000Z" },
+        ],
+      },
+    );
+    expect(merged.skippedPhases).toEqual([
+      { phase: "research", reason: "new", skippedAt: "2026-04-23T18:00:00.000Z" },
+      { phase: "prd", reason: "old", skippedAt: "2026-04-23T17:00:00.000Z" },
+    ]);
+  });
+
   test("mergeAuthoredLedgers preserves base phase evidence while allowing overrides", () => {
     const merged = mergeAuthoredLedgers(
       {

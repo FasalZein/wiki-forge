@@ -2,10 +2,12 @@ import { defaultAgentName } from "../../lib/cli-utils";
 import { renderSteeringPacket } from "../../protocol/steering/index";
 import { collectBacklogFocus, collectTaskContextForId } from "../../hierarchy";
 import { resolveTargetWorkflowSteering } from "../../protocol";
+import { FORGE_PHASES, SKIPPABLE_FORGE_PHASES, isForgePhaseSkippable, type ForgePhase } from "../../protocol/status/index";
 import { writeSliceProgress, type PipelineStepProgress, type SlicePipelineProgress } from "../pipeline";
 import { startSliceCore } from "../lifecycle/start";
 import { collectForgeReview } from "./docs";
 import { parseForgeArgs } from "./args";
+import { recordForgeSkip } from "./skip";
 import {
   applyPipelineFailureRecovery,
   applyResolvedSteering,
@@ -17,6 +19,29 @@ import { runPipeline } from "../pipeline";
 
 export async function forgeRun(args: string[]) {
   const parsed = await parseForgeArgs(args, "run");
+  const skipRequests = parseSkipPhaseFlags(parsed.passthrough);
+  const skipReason = readSkipReason(parsed.passthrough);
+  if (skipRequests.length > 0) {
+    if (parsed.dryRun) {
+      if (!parsed.json) {
+        for (const phase of skipRequests) {
+          console.log(`dry-run: would skip ${phase} on ${parsed.sliceId}: ${skipReason ?? "skipped via --skip-phase"}`);
+        }
+      }
+    } else {
+      for (const phase of skipRequests) {
+        await recordForgeSkip({
+          project: parsed.project,
+          sliceId: parsed.sliceId,
+          phase,
+          reason: skipReason ?? `skipped via forge run --skip-phase ${phase}`,
+          repo: parsed.repo,
+          agent: defaultAgentName(),
+        });
+        if (!parsed.json) console.log(`skipped ${phase} on ${parsed.sliceId}: ${skipReason ?? "skipped via --skip-phase"}`);
+      }
+    }
+  }
 
   const focus = await collectBacklogFocus(parsed.project);
   const preResolution = await resolveTargetWorkflowSteering(parsed.project, {
@@ -180,4 +205,31 @@ function createProgressTracker(project: string, sliceId: string, resumeCommand: 
 
 function buildForgeRunCommand(project: string, sliceId: string, repo?: string, base?: string) {
   return `wiki forge run ${project} ${sliceId}${repo ? ` --repo ${repo}` : ""}${base ? ` --base ${base}` : ""}`;
+}
+
+function parseSkipPhaseFlags(passthrough: string[]): ForgePhase[] {
+  const out: ForgePhase[] = [];
+  for (let index = 0; index < passthrough.length; index += 1) {
+    if (passthrough[index] !== "--skip-phase") continue;
+    const raw = passthrough[index + 1];
+    if (!raw) throw new Error("--skip-phase requires a phase value");
+    if (!(FORGE_PHASES as readonly string[]).includes(raw)) {
+      throw new Error(`--skip-phase: unknown phase "${raw}". Valid phases: ${FORGE_PHASES.join(", ")}`);
+    }
+    if (!isForgePhaseSkippable(raw as ForgePhase)) {
+      throw new Error(
+        `--skip-phase: phase "${raw}" is not skippable. The skippable floor is: ${SKIPPABLE_FORGE_PHASES.join(", ")}`,
+      );
+    }
+    out.push(raw as ForgePhase);
+    index += 1;
+  }
+  return out;
+}
+
+function readSkipReason(passthrough: string[]): string | undefined {
+  const index = passthrough.indexOf("--skip-reason");
+  if (index === -1) return undefined;
+  const value = (passthrough[index + 1] ?? "").trim();
+  return value || undefined;
 }

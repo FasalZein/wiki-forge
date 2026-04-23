@@ -66,7 +66,7 @@ function splitForgeArgs(args: string[]) {
 }
 
 function flagTakesValue(flag: string) {
-  return flag === "--agent" || flag === "--repo" || flag === "--base";
+  return flag === "--agent" || flag === "--repo" || flag === "--base" || flag === "--skip-phase" || flag === "--skip-reason";
 }
 
 async function resolveForgeSliceId(project: string, explicitSliceId: string | undefined, mode: ForgeMode) {

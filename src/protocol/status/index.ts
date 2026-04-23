@@ -115,8 +115,10 @@ export { applyDerivedLedger, deriveForgeLedgerFromArtifacts, mergeDerivedForgeLe
 export { collectPriorResearchRefs, extractMarkdownSection, readMatterDoc, readPlanningDoc } from "./evidence";
 export {
   FORGE_PHASES,
+  SKIPPABLE_FORGE_PHASES,
   canAdvanceForgePhase,
   forgeLedgerPhaseKey,
+  isForgePhaseSkippable,
   normalizeForgeLedger,
   readForgeLedgerPhase,
   validateForgeWorkflowLedger,
@@ -130,4 +132,6 @@ export type {
   ForgePhaseStatus,
   ForgeWorkflowLedger,
   ForgeWorkflowValidation,
+  SkippableForgePhase,
+  SkippedPhaseRecord,
 } from "./workflow-ledger";
