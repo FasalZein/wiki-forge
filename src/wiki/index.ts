@@ -13,7 +13,6 @@ import { statusProject, lintProject, lintSemanticProject, verifyProject, cacheCl
 import { configCommand } from "../config";
 import { schemaCommand } from "../schema";
 import { findProjectArg } from "../git-utils";
-import { FORGE_COMMANDS, resolveForgeCommand } from "../forge";
 
 export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   help: (args) => printHelp(args),
@@ -106,7 +105,6 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "close-prd": (args) => closePrd(args),
   config: (args) => configCommand(args),
   schema: (args) => schemaCommand(args),
-  ...FORGE_COMMANDS,
 };
 
 export function resolveWikiCommand(rawArgs: string[]) {
@@ -146,9 +144,6 @@ export function resolveWikiCommand(rawArgs: string[]) {
     }[subcommand as "sync" | "audit"];
     if (!mapped) throw new Error(`unknown protocol subcommand: ${subcommand}. Run 'wiki help' for usage.`);
     return { command: mapped, args: subArgs };
-  }
-  if (command === "forge") {
-    return resolveForgeCommand(rest);
   }
   return { command, args: rest };
 }

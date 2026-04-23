@@ -575,3 +575,19 @@ describe("PRD-079 protocol subdomain pack-out", () => {
     expect(existsSync(join(srcRoot, "lib", "forge-triage.ts"))).toBe(false);
   });
 });
+
+describe("PRD-080 wiki authority split", () => {
+  test("src/wiki no longer owns forge routing", () => {
+    const wikiIndex = readFileSync(join(srcRoot, "wiki", "index.ts"), "utf8");
+    expect(wikiIndex).not.toContain("FORGE_COMMANDS");
+    expect(wikiIndex).not.toContain("resolveForgeCommand");
+    expect(wikiIndex).not.toContain("...FORGE_COMMANDS");
+  });
+
+  test("src/index owns top-level forge routing", () => {
+    const rootIndex = readFileSync(join(srcRoot, "index.ts"), "utf8");
+    expect(rootIndex).toContain('from "./forge"');
+    expect(rootIndex).toContain('rawArgs[0] === "forge"');
+    expect(rootIndex).toContain("resolveForgeCommand");
+  });
+});
