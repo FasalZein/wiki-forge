@@ -4,7 +4,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 export const REPO_SKILLS = listRepoSkills(resolve(import.meta.dir, ".."));
-export const COMPANION_SKILLS = [] as const;
+export const COMPANION_SKILLS = ["FasalZein/desloppify"] as const;
 export const INSTALL_SETS = ["full", "wiki-only"] as const;
 export type InstallSet = typeof INSTALL_SETS[number];
 export const WIKI_ONLY_SKILLS = ["wiki"] as const;
@@ -47,7 +47,7 @@ async function main(args: string[]) {
   console.log("wiki-forge local sync");
   console.log(`- repo: ${options.repoDir}`);
   console.log(`- install set: ${options.installSet}`);
-  console.log(`- companion skills: ${options.includeCompanions ? "yes" : "no"}`);
+  console.log(`- companion skills: ${shouldInstallCompanions(options) ? "yes" : "no"}`);
 
   for (const step of plan) {
     console.log(`- ${step.label}`);
@@ -62,7 +62,7 @@ async function main(args: string[]) {
 export function parseSyncArgs(args: string[], repoDir = resolve(import.meta.dir, "..")): SyncOptions {
   const installSet = parseInstallSetArg(args);
   return {
-    includeCompanions: args.includes("--with-companions"),
+    includeCompanions: installSet === "full",
     audit: args.includes("--audit"),
     installSet,
     repoDir,
@@ -80,10 +80,10 @@ export function buildSyncPlan(options: SyncOptions): SyncStep[] {
       command: ["npx", "skills@latest", "add", resolve(options.repoDir, "skills", skill), "-g", "-y"],
     },
   ]));
-  const companionSkills = options.includeCompanions
+  const companionSkills = shouldInstallCompanions(options)
     ? COMPANION_SKILLS.map((skill) => ({
       label: `install companion skill ${skill.split("/").pop()}`,
-      command: ["npx", "skills@latest", "add", skill, "-g", "-y"],
+      command: ["npx", "skills", "add", skill, "-g", "-y"],
     }))
     : [];
 
@@ -132,6 +132,10 @@ export function assertInstalledRepoSkillsFresh(options: Pick<SyncOptions, "repoD
   throw new Error(
     `sync:local finished but installed repo skill copies are still stale under ${audit.installRoot}: ${failures}`,
   );
+}
+
+function shouldInstallCompanions(options: Pick<SyncOptions, "installSet" | "includeCompanions">): boolean {
+  return options.installSet === "full" && COMPANION_SKILLS.length > 0;
 }
 
 function ensureCommand(command: string, errorMessage: string) {

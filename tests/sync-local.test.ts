@@ -12,16 +12,18 @@ describe("sync-local", () => {
   test("builds the default local sync plan", () => {
     const repoDir = process.cwd();
     const plan = buildSyncPlan({ repoDir, includeCompanions: false, audit: false, installSet: "full" });
-    const repoSkillSteps = plan.slice(3);
+    const repoSkillSteps = plan.slice(3, 3 + REPO_SKILLS.length * 2);
     const repoSkillLabels = REPO_SKILLS.flatMap((skill) => [
       `remove repo skill ${skill}`,
       `install repo skill ${skill}`,
     ]);
+    const companionLabels = COMPANION_SKILLS.map((skill) => `install companion skill ${skill.split("/").pop()}`);
     expect(plan.map((step) => step.label)).toEqual([
       "link wiki cli",
       "install latest qmd",
       "rebuild qmd native modules",
       ...repoSkillLabels,
+      ...companionLabels,
     ]);
     expect(plan[0]?.command).toEqual(["bun", "link"]);
     expect(plan[1]?.command).toEqual(["npm", "install", "-g", "@tobilu/qmd@latest", "--audit=false", "--fund=false"]);
@@ -31,27 +33,31 @@ describe("sync-local", () => {
     expect(repoSkillSteps.every((step) => step.command.includes("-g"))).toBe(true);
     expect(repoSkillSteps.filter((_, index) => index % 2 === 0).every((step) => step.command.includes("-y"))).toBe(true);
     expect(repoSkillSteps.filter((_, index) => index % 2 === 1).every((step) => step.command.includes("-y"))).toBe(true);
+    expect(plan.at(-1)?.command).toEqual(["npx", "skills", "add", "FasalZein/desloppify", "-g", "-y"]);
   });
 
-  test("repo skill discovery is code-driven from skills/*/SKILL.md", () => {
+  test("repo skill discovery is code-driven from skills/*/SKILL.md and excludes external companions", () => {
     const discovered = listRepoSkills(process.cwd());
     expect(discovered).toEqual(REPO_SKILLS);
     expect(discovered).toContain("improve-codebase-architecture");
+    expect(discovered).not.toContain("desloppify");
     expect(discovered.every((skill) => !skill.endsWith(".md"))).toBe(true);
   });
 
-  test("companion skills list is empty (all skills are repo-owned)", () => {
-    expect(COMPANION_SKILLS).toEqual([]);
+  test("full installs include external companion skills while audit still covers repo-owned skills only", () => {
+    expect(COMPANION_SKILLS).toEqual(["FasalZein/desloppify"]);
     const repoDir = process.cwd();
     const withCompanions = buildSyncPlan({ repoDir, includeCompanions: true, audit: false, installSet: "full" });
     const without = buildSyncPlan({ repoDir, includeCompanions: false, audit: false, installSet: "full" });
     expect(withCompanions.map((s) => s.label)).toEqual(without.map((s) => s.label));
+    expect(withCompanions.at(-1)?.label).toBe("install companion skill desloppify");
+    expect(REPO_SKILLS).not.toContain("desloppify");
   });
 
   test("parses install set and with-companions flags", () => {
-    expect(parseSyncArgs([], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: false, installSet: "full", repoDir: "/repo/wiki-forge" });
+    expect(parseSyncArgs([], "/repo/wiki-forge")).toEqual({ includeCompanions: true, audit: false, installSet: "full", repoDir: "/repo/wiki-forge" });
     expect(parseSyncArgs(["--with-companions"], "/repo/wiki-forge")).toEqual({ includeCompanions: true, audit: false, installSet: "full", repoDir: "/repo/wiki-forge" });
-    expect(parseSyncArgs(["--audit"], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: true, installSet: "full", repoDir: "/repo/wiki-forge" });
+    expect(parseSyncArgs(["--audit"], "/repo/wiki-forge")).toEqual({ includeCompanions: true, audit: true, installSet: "full", repoDir: "/repo/wiki-forge" });
     expect(parseSyncArgs(["--wiki-only"], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: false, installSet: "wiki-only", repoDir: "/repo/wiki-forge" });
     expect(parseSyncArgs(["--install-set", "wiki-only"], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: false, installSet: "wiki-only", repoDir: "/repo/wiki-forge" });
   });

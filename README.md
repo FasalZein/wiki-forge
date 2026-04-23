@@ -11,12 +11,12 @@
 
 ---
 
-**Not RAG.** The wiki is a compiled artifact that grows over time, not a retrieval layer that re-derives answers from scratch each query. Code is always the source of truth — the wiki is compiled memory that makes code navigable across sessions. Forge is the optional SDLC layer on top: research → domain-model → PRD → slices → TDD → verify → desloppify.
+**Not RAG.** The wiki is a compiled artifact that grows over time, not a retrieval layer that re-derives answers from scratch each query. Code is always the source of truth — the wiki is compiled memory that makes code navigable across sessions. The conceptual delivery chain is `wiki research -> /domain-model` (+ `/torpathy` when design tradeoffs remain) `-> /write-a-prd -> /prd-to-slices -> /tdd -> /desloppify`. `wiki forge plan|run|next` is the compact operator surface over that chain, not a different workflow.
 
 ```
 Sources (code, research, docs)
   ├── Wiki  (knowledge layer — maintained markdown in ~/Knowledge)
-  └── Forge (workflow layer — research → domain-model → PRD → slices → TDD → verify)
+  └── Forge (workflow layer — domain-model → PRD → slices → TDD, with wiki research as input)
                                           ↓
                                         You
 ```
@@ -32,7 +32,7 @@ cd wiki-forge
 ./install.sh --full
 ```
 
-The installer handles bun, dependencies, local sync of the CLI/qmd/skills, shell config, and the vault directory (`~/Knowledge`). `wiki-only` installs just the second-brain layer (`/wiki`). `full` installs the second-brain layer plus the forge SDLC workflow stack (`/forge` and its repo-owned companions). See [SETUP.md](SETUP.md) for manual setup, Obsidian config, and troubleshooting.
+The installer handles bun, dependencies, local sync of the CLI/qmd/skills, shell config, and the vault directory (`~/Knowledge`). `wiki-only` installs just the second-brain layer (`/wiki`). `full` installs the second-brain layer plus the forge SDLC workflow stack (`/forge`, the repo-owned workflow skills, and the external `/desloppify` companion). See [SETUP.md](SETUP.md) for manual setup, Obsidian config, and troubleshooting.
 
 <details>
 <summary><strong>Manual prerequisites</strong> (if not using the installer)</summary>
@@ -49,7 +49,7 @@ brew install sqlite   # macOS — required for Bun SDK hybrid retrieval
 ## Local Sync
 
 ```bash
-bun run sync:local                                      # relink CLI, refresh qmd, reinstall the full repo-owned skill set
+bun run sync:local                                      # relink CLI, refresh qmd, reinstall repo-owned skills, and add external workflow companions
 bun run sync:local -- --install-set wiki-only           # relink CLI/qmd and install only the wiki skill
 bun run sync:local -- --audit                           # audit the default full repo-owned skill set
 bun run sync:local -- --install-set wiki-only --audit   # audit only the wiki-only install set
@@ -60,7 +60,7 @@ Use this after pulling repo changes or editing `skills/*/SKILL.md`. Restart the 
 `/wiki` and `/forge` stay separate:
 
 - `/wiki` = second-brain layer: retrieval, maintenance, verification, filing, drift
-- `/forge` = SDLC layer: research → domain-model → PRD → slices → TDD → verify → desloppify
+- `/forge` = SDLC layer over `wiki research -> /domain-model -> /write-a-prd -> /prd-to-slices -> /tdd -> /desloppify`
 - `full` install gives you both layers
 - `wiki-only` keeps the install in second-brain mode with no forge workflow stack
 
@@ -263,7 +263,7 @@ Compact map:
 |-------|-----------|-------------|
 | **Wiki** | Maintained project memory in `~/Knowledge` | `wiki` CLI |
 | **Research** | Filed evidence and source-backed notes under `research/` and `raw/` | `/research` skill + `wiki research` commands |
-| **Forge** | Optional workflow layer: research -> domain-model -> PRD -> slices -> TDD -> verify -> desloppify; agent surface is `wiki forge plan/run/next` | `/forge` skill |
+| **Forge** | Optional workflow layer over `wiki research -> /domain-model -> /write-a-prd -> /prd-to-slices -> /tdd -> /desloppify`; agent surface is `wiki forge plan/run/next` | `/forge` skill |
 
 These are separate concerns. The wiki is the knowledge store. Research is evidence. Forge is the software-development workflow layer over that memory.
 
@@ -369,13 +369,12 @@ Propagation rule:
 Repo-owned skills are installed via the local sync script and auto-discovered from `skills/*/SKILL.md`:
 
 ```bash
-bun run sync:local            # relink CLI, refresh qmd, and install every repo-owned skill globally
+bun run sync:local            # relink CLI, refresh qmd, install repo-owned skills, and add external workflow companions globally
 bun run sync:local -- --audit # compare installed repo skills against the checked-out repo copies
 ```
 
 Current repo-owned skill set:
 
-- `desloppify`
 - `domain-model`
 - `forge`
 - `grill-me` (optional compatibility skill; forge now routes through `domain-model`)
@@ -386,10 +385,14 @@ Current repo-owned skill set:
 - `wiki`
 - `write-a-prd`
 
+External workflow companion:
+
+- `desloppify` via `npx skills add FasalZein/desloppify`
+
 Or install any individual skill from GitHub:
 
 ```bash
-npx skills@latest add FasalZein/wiki-forge/skills/desloppify -g
+npx skills add FasalZein/desloppify
 npx skills@latest add FasalZein/wiki-forge/skills/domain-model -g
 npx skills@latest add FasalZein/wiki-forge/skills/forge -g
 npx skills@latest add FasalZein/wiki-forge/skills/grill-me -g
@@ -409,7 +412,7 @@ npx skills@latest add FasalZein/wiki-forge/skills/write-a-prd -g
 |-------|--------|-------------|-------------|
 | **research** | `/research` | Investigates external evidence and produces research artifacts that can be filed into the wiki | When a feature, refactor, or architecture decision needs outside evidence |
 | **wiki** | `/wiki` | Knowledge-layer operations: research, retrieval, maintenance, drift, verification, gates | When no non-trivial product behavior is being planned or changed |
-| **forge** | `/forge` | Software-development workflow: research -> domain-model -> PRD -> slices -> TDD -> verify -> desloppify | Non-trivial implementation work, new features, cross-module changes, or existing slice continuation |
+| **forge** | `/forge` | Software-development workflow over `wiki research -> /domain-model -> /write-a-prd -> /prd-to-slices -> /tdd -> /desloppify` | Non-trivial implementation work, new features, cross-module changes, or existing slice continuation |
 | **prd-to-slices** | `/prd-to-slices` | Breaks a PRD into tracked vertical slices in the wiki backlog | After writing a PRD, before implementation |
 | **write-a-prd** | `/write-a-prd` | Wiki-vault-native PRD authoring via `wiki create-prd` | When you need formal project intent |
 | **domain-model** | `/domain-model` | Sharpens terms, records decisions in the wiki, and surfaces ambiguities before PRD authoring | Before writing a PRD |
@@ -462,7 +465,7 @@ Rule of thumb:
 For non-trivial work, forge orchestrates the full pipeline:
 
 ```
-/research  ->  /domain-model  ->  /write-a-prd  ->  /prd-to-slices  ->  /tdd  ->  /wiki  ->  /desloppify
+wiki research  ->  /domain-model (+ /torpathy when needed)  ->  /write-a-prd  ->  /prd-to-slices  ->  /tdd  ->  /desloppify
 ```
 
 ```bash
