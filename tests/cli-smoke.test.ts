@@ -297,9 +297,9 @@ describe("wiki CLI smoke", () => {
     const handoffResearchJson = JSON.parse(handoffResearch.stdout.toString());
     expect(handoffResearchJson.applied).toBe(true);
     expect(handoffResearchJson.target).toBe("projects/demo/decisions");
-    const distilledResearchContent = readFileSync(join(vault, "research", "demo", "auth-options-comparison.md"), "utf8");
-    expect(distilledResearchContent).toContain("status: applied");
-    expect(distilledResearchContent).toContain("projects/demo/decisions");
+    const handedOffResearchContent = readFileSync(join(vault, "research", "demo", "auth-options-comparison.md"), "utf8");
+    expect(handedOffResearchContent).toContain("status: applied");
+    expect(handedOffResearchContent).toContain("projects/demo/decisions");
 
     const nestedFileResearch = runWiki(["research", "file", "projects/demo", "--project", "demo", "nested alias check"], env);
     expect(nestedFileResearch.exitCode).toBe(0);
