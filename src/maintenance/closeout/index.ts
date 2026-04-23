@@ -1,6 +1,6 @@
 import { parseProjectRepoBaseArgs } from "../../git-utils";
 import { collectHierarchyStatusActions, collectLifecycleDriftActions, collectCancelledSyncActions } from "../../hierarchy";
-import { groupDiagnosticFindings, type DiagnosticFinding, type DiagnosticScope, type MaintenanceAction } from "../shared";
+import { classifyDiagnosticFindings, isHardDiagnostic, groupDiagnosticFindings, type DiagnosticFinding, type DiagnosticScope, type MaintenanceAction } from "../shared";
 import { readFlagValue } from "../../lib/cli-utils";
 import { collectLintResult, collectSemanticLintResult } from "../../verification";
 import type { LintingSnapshot } from "../../verification";
@@ -117,9 +117,10 @@ export async function collectCloseout(project: string, base: string, explicitRep
   if (outsideActiveHierarchyFiles.length > 0) findings.push({ scope: "history", severity: "warning", message: `${outsideActiveHierarchyFiles.length} changed code file(s) belong to non-actionable planning pages outside the active slice hierarchy` });
   for (const action of hierarchyActions) findings.push({ scope: "parent", severity: "warning", message: action.message });
   for (const action of lifecycleDriftActions) findings.push({ scope: "parent", severity: "warning", message: action.message });
-  const blockers = findings.filter((finding) => finding.severity === "blocker").map((finding) => finding.message);
-  const warnings = findings.filter((finding) => finding.severity === "warning").map((finding) => finding.message);
-  const diagnostics = groupDiagnosticFindings(findings);
+  const classifiedFindings = classifyDiagnosticFindings(findings);
+  const blockers = classifiedFindings.filter(isHardDiagnostic).map((finding) => finding.message);
+  const warnings = classifiedFindings.filter((finding) => !isHardDiagnostic(finding)).map((finding) => finding.message);
+  const diagnostics = groupDiagnosticFindings(classifiedFindings);
   const nextSteps: string[] = [];
   if (staleImpactedPages.length > 0) {
     nextSteps.push(`update impacted wiki pages from code`);
@@ -142,7 +143,7 @@ export async function collectCloseout(project: string, base: string, explicitRep
     outsideActiveHierarchyFiles,
     lint,
     semanticLint,
-    findings,
+    findings: classifiedFindings,
     diagnostics,
     blockers,
     warnings,
@@ -218,11 +219,11 @@ export function renderCloseout(result: Awaited<ReturnType<typeof collectCloseout
   console.log(`- missing tests: ${result.refreshFromGit.testHealth.codeFilesWithoutChangedTests.length}`);
   if (result.diagnostics.blockers.length) {
     console.log(`- blockers:`);
-    for (const finding of result.diagnostics.blockers) console.log(`  - [${finding.scope}] ${finding.message}`);
+    for (const finding of result.diagnostics.blockers) console.log(`  - [hard][${finding.scope}] ${finding.message}`);
   }
   if (result.diagnostics.actionableWarnings.length) {
     console.log(`- actionable warnings:`);
-    for (const finding of result.diagnostics.actionableWarnings) console.log(`  - [${finding.scope}] ${finding.message}`);
+    for (const finding of result.diagnostics.actionableWarnings) console.log(`  - [soft][${finding.scope}] ${finding.message}`);
   }
   if (result.diagnostics.projectDebtWarnings.length && !verbose) {
     console.log(`- project debt warnings: ${result.diagnostics.projectDebtWarnings.length} (use --verbose to expand)`);
@@ -232,7 +233,7 @@ export function renderCloseout(result: Awaited<ReturnType<typeof collectCloseout
   }
   if (verbose) {
     for (const page of result.refreshFromGit.impactedPages.slice(0, 20)) console.log(`  - impacted: ${page.page} <= ${page.matchedSourcePaths.join(", ")}`);
-    for (const finding of result.findings) console.log(`  - [${finding.scope}][${finding.severity}] ${finding.message}`);
+    for (const finding of result.findings) console.log(`  - [${finding.blockingSeverity}][${finding.scope}][${finding.severity}] ${finding.message}`);
   }
   if (result.nextSteps.length) {
     console.log(`- manual steps before closing:`);

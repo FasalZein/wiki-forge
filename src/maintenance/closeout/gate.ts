@@ -1,5 +1,5 @@
 import { basename, join } from "node:path";
-import { groupDiagnosticFindings, type DiagnosticFinding } from "../shared";
+import { classifyDiagnosticFindings, isHardDiagnostic, groupDiagnosticFindings, type DiagnosticFinding } from "../shared";
 import { readFlagValue } from "../../lib/cli-utils";
 import { exists, readText } from "../../lib/fs";
 import { resolveRepoPath, assertGitRepo } from "../../lib/verification";
@@ -31,11 +31,11 @@ export async function gateProject(args: string[]) {
     console.log(`- uncovered changed files: ${result.counts.uncoveredChangedFiles}`);
     if (result.diagnostics.blockers.length) {
       console.log(`- blockers:`);
-      for (const finding of result.diagnostics.blockers) console.log(`  - [${finding.scope}] ${finding.message}`);
+      for (const finding of result.diagnostics.blockers) console.log(`  - [hard][${finding.scope}] ${finding.message}`);
     }
     if (result.diagnostics.actionableWarnings.length) {
       console.log(`- actionable warnings:`);
-      for (const finding of result.diagnostics.actionableWarnings) console.log(`  - [${finding.scope}] ${finding.message}`);
+      for (const finding of result.diagnostics.actionableWarnings) console.log(`  - [soft][${finding.scope}] ${finding.message}`);
     }
     if (result.diagnostics.projectDebtWarnings.length) {
       console.log(`- project debt warnings: ${result.diagnostics.projectDebtWarnings.length} (use --json for details)`);
@@ -110,14 +110,15 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
       }
     }
   }
-  const blockers = findings.filter((finding) => finding.severity === "blocker").map((finding) => finding.message);
-  const warnings = findings.filter((finding) => finding.severity === "warning").map((finding) => finding.message);
-  const diagnostics = groupDiagnosticFindings(findings);
+  const classifiedFindings = classifyDiagnosticFindings(findings);
+  const blockers = classifiedFindings.filter(isHardDiagnostic).map((finding) => finding.message);
+  const warnings = classifiedFindings.filter((finding) => !isHardDiagnostic(finding)).map((finding) => finding.message);
+  const diagnostics = groupDiagnosticFindings(classifiedFindings);
   return {
     project,
     base,
     ok: blockers.length === 0,
-    findings,
+    findings: classifiedFindings,
     diagnostics,
     blockers,
     warnings,
