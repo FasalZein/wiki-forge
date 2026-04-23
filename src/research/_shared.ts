@@ -20,7 +20,7 @@ import { normalizePath, stripMarkdownExtension, walkMarkdown } from "../lib/vaul
 
 export const RESEARCH_STATUSES = ["draft", "reviewed", "verified", "applied"] as const;
 export const RESEARCH_VERIFICATION_LEVELS = ["unverified", "cross-referenced", "source-checked"] as const;
-export const RESEARCH_WORKFLOW_STAGES = ["capture", "synthesize", "verify", "distill", "applied"] as const;
+export const RESEARCH_WORKFLOW_STAGES = ["capture", "synthesize", "verify", "handoff", "bridged"] as const;
 
 export function projectTruthTargets(project: string) {
   const normalized = project.trim();
@@ -86,7 +86,7 @@ export async function collectResearchStatus(topic?: string) {
   let missingSources = 0;
   let staleUnverified = 0;
   let missingInfluence = 0;
-  let readyToDistill = 0;
+  let readyToHandoff = 0;
   const projectTargets = new Set<string>();
   for (const file of pages) {
     const parsed = safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true });
@@ -103,7 +103,7 @@ export async function collectResearchStatus(topic?: string) {
     if (influencedBy.length === 0) missingInfluence += 1;
     const workflowStage = classifyResearchWorkflowStage({ hasSources, status, verification, influencedByCount: influencedBy.length });
     byWorkflowStage[workflowStage] = (byWorkflowStage[workflowStage] ?? 0) + 1;
-    if (workflowStage === "distill") readyToDistill += 1;
+    if (workflowStage === "handoff") readyToHandoff += 1;
     if (project) {
       for (const target of projectTruthTargets(project)) projectTargets.add(target);
     }
@@ -112,12 +112,12 @@ export async function collectResearchStatus(topic?: string) {
   return {
     topic: normalizedTopic,
     root: relative(VAULT_ROOT, root) || "research",
-    counts: { total: pages.length, missingSources, staleUnverified, missingInfluence, readyToDistill },
+    counts: { total: pages.length, missingSources, staleUnverified, missingInfluence, readyToHandoff },
     byStatus,
     byVerification,
     workflow: {
       byStage: byWorkflowStage,
-      nextCommand: "wiki research distill <research-page> <projects/...>",
+      nextCommand: "wiki research handoff <research-page> <projects/...>",
       canonicalTargets,
     },
   };
@@ -218,6 +218,6 @@ function classifyResearchWorkflowStage(input: {
   if (!input.hasSources) return "capture";
   if (input.status === "draft") return "synthesize";
   if (input.verification === "unverified" || input.status === "reviewed") return "verify";
-  if (input.influencedByCount === 0 || input.status === "verified") return "distill";
-  return "applied";
+  if (input.influencedByCount === 0 || input.status === "verified") return "handoff";
+  return "bridged";
 }

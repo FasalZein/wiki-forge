@@ -1,8 +1,8 @@
 ---
 name: forge
 description: >
-  Build with rigor. Orchestrates research -> domain-model -> PRD -> slices -> TDD before anything ships.
-  Forge is the workflow layer, not the research layer or wiki layer. It loads repo-owned workflow skills and checks gates. Zero API calls — everything stays in the wiki vault.
+  Build with rigor. Consumes wiki research, then drives /domain-model -> /write-a-prd -> /prd-to-slices -> /tdd before anything ships.
+  Forge is the workflow layer, not the research layer or wiki layer. It loads repo-owned workflow skills plus the external /desloppify quality gate. Zero API calls — everything stays in the wiki vault.
 ---
 
 # Forge
@@ -16,6 +16,15 @@ Forge is the workflow layer.
 - default reconciliation primitive = `wiki sync`
 - default `wiki help` is workflow-first; use `wiki help --all` for the exhaustive CLI catalog
 - one project should use one authoritative wiki/vault; parallel agents should share that vault and claim different slices
+
+## Conceptual Chain
+
+Treat the exact skill handoff and the compact command surface as different things.
+
+- conceptual skill chain: `wiki research -> /domain-model` (+ `/torpathy` when design tradeoffs are still unresolved) `-> /write-a-prd -> /prd-to-slices -> /tdd -> /desloppify`
+- compact operator surface: `wiki forge plan|run|next`
+
+`wiki forge run` is the tracked execution/verification surface. It is not a replacement for the conceptual chain above; it compresses the implementation-side lifecycle once the slice is already in motion.
 
 ## Router
 
@@ -50,7 +59,7 @@ Interpretation rule:
 |---|---|---|---|
 | session start | `wiki resume <project> --repo <path> --base <rev>` | steering packet + recovery hints | obey the next command unless you are debugging |
 | no active/ready slice | `wiki forge next <project>` | one recommended slice or `no ready slices` | if none, plan the next feature/PRD/slices |
-| research missing | `wiki forge status <project> <slice> --json` | `nextPhase: research` | `/research`, then `wiki research distill`, then `wiki research adopt` |
+| research missing | `wiki forge status <project> <slice> --json` | `nextPhase: research` | `/research`, then `wiki research handoff`, then `wiki research bridge` |
 | domain-model missing | `wiki forge status <project> <slice> --json` | `nextPhase: domain-model` | `/domain-model`, update `projects/<project>/decisions.md` and `projects/<project>/architecture/domain-language.md` |
 | implementation-ready | `wiki forge run <project> <slice> --repo <path>` | pipeline execution across check/verify/close | continue on `forge run` while the blocker is inside the active phase |
 | failed verify step | exact rerun/recovery command from `wiki resume` or `wiki forge status` | verify or checkpoint repair command | rerun that exact command before falling back to a broader workflow rerun |
@@ -108,14 +117,14 @@ If `wiki resume` or `wiki forge status` already names a concrete recovery comman
 
 ### Research Bridge
 
-Distilling research is not enough for forge truth by itself.
+Research is not complete for forge just because a note exists.
 
 1. `wiki research file <topic> --project <project> <title>`
-2. `wiki research distill <research-page> <projects/<project>/decisions|projects/<project>/architecture/domain-language>`
-3. `wiki research adopt <research-page> --project <project> --slice <slice-id>`
+2. `wiki research handoff <research-page> <projects/<project>/decisions|projects/<project>/architecture/domain-language>`
+3. `wiki research bridge <research-page> --project <project> --slice <slice-id>`
 4. `wiki forge status <project> <slice>`
 
-If research already exists, do not guess at frontmatter or caches. Adopt it explicitly.
+If research already exists, do not guess at frontmatter or caches. Bridge it explicitly.
 
 ### Close-Path Divergence
 
@@ -144,7 +153,7 @@ Treat active slice blockers as current work. Treat project debt and historical w
 The contract stays:
 
 ```text
-research -> domain-model -> PRD -> slices -> TDD -> wiki verify -> improve-codebase-architecture (cadence) -> desloppify
+wiki research -> /domain-model (+ /torpathy when design pressure remains) -> /write-a-prd -> /prd-to-slices -> /tdd -> /desloppify
 ```
 
 ## Protocol Start Checklist
@@ -180,7 +189,7 @@ Forge assumes these repo skills exist:
 - `/tdd`
 - `/wiki`
 - `/improve-codebase-architecture`
-- `/desloppify`
+- `/desloppify` (installed externally, not from `skills/desloppify`)
 
 If one is unavailable, stop and name it.
 
@@ -189,7 +198,7 @@ If one is unavailable, stop and name it.
 After applying skill changes that affect CLI or skill behavior, validate both:
 
 - repo-local/dev path: the checked-out repo commands and tests
-- installed/synced path: the globally installed `wiki` binary + installed repo-owned skill copies
+- installed/synced path: the globally installed `wiki` binary + installed repo-owned skill copies + external workflow companions
 
 Minimum parity check after skill edits:
 

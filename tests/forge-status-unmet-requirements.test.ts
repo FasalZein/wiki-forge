@@ -115,7 +115,7 @@ describe("forge status unmet requirements", () => {
     expect(payload.workflow.ledger.grill).toBeUndefined();
   });
 
-  test("distilled-only research stays unmet until adopted into the parent PRD", () => {
+  test("handed-off research stays unmet until bridged into the parent PRD", () => {
     const { env, vault } = setupStatusFixture();
 
     expect(runWiki(["create-feature", "wfstatus", "auth platform"], env).exitCode).toBe(0);
@@ -126,19 +126,19 @@ describe("forge status unmet requirements", () => {
     const pagePath = join(vault, "research", "status-topic", "verified-note.md");
     writeFileSync(pagePath, `---\ntitle: Verified Note\ntype: research\ntopic: status-topic\nproject: wfstatus\nstatus: verified\nsource_type: article\nsources:\n  - url: https://example.com\n    accessed: 2026-04-20\n    claim: Verified claim\ninfluenced_by: []\nupdated: 2026-04-20\nverification_level: source-checked\n---\n# Verified Note\n\n## Key Findings\n\n- source: [1]\n`, "utf8");
 
-    expect(runWiki(["research", "distill", "research/status-topic/verified-note", "projects/wfstatus/decisions", "--json"], env).exitCode).toBe(0);
+    expect(runWiki(["research", "handoff", "research/status-topic/verified-note", "projects/wfstatus/decisions", "--json"], env).exitCode).toBe(0);
 
-    const beforeAdopt = runWiki(["forge", "status", "wfstatus", "WFSTATUS-002", "--json"], env);
-    expect(beforeAdopt.exitCode).toBe(0);
-    const beforeJson = JSON.parse(beforeAdopt.stdout.toString());
+    const beforeBridge = runWiki(["forge", "status", "wfstatus", "WFSTATUS-002", "--json"], env);
+    expect(beforeBridge.exitCode).toBe(0);
+    const beforeJson = JSON.parse(beforeBridge.stdout.toString());
     expect(beforeJson.workflow.validation.nextPhase).toBe("research");
 
-    const adopt = runWiki(["research", "adopt", "research/status-topic/verified-note", "--project", "wfstatus", "--slice", "WFSTATUS-002", "--json"], env);
-    expect(adopt.exitCode).toBe(0);
+    const bridge = runWiki(["research", "bridge", "research/status-topic/verified-note", "--project", "wfstatus", "--slice", "WFSTATUS-002", "--json"], env);
+    expect(bridge.exitCode).toBe(0);
 
-    const afterAdopt = runWiki(["forge", "status", "wfstatus", "WFSTATUS-002", "--json"], env);
-    expect(afterAdopt.exitCode).toBe(0);
-    const afterJson = JSON.parse(afterAdopt.stdout.toString());
+    const afterBridge = runWiki(["forge", "status", "wfstatus", "WFSTATUS-002", "--json"], env);
+    expect(afterBridge.exitCode).toBe(0);
+    const afterJson = JSON.parse(afterBridge.stdout.toString());
     expect(afterJson.workflow.validation.nextPhase).toBe("domain-model");
     expect(afterJson.workflow.ledger.research.researchRefs).toContain("research/status-topic/verified-note");
   });

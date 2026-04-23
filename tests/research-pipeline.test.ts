@@ -8,7 +8,7 @@ afterEach(() => {
 });
 
 describe("research pipeline surface", () => {
-  test("status reports ready-to-distill research explicitly", () => {
+  test("status reports ready-to-handoff research explicitly", () => {
     const vault = tempDir("wiki-vault");
     initVault(vault);
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
@@ -20,9 +20,9 @@ describe("research pipeline surface", () => {
     const result = runWiki(["research", "status", "demo-topic", "--json"], env);
     expect(result.exitCode).toBe(0);
     const json = JSON.parse(result.stdout.toString());
-    expect(json.counts.readyToDistill).toBe(1);
+    expect(json.counts.readyToHandoff).toBe(1);
     expect(json.counts.missingInfluence).toBe(1);
-    expect(json.workflow.byStage.distill).toBe(1);
+    expect(json.workflow.byStage.handoff).toBe(1);
   });
 
   test("status surfaces canonical project-truth targets for project-bound research", () => {
@@ -44,7 +44,7 @@ describe("research pipeline surface", () => {
     ]);
   });
 
-  test("distill records the project-truth target and promotes verified research to applied", () => {
+  test("handoff records the project-truth target and promotes verified research to applied", () => {
     const vault = tempDir("wiki-vault");
     initVault(vault);
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
@@ -54,7 +54,7 @@ describe("research pipeline surface", () => {
     const pagePath = join(vault, "research", "demo-topic", "verified-note.md");
     writeFileSync(pagePath, `---\ntitle: Verified Note\ntype: research\ntopic: demo-topic\nproject: demo\nstatus: verified\nsource_type: article\nsources:\n  - url: https://example.com\n    accessed: 2026-04-20\n    claim: Verified claim\ninfluenced_by: []\nupdated: 2026-04-20\nverification_level: source-checked\n---\n# Verified Note\n\n## Key Findings\n\n- source: [1]\n`, "utf8");
 
-    const result = runWiki(["research", "distill", "research/demo-topic/verified-note", "projects/demo/decisions", "--json"], env);
+    const result = runWiki(["research", "handoff", "research/demo-topic/verified-note", "projects/demo/decisions", "--json"], env);
     expect(result.exitCode).toBe(0);
     const json = JSON.parse(result.stdout.toString());
     expect(json.applied).toBe(true);
@@ -65,7 +65,7 @@ describe("research pipeline surface", () => {
     expect(content).toContain("projects/demo/decisions");
   });
 
-  test("distill records the handoff target without overstating unverified research", () => {
+  test("handoff records the target without overstating unverified research", () => {
     const vault = tempDir("wiki-vault");
     initVault(vault);
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
@@ -75,7 +75,7 @@ describe("research pipeline surface", () => {
     const pagePath = join(vault, "research", "demo-topic", "draft-note.md");
     writeFileSync(pagePath, `---\ntitle: Draft Note\ntype: research\ntopic: demo-topic\nproject: demo\nstatus: reviewed\nsource_type: article\nsources:\n  - url: https://example.com\n    accessed: 2026-04-20\n    claim: Early claim\ninfluenced_by: []\nupdated: 2026-04-20\nverification_level: unverified\n---\n# Draft Note\n\n## Key Findings\n\n- source: [1]\n`, "utf8");
 
-    const result = runWiki(["research", "distill", "research/demo-topic/draft-note", "projects/demo/architecture/domain-language", "--json"], env);
+    const result = runWiki(["research", "handoff", "research/demo-topic/draft-note", "projects/demo/architecture/domain-language", "--json"], env);
     expect(result.exitCode).toBe(0);
     const json = JSON.parse(result.stdout.toString());
     expect(json.applied).toBe(false);
@@ -85,7 +85,7 @@ describe("research pipeline surface", () => {
     expect(content).toContain("projects/demo/architecture/domain-language");
   });
 
-  test("distill rejects slice docs as targets and adopt bridges research into the parent PRD", () => {
+  test("handoff rejects slice docs as targets and bridge links research into the parent PRD", () => {
     const vault = tempDir("wiki-vault");
     initVault(vault);
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
@@ -99,24 +99,42 @@ describe("research pipeline surface", () => {
     const pagePath = join(vault, "research", "demo-topic", "verified-note.md");
     writeFileSync(pagePath, `---\ntitle: Verified Note\ntype: research\ntopic: demo-topic\nproject: demo\nstatus: verified\nsource_type: article\nsources:\n  - url: https://example.com\n    accessed: 2026-04-20\n    claim: Verified claim\ninfluenced_by: []\nupdated: 2026-04-20\nverification_level: source-checked\n---\n# Verified Note\n\n## Key Findings\n\n- source: [1]\n`, "utf8");
 
-    const badDistill = runWiki(["research", "distill", "research/demo-topic/verified-note", "projects/demo/specs/slices/DEMO-001/index"], env);
-    expect(badDistill.exitCode).toBe(1);
-    expect(badDistill.stderr.toString()).toContain("invalid distill target");
+    const badHandoff = runWiki(["research", "handoff", "research/demo-topic/verified-note", "projects/demo/specs/slices/DEMO-001/index"], env);
+    expect(badHandoff.exitCode).toBe(1);
+    expect(badHandoff.stderr.toString()).toContain("invalid handoff target");
 
-    const distill = runWiki(["research", "distill", "research/demo-topic/verified-note", "projects/demo/decisions", "--json"], env);
-    expect(distill.exitCode).toBe(0);
-    expect(JSON.parse(distill.stdout.toString()).target).toBe("projects/demo/decisions");
+    const handoff = runWiki(["research", "handoff", "research/demo-topic/verified-note", "projects/demo/decisions", "--json"], env);
+    expect(handoff.exitCode).toBe(0);
+    expect(JSON.parse(handoff.stdout.toString()).target).toBe("projects/demo/decisions");
 
-    const adopt = runWiki(["research", "adopt", "research/demo-topic/verified-note", "--project", "demo", "--slice", "DEMO-001", "--json"], env);
-    expect(adopt.exitCode).toBe(0);
-    const adoptJson = JSON.parse(adopt.stdout.toString());
-    expect(adoptJson.parentPrd).toBe("PRD-001");
-    expect(adoptJson.addedToPrd).toBe(true);
+    const bridge = runWiki(["research", "bridge", "research/demo-topic/verified-note", "--project", "demo", "--slice", "DEMO-001", "--json"], env);
+    expect(bridge.exitCode).toBe(0);
+    const bridgeJson = JSON.parse(bridge.stdout.toString());
+    expect(bridgeJson.parentPrd).toBe("PRD-001");
+    expect(bridgeJson.addedToPrd).toBe(true);
 
     const prdContent = readFileSync(join(vault, "projects", "demo", "specs", "prds", "PRD-001-auth-workflow.md"), "utf8");
     expect(prdContent).toContain("[[research/demo-topic/verified-note]]");
 
     const noteContent = readFileSync(pagePath, "utf8");
     expect(noteContent).toContain("projects/demo/specs/prds/PRD-001-auth-workflow");
+  });
+
+  test("legacy distill/adopt aliases still route to handoff/bridge behavior", () => {
+    const vault = tempDir("wiki-vault");
+    initVault(vault);
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    expect(runWiki(["create-feature", "demo", "auth platform"], env).exitCode).toBe(0);
+    expect(runWiki(["create-prd", "demo", "--feature", "FEAT-001", "auth workflow"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice", "--prd", "PRD-001"], env).exitCode).toBe(0);
+    expect(runWiki(["research", "scaffold", "demo-topic"], env).exitCode).toBe(0);
+
+    const pagePath = join(vault, "research", "demo-topic", "verified-note.md");
+    writeFileSync(pagePath, `---\ntitle: Verified Note\ntype: research\ntopic: demo-topic\nproject: demo\nstatus: verified\nsource_type: article\nsources:\n  - url: https://example.com\n    accessed: 2026-04-20\n    claim: Verified claim\ninfluenced_by: []\nupdated: 2026-04-20\nverification_level: source-checked\n---\n# Verified Note\n\n## Key Findings\n\n- source: [1]\n`, "utf8");
+
+    expect(runWiki(["research", "distill", "research/demo-topic/verified-note", "projects/demo/decisions", "--json"], env).exitCode).toBe(0);
+    expect(runWiki(["research", "adopt", "research/demo-topic/verified-note", "--project", "demo", "--slice", "DEMO-001", "--json"], env).exitCode).toBe(0);
   });
 });

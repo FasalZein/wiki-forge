@@ -4,8 +4,8 @@ import { nowIso, orderFrontmatter, safeMatter, writeNormalizedPage } from "../cl
 import { exists, readText } from "../lib/fs";
 import { classifyResearchPath, normalizeInfluencedBy, normalizeResearchPageRef, normalizeWikiTarget } from "../lib/research";
 
-export async function distillResearch(args: string[]) {
-  const { pageRef, targetRef, json } = parseDistillArgs(args);
+export async function handoffResearch(args: string[]) {
+  const { pageRef, targetRef, json } = parseHandoffArgs(args);
   const notePath = join(VAULT_ROOT, `${pageRef}.md`);
   if (!await exists(notePath)) throw new Error(`research page not found: ${pageRef}`);
   if (classifyResearchPath(`${pageRef}.md`) !== "research-page") throw new Error(`not a research page: ${pageRef}`);
@@ -16,9 +16,9 @@ export async function distillResearch(args: string[]) {
 
   const project = typeof parsed.data.project === "string" ? parsed.data.project.trim() : null;
   if (project && !targetRef.startsWith(`projects/${project}/`)) {
-    throw new Error(`distill target must stay inside projects/${project}/ for project-bound research`);
+    throw new Error(`handoff target must stay inside projects/${project}/ for project-bound research`);
   }
-  if (!isValidDistillTarget(targetRef)) throw new Error(`invalid distill target: ${targetRef}`);
+  if (!isValidHandoffTarget(targetRef)) throw new Error(`invalid handoff target: ${targetRef}`);
 
   const influencedBy = normalizeInfluencedBy(parsed.data.influenced_by);
   const hadTarget = influencedBy.includes(targetRef);
@@ -46,25 +46,27 @@ export async function distillResearch(args: string[]) {
     console.log(JSON.stringify(result, null, 2));
     return;
   }
-  console.log(`research distill: ${pageRef} -> ${targetRef}`);
+  console.log(`research handoff: ${pageRef} -> ${targetRef}`);
   console.log(`- status: ${nextStatus}`);
   console.log(`- target recorded: ${hadTarget ? "already present" : "added to influenced_by"}`);
   console.log(`- next: ${result.nextAction}`);
 }
 
-function parseDistillArgs(args: string[]) {
+export const distillResearch = handoffResearch;
+
+function parseHandoffArgs(args: string[]) {
   const positionals = args.filter((arg) => !arg.startsWith("--"));
   const page = positionals[0];
   const target = positionals[1];
   if (!page) throw new Error("missing research page");
-  if (!target) throw new Error("missing distill target");
+  if (!target) throw new Error("missing handoff target");
   const pageRef = normalizeResearchPageRef(page);
   if (!pageRef) throw new Error("missing research page");
   const targetRef = normalizeWikiTarget(target);
-  if (!targetRef) throw new Error("missing distill target");
+  if (!targetRef) throw new Error("missing handoff target");
   return { pageRef, targetRef, json: args.includes("--json") };
 }
 
-function isValidDistillTarget(targetRef: string) {
+function isValidHandoffTarget(targetRef: string) {
   return /^projects\/[^/]+\/(?:decisions|architecture\/domain-language)$/u.test(targetRef);
 }

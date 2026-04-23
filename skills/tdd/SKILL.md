@@ -172,4 +172,4 @@ Every code change MUST have corresponding tests. This is non-negotiable:
 
 `wiki gate` enforces this — it hard-blocks on missing tests for changed files. The gate does not accept excuses.
 
-After TDD + `/wiki` closeout, run `/improve-codebase-architecture` at cadence boundaries and then `/desloppify`. See forge SKILL.md for the full pipeline.
+After TDD, return to the tracked forge execution path. At cadence boundaries, run `/improve-codebase-architecture`, then finish with `/desloppify`. See forge SKILL.md for the conceptual skill chain versus the compact command surface.

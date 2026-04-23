@@ -56,8 +56,8 @@ Use the smallest fitting command:
 | compact review surface | `wiki closeout <project> --repo <path> --base <rev>` |
 | completion gate | `wiki gate <project> --repo <path> --base <rev>` |
 | file project research | `wiki research file <topic> [--project <project>] <title>` |
-| hand accepted conclusions into project truth | `wiki research distill <research-page> <projects/<project>/decisions|projects/<project>/architecture/domain-language>` |
-| bridge accepted research into a tracked slice | `wiki research adopt <research-page> --project <project> --slice <slice-id>` |
+| hand accepted conclusions into project truth | `wiki research handoff <research-page> <projects/<project>/decisions|projects/<project>/architecture/domain-language>` |
+| bridge accepted research into a tracked slice | `wiki research bridge <research-page> --project <project> --slice <slice-id>` |
 | project Q&A | `wiki ask <project> <question>` |
 | resume session context | `wiki resume <project> --repo <path> --base <rev>` |
 
@@ -120,10 +120,10 @@ Use `/research` for investigation. Use `wiki research ...` for filing and handof
 1. `wiki research file <topic> [--project <project>] <title>`
 2. `wiki research ingest <topic> <source>`
 3. `wiki research status [topic]`
-4. `wiki research distill <research-page> <projects/...>`
-5. if the result unblocks a tracked slice: `wiki research adopt <research-page> --project <project> --slice <slice-id>`
+4. `wiki research handoff <research-page> <projects/...>`
+5. if the result unblocks a tracked slice: `wiki research bridge <research-page> --project <project> --slice <slice-id>`
 
-Distill updates project truth. Adopt bridges accepted findings into forge-visible slice workflow.
+Handoff updates project truth. Bridge links accepted findings into forge-visible slice workflow.
 
 ## Debug Playbook
 

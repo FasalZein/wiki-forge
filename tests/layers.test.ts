@@ -106,8 +106,8 @@ describe("skill layer separation", () => {
     expect(wikiSkill).toContain("`wiki acknowledge-impact <project> <page...> --repo <path>`");
     expect(wikiSkill).toContain("`wiki bind <project> <page> <source-path...>`");
     expect(wikiSkill).toContain("## Freshness Repair Path");
-    expect(wikiSkill).toContain("`wiki research adopt <research-page> --project <project> --slice <slice-id>`");
-    expect(wikiSkill).toContain("Distill updates project truth. Adopt bridges accepted findings into forge-visible slice workflow.");
+    expect(wikiSkill).toContain("`wiki research bridge <research-page> --project <project> --slice <slice-id>`");
+    expect(wikiSkill).toContain("Handoff updates project truth. Bridge links accepted findings into forge-visible slice workflow.");
     expect(wikiSkill).toContain("wiki help --all");
     expect(wikiSkill).toContain("one authoritative wiki/vault");
     expect(wikiSkill).toContain("wiki = second brain / memory");
@@ -139,7 +139,9 @@ describe("skill layer separation", () => {
     expect(writePrdSkill).toContain("projects/<project>/architecture/domain-language.md");
     expect(writePrdSkill).not.toContain("research and grilling");
 
-    expect(forgeSkill).toContain("research -> domain-model -> PRD");
+    expect(forgeSkill).toContain("wiki research -> /domain-model");
+    expect(forgeSkill).toContain("/torpathy");
+    expect(forgeSkill).toContain("/write-a-prd -> /prd-to-slices -> /tdd -> /desloppify");
     expect(forgeSkill).not.toContain("companion skills");
     expect(forgeSkill).toContain("## Router");
     expect(forgeSkill).toContain("## State Table");
@@ -155,7 +157,7 @@ describe("skill layer separation", () => {
     expect(forgeSkill).toContain("`wiki acknowledge-impact <project> <page...> --repo <path>`");
     expect(forgeSkill).toContain("`wiki refresh-from-git <project> --repo <path> --base <rev>`");
     expect(forgeSkill).toContain("`wiki bind <project> <page> <source-path...> [--mode replace|merge]`");
-    expect(forgeSkill).toContain("wiki research adopt <research-page> --project <project> --slice <slice-id>");
+    expect(forgeSkill).toContain("wiki research bridge <research-page> --project <project> --slice <slice-id>");
     expect(forgeSkill).toContain("one authoritative wiki/vault");
     expect(forgeSkill).toContain("wiki help --all");
     expect(forgeSkill).toContain("rerun verify-slice");
