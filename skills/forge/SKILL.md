@@ -21,9 +21,11 @@ Use it when changing runtime/product behavior, continuing a slice, or closing ve
 
 ## Contract
 
-Follow the steering packet from `wiki resume`, `wiki forge next`, or `wiki forge status`. It includes the current phase, required skill, iteration contract, quality gates, and review gates.
+Follow the steering packet from `wiki resume`, `wiki forge next`, or `wiki forge status`. It includes the current phase, required skill, iteration contract, subagent policy, quality gates, and review gates.
 
 Normal chain: `wiki research -> /domain-model` (+ `/torpathy` when design pressure is flagged) `-> /write-a-prd -> /prd-to-slices -> /tdd -> /desloppify`.
+
+After planning, obey the runtime subagent policy: evaluate subagent-driven vs linear implementation before TDD edits, choose linear when subagents would create conflicts, and use the required reviewer subagents before closeout.
 
 `tdd` and `verify` are not skippable. Research, domain-model, PRD, and slices may be skipped only with an audited `wiki forge skip` reason.
 
@@ -37,3 +39,5 @@ After editing repo skill files, run:
 bun run sync:local
 bun run sync:local -- --audit
 ```
+
+Then restart the agent session.

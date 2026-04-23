@@ -31,4 +31,4 @@ Use it for project Q&A, research filing, source binding, drift repair, checkpoin
 
 Do not hand-edit freshness metadata or generated pages when a `wiki` command owns the surface.
 
-After editing repo skill files, run `bun run sync:local` and `bun run sync:local -- --audit`.
+After editing repo skill files, run `bun run sync:local` and `bun run sync:local -- --audit`, then restart the agent session.

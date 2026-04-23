@@ -12,14 +12,15 @@ Tests must describe observable behavior through public interfaces. Avoid impleme
 
 ## Loop
 
-1. Read the slice `plan.md` and `test-plan.md`.
-2. Pick one behavior.
-3. Write one failing test.
-4. Implement the smallest code change that passes it.
-5. Refactor only while green.
-6. Repeat until the slice acceptance criteria are covered.
-7. Run the verification commands from the test plan.
-8. Return to `wiki forge run <project> <slice> --repo <path>` for verify, desloppify, review, closeout, and gate.
+1. Read the slice `plan.md`, `test-plan.md`, and current Forge steering packet.
+2. If the packet requires subagent-vs-linear evaluation, record the subagent-vs-linear decision with conflict rationale before implementation edits, covering file ownership, shared state/migration risk, coordination cost, and hidden context/artifact handoff risk.
+3. Pick one behavior.
+4. Write one failing test.
+5. Implement the smallest code change that passes it.
+6. Refactor only while green.
+7. Repeat until the slice acceptance criteria are covered.
+8. Run the verification commands from the test plan.
+9. Return to `wiki forge run <project> <slice> --repo <path>` for verify, desloppify, review, closeout, and gate.
 
 ## Commands
 
@@ -34,4 +35,4 @@ No code without a behavior test. No exceptions.
 
 Do not batch all tests first and all implementation second. Use tracer bullets: one red test, one green implementation, then refactor.
 
-After editing repo skill files, run `bun run sync:local` and `bun run sync:local -- --audit`.
+After editing repo skill files, run `bun run sync:local` and `bun run sync:local -- --audit`, then restart the agent session.
