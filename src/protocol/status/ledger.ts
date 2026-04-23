@@ -3,6 +3,7 @@ import { VAULT_ROOT } from "../../constants";
 import {
   FORGE_PHASES,
   normalizeForgeLedger,
+  normalizeForgeWorkflowProfile,
   readForgeLedgerPhase,
   writeForgeLedgerPhase,
   type ForgeWorkflowLedger,
@@ -49,6 +50,7 @@ export function buildAuthoredForgeStatusLedger(input: BuildAuthoredForgeStatusLe
   return {
     project: input.project,
     sliceId: input.sliceId,
+    workflowProfile: normalizeForgeWorkflowProfile(input.hub?.data.workflow_profile),
     ...(input.parentPrd ? { parentPrd: input.parentPrd } : {}),
     ...(researchRefs.length ? { research: { completedAt: readUpdated(input.prdDoc?.data), researchRefs } } : {}),
     ...(input.decisionRefs.length
@@ -99,6 +101,9 @@ export function readAuthoredHubLedger(value: unknown, project: string, sliceId: 
   if (!value || typeof value !== "object") return { project, sliceId };
   const ledger = value as Record<string, unknown>;
   const out: Partial<ForgeWorkflowLedger> = { project, sliceId };
+  if (typeof ledger.workflowProfile === "string" || typeof ledger.workflow_profile === "string") {
+    out.workflowProfile = normalizeForgeWorkflowProfile(ledger.workflowProfile ?? ledger.workflow_profile);
+  }
   for (const phase of FORGE_PHASES) {
     const phaseValue = phase === "domain-model" ? ledger["domain-model"] ?? ledger.grill : ledger[phase];
     if (phaseValue && typeof phaseValue === "object") {

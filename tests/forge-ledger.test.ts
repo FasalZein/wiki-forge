@@ -81,4 +81,30 @@ describe("forge workflow ledger", () => {
     expect(validation.nextPhase).toBeNull();
     expect(validation.statuses.every((status) => status.completed)).toBe(true);
   });
+
+  test("bootstrap profile skips research and domain-model requirements", () => {
+    const ledger: ForgeWorkflowLedger = {
+      project: "wiki-forge",
+      sliceId: "WIKI-FORGE-189",
+      workflowProfile: "bootstrap",
+      parentPrd: "PRD-080",
+      prd: { completedAt: "2026-04-23T00:20:00Z", prdRef: "PRD-080", parentPrd: "PRD-080" },
+      slices: { completedAt: "2026-04-23T00:30:00Z", sliceRefs: ["WIKI-FORGE-189"] },
+      tdd: { completedAt: "2026-04-23T00:40:00Z", tddEvidence: ["bun test tests/forge-ledger.test.ts"] },
+    };
+
+    const validation = validateForgeWorkflowLedger(ledger);
+    expect(validation.ok).toBe(false);
+    expect(validation.nextPhase).toBe("verify");
+    expect(validation.statuses.find((status) => status.phase === "research")).toMatchObject({
+      completed: true,
+      missing: [],
+      blockedBy: [],
+    });
+    expect(validation.statuses.find((status) => status.phase === "domain-model")).toMatchObject({
+      completed: true,
+      missing: [],
+      blockedBy: [],
+    });
+  });
 });

@@ -1,9 +1,17 @@
 export const FORGE_PHASES = ["research", "domain-model", "prd", "slices", "tdd", "verify"] as const;
 export type ForgePhase = (typeof FORGE_PHASES)[number];
+export const FORGE_WORKFLOW_PROFILES = ["full", "bootstrap"] as const;
+export type ForgeWorkflowProfile = (typeof FORGE_WORKFLOW_PROFILES)[number];
+
+const REQUIRED_PHASES_BY_PROFILE: Record<ForgeWorkflowProfile, ForgePhase[]> = {
+  full: [...FORGE_PHASES],
+  bootstrap: ["prd", "slices", "tdd", "verify"],
+};
 
 export type ForgeWorkflowLedger = {
   project: string;
   sliceId: string;
+  workflowProfile?: ForgeWorkflowProfile;
   parentPrd?: string;
   research?: {
     completedAt?: string;
@@ -80,6 +88,14 @@ export function normalizeForgeLedger(ledger: Partial<ForgeWorkflowLedger>): Part
   return normalized;
 }
 
+export function normalizeForgeWorkflowProfile(value: unknown): ForgeWorkflowProfile {
+  return value === "bootstrap" ? "bootstrap" : "full";
+}
+
+export function requiredForgePhases(profile: ForgeWorkflowProfile): ForgePhase[] {
+  return REQUIRED_PHASES_BY_PROFILE[profile];
+}
+
 const PHASE_REQUIREMENTS: Record<ForgePhase, (ledger: ForgeWorkflowLedger) => string[]> = {
   research: (ledger) => {
     const missing: string[] = [];
@@ -122,10 +138,22 @@ const PHASE_REQUIREMENTS: Record<ForgePhase, (ledger: ForgeWorkflowLedger) => st
 };
 
 export function validateForgeWorkflowLedger(ledger: ForgeWorkflowLedger): ForgeWorkflowValidation {
+  const workflowProfile = normalizeForgeWorkflowProfile(ledger.workflowProfile);
+  const requiredPhases = new Set(requiredForgePhases(workflowProfile));
   const statuses: ForgePhaseStatus[] = [];
   let previousIncomplete: ForgePhase[] = [];
 
   for (const phase of FORGE_PHASES) {
+    if (!requiredPhases.has(phase)) {
+      statuses.push({
+        phase,
+        completed: true,
+        ready: true,
+        missing: [],
+        blockedBy: [],
+      });
+      continue;
+    }
     const missing = PHASE_REQUIREMENTS[phase](ledger);
     const completed = missing.length === 0 && previousIncomplete.length === 0;
     const ready = previousIncomplete.length === 0;
