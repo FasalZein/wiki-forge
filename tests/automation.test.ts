@@ -224,7 +224,7 @@ describe("wiki automation commands", () => {
     // Create a module page that also binds to src/payments.ts (actionable coverage).
     expect(runWiki(["create-module", "gated", "payments", "--source", "src/payments.ts"], env).exitCode).toBe(0);
     expect(runWiki(["verify-page", "gated", "modules/payments/spec", "code-verified"], env).exitCode).toBe(0);
-    // Create a done-slice that also binds to src/payments.ts (historical, should be suppressed).
+    // Historical done-slice binding exercises stale-page suppression.
     expect(runWiki(["create-issue-slice", "gated", "old payments work", "--source", "src/payments.ts"], env).exitCode).toBe(0);
     expect(runWiki(["complete-task", "gated", "GATED-001"], env).exitCode).toBe(0);
     // Repair sets status: done on slice docs (complete-task only moves in backlog).
@@ -234,16 +234,12 @@ describe("wiki automation commands", () => {
     writeFileSync(join(repo, "src", "payments.ts"), "export const total = 99\n", "utf8");
     writeFileSync(join(repo, "tests", "payments.test.ts"), "import { expect, test } from 'bun:test'\nimport { total } from '../src/payments'\ntest('total', () => expect(total).toBe(99))\n", "utf8");
 
-    // The done-slice page should be suppressed, not blocking.
     const closeout = runWiki(["closeout", "gated", "--repo", repo, "--worktree", "--json"], env);
     const closeoutJson = JSON.parse(closeout.stdout.toString());
-    // staleImpactedPages should only contain the module page, not the done-slice pages.
     const staleWikiPages = closeoutJson.staleImpactedPages.map((p: { wikiPage: string }) => p.wikiPage);
     expect(staleWikiPages.some((p: string) => p.includes("specs/slices/GATED-001"))).toBe(false);
-    // suppressedPages should contain the done-slice pages.
     expect(closeoutJson.suppressedPages.length).toBeGreaterThan(0);
     expect(closeoutJson.suppressedPages.some((p: { page: string }) => p.page.includes("specs/slices/GATED-001"))).toBe(true);
-    // Warning should mention suppressed pages.
     expect(closeoutJson.warnings.some((w: string) => w.includes("suppressed"))).toBe(true);
   });
 
@@ -354,9 +350,7 @@ describe("wiki automation commands", () => {
     const maintain = runWiki(["maintain", "gated", "--repo", repo, "--worktree", "--json"], env);
     expect(maintain.exitCode).toBe(0);
     const maintainJson = JSON.parse(maintain.stdout.toString());
-    // File should be uncovered since the only page binding it is a suppressed done-slice.
     expect(maintainJson.refreshFromGit.uncoveredFiles).toContain("src/payments.ts");
-    // The done-slice page should be in suppressedPages, not impactedPages.
     expect(maintainJson.refreshFromGit.suppressedPages.length).toBeGreaterThan(0);
     expect(maintainJson.refreshFromGit.impactedPages.every((p: { page: string }) => !p.page.includes("specs/slices/GATED-001"))).toBe(true);
   });

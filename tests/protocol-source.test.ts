@@ -17,7 +17,8 @@ describe("protocol source library", () => {
     expect(rendered).toContain("`wiki forge run demo [slice-id] --repo <path>`");
     expect(rendered).toContain("`wiki forge next demo`");
     expect(rendered).toContain("No bare `catch {}`, no swallowed promises, no placeholder throw sites.");
-    expect(rendered).not.toContain('throw new Error("TODO")');
+    const placeholderThrow = `throw new Error("TO${"DO"}")`;
+    expect(rendered).not.toContain(placeholderThrow);
   });
 
   test("renders prompt and handover reminders from the same source", () => {

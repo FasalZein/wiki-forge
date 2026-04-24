@@ -69,22 +69,13 @@ export async function collectCloseout(project: string, base: string, explicitRep
     if (action._apply) await action._apply();
   }
   // Apply-then-collect ordering (PRD-055):
-  //  1. Apply R2/R3 lifecycle drift actions (rewrites status/reopened_reason/superseded_by).
-  //  2. Re-collect R1 (hierarchy status) with fresh closures so R1 doesn't overwrite R2's writes.
-  //  3. Apply fresh R1 (writes computed_status on updated pages).
-  //  4. Re-collect both to get post-heal state for the findings flatten pass.
-  // This guarantees auto-healed actions never appear as warnings in the same run.
   let hierarchyActions = initialHierarchyActions;
   let lifecycleDriftActions = initialLifecycleDriftActions;
   const anyLifecycleApplied = initialLifecycleDriftActions.some((a) => !!a._apply);
   if (anyLifecycleApplied || initialHierarchyActions.some((a) => !!a._apply)) {
-    // Step 1: apply R2/R3 (lifecycle drift with _apply)
     for (const action of initialLifecycleDriftActions) action._apply?.();
-    // Step 2: re-collect R1 with fresh closures (post R2/R3 disk state)
     const freshHierarchyActions = anyLifecycleApplied ? await collectHierarchyStatusActions(project) : initialHierarchyActions;
-    // Step 3: apply fresh R1
     for (const action of freshHierarchyActions) action._apply?.();
-    // Step 4: re-collect both to get post-heal state for findings
     [hierarchyActions, lifecycleDriftActions] = await Promise.all([
       collectHierarchyStatusActions(project),
       collectLifecycleDriftActions(project),

@@ -35,11 +35,14 @@ export type FreshnessChurnClassification = {
 export function classifyFreshnessChurn(changedFiles: string[]): FreshnessChurnClassification {
   const normalized = changedFiles.map((file) => file.replaceAll("\\", "/")).filter(Boolean).sort();
   const semanticFiles = normalized.filter((file) => !isSemanticNeutralPath(file));
+  let reason: FreshnessChurnClassification["reason"] = "semantic";
+  if (normalized.length === 0) reason = "no-changes";
+  else if (semanticFiles.length === 0) reason = "semantic-neutral";
   return {
     semanticNeutral: semanticFiles.length === 0,
     neutralFiles: normalized.filter((file) => !semanticFiles.includes(file)),
     semanticFiles,
-    reason: normalized.length === 0 ? "no-changes" : semanticFiles.length === 0 ? "semantic-neutral" : "semantic",
+    reason,
   };
 }
 

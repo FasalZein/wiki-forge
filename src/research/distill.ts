@@ -26,7 +26,9 @@ export async function handoffResearch(args: string[]) {
   const nextInfluencedBy = hadTarget ? influencedBy : [...influencedBy, targetRef];
   const verification = typeof parsed.data.verification_level === "string" ? parsed.data.verification_level : "unverified";
   const applied = verification !== "unverified";
-  const nextStatus = applied ? "applied" : (typeof parsed.data.status === "string" ? parsed.data.status : "draft");
+  let nextStatus = "draft";
+  if (applied) nextStatus = "applied";
+  else if (typeof parsed.data.status === "string") nextStatus = parsed.data.status;
   const data = orderFrontmatter({
     ...parsed.data,
     status: nextStatus,
