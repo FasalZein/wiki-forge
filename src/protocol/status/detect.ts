@@ -25,7 +25,7 @@
  */
 
 import { join, relative } from "node:path";
-import { VAULT_ROOT, STALE_UNVERIFIED_DAYS } from "../../constants";
+import { VAULT_ROOT } from "../../constants";
 import { safeMatter } from "../../cli-shared";
 import { appendText, ensureDir, exists, readText } from "../../lib/fs";
 import { FORGE_PHASES, readForgeLedgerPhase, writeForgeLedgerPhase, type ForgeWorkflowLedger, type ForgePhase } from "./workflow-ledger";
@@ -38,13 +38,13 @@ import {
   detectVerifyPhase,
   tailLogFromPath,
   type DetectionFinding,
-} from "../../slice";
+} from "./evidence-readers";
 
 // ---------------------------------------------------------------------------
 // Public types
 // ---------------------------------------------------------------------------
 
-export type { DetectionFinding } from "../../slice";
+export type { DetectionFinding } from "./evidence-readers";
 
 export type DerivedForgeLedger = {
   /** Fields that should fill gaps in the authored ledger. */

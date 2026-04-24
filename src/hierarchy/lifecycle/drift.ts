@@ -8,7 +8,12 @@ import { projectSlicesDir } from "../../lib/structure";
 import { appendLogEntry } from "../../lib/log";
 import { appendAutoHealLogEntry, tailAutoHealLog } from "../../lib/auto-heal-log";
 import { rewriteBacklogRowMarker, getBacklogRowMarker } from "../backlog/io";
-import type { MaintenanceAction } from "../../maintenance/shared";
+type MaintenanceAction = {
+  kind: string;
+  scope?: "slice" | "parent" | "project" | "history";
+  message: string;
+  _apply?: () => void | Promise<void>;
+};
 
 // ─── slice detail for R2/R3 analysis ─────────────────────────────────────────
 

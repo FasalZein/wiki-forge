@@ -8,7 +8,12 @@ import { readVerificationLevel } from "../../lib/verification";
 import { projectFeaturesDir, projectPrdsDir, projectSlicesDir } from "../../lib/structure";
 import { computeStatus, type HierarchyStatus, type SliceState } from "../status/compute";
 import { appendLogEntry } from "../../lib/log";
-import type { MaintenanceAction } from "../../maintenance/shared";
+type MaintenanceAction = {
+  kind: string;
+  scope?: "slice" | "parent" | "project" | "history";
+  message: string;
+  _apply?: () => void | Promise<void>;
+};
 import { collectFeatureStatuses } from "../status";
 import { collectSliceDetails, buildLifecycleDriftAction } from "./drift";
 

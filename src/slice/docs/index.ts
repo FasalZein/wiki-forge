@@ -15,6 +15,5 @@ export {
 } from "./readers";
 export { classifySliceLocalPageScope, collectSliceLocalContext, fileMatchesSliceClaims } from "./local-scope";
 export { isHistoricalDoneSlicePage } from "./query";
-export { createIssueSlice } from "./scaffold";
 export type { SliceDocKind } from "./readers";
 export type { SliceLocalContext } from "./local-scope";

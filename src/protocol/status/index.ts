@@ -115,6 +115,15 @@ export {
 } from "./ledger";
 export { buildForgeTriage } from "./triage";
 export { applyDerivedLedger, deriveForgeLedgerFromArtifacts, mergeDerivedForgeLedger } from "./detect";
+export {
+  detectDomainModelRefs,
+  detectPrdRefs,
+  detectResearchRefs,
+  detectSlicesPhase,
+  detectTddEvidence,
+  detectVerifyPhase,
+  tailLogFromPath,
+} from "./evidence-readers";
 export { collectPriorResearchRefs, extractMarkdownSection, readMatterDoc, readPlanningDoc } from "./evidence";
 export {
   FORGE_PHASES,
@@ -128,7 +137,8 @@ export {
   writeForgeLedgerPhase,
 } from "./workflow-ledger";
 export type { MatterDoc } from "./evidence";
-export type { DetectionFinding, DerivedForgeLedger } from "./detect";
+export type { DerivedForgeLedger } from "./detect";
+export type { DetectionFinding } from "./evidence-readers";
 export type { ForgeTriageInput } from "./triage";
 export type {
   ForgePhase,

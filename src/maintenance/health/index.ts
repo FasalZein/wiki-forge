@@ -1,5 +1,4 @@
 import { CODE_FILE_PATTERN } from "../../constants";
-import { slugify } from "../../hierarchy";
 
 // Normalize file basenames for matching: strip conventional suffixes
 // (both dotted like ".service" and hyphenated like "-service") and
@@ -62,6 +61,10 @@ function testMatchKeys(file: string) {
   }
   if (/(^|\/)(cli-)?smoke\.test\.[^.]+$/u.test(normalized) || /(^|\/)[^/]+\.smoke\.test\.[^.]+$/u.test(normalized)) keys.add("global-cli");
   return [...keys];
+}
+
+function slugify(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").replace(/-{2,}/g, "-") || "spec";
 }
 
 export function guessModuleName(file: string) {
