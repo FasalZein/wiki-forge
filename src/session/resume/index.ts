@@ -17,6 +17,7 @@ import {
   projectLogEntries,
   renderSessionActivity,
 } from "../shared";
+import { printError, printJson, printLine } from "../../lib/cli-output";
 
 async function findLatestHandover(project: string): Promise<string | null> {
   const dir = join(projectRoot(project), "handovers");
@@ -39,7 +40,7 @@ export async function resumeProject(args: string[]) {
     fallbackLabel: "resume",
   });
   const json = args.includes("--json");
-  if (options.baseFallbackNote) console.error(options.baseFallbackNote);
+  if (options.baseFallbackNote) printError(options.baseFallbackNote);
   const repo = await resolveRepoPath(options.project, options.repo);
   await assertGitRepo(repo);
   const [maintain, checkpoint, sessionActivity, latestHandoverPath] = await Promise.all([
@@ -127,30 +128,30 @@ export async function resumeProject(args: string[]) {
     ...(handoverMeta ? { lastHandover: { path: relative(VAULT_ROOT, latestHandoverPath!), ...handoverMeta } } : {}),
   };
   if (json) {
-    console.log(JSON.stringify(payload, null, 2));
+    printJson(payload);
     return;
   }
-  for (const line of renderSteeringPacket(payload.steering)) console.log(`- ${line}`);
+  for (const line of renderSteeringPacket(payload.steering)) printLine(`- ${line}`);
   const showsRecovery =
     payload.triage.kind === "resume-failed-forge" || isPrePhaseTriage(payload.triage);
   const focusId = payload.activeTask?.id ?? payload.nextTask?.id ?? null;
   if (showsRecovery && focusId) {
-    console.log(`  recovery: wiki forge release ${options.project} ${focusId}`);
+    printLine(`  recovery: wiki forge release ${options.project} ${focusId}`);
   }
-  console.log("");
+  printLine("");
   if (noHandoverButBreadcrumb) {
-    console.log(`⚠  no handover file — resuming from pipeline breadcrumb (previous session ended without wiki handover)`);
-    console.log("");
+    printLine(`⚠  no handover file — resuming from pipeline breadcrumb (previous session ended without wiki handover)`);
+    printLine("");
   } else if (handoverStale) {
-    console.log(`⚠  handover is stale: pipeline ran at ${handoffIso} after handover at ${handoverIso}`);
-    console.log(`   previous session likely ended mid-work; treat breadcrumb as source of truth`);
-    console.log("");
+    printLine(`⚠  handover is stale: pipeline ran at ${handoffIso} after handover at ${handoverIso}`);
+    printLine(`   previous session likely ended mid-work; treat breadcrumb as source of truth`);
+    printLine("");
   }
-  console.log(`resume for ${options.project}:`);
-  if (payload.activeTask) console.log(`- active: ${payload.activeTask.id} ${payload.activeTask.title}`);
-  else if (payload.nextTask) console.log(`- next: ${payload.nextTask.id} ${payload.nextTask.title}`);
+  printLine(`resume for ${options.project}:`);
+  if (payload.activeTask) printLine(`- active: ${payload.activeTask.id} ${payload.activeTask.title}`);
+  else if (payload.nextTask) printLine(`- next: ${payload.nextTask.id} ${payload.nextTask.title}`);
   if (payload.workflowNextPhase !== undefined) {
-    console.log(`- workflow next phase: ${payload.workflowNextPhase ?? "complete"}`);
+    printLine(`- workflow next phase: ${payload.workflowNextPhase ?? "complete"}`);
   }
   if (handoff) {
     const forgeState = handoff.lastForgeState === "running"
@@ -158,44 +159,44 @@ export async function resumeProject(args: string[]) {
       : handoff.lastForgeOk
         ? "PASS"
         : "FAIL";
-    console.log(`- last forge run: ${forgeState} at ${handoff.lastForgeStep} (${handoff.lastForgeRun})`);
+    printLine(`- last forge run: ${forgeState} at ${handoff.lastForgeStep} (${handoff.lastForgeRun})`);
   }
-  console.log(`- dirty: modified=${dirty.modifiedFiles.length} staged=${dirty.stagedFiles.length} untracked=${dirty.untrackedFiles.length}`);
+  printLine(`- dirty: modified=${dirty.modifiedFiles.length} staged=${dirty.stagedFiles.length} untracked=${dirty.untrackedFiles.length}`);
   if (handoverMeta) {
-    console.log(`- last handover: ${relative(VAULT_ROOT, latestHandoverPath!)} (${handoverMeta.status ?? "unknown"})`);
+    printLine(`- last handover: ${relative(VAULT_ROOT, latestHandoverPath!)} (${handoverMeta.status ?? "unknown"})`);
     if (handoverMeta.accomplishments.length) {
-      console.log(`- handover accomplishments:`);
+      printLine(`- handover accomplishments:`);
       for (const line of handoverMeta.accomplishments) {
-        console.log(`  - ${line}`);
+        printLine(`  - ${line}`);
       }
     }
     if (handoverMeta.blockers.length) {
-      console.log(`- handover blockers:`);
+      printLine(`- handover blockers:`);
       for (const line of handoverMeta.blockers) {
-        console.log(`  - ${line}`);
+        printLine(`  - ${line}`);
       }
     }
     if (handoverMeta.trackedArtifacts) {
-      console.log(`- tracked artifacts:`);
+      printLine(`- tracked artifacts:`);
       for (const line of handoverMeta.trackedArtifacts.split("\n")) {
-        console.log(`  ${line}`);
+        printLine(`  ${line}`);
       }
     }
   }
   if (recentCommits.length) {
-    console.log(`- recent commits:`);
-    for (const commit of recentCommits.slice(0, 3)) console.log(`  - ${commit}`);
+    printLine(`- recent commits:`);
+    for (const commit of recentCommits.slice(0, 3)) printLine(`  - ${commit}`);
   }
   if (stalePages.length || recentNotes.length || payload.actionSummary.length) {
-    console.log("");
+    printLine("");
     const hasOnlyBackgroundDebt = stalePages.length === 0 && recentNotes.length === 0;
-    console.log(hasOnlyBackgroundDebt ? `background debt (not blocking):` : `context (for reference, not blocking):`);
-    for (const page of stalePages) console.log(`- stale: ${page}`);
-    for (const note of recentNotes) console.log(`- note: ${compactLogEntry(note)}`);
+    printLine(hasOnlyBackgroundDebt ? `background debt (not blocking):` : `context (for reference, not blocking):`);
+    for (const page of stalePages) printLine(`- stale: ${page}`);
+    for (const note of recentNotes) printLine(`- note: ${compactLogEntry(note)}`);
     if (payload.actionSummary.length) {
-      for (const line of payload.actionSummary) console.log(`- ${line}`);
+      for (const line of payload.actionSummary) printLine(`- ${line}`);
       if (payload.actionCount > payload.actionSummary.length) {
-        console.log(`- +${payload.actionCount - payload.actionSummary.length} more action(s); run wiki maintain ${options.project} --repo ${repo}${options.base ? ` --base ${options.base}` : ""} for full detail`);
+        printLine(`- +${payload.actionCount - payload.actionSummary.length} more action(s); run wiki maintain ${options.project} --repo ${repo}${options.base ? ` --base ${options.base}` : ""} for full detail`);
       }
     }
   }

@@ -18,6 +18,7 @@ import {
   projectTaskTestPlanPath,
   toVaultWikilinkPath,
 } from "../../lib/structure";
+import { printLine } from "../../lib/cli-output";
 
 export type { DirtyRepoStatus };
 export { collectDirtyRepoStatus };
@@ -55,15 +56,15 @@ export function compactLogEntry(entry: string) {
 export function renderSessionActivity(activity: SessionSummary) {
   if (activity.totalCommands === 0) return;
   const span = activity.durationMinutes > 0 ? `, ~${activity.durationMinutes}min` : "";
-  console.log(`- session (${activity.totalCommands} commands${span}):`);
+  printLine(`- session (${activity.totalCommands} commands${span}):`);
   const counts = Object.entries(activity.commandCounts).map(([k, n]) => `${k}=${n}`).join(" ");
-  if (counts) console.log(`    ${counts}`);
+  if (counts) printLine(`    ${counts}`);
   const closed = activity.sliceTransitions.filter((e) => e.cmd === "close-slice" && e.ok).map((e) => e.target);
-  if (closed.length) console.log(`    closed: ${closed.join(", ")}`);
+  if (closed.length) printLine(`    closed: ${closed.join(", ")}`);
   const started = activity.sliceTransitions.filter((e) => e.cmd === "start-slice" && e.ok).map((e) => e.target);
-  if (started.length) console.log(`    started: ${started.join(", ")}`);
+  if (started.length) printLine(`    started: ${started.join(", ")}`);
   for (const err of activity.errors.slice(0, 5)) {
-    console.log(`    failed: ${err.cmd}${err.target ? ` ${err.target}` : ""} (${err.error})`);
+    printLine(`    failed: ${err.cmd}${err.target ? ` ${err.target}` : ""} (${err.error})`);
   }
 }
 

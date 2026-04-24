@@ -6,6 +6,7 @@ import { assertGitRepo, resolveRepoPath } from "../../lib/verification";
 import { collectBacklogFocus } from "../../hierarchy";
 import { collectMaintenancePlan } from "../../maintenance";
 import { resolveDefaultBase } from "../../git-utils";
+import { printJson, printLine } from "../../lib/cli-output";
 
 export async function nextProject(args: string[]) {
   const project = args[0];
@@ -55,19 +56,19 @@ export async function nextProject(args: string[]) {
     ...(steering ? { steering } : {}),
   };
   if (json) {
-    console.log(JSON.stringify(result, null, 2));
+    printJson(result);
     return;
   }
   if (!recommendation) {
-    console.log(`no ready slice found for ${project}`);
+    printLine(`no ready slice found for ${project}`);
     return;
   }
-  console.log(`${recommendation.id} ${recommendation.title}`);
-  console.log(`- ${recommendation.reason}`);
-  if (recommendation.hasSliceDocs) console.log(`- plan=${recommendation.planStatus} test-plan=${recommendation.testPlanStatus}`);
+  printLine(`${recommendation.id} ${recommendation.title}`);
+  printLine(`- ${recommendation.reason}`);
+  if (recommendation.hasSliceDocs) printLine(`- plan=${recommendation.planStatus} test-plan=${recommendation.testPlanStatus}`);
   if (steering) {
-    for (const line of renderSteeringPacket(steering)) console.log(`- ${line}`);
+    for (const line of renderSteeringPacket(steering)) printLine(`- ${line}`);
   }
-  for (const warning of focus.warnings) console.log(`- warning: ${warning}`);
-  for (const action of actions) console.log(`- ${action.kind}: ${action.message}`);
+  for (const warning of focus.warnings) printLine(`- warning: ${warning}`);
+  for (const action of actions) printLine(`- ${action.kind}: ${action.message}`);
 }

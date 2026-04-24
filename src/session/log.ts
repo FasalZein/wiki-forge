@@ -1,5 +1,6 @@
 import { requireValue } from "../cli-shared";
 import { appendLogEntry, tailLog } from "../lib/log";
+import { printLine } from "../lib/cli-output";
 
 export async function logCommand(args: string[]) {
   const subcommand = args[0] ?? "tail";
@@ -14,7 +15,7 @@ export async function logCommand(args: string[]) {
       project: projectIndex >= 0 ? args[projectIndex + 1] : undefined,
       details: detailsIndex >= 0 ? [args.slice(detailsIndex + 1).join(" ").trim()].filter(Boolean) : [],
     });
-    return console.log(`appended log entry: ${kind} | ${title}`);
+    return printLine(`appended log entry: ${kind} | ${title}`);
   }
   let count: number;
   if (subcommand === "tail") {
@@ -22,5 +23,5 @@ export async function logCommand(args: string[]) {
   } else {
     count = 10;
   }
-  for (const entry of await tailLog(Number.isFinite(count) && count > 0 ? count : 10)) console.log(`${entry}\n`);
+  for (const entry of await tailLog(Number.isFinite(count) && count > 0 ? count : 10)) printLine(`${entry}\n`);
 }

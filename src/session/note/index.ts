@@ -9,6 +9,7 @@ import { defaultAgentName } from "../../lib/cli-utils";
 import { firstMeaningfulLine, firstSectionLine, summarizePlan } from "../../lib/slices/plan-summary";
 import { extractShellCommandBlocks } from "../../verification";
 import { readSliceHub, readSlicePlan, readSliceSourcePaths, readSliceTestPlan } from "../../slice/docs";
+import { printJson, printLine } from "../../lib/cli-output";
 
 export { firstMeaningfulLine, firstSectionLine, summarizePlan };
 
@@ -44,8 +45,8 @@ export async function noteProject(args: string[]) {
     details: [`agent=${agent}`, ...(sliceId ? [`slice=${sliceId}`] : []), `at=${createdAt}`],
   });
   const result = { project, agent, sliceId, message, createdAt };
-  if (args.includes("--json")) console.log(JSON.stringify(result, null, 2));
-  else console.log(`noted for ${project}: ${message}`);
+  if (args.includes("--json")) printJson(result);
+  else printLine(`noted for ${project}: ${message}`);
 }
 
 export async function exportPrompt(args: string[]) {
@@ -67,7 +68,7 @@ export async function exportPrompt(args: string[]) {
   const commands = extractShellCommandBlocks(testPlan.content);
   const context = await collectTaskContextForId(project, sliceId);
   const prompt = renderExecutionPrompt({ project, sliceId, agent, hub, plan, testPlan, summary, sourcePaths, commands, context });
-  console.log(prompt);
+  printLine(prompt);
 }
 
 export function renderExecutionPrompt(input: {

@@ -25,6 +25,7 @@ import {
   renderSessionActivity,
   writeHandoverFile,
 } from "../shared";
+import { printJson, printLine } from "../../lib/cli-output";
 
 export async function handoverProject(args: string[]) {
   const options = await parseProjectRepoBaseArgs(args);
@@ -147,7 +148,7 @@ export async function handoverProject(args: string[]) {
   }
 
   if (json) {
-    console.log(JSON.stringify({
+    printJson({
       ...result,
       shortPrompt,
       nextSessionPrompt,
@@ -157,59 +158,59 @@ export async function handoverProject(args: string[]) {
       computedBlockers,
       handoverMode,
       ...(handoverPath ? { handoverPath: relative(VAULT_ROOT, handoverPath) } : {}),
-    }, null, 2));
+    });
     return;
   }
-  console.log(`handover for ${options.project}:`);
+  printLine(`handover for ${options.project}:`);
   const handoverRel = handoverPath ? relative(VAULT_ROOT, handoverPath) : null;
-  console.log(
+  printLine(
     handoverRel
       ? `→ NEXT SESSION PROMPT appears at the END of this output. If truncated, cat ${handoverRel}`
       : `→ NEXT SESSION PROMPT appears at the END of this output. Re-run with --json to parse it programmatically.`,
   );
-  console.log("");
-  console.log("--- session context ---");
-  console.log(`- repo: ${result.repo}`);
-  console.log(`- base: ${result.base}`);
+  printLine("");
+  printLine("--- session context ---");
+  printLine(`- repo: ${result.repo}`);
+  printLine(`- base: ${result.base}`);
   if (autoCloseAttempt?.attempted) {
     if (autoCloseAttempt.closed) {
-      console.log(`- auto-close: ${autoCloseAttempt.sliceId} closed`);
+      printLine(`- auto-close: ${autoCloseAttempt.sliceId} closed`);
     } else {
-      console.log(`- auto-close: ${autoCloseAttempt.sliceId} skipped (${autoCloseAttempt.reason})`);
+      printLine(`- auto-close: ${autoCloseAttempt.sliceId} skipped (${autoCloseAttempt.reason})`);
     }
   }
-  if (result.focus.activeTask) console.log(`- active: ${result.focus.activeTask.id} ${result.focus.activeTask.title}`);
-  else if (result.focus.recommendedTask) console.log(`- next: ${result.focus.recommendedTask.id} ${result.focus.recommendedTask.title}`);
-  console.log(`- backlog: ${Object.entries(result.backlog).filter(([, n]) => (n as number) > 0).map(([k, n]) => `${k}=${n}`).join(" ")}`);
+  if (result.focus.activeTask) printLine(`- active: ${result.focus.activeTask.id} ${result.focus.activeTask.title}`);
+  else if (result.focus.recommendedTask) printLine(`- next: ${result.focus.recommendedTask.id} ${result.focus.recommendedTask.title}`);
+  printLine(`- backlog: ${Object.entries(result.backlog).filter(([, n]) => (n as number) > 0).map(([k, n]) => `${k}=${n}`).join(" ")}`);
   if (dirty.modifiedFiles.length || dirty.untrackedFiles.length || dirty.stagedFiles.length) {
-    console.log(`- dirty: modified=${dirty.modifiedFiles.length} untracked=${dirty.untrackedFiles.length} staged=${dirty.stagedFiles.length}`);
+    printLine(`- dirty: modified=${dirty.modifiedFiles.length} untracked=${dirty.untrackedFiles.length} staged=${dirty.stagedFiles.length}`);
   }
-  for (const warning of result.focus.warnings) console.log(`- warning: ${warning}`);
+  for (const warning of result.focus.warnings) printLine(`- warning: ${warning}`);
   renderSessionActivity(sessionActivity);
   if (recentCommits.length) {
-    console.log(`- recent commits:`);
-    for (const commit of recentCommits) console.log(`    ${commit}`);
+    printLine(`- recent commits:`);
+    for (const commit of recentCommits) printLine(`    ${commit}`);
   }
   if (commitsSinceBase.length) {
-    console.log(`- commits since base:`);
-    for (const commit of commitsSinceBase.slice(0, 10)) console.log(`    ${commit}`);
+    printLine(`- commits since base:`);
+    for (const commit of commitsSinceBase.slice(0, 10)) printLine(`    ${commit}`);
   }
   if (lifecycleEvents.length) {
-    console.log(`- recent activity:`);
-    for (const entry of lifecycleEvents.slice(0, 8)) console.log(`    ${compactLogEntry(entry)}`);
+    printLine(`- recent activity:`);
+    for (const entry of lifecycleEvents.slice(0, 8)) printLine(`    ${compactLogEntry(entry)}`);
   }
   if (result.actions.length) {
-    console.log(`- next actions:`);
-    for (const action of result.actions.slice(0, 8)) console.log(`    [${action.kind}] ${action.message}`);
+    printLine(`- next actions:`);
+    for (const action of result.actions.slice(0, 8)) printLine(`    [${action.kind}] ${action.message}`);
   }
   if (recentNotes.length) {
-    console.log(`- agent notes:`);
-    for (const entry of recentNotes) console.log(`    ${compactLogEntry(entry)}`);
+    printLine(`- agent notes:`);
+    for (const entry of recentNotes) printLine(`    ${compactLogEntry(entry)}`);
   }
-  console.log("");
-  console.log("--- next session prompt ---");
-  console.log(nextSessionPrompt);
-  if (handoverRel) console.log(`\nhandover written: ${handoverRel}`);
+  printLine("");
+  printLine("--- next session prompt ---");
+  printLine(nextSessionPrompt);
+  if (handoverRel) printLine(`\nhandover written: ${handoverRel}`);
 }
 
 function collectRepeatableFlagValues(args: string[], flag: string) {
