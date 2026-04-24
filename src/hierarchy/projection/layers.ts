@@ -4,6 +4,7 @@ import { VAULT_ROOT } from "../../constants";
 import { mkdirIfMissing, nowIso, orderFrontmatter, requireValue, writeNormalizedPage } from "../../cli-shared";
 import { slugify } from "../planning";
 import { exists, readText } from "../../lib/fs";
+import { printJson, printLine } from "../../lib/cli-output";
 
 const CORE_TOP_LEVEL_DIRS = ["projects", "research", "raw", "wiki", "ideas", "templates", "journal", "specs"] as const;
 const CORE_ROOT_FILES = ["AGENTS.md", "index.md", "log.md"] as const;
@@ -98,7 +99,7 @@ export async function scaffoldLayer(args: string[]) {
     await mkdirIfMissing(join(VAULT_ROOT, name));
     if (await exists(outputPath)) continue;
     writeNormalizedPage(outputPath, file.content, file.data);
-    console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
+    printLine(`created ${relative(VAULT_ROOT, outputPath)}`);
   }
 }
 
@@ -114,17 +115,17 @@ export async function createLayerPage(args: string[]) {
   await mkdirIfMissing(join(VAULT_ROOT, layerName));
   if (await exists(outputPath)) throw new Error(`layer page already exists: ${relative(VAULT_ROOT, outputPath)}`);
   writeNormalizedPage(outputPath, page.content, page.data);
-  console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
+  printLine(`created ${relative(VAULT_ROOT, outputPath)}`);
 }
 
 export async function lintVault(args: string[]) {
   const json = args.includes("--json");
   const result = await collectVaultLintResult();
-  if (json) console.log(JSON.stringify(result, null, 2));
+  if (json) printJson(result);
   else if (result.issues.length) {
-    console.log(`vault lint found ${result.issues.length} issue(s):`);
-    for (const issue of result.issues) console.log(`- ${issue}`);
-  } else console.log("vault lint passed");
+    printLine(`vault lint found ${result.issues.length} issue(s):`);
+    for (const issue of result.issues) printLine(`- ${issue}`);
+  } else printLine("vault lint passed");
   if (result.issues.length) throw new Error("vault lint failed");
 }
 
@@ -177,5 +178,5 @@ export async function summarizeLayer(args: string[]) {
     const heading = body.split("\n").find((line) => line.startsWith("# "))?.replace(/^#\s+/u, "") ?? file;
     previews.push(`- ${heading}`);
   }
-  console.log(`# ${layer.title}\n\n${layer.description}\n\nPages: ${pages.length}\n${previews.join("\n")}`);
+  printLine(`# ${layer.title}\n\n${layer.description}\n\nPages: ${pages.length}\n${previews.join("\n")}`);
 }

@@ -5,6 +5,7 @@ import { appendLogEntry } from "../../lib/log";
 import { appendTaskToBacklog, moveTaskToSection, parseTaskArgs } from "./io";
 import { collectBacklogView } from "./collect";
 import type { BacklogTaskContext } from "./collect";
+import { printJson, printLine } from "../../lib/cli-output";
 
 export async function backlogCommand(args: string[]) {
   const project = args[0];
@@ -14,7 +15,7 @@ export async function backlogCommand(args: string[]) {
   const assignee = assigneeIndex >= 0 ? args[assigneeIndex + 1] : undefined;
   if (assigneeIndex >= 0) requireValue(assignee, "assignee");
   const result = await collectBacklogView(project, assignee);
-  if (json) console.log(JSON.stringify(result, null, 2));
+  if (json) printJson(result);
   else printBacklogSummary(result.sections, assignee);
 }
 
@@ -29,8 +30,8 @@ export async function addTask(args: string[]) {
     title: options.title,
     backlogPath: relative(VAULT_ROOT, appended.backlogPath),
   };
-  if (options.json) console.log(JSON.stringify(result, null, 2));
-  else console.log(`added ${appended.taskId} to ${relative(VAULT_ROOT, appended.backlogPath)} (${options.section})`);
+  if (options.json) printJson(result);
+  else printLine(`added ${appended.taskId} to ${relative(VAULT_ROOT, appended.backlogPath)} (${options.section})`);
 }
 
 export async function moveTask(args: string[]) {
@@ -42,7 +43,7 @@ export async function moveTask(args: string[]) {
   requireValue(taskId, "task-id");
   requireValue(to, "to");
   await moveTaskToSection(project, taskId, to);
-  console.log(`moved ${taskId} -> ${to}`);
+  printLine(`moved ${taskId} -> ${to}`);
 }
 
 export async function completeTask(args: string[]) {
@@ -51,16 +52,16 @@ export async function completeTask(args: string[]) {
   requireValue(project, "project");
   requireValue(taskId, "task-id");
   await moveTaskToSection(project, taskId, "Done");
-  console.log(`moved ${taskId} -> Done`);
+  printLine(`moved ${taskId} -> Done`);
 }
 
 function printBacklogSummary(sections: Record<string, BacklogTaskContext[]>, assignee?: string) {
-  if (assignee) console.log(`assignee filter: ${assignee}`);
+  if (assignee) printLine(`assignee filter: ${assignee}`);
   for (const [section, items] of Object.entries(sections)) {
-    console.log(`${section}: ${items.length}`);
+    printLine(`${section}: ${items.length}`);
     for (const item of items.slice(0, 20)) {
       const suffix = [item.assignee ? `assignee=${item.assignee}` : null, item.blockedBy.length ? `blocked by ${item.blockedBy.join(", ")}` : null, item.sliceStatus ? `status=${item.sliceStatus}` : null].filter(Boolean).join(" | ");
-      console.log(`- ${item.id} ${item.title}${suffix ? ` | ${suffix}` : ""}`);
+      printLine(`- ${item.id} ${item.title}${suffix ? ` | ${suffix}` : ""}`);
     }
   }
 }

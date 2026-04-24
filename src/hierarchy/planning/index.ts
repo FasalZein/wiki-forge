@@ -15,6 +15,7 @@ import {
   projectTestPlanPath,
 } from "../../lib/structure";
 import { writeProjectIndex } from "../projection/index-log";
+import { printLine } from "../../lib/cli-output";
 
 type PlanningKind = "feature" | "prd" | "plan" | "test-plan";
 type IndexedPlanningKind = Extract<PlanningKind, "feature" | "prd">;
@@ -350,7 +351,7 @@ async function resolveFeatureRecord(project: string, featureId: string) {
 }
 
 function announceCreated(outputPath: string) {
-  console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
+  printLine(`created ${relative(VAULT_ROOT, outputPath)}`);
 }
 
 export function parseProjectAndName(args: string[]) {

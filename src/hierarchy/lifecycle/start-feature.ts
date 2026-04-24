@@ -1,5 +1,6 @@
 import { requireValue } from "../../cli-shared";
 import { lifecycleOpen } from "./index";
+import { printLine } from "../../lib/cli-output";
 
 export async function startFeature(args: string[]): Promise<void> {
   const positional = args.filter((a) => !a.startsWith("--"));
@@ -8,5 +9,5 @@ export async function startFeature(args: string[]): Promise<void> {
   requireValue(project, "project");
   requireValue(entityId, "feature-id");
   await lifecycleOpen(project, entityId, "feature");
-  console.log(`started feature ${entityId}`);
+  printLine(`started feature ${entityId}`);
 }

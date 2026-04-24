@@ -6,6 +6,7 @@ import { walkMarkdown } from "../../lib/vault";
 import { readVerificationLevel } from "../../lib/verification";
 import { projectFeaturesDir, projectPrdsDir, projectSlicesDir } from "../../lib/structure";
 import { computeStatus, type HierarchyStatus, type SliceState } from "./compute";
+import { printJson, printLine } from "../../lib/cli-output";
 
 export type FeatureStatusRow = {
   featureId: string;
@@ -148,12 +149,12 @@ export async function featureStatusCommand(args: string[]) {
   const rows = await collectFeatureStatuses(project);
 
   if (json) {
-    console.log(JSON.stringify(rows, null, 2));
+    printJson(rows);
     return;
   }
 
   if (rows.length === 0) {
-    console.log(`no features found for ${project}`);
+    printLine(`no features found for ${project}`);
     return;
   }
 
@@ -161,14 +162,14 @@ export async function featureStatusCommand(args: string[]) {
   const statusColWidth = Math.max(16, ...rows.flatMap((r) => [r.computedStatus.length, ...r.prds.map((p) => p.computedStatus.length)]));
 
   const header = `${"Feature/PRD".padEnd(featColWidth)}  ${"Status".padEnd(statusColWidth)}`;
-  console.log(header);
-  console.log("-".repeat(header.length));
+  printLine(header);
+  printLine("-".repeat(header.length));
 
   for (const row of rows) {
-    console.log(`${row.featureId.padEnd(featColWidth)}  ${row.computedStatus.padEnd(statusColWidth)}`);
+    printLine(`${row.featureId.padEnd(featColWidth)}  ${row.computedStatus.padEnd(statusColWidth)}`);
     for (const prd of row.prds) {
       const indent = "  ";
-      console.log(`${(indent + prd.prdId).padEnd(featColWidth)}  ${prd.computedStatus.padEnd(statusColWidth)}`);
+      printLine(`${(indent + prd.prdId).padEnd(featColWidth)}  ${prd.computedStatus.padEnd(statusColWidth)}`);
     }
   }
 }

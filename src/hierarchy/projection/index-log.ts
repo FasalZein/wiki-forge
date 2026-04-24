@@ -1,3 +1,4 @@
+import { printJson, printLine } from "../../lib/cli-output";
 
 import { dirname, join, relative } from "node:path";
 import { VAULT_ROOT } from "../../constants";
@@ -48,10 +49,10 @@ export async function updateIndex(args: string[]) {
   if (!all) requireValue(project, "project or --all");
   const result = await buildIndexPlan(project, all);
   if (write) await applyIndexPlan(result);
-  if (json) console.log(JSON.stringify(result, null, 2));
+  if (json) printJson(result);
   else {
-    console.log(`${write ? "updated" : "would update"} ${result.targets.length} index file(s)`);
-    for (const target of result.targets) console.log(`- ${target.path}`);
+    printLine(`${write ? "updated" : "would update"} ${result.targets.length} index file(s)`);
+    for (const target of result.targets) printLine(`- ${target.path}`);
   }
 }
 

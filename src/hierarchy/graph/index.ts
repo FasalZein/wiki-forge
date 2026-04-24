@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { printJson, printLine } from "../../lib/cli-output";
 
 import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../../constants";
@@ -36,17 +37,17 @@ export async function dependencyGraph(args: string[]) {
   const write = args.includes("--write");
   const result = await collectDependencyGraph(project);
   if (write) await writeText(result.outputPath, JSON.stringify(result.canvas, null, 2));
-  if (json) console.log(JSON.stringify({ ...result, canvas: undefined, written: write }, null, 2));
+  if (json) printJson({ ...result, canvas: undefined, written: write });
   else {
-    console.log(`dependency-graph for ${project}:`);
-    console.log(`- nodes: ${result.counts.nodes}`);
-    console.log(`- edges: ${result.counts.edges}`);
-    console.log(`- missing refs: ${result.counts.missingRefs}`);
-    console.log(`- cycles: ${result.counts.cycles}`);
-    console.log(`- output: ${relative(VAULT_ROOT, result.outputPath)}`);
-    if (write) console.log(`- wrote canvas`);
-    for (const ref of result.missingRefs.slice(0, 10)) console.log(`  - missing: ${ref.from} -> ${ref.to}`);
-    for (const cycle of result.cycles.slice(0, 10)) console.log(`  - cycle: ${cycle.join(" -> ")}`);
+    printLine(`dependency-graph for ${project}:`);
+    printLine(`- nodes: ${result.counts.nodes}`);
+    printLine(`- edges: ${result.counts.edges}`);
+    printLine(`- missing refs: ${result.counts.missingRefs}`);
+    printLine(`- cycles: ${result.counts.cycles}`);
+    printLine(`- output: ${relative(VAULT_ROOT, result.outputPath)}`);
+    if (write) printLine(`- wrote canvas`);
+    for (const ref of result.missingRefs.slice(0, 10)) printLine(`  - missing: ${ref.from} -> ${ref.to}`);
+    for (const cycle of result.cycles.slice(0, 10)) printLine(`  - cycle: ${cycle.join(" -> ")}`);
   }
   if (result.missingRefs.length || result.cycles.length) throw new Error(`dependency-graph check failed for ${project}`);
 }
