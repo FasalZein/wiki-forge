@@ -8,6 +8,7 @@ import { projectTaskHubPath, projectTaskPlanPath } from "../../lib/structure";
 import { assertGitRepo, resolveRepoPath } from "../../lib/verification";
 import { applyVerificationLevel, type VerificationCommandSpec, extractVerificationSpecsFromTestPlan } from "../../verification";
 import { readSliceHub, readSliceSourcePaths, readSliceTestPlan } from "../docs";
+import { printJson, printLine } from "../../lib/cli-output";
 
 export async function verifySlice(args: string[]) {
   const project = args[0];
@@ -42,26 +43,26 @@ export async function verifySlice(args: string[]) {
   }
   appendLogEntry("verify-slice", sliceId, { project, details: [`commands=${results.length}`, `ok=${ok}`, `warnings=${warnings.length}`] });
   const payload = { project, sliceId, ok, testPlan: relative(VAULT_ROOT, testPlan.path), commands: results, warnings };
-  if (json) console.log(JSON.stringify(payload, null, 2));
+  if (json) printJson(payload);
   else {
-    console.log(`verify-slice ${sliceId}: ${ok ? "PASS" : "FAIL"}`);
+    printLine(`verify-slice ${sliceId}: ${ok ? "PASS" : "FAIL"}`);
     for (const result of results) {
-      console.log(`- ${result.ok ? "pass" : "FAIL"}: ${result.label ?? result.command} (exit ${result.actual.exitCode}, expected ${result.expected.exitCode})`);
+      printLine(`- ${result.ok ? "pass" : "FAIL"}: ${result.label ?? result.command} (exit ${result.actual.exitCode}, expected ${result.expected.exitCode})`);
       if (!result.ok) {
-        for (const failure of result.failures) console.log(`    failure: ${failure}`);
+        for (const failure of result.failures) printLine(`    failure: ${failure}`);
         if (result.actual.stderr) {
-          for (const line of result.actual.stderr.split("\n").slice(0, 10)) console.log(`    stderr: ${line}`);
+          for (const line of result.actual.stderr.split("\n").slice(0, 10)) printLine(`    stderr: ${line}`);
         }
         if (result.actual.stdout) {
-          for (const line of result.actual.stdout.split("\n").slice(0, 10)) console.log(`    stdout: ${line}`);
+          for (const line of result.actual.stdout.split("\n").slice(0, 10)) printLine(`    stdout: ${line}`);
         }
       }
     }
-    for (const warning of warnings) console.log(`- warning: ${warning}`);
+    for (const warning of warnings) printLine(`- warning: ${warning}`);
     if (!ok) {
       const failedCount = results.filter((r) => !r.ok).length;
-      console.log(`\n${failedCount} of ${results.length} verification command(s) failed.`);
-      console.log(`Fix the failing commands, then re-run: wiki verify-slice ${project} ${sliceId} --repo <path>`);
+      printLine(`\n${failedCount} of ${results.length} verification command(s) failed.`);
+      printLine(`Fix the failing commands, then re-run: wiki verify-slice ${project} ${sliceId} --repo <path>`);
     }
   }
   if (!ok) throw new Error(`verify-slice failed for ${sliceId}`);

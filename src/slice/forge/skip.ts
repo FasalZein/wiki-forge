@@ -15,6 +15,7 @@ import {
   type SkippedPhaseRecord,
 } from "../../protocol/status/index";
 import { defaultAgentName } from "../shared";
+import { printJson, printLine } from "../../lib/cli-output";
 
 const HUB_FRONTMATTER_ORDER = [
   "title",
@@ -152,8 +153,8 @@ export async function forgeSkip(args: string[]): Promise<void> {
     agent: parsed.agent,
   });
   if (parsed.json) {
-    console.log(JSON.stringify({ project: parsed.project, sliceId: parsed.sliceId, skipped: record }, null, 2));
+    printJson({ project: parsed.project, sliceId: parsed.sliceId, skipped: record });
   } else {
-    console.log(`skipped ${parsed.phase} on ${parsed.sliceId}: ${parsed.reason}`);
+    printLine(`skipped ${parsed.phase} on ${parsed.sliceId}: ${parsed.reason}`);
   }
 }

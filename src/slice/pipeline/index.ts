@@ -4,6 +4,7 @@ import { PipelineState } from "../../lib/pipeline-state";
 import { resolveDefaultBase } from "../../git-utils";
 import { runPipeline } from "./runner";
 import type { PipelinePhase } from "./plan";
+import { printJson, printLine } from "../../lib/cli-output";
 
 export async function pipelineCommand(args: string[]) {
   const project = args[0];
@@ -32,18 +33,18 @@ export async function pipelineCommand(args: string[]) {
   const result = await runPipeline({ project, sliceId, phase, repo, base, dryRun, json, worktree });
 
   if (json) {
-    console.log(JSON.stringify(result, null, 2));
+    printJson(result);
   } else {
-    console.log(`pipeline ${phase} for ${project}/${sliceId}${dryRun ? " (dry-run)" : ""}:`);
+    printLine(`pipeline ${phase} for ${project}/${sliceId}${dryRun ? " (dry-run)" : ""}:`);
     for (const step of result.steps) {
       let status = "FAILED";
       if (step.skipped) status = "skipped";
       else if (step.ok) status = "ok";
       const duration = step.durationMs !== null ? ` (${step.durationMs}ms)` : "";
-      console.log(`  ${step.id}: ${status}${duration}`);
-      if (step.error) console.log(`    error: ${step.error}`);
+      printLine(`  ${step.id}: ${status}${duration}`);
+      if (step.error) printLine(`    error: ${step.error}`);
     }
-    console.log(`result: ${result.ok ? "PASS" : "FAIL"}`);
+    printLine(`result: ${result.ok ? "PASS" : "FAIL"}`);
   }
 
   if (!result.ok) throw new Error(`pipeline ${phase} failed at ${result.stoppedAt}`);
@@ -59,10 +60,10 @@ export async function pipelineResetCommand(args: string[]) {
   try {
     if (stepId) {
       state.resetStep(project, sliceId, stepId);
-      console.log(`reset pipeline step ${stepId} for ${project}/${sliceId}`);
+      printLine(`reset pipeline step ${stepId} for ${project}/${sliceId}`);
     } else {
       state.reset(project, sliceId);
-      console.log(`reset all pipeline steps for ${project}/${sliceId}`);
+      printLine(`reset all pipeline steps for ${project}/${sliceId}`);
     }
   } finally {
     state.close();

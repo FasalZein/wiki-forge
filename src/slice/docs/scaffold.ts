@@ -7,6 +7,7 @@ import { appendLogEntry } from "../../lib/log";
 import { isCanonicalPrdId, projectPrdsDir, projectTaskDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath, toVaultWikilinkPath } from "../../lib/structure";
 import { assertKnownAgent } from "../../lib/agents";
 import { writeProjectIndex, appendTaskToBacklog, parseTaskArgs } from "../../hierarchy";
+import { printError, printJson, printLine } from "../../lib/cli-output";
 
 type PrdRecord = { prdId: string; title: string; parentFeature?: string; linkPath: string; sourcePaths: string[] };
 type SliceSpecKind = "task-hub" | "plan" | "test-plan";
@@ -17,7 +18,7 @@ export async function createIssueSlice(args: string[]) {
   if (options.assignee) await assertKnownAgent(options.project, options.assignee);
   const prd = options.parentPrd ? await resolvePrdRecord(options.project, options.parentPrd) : null;
   if (!prd) {
-    console.warn("[warn] no --prd provided; slice will be orphaned and excluded from hierarchy status");
+    printError("[warn] no --prd provided; slice will be orphaned and excluded from hierarchy status");
   }
   const appended = await appendTaskToBacklog(options);
   const title = `${appended.taskId.toLowerCase()} ${options.title}`;
@@ -25,7 +26,7 @@ export async function createIssueSlice(args: string[]) {
   await ensureSliceDocsMissing(appended.taskId, slicePaths);
   const sourcePaths = options.sourcePaths.length ? options.sourcePaths : (prd?.sourcePaths ?? []);
   if (!options.sourcePaths.length && prd && prd.sourcePaths.length > 5) {
-    console.warn(`warning: ${prd.prdId} has ${prd.sourcePaths.length} inherited source_paths; consider --source for a narrower slice binding`);
+    printError(`warning: ${prd.prdId} has ${prd.sourcePaths.length} inherited source_paths; consider --source for a narrower slice binding`);
   }
 
   writeSliceSpec(
@@ -64,13 +65,13 @@ export async function createIssueSlice(args: string[]) {
     planPath: relative(VAULT_ROOT, slicePaths.planPath),
     testPlanPath: relative(VAULT_ROOT, slicePaths.testPlanPath),
   };
-  if (options.json) console.log(JSON.stringify(result, null, 2));
+  if (options.json) printJson(result);
   else {
-    console.log(`created issue slice ${appended.taskId}`);
-    console.log(`- backlog: ${result.backlogPath}`);
-    console.log(`- index: ${result.indexPath}`);
-    console.log(`- plan: ${result.planPath}`);
-    console.log(`- test-plan: ${result.testPlanPath}`);
+    printLine(`created issue slice ${appended.taskId}`);
+    printLine(`- backlog: ${result.backlogPath}`);
+    printLine(`- index: ${result.indexPath}`);
+    printLine(`- plan: ${result.planPath}`);
+    printLine(`- test-plan: ${result.testPlanPath}`);
   }
   return result;
 }

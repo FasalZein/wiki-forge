@@ -8,6 +8,7 @@ import { projectTaskHubPath } from "../../lib/structure";
 import { collectTaskContextForId, lifecycleOpen, moveTaskToSection } from "../../hierarchy";
 import { hasCanonicalSliceCompletionEvidence, readSliceHub, readSlicePlan, readSliceSourcePaths } from "../docs";
 import { ClaimConflict, collectClaimResult, collectDependencyStatuses, defaultAgentName, formatClaimConflictError, writeClaimMetadata } from "../shared";
+import { printJson, printLine } from "../../lib/cli-output";
 
 export type StartSliceResult = {
   ok: boolean;
@@ -172,7 +173,7 @@ export async function startSlice(args: string[]) {
   if (!coreResult.ok) {
     switch (coreResult.status) {
       case "missing": {
-        if (json) console.log(JSON.stringify({ project, sliceId, status: "missing", agent }, null, 2));
+        if (json) printJson({ project, sliceId, status: "missing", agent });
         fail(coreResult.error ?? `slice not found: ${sliceId}`, 3);
         break;
       }
@@ -192,7 +193,7 @@ export async function startSlice(args: string[]) {
             planSummary: coreResult.planSummary,
             conflicts: coreResult.conflicts,
           };
-          console.log(JSON.stringify(jsonResult, null, 2));
+          printJson(jsonResult);
         }
         fail(coreResult.error ?? `${sliceId} is blocked`, 1);
         break;
@@ -209,7 +210,7 @@ export async function startSlice(args: string[]) {
             planSummary: coreResult.planSummary,
             conflicts: coreResult.conflicts,
           };
-          console.log(JSON.stringify(jsonResult, null, 2));
+          printJson(jsonResult);
         }
         fail(coreResult.error ?? `claim conflict for ${sliceId}`, 2);
         break;
@@ -238,7 +239,7 @@ export async function startSlice(args: string[]) {
   };
 
   if (json) {
-    console.log(JSON.stringify(successJsonResult, null, 2));
+    printJson(successJsonResult);
     return;
   }
 
@@ -254,15 +255,15 @@ export async function startSlice(args: string[]) {
   } else {
     dependencySummary = "none";
   }
-  console.log(`Started ${sliceId} (assignee: ${agent})`);
-  console.log(`Dependencies: ${dependencySummary}`);
+  printLine(`Started ${sliceId} (assignee: ${agent})`);
+  printLine(`Dependencies: ${dependencySummary}`);
   if (sourcePaths.length) {
-    console.log(`Claim registered: ${sourcePaths.join(", ")}`);
+    printLine(`Claim registered: ${sourcePaths.join(", ")}`);
   } else {
-    console.log(`Claim: no source_paths bound — bind with: wiki bind ${project} specs/slices/${sliceId}/index.md <source-file>`);
+    printLine(`Claim: no source_paths bound — bind with: wiki bind ${project} specs/slices/${sliceId}/index.md <source-file>`);
   }
-  console.log("---");
-  console.log(coreResult.planSummary);
+  printLine("---");
+  printLine(coreResult.planSummary);
 }
 
 async function markSliceStarted(project: string, sliceId: string, startedAt: string) {

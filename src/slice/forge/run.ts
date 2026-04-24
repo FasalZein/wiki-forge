@@ -16,6 +16,7 @@ import {
   resolveFailedPipelineStep,
 } from "./output";
 import { runPipeline } from "../pipeline";
+import { printJson, printLine } from "../../lib/cli-output";
 
 export async function forgeRun(args: string[]) {
   const parsed = await parseForgeArgs(args, "run");
@@ -25,7 +26,7 @@ export async function forgeRun(args: string[]) {
     if (parsed.dryRun) {
       if (!parsed.json) {
         for (const phase of skipRequests) {
-          console.log(`dry-run: would skip ${phase} on ${parsed.sliceId}: ${skipReason ?? "skipped via --skip-phase"}`);
+          printLine(`dry-run: would skip ${phase} on ${parsed.sliceId}: ${skipReason ?? "skipped via --skip-phase"}`);
         }
       }
     } else {
@@ -38,7 +39,7 @@ export async function forgeRun(args: string[]) {
           repo: parsed.repo,
           agent: defaultAgentName(),
         });
-        if (!parsed.json) console.log(`skipped ${phase} on ${parsed.sliceId}: ${skipReason ?? "skipped via --skip-phase"}`);
+        if (!parsed.json) printLine(`skipped ${phase} on ${parsed.sliceId}: ${skipReason ?? "skipped via --skip-phase"}`);
       }
     }
   }
@@ -63,11 +64,11 @@ export async function forgeRun(args: string[]) {
         `wiki forge release ${parsed.project} ${parsed.sliceId}`,
       ],
     };
-    if (parsed.json) console.log(JSON.stringify(payload, null, 2));
+    if (parsed.json) printJson(payload);
     else {
-      console.log(`forge run blocked for ${parsed.sliceId}`);
-      for (const line of renderSteeringPacket(preWorkflow.steering)) console.log(`- ${line}`);
-      console.log(`  recovery: ${payload.recovery.join("  |  ")}`);
+      printLine(`forge run blocked for ${parsed.sliceId}`);
+      for (const line of renderSteeringPacket(preWorkflow.steering)) printLine(`- ${line}`);
+      printLine(`  recovery: ${payload.recovery.join("  |  ")}`);
     }
     throw new Error(`operator-lane: ${parsed.sliceId} is in ${preWorkflow.steering.lane}; run \`${preWorkflow.steering.nextCommand}\` first`);
   }
@@ -84,10 +85,10 @@ export async function forgeRun(args: string[]) {
         ...(startResult.conflicts?.length ? { conflicts: startResult.conflicts } : {}),
         ...(startResult.blocking?.length ? { blocking: startResult.blocking } : {}),
       };
-      if (parsed.json) console.log(JSON.stringify(errorPayload, null, 2));
+      if (parsed.json) printJson(errorPayload);
       throw new Error(`forge run: auto-start failed: ${startResult.error}`);
     }
-    if (!parsed.json) console.log(`auto-started ${parsed.sliceId} (agent: ${startResult.agent})`);
+    if (!parsed.json) printLine(`auto-started ${parsed.sliceId} (agent: ${startResult.agent})`);
   }
 
   const activeFocus = await collectBacklogFocus(parsed.project);
@@ -121,7 +122,7 @@ export async function forgeRun(args: string[]) {
   if (!parsed.json) renderForgePipeline("check", workflow, checkResult, review);
   if (!checkResult.ok) {
     if (parsed.json) {
-      console.log(JSON.stringify({ ...applyPipelineFailureRecovery(workflow, checkResult), check: checkResult }, null, 2));
+      printJson({ ...applyPipelineFailureRecovery(workflow, checkResult), check: checkResult });
     }
     const failedStep = resolveFailedPipelineStep(checkResult);
     const nextAction = classifyStepFailure(failedStep);
@@ -147,7 +148,7 @@ export async function forgeRun(args: string[]) {
   });
   if (parsed.json) {
     const outputWorkflow = closeResult.ok ? workflow : applyPipelineFailureRecovery(workflow, closeResult);
-    console.log(JSON.stringify({ ...outputWorkflow, check: checkResult, close: closeResult }, null, 2));
+    printJson({ ...outputWorkflow, check: checkResult, close: closeResult });
   }
   else renderForgePipeline("close", workflow, closeResult);
   if (!closeResult.ok) {

@@ -1,6 +1,7 @@
 import { fail, requireValue } from "../../cli-shared";
 import { appendLogEntry } from "../../lib/log";
 import { collectClaimResult, defaultAgentName, formatClaimConflictError, writeClaimMetadata } from "../shared";
+import { printJson, printLine } from "../../lib/cli-output";
 
 export async function claimSlice(args: string[]) {
   const project = args[0];
@@ -27,15 +28,15 @@ export async function claimSlice(args: string[]) {
 
   const result = await collectClaimResult(project, sliceId, agent, repo);
   if (result.blockedBy.length > 0) {
-    if (args.includes("--json")) console.log(JSON.stringify(result, null, 2));
+    if (args.includes("--json")) printJson(result);
     fail(`${sliceId} is blocked by unfinished dependencies: ${result.blockedBy.join(", ")}`);
   }
   if (result.conflicts.length > 0) {
-    if (args.includes("--json")) console.log(JSON.stringify(result, null, 2));
+    if (args.includes("--json")) printJson(result);
     fail(formatClaimConflictError(sliceId, result.conflicts, project, repo));
   }
   await writeClaimMetadata(project, sliceId, agent, result.claimedAt!, result.sourcePaths);
   appendLogEntry("claim", sliceId, { project, details: [`agent=${agent}`, `paths=${result.sourcePaths.length}`] });
-  if (args.includes("--json")) console.log(JSON.stringify(result, null, 2));
-  else console.log(`claimed ${sliceId} for ${agent}`);
+  if (args.includes("--json")) printJson(result);
+  else printLine(`claimed ${sliceId} for ${agent}`);
 }

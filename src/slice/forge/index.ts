@@ -22,6 +22,7 @@ import {
   renderForgeStatusWithoutSlice,
 } from "./output";
 import { collectForgeReview } from "./docs";
+import { printError, printJson, printLine } from "../../lib/cli-output";
 export { forgeRun } from "./run";
 export { forgeSkip } from "./skip";
 
@@ -47,7 +48,7 @@ export async function forgeCheck(args: string[]) {
     ? null
     : await collectForgeReview(parsed.project, parsed.sliceId, parsed.repo, parsed.base, parsed.worktree);
   const outputWorkflow = result.ok ? workflow : applyPipelineFailureRecovery(workflow, result);
-  if (parsed.json) console.log(JSON.stringify({ ...outputWorkflow, pipeline: result, ...(review ? { review } : {}) }, null, 2));
+  if (parsed.json) printJson({ ...outputWorkflow, pipeline: result, ...(review ? { review } : {}) });
   else renderForgePipeline("check", workflow, result, review);
   if (!result.ok) throw new Error(`forge check failed at ${result.stoppedAt}`);
   if (review && !review.ok) throw new Error("forge check found slice-local blockers");
@@ -67,7 +68,7 @@ export async function forgeClose(args: string[]) {
     sliceLocal: true,
   });
   const outputWorkflow = result.ok ? workflow : applyPipelineFailureRecovery(workflow, result);
-  if (parsed.json) console.log(JSON.stringify({ ...outputWorkflow, pipeline: result }, null, 2));
+  if (parsed.json) printJson({ ...outputWorkflow, pipeline: result });
   else renderForgePipeline("close", workflow, result);
   if (!result.ok) throw new Error(`forge close failed at ${result.stoppedAt}`);
 }
@@ -90,12 +91,12 @@ export async function forgeStatus(args: string[]) {
         triage: resolution.triage,
         steering: resolution.steering,
       };
-      if (parsed.json) console.log(JSON.stringify(payload, null, 2));
+      if (parsed.json) printJson(payload);
       else renderForgeStatusWithoutSlice(payload);
       return;
     }
     const workflow = applyResolvedSteering(resolution.workflow, resolution.triage, resolution.steering);
-    if (parsed.json) console.log(JSON.stringify(compactForgeStatusForJson(workflow), null, 2));
+    if (parsed.json) printJson(compactForgeStatusForJson(workflow));
     else renderForgeStatus(workflow);
     return;
   }
@@ -106,7 +107,7 @@ export async function forgeStatus(args: string[]) {
     focus,
   });
   const workflow = applyResolvedSteering(resolution.workflow, resolution.triage, resolution.steering);
-  if (parsed.json) console.log(JSON.stringify(compactForgeStatusForJson(workflow), null, 2));
+  if (parsed.json) printJson(compactForgeStatusForJson(workflow));
   else renderForgeStatus(workflow);
 }
 
@@ -131,7 +132,7 @@ export async function forgeRelease(args: string[]) {
 
   const claimedBy = typeof parsed.data.claimed_by === "string" ? parsed.data.claimed_by.trim() : null;
   if (!claimedBy) {
-    console.log(`no active claim on ${sliceId}`);
+    printLine(`no active claim on ${sliceId}`);
     return;
   }
 
@@ -156,8 +157,8 @@ export async function forgeRelease(args: string[]) {
   }
 
   appendLogEntry("release-claim", sliceId, { project, details: [`released_from=${claimedBy}`] });
-  console.log(`released claim on ${sliceId} (was owned by ${claimedBy})`);
-  if (wasStarted) console.log(`moved ${sliceId} back to Todo`);
+  printLine(`released claim on ${sliceId} (was owned by ${claimedBy})`);
+  if (wasStarted) printLine(`moved ${sliceId} back to Todo`);
 }
 
 export async function forgePlan(args: string[]) {
@@ -171,7 +172,7 @@ export async function forgePlan(args: string[]) {
     const featureId = parsed.featureId ?? await (async () => {
       requireValue(parsed.featureName, "feature-name (positional) or --feature FEAT-xxx");
       const { specId } = await createFeatureReturningId(parsed.project, parsed.featureName!);
-      console.log(`created feature ${specId}`);
+      printLine(`created feature ${specId}`);
       createdFeatureId = specId;
       return specId;
     })();
@@ -180,7 +181,7 @@ export async function forgePlan(args: string[]) {
     requireValue(prdName, "prd-name (--prd-name) or feature-name positional");
     lastStep = "create-prd";
     const { specId: prdId } = await createPrdReturningId(parsed.project, prdName!, featureId);
-    console.log(`created prd ${prdId}`);
+    printLine(`created prd ${prdId}`);
     createdPrdId = prdId;
 
     if (parsed.slices.length > 0) {
@@ -196,7 +197,7 @@ export async function forgePlan(args: string[]) {
         ];
         const slice = await createIssueSlice(sliceArgs);
         if (!slice) throw new Error(`createIssueSlice did not return a result for slice ${i + 1}`);
-        console.log(`created slice ${slice.taskId}`);
+        printLine(`created slice ${slice.taskId}`);
         createdSliceIds.push(slice.taskId);
 
         if (i > 0) {
@@ -219,7 +220,7 @@ export async function forgePlan(args: string[]) {
       }
       const [startedId, ...pendingIds] = createdSliceIds;
       const pendingSummary = pendingIds.length ? `; pending: ${pendingIds.join(", ")}` : "";
-      console.log(`started ${startedId}${pendingSummary}`);
+      printLine(`started ${startedId}${pendingSummary}`);
     } else {
       // Single-slice path (original behavior)
       lastStep = "create-slice";
@@ -232,7 +233,7 @@ export async function forgePlan(args: string[]) {
       ];
       const slice = await createIssueSlice(sliceArgs);
       if (!slice) throw new Error("createIssueSlice did not return a result");
-      console.log(`created slice ${slice.taskId}`);
+      printLine(`created slice ${slice.taskId}`);
       createdSliceIds.push(slice.taskId);
       lastStep = "start-slice";
       await startSlice([
@@ -250,8 +251,8 @@ export async function forgePlan(args: string[]) {
     if (createdPrdId) artifacts.push(`  prd: ${createdPrdId}`);
     for (const sliceId of createdSliceIds) artifacts.push(`  slice: ${sliceId}`);
     if (artifacts.length) {
-      console.error(`forge plan failed at ${lastStep}. Already created:\n${artifacts.join("\n")}`);
-      if (createdSliceIds.length) console.error(`Use: wiki forge start ${parsed.project} ${createdSliceIds[0]} to retry from start-slice`);
+      printError(`forge plan failed at ${lastStep}. Already created:\n${artifacts.join("\n")}`);
+      if (createdSliceIds.length) printError(`Use: wiki forge start ${parsed.project} ${createdSliceIds[0]} to retry from start-slice`);
     }
     throw error;
   }
@@ -358,8 +359,8 @@ export async function forgeNext(args: string[]) {
   const targetId = steeringResolution.focusTask?.id ?? null;
 
   if (!targetId) {
-    if (json || promptJson) console.log(JSON.stringify({ project, targetSlice: null, action: "no ready slices" }, null, 2));
-    else console.log(`no ready slices for ${project}`);
+    if (json || promptJson) printJson({ project, targetSlice: null, action: "no ready slices" });
+    else printLine(`no ready slices for ${project}`);
     return;
   }
 
@@ -368,9 +369,9 @@ export async function forgeNext(args: string[]) {
   if (promptJson || promptFlag) {
     const promptData = await buildSlicePromptData(project, targetId, workflow, activeId !== null);
     if (promptJson) {
-      console.log(JSON.stringify(promptData, null, 2));
+      printJson(promptData);
     } else {
-      console.log(renderSlicePrompt(promptData));
+      printLine(renderSlicePrompt(promptData));
     }
     return;
   }
@@ -386,17 +387,17 @@ export async function forgeNext(args: string[]) {
     verificationLevel: steeringResolution.verificationLevel ?? workflow.verificationLevel,
   };
 
-  if (json) console.log(JSON.stringify(result, null, 2));
+  if (json) printJson(result);
   else {
-    console.log(`forge next for ${project}: ${targetId}`);
-    for (const line of renderSteeringPacket(steeringResolution.steering)) console.log(`- ${line}`);
-    console.log(`- ${activeId ? "active" : "recommended"} slice`);
-    console.log(`- plan: ${result.planStatus}`);
-    console.log(`- test-plan: ${result.testPlanStatus}`);
-    console.log(`- verification: ${result.verificationLevel ?? "none"}`);
+    printLine(`forge next for ${project}: ${targetId}`);
+    for (const line of renderSteeringPacket(steeringResolution.steering)) printLine(`- ${line}`);
+    printLine(`- ${activeId ? "active" : "recommended"} slice`);
+    printLine(`- plan: ${result.planStatus}`);
+    printLine(`- test-plan: ${result.testPlanStatus}`);
+    printLine(`- verification: ${result.verificationLevel ?? "none"}`);
     if (steeringResolution.triage.command !== steeringResolution.steering.nextCommand) {
-      console.log(`- next action: ${steeringResolution.triage.command}`);
-      console.log(`  reason: ${steeringResolution.triage.reason}`);
+      printLine(`- next action: ${steeringResolution.triage.command}`);
+      printLine(`  reason: ${steeringResolution.triage.reason}`);
     }
   }
 }

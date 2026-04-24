@@ -18,6 +18,7 @@ import { resolveDefaultBase } from "../../git-utils";
 import { collectCloseout, collectGate, compactDoctorForJson, isTestFile } from "../../maintenance";
 import { applyVerificationLevel } from "../../verification";
 import { readSliceHub, readSlicePlan, readSliceTestPlan } from "../docs";
+import { printJson, printLine } from "../../lib/cli-output";
 
 export async function closeSlice(args: string[]) {
   const project = args[0];
@@ -122,7 +123,7 @@ export async function closeSlice(args: string[]) {
       ),
       ...(reviewPassPending ? { reviewPass: true, hint: `closeout is REVIEW PASS with ${closeout.staleImpactedPages.length} stale page(s). Re-run close-slice with --force-review after manual review, or fix the pending steps first.` } : {}),
     };
-    if (json) console.log(JSON.stringify(failed, null, 2));
+    if (json) printJson(failed);
     const lines = formatBlockerChecklist(sliceId, closeoutBlockerMessages);
     process.stderr.write(lines + "\n");
     throw new Error(`cannot close ${sliceId}: closeout checks failed`);
@@ -139,7 +140,7 @@ export async function closeSlice(args: string[]) {
     compactGate = { ...gate, doctor: compactDoctorForJson(gate.doctor) };
     if (!gate.ok) {
       const failed = { project, sliceId, closed: false, gate: compactGate, previousSection: context.section };
-      if (json) console.log(JSON.stringify(failed, null, 2));
+      if (json) printJson(failed);
       throw new Error(`gate failed for ${project}`);
     }
   }
@@ -176,25 +177,25 @@ export async function closeSlice(args: string[]) {
   }
 
   const result = { project, sliceId, closed: true, ...(compactGate ? { gate: compactGate } : {}), previousSection: context.section, completedAt, force };
-  if (json) console.log(JSON.stringify(result, null, 2));
+  if (json) printJson(result);
   else {
-    console.log(`closed ${sliceId}${force ? " (forced)" : ""}`);
+    printLine(`closed ${sliceId}${force ? " (forced)" : ""}`);
     if (force) {
-      console.log(`\nWarning: --force skipped closeout and gate checks.`);
+      printLine(`\nWarning: --force skipped closeout and gate checks.`);
       for (const warning of forceWarnings) {
-        console.log(`Warning: --force overrode ${warning.label} computed_status="${warning.status}".`);
+        printLine(`Warning: --force overrode ${warning.label} computed_status="${warning.status}".`);
       }
       if (forceWarnings.length) {
-        console.log(`The slice frontmatter now says status=done, but feature-status`);
-        console.log(`will still show the parent computed_status values above until child pages`);
-        console.log(`are all done AND test-verified.`);
+        printLine(`The slice frontmatter now says status=done, but feature-status`);
+        printLine(`will still show the parent computed_status values above until child pages`);
+        printLine(`are all done AND test-verified.`);
       }
-      console.log(`To fully complete the hierarchy:`);
-      console.log(`  1. wiki verify-page ${project} <slice-pages> test-verified`);
-      console.log(`  2. wiki verify-page ${project} <prd-page> test-verified`);
-      console.log(`  3. wiki verify-page ${project} <feature-page> test-verified`);
-      console.log(`  4. wiki maintain ${project} --repo <path> --base <rev>`);
-      console.log(`  5. wiki feature-status ${project}  # verify computed_status = complete`);
+      printLine(`To fully complete the hierarchy:`);
+      printLine(`  1. wiki verify-page ${project} <slice-pages> test-verified`);
+      printLine(`  2. wiki verify-page ${project} <prd-page> test-verified`);
+      printLine(`  3. wiki verify-page ${project} <feature-page> test-verified`);
+      printLine(`  4. wiki maintain ${project} --repo <path> --base <rev>`);
+      printLine(`  5. wiki feature-status ${project}  # verify computed_status = complete`);
     }
   }
 }
@@ -228,11 +229,11 @@ async function cancelSlice(project: string, sliceId: string, options: { reason?:
     ],
   });
   if (options.json) {
-    console.log(JSON.stringify({ project, sliceId, closed: false, cancelled: true, backlogRowRewritten: rowRewritten }, null, 2));
+    printJson({ project, sliceId, closed: false, cancelled: true, backlogRowRewritten: rowRewritten });
   } else {
-    console.log(`cancelled ${sliceId}${options.reason ? ` (reason: ${options.reason})` : ""}${options.supersededBy ? ` (superseded by ${options.supersededBy})` : ""}`);
-    if (rowRewritten) console.log(`- backlog row rewritten to [-]${annotation ? ` — cancelled: ${annotation}` : ""}`);
-    else console.log(`- backlog row: not found or already [-]`);
+    printLine(`cancelled ${sliceId}${options.reason ? ` (reason: ${options.reason})` : ""}${options.supersededBy ? ` (superseded by ${options.supersededBy})` : ""}`);
+    if (rowRewritten) printLine(`- backlog row rewritten to [-]${annotation ? ` — cancelled: ${annotation}` : ""}`);
+    else printLine(`- backlog row: not found or already [-]`);
   }
 }
 

@@ -2,6 +2,7 @@ import { buildForgeSteering, renderSteeringPacket, type ForgeSteeringPacket, typ
 import { collectForgeStatus } from "../../protocol";
 import type { PipelineResult } from "../pipeline";
 import type { ForgeReview } from "./docs";
+import { printLine } from "../../lib/cli-output";
 
 export type ResolvedForgeWorkflow = Awaited<ReturnType<typeof collectForgeStatus>> & {
   triage: ForgeTriage;
@@ -26,70 +27,70 @@ export function renderForgePipeline(
   review?: ForgeReview | null,
 ) {
   const resolvedWorkflow = applyPipelineFailureRecovery(workflow, result);
-  console.log(`forge ${action} ${workflow.project}/${workflow.sliceId}: ${result.ok ? "PASS" : "FAIL"}`);
-  for (const line of renderSteeringPacket(resolvedWorkflow.steering)) console.log(`- ${line}`);
-  console.log(`- active slice: ${resolvedWorkflow.activeSlice ?? "none"}`);
-  console.log(`- workflow next phase: ${resolvedWorkflow.workflow.validation.nextPhase ?? "complete"}`);
-  console.log(`- next action: ${resolvedWorkflow.triage.command}`);
+  printLine(`forge ${action} ${workflow.project}/${workflow.sliceId}: ${result.ok ? "PASS" : "FAIL"}`);
+  for (const line of renderSteeringPacket(resolvedWorkflow.steering)) printLine(`- ${line}`);
+  printLine(`- active slice: ${resolvedWorkflow.activeSlice ?? "none"}`);
+  printLine(`- workflow next phase: ${resolvedWorkflow.workflow.validation.nextPhase ?? "complete"}`);
+  printLine(`- next action: ${resolvedWorkflow.triage.command}`);
   for (const step of result.steps) {
     let status = "FAILED";
     if (step.skipped) status = "skipped";
     else if (step.ok) status = "ok";
     const duration = step.durationMs !== null ? ` (${step.durationMs}ms)` : "";
-    console.log(`- ${step.id}: ${status}${duration}`);
+    printLine(`- ${step.id}: ${status}${duration}`);
     if (!step.ok) {
       if (step.stdout) {
-        for (const line of step.stdout.split("\n")) console.log(`  ${line}`);
+        for (const line of step.stdout.split("\n")) printLine(`  ${line}`);
       }
       if (step.stderr && step.stderr !== step.error) {
-        for (const line of step.stderr.split("\n")) console.log(`  stderr: ${line}`);
+        for (const line of step.stderr.split("\n")) printLine(`  stderr: ${line}`);
       } else if (step.error) {
-        console.log(`  error: ${step.error}`);
+        printLine(`  error: ${step.error}`);
       }
-      console.log(`  rerun: ${step.rerunCommand}`);
-      console.log(`  upstream mutated: ${step.upstreamMutated ? "yes" : "no"}`);
+      printLine(`  rerun: ${step.rerunCommand}`);
+      printLine(`  upstream mutated: ${step.upstreamMutated ? "yes" : "no"}`);
     }
   }
   if (review) {
-    if (review.blockers.length) console.log(`- slice-local blockers: ${review.blockers.length}`);
+    if (review.blockers.length) printLine(`- slice-local blockers: ${review.blockers.length}`);
     for (const finding of review.findings) {
-      console.log(`- [${finding.scope}][${finding.severity}] ${finding.message}`);
+      printLine(`- [${finding.scope}][${finding.severity}] ${finding.message}`);
     }
   }
 }
 
 export function renderForgeStatus(workflow: ResolvedForgeWorkflow) {
-  console.log(`forge status for ${workflow.project}/${workflow.sliceId}`);
-  for (const line of renderSteeringPacket(workflow.steering)) console.log(`- ${line}`);
-  console.log(`- active slice: ${workflow.activeSlice ?? "none"}`);
-  console.log(`- recommended slice: ${workflow.recommendedSlice ?? "none"}`);
-  console.log(`- parent prd: ${workflow.parentPrd ?? "none"}`);
-  console.log(`- parent feature: ${workflow.parentFeature ?? "none"}`);
-  console.log(`- plan: ${workflow.planStatus}`);
-  console.log(`- test-plan: ${workflow.testPlanStatus}`);
-  console.log(`- verification level: ${workflow.verificationLevel ?? "none"}`);
-  console.log(`- workflow next phase: ${workflow.workflow.validation.nextPhase ?? "complete"}`);
+  printLine(`forge status for ${workflow.project}/${workflow.sliceId}`);
+  for (const line of renderSteeringPacket(workflow.steering)) printLine(`- ${line}`);
+  printLine(`- active slice: ${workflow.activeSlice ?? "none"}`);
+  printLine(`- recommended slice: ${workflow.recommendedSlice ?? "none"}`);
+  printLine(`- parent prd: ${workflow.parentPrd ?? "none"}`);
+  printLine(`- parent feature: ${workflow.parentFeature ?? "none"}`);
+  printLine(`- plan: ${workflow.planStatus}`);
+  printLine(`- test-plan: ${workflow.testPlanStatus}`);
+  printLine(`- verification level: ${workflow.verificationLevel ?? "none"}`);
+  printLine(`- workflow next phase: ${workflow.workflow.validation.nextPhase ?? "complete"}`);
   const nextPhaseStatus = workflow.workflow.validation.statuses.find((status) => status.phase === workflow.workflow.validation.nextPhase);
   if (nextPhaseStatus?.missing.length) {
-    console.log(`  unmet: ${nextPhaseStatus.missing.join(", ")}`);
+    printLine(`  unmet: ${nextPhaseStatus.missing.join(", ")}`);
   }
-  console.log(`- next action: ${workflow.triage.command}`);
-  console.log(`  reason: ${workflow.triage.reason}`);
+  printLine(`- next action: ${workflow.triage.command}`);
+  printLine(`  reason: ${workflow.triage.reason}`);
   for (const status of workflow.workflow.validation.statuses) {
     let state = `blocked by ${status.blockedBy.join(", ")}`;
     if (status.completed) state = "done";
     else if (status.ready) state = "ready";
-    console.log(`  - ${status.phase}: ${state}${status.missing.length ? ` | unmet ${status.missing.join(", ")}` : ""}`);
+    printLine(`  - ${status.phase}: ${state}${status.missing.length ? ` | unmet ${status.missing.join(", ")}` : ""}`);
   }
 }
 
 export function renderForgeStatusWithoutSlice(status: ForgeStatusWithoutSlice) {
-  console.log(`forge status for ${status.project}`);
-  for (const line of renderSteeringPacket(status.steering)) console.log(`- ${line}`);
-  console.log(`- active slice: ${status.activeSlice ?? "none"}`);
-  console.log(`- recommended slice: ${status.recommendedSlice ?? "none"}`);
-  console.log(`- next action: ${status.triage.command}`);
-  console.log(`  reason: ${status.triage.reason}`);
+  printLine(`forge status for ${status.project}`);
+  for (const line of renderSteeringPacket(status.steering)) printLine(`- ${line}`);
+  printLine(`- active slice: ${status.activeSlice ?? "none"}`);
+  printLine(`- recommended slice: ${status.recommendedSlice ?? "none"}`);
+  printLine(`- next action: ${status.triage.command}`);
+  printLine(`  reason: ${status.triage.reason}`);
 }
 
 export function resolveFailedPipelineStep(result: PipelineResult): PipelineStepResult | undefined {

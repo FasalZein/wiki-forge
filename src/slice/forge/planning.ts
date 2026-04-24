@@ -13,6 +13,7 @@ import { resolveRepoPath } from "../../lib/verification";
 import { collectBacklogView, type BacklogTaskContext } from "../../hierarchy";
 import { collectForgeStatus } from "../../protocol";
 import { escapeRegex, extractSection, readMatter, readPlanningDoc } from "./docs";
+import { printError, printJson } from "../../lib/cli-output";
 
 export type SlicePromptData = {
   sliceId: string;
@@ -76,7 +77,7 @@ export async function forgeNextAll(project: string): Promise<void> {
   const candidates = [...inProgressEntries, ...todoEntries];
 
   if (!candidates.length) {
-    console.log(JSON.stringify([], null, 2));
+    printJson([]);
     return;
   }
 
@@ -86,13 +87,13 @@ export async function forgeNextAll(project: string): Promise<void> {
       return buildSlicePromptData(project, task.id, workflow, active);
     }),
   );
-  console.log(JSON.stringify(results, null, 2));
+  printJson(results);
 }
 
 export async function autoFillSliceDocs(project: string, sliceId: string, prdId: string): Promise<void> {
   const prdDoc = await readPlanningDoc(projectPrdsDir(project), prdId);
   if (!prdDoc) {
-    console.warn(`[warn] PRD ${prdId} not found; skipping auto-fill for ${sliceId}`);
+    printError(`[warn] PRD ${prdId} not found; skipping auto-fill for ${sliceId}`);
     return;
   }
 
