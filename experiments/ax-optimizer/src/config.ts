@@ -4,7 +4,7 @@ import type { OptimizeConfig } from "./types";
 
 function parseHeaders(raw: string | undefined) {
   if (!raw || !raw.trim()) return undefined;
-  const parsed = JSON.parse(raw) as unknown;
+  const parsed: unknown = JSON.parse(raw);
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw new Error("AX_HEADERS_JSON must be a JSON object");
   }

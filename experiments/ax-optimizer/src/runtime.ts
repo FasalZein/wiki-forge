@@ -7,6 +7,14 @@ import { loadConfig } from "./config";
 import { createProgram } from "./programs";
 import type { OptimizeTarget } from "./types";
 
+type OptimizedProgramOptions = ConstructorParameters<typeof AxOptimizedProgramImpl>[0];
+
+function assertOptimizedProgramOptions(value: unknown): asserts value is OptimizedProgramOptions {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("optimized program payload must be a JSON object");
+  }
+}
+
 export function createAi(model: string) {
   const config = loadConfig();
   return new AxAI({
@@ -23,7 +31,9 @@ export function createAi(model: string) {
 export async function loadOptimizedProgram(target: OptimizeTarget) {
   const path = join(import.meta.dir, "..", "outputs", `${target}.optimized-program.json`);
   const raw = await readFile(path, "utf8");
-  return new AxOptimizedProgramImpl(JSON.parse(raw) as ConstructorParameters<typeof AxOptimizedProgramImpl>[0]);
+  const parsed: unknown = JSON.parse(raw);
+  assertOptimizedProgramOptions(parsed);
+  return new AxOptimizedProgramImpl(parsed);
 }
 
 export async function createProgramWithOptimization(target: OptimizeTarget) {
