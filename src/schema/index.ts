@@ -4,11 +4,12 @@ import { planSchema } from "./plan";
 import { prdSchema } from "./prd";
 import { sliceHubSchema } from "./slice-hub";
 import { testPlanSchema } from "./test-plan";
+import type { JsonSchema } from "./shared";
 
 export const SPEC_SCHEMA_KINDS = ["slice-hub", "plan", "test-plan", "prd", "feature"] as const;
 export type SpecSchemaKind = (typeof SPEC_SCHEMA_KINDS)[number];
 
-const SCHEMAS: Record<SpecSchemaKind, object> = {
+const SCHEMAS: Record<SpecSchemaKind, JsonSchema> = {
   "slice-hub": sliceHubSchema,
   plan: planSchema,
   "test-plan": testPlanSchema,

@@ -8,12 +8,7 @@ import { projectSlicesDir } from "../../lib/structure";
 import { appendLogEntry } from "../../lib/log";
 import { appendAutoHealLogEntry, tailAutoHealLog } from "../../lib/auto-heal-log";
 import { rewriteBacklogRowMarker, getBacklogRowMarker } from "../backlog/io";
-type MaintenanceAction = {
-  kind: string;
-  scope?: "slice" | "parent" | "project" | "history";
-  message: string;
-  _apply?: () => void | Promise<void>;
-};
+import type { HierarchyMaintenanceAction } from "./actions";
 
 // ─── slice detail for R2/R3 analysis ─────────────────────────────────────────
 
@@ -66,7 +61,7 @@ export function buildLifecycleDriftAction(
   parsed: { content: string; data: Record<string, unknown> },
   slices: SliceDetail[],
   project: string,
-): MaintenanceAction {
+): HierarchyMaintenanceAction {
   // R2 — reopen: any child in a non-terminal state
   const nonTerminalChild = slices.find((s) => s.status !== null && NON_TERMINAL_STATUSES.has(s.status));
   if (nonTerminalChild) {
@@ -141,12 +136,12 @@ export function buildLifecycleDriftAction(
 export async function collectCancelledSyncActions(
   project: string,
   vaultRoot?: string,
-): Promise<MaintenanceAction[]> {
+): Promise<HierarchyMaintenanceAction[]> {
   const effectiveVaultRoot = vaultRoot ?? VAULT_ROOT;
   const slicesDir = projectSlicesDir(project);
   if (!await exists(slicesDir)) return [];
   const sliceFiles = await walkMarkdown(slicesDir);
-  const actions: MaintenanceAction[] = [];
+  const actions: HierarchyMaintenanceAction[] = [];
   for (const file of sliceFiles) {
     if (!file.endsWith("/index.md")) continue;
     const relPath = relative(effectiveVaultRoot, file);

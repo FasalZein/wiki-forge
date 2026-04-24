@@ -128,7 +128,14 @@ export function collapseActions(actions: Array<Pick<MaintenanceAction, "kind" | 
   return out;
 }
 
-export function compactMaintainForJson(result: Awaited<ReturnType<typeof collectMaintenancePlan>>) {
+type CompactableImpactedPage = Record<string, unknown> & { diffSummary?: unknown };
+type CompactableMaintainResult = Record<string, unknown> & {
+  refreshFromGit: Record<string, unknown> & {
+    impactedPages: CompactableImpactedPage[];
+  };
+};
+
+export function compactMaintainForJson<T extends CompactableMaintainResult>(result: T) {
   return {
     ...result,
     refreshFromGit: {

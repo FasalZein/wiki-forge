@@ -11,7 +11,7 @@ function makeSnapshot(entries: Array<{ relPath: string; raw: string }>): Linting
       relPath: e.relPath,
       vaultPath: `projects/test-proj/${e.relPath}`,
       raw: e.raw,
-      parsed: null as any,
+      parsed: null,
       sourcePaths: [],
       rawUpdated: null,
       verificationLevel: null,

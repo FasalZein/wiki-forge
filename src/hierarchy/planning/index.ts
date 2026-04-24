@@ -3,6 +3,7 @@ import { relative } from "node:path";
 import { VAULT_ROOT } from "../../constants";
 import { mkdirIfMissing, nowIso, orderFrontmatter, requireValue, safeMatter, writeNormalizedPage } from "../../cli-shared";
 import { exists, readText } from "../../lib/fs";
+import { slugify as slugifyValue } from "../../lib/slug";
 import {
   isCanonicalFeatureId,
   projectFeaturePath,
@@ -421,5 +422,5 @@ function interpolateTemplate(template: string, values: Record<string, string>) {
 }
 
 export function slugify(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").replace(/-{2,}/g, "-") || "spec";
+  return slugifyValue(value, "spec");
 }

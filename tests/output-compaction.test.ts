@@ -53,8 +53,8 @@ describe("compactMaintainForJson", () => {
         other: "kept",
       },
       rest: "kept",
-    } as any;
-    const compact: any = compactMaintainForJson(result);
+    };
+    const compact = compactMaintainForJson(result);
     expect(compact.refreshFromGit.impactedPages[0]).not.toHaveProperty("diffSummary");
     expect(compact.refreshFromGit.impactedPages[0].page).toBe("one.md");
     expect(compact.refreshFromGit.other).toBe("kept");

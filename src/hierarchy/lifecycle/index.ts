@@ -8,13 +8,8 @@ import { readVerificationLevel } from "../../lib/verification";
 import { projectFeaturesDir, projectPrdsDir, projectSlicesDir } from "../../lib/structure";
 import { computeStatus, type HierarchyStatus, type SliceState } from "../status/compute";
 import { appendLogEntry } from "../../lib/log";
-type MaintenanceAction = {
-  kind: string;
-  scope?: "slice" | "parent" | "project" | "history";
-  message: string;
-  _apply?: () => void | Promise<void>;
-};
 import { collectFeatureStatuses } from "../status";
+import type { HierarchyMaintenanceAction } from "./actions";
 import { collectSliceDetails, buildLifecycleDriftAction } from "./drift";
 
 async function findEntityFile(project: string, entityId: string, entityType: "feature" | "prd"): Promise<string | null> {
@@ -93,12 +88,12 @@ export async function lifecycleClose(project: string, entityId: string, entityTy
 }
 
 
-export async function collectLifecycleDriftActions(project: string): Promise<MaintenanceAction[]> {
+export async function collectLifecycleDriftActions(project: string): Promise<HierarchyMaintenanceAction[]> {
   const [rows, { byPrd, byFeature }] = await Promise.all([
     collectFeatureStatuses(project),
     collectSliceDetails(project),
   ]);
-  const actions: MaintenanceAction[] = [];
+  const actions: HierarchyMaintenanceAction[] = [];
   for (const row of rows) {
     const relPath = relative(VAULT_ROOT, row.file);
     const raw = await readText(row.file);
@@ -124,9 +119,9 @@ export async function collectLifecycleDriftActions(project: string): Promise<Mai
   return actions;
 }
 
-export async function collectHierarchyStatusActions(project: string): Promise<MaintenanceAction[]> {
+export async function collectHierarchyStatusActions(project: string): Promise<HierarchyMaintenanceAction[]> {
   const rows = await collectFeatureStatuses(project);
-  const actions: MaintenanceAction[] = [];
+  const actions: HierarchyMaintenanceAction[] = [];
 
   for (const row of rows) {
     const file = row.file;

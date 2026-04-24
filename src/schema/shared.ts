@@ -1,6 +1,6 @@
 import { getStateContract, type StateContractId } from "../lib/state-contract";
 
-type JsonSchema = {
+export type JsonSchema = {
   $schema: string;
   $id: string;
   title: string;
