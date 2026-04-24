@@ -1,0 +1,55 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "bin/wiki",
+    "src/index.ts",
+    "src/*/index.ts",
+    "src/*/*/index.ts",
+    "scripts/**/*.ts",
+    "tests/**/*.ts"
+  ],
+  "project": [
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "tests/**/*.ts"
+  ],
+  "workspaces": {
+    "experiments/ax-optimizer": {
+      "entry": ["src/cli.ts"],
+      "project": ["src/**/*.ts"]
+    }
+  },
+  // Compatibility shims, generated source_path anchors, migration scripts, and
+  // package-local experiment entrypoints are intentionally reachable outside the
+  // static import graph. These are documented/proven surfaces, not deletion targets.
+  "ignoreFiles": [
+    "scripts/qmd-cli.ts",
+    "scripts/rebind-prd-043.ts",
+    "src/system.ts",
+    "src/hierarchy/backlog-collect.ts",
+    "src/hierarchy/backlog-commands.ts",
+    "src/hierarchy/index-log-markdown.ts",
+    "src/hierarchy/index-log-relationships.ts",
+    "src/lib/plan-summary.ts",
+    "src/lib/slice-doc-placeholders.ts",
+    "src/maintenance/_shared.ts",
+    "src/retrieval/index.ts",
+    "src/session/handover-narrative.ts",
+    "src/slice/_shared.ts",
+    "src/slice/coordination.ts",
+    "src/slice/coordination/index.ts",
+    "src/slice/forge-args.ts",
+    "src/slice/forge-docs.ts",
+    "src/slice/forge-output.ts",
+    "src/slice/forge-planning.ts",
+    "src/slice/forge-run.ts"
+  ],
+  // Public CLI/domain seams intentionally export more than this package imports
+  // internally. Removing them requires API/reachability review, so keep knip from
+  // treating public-surface exports as deletion authority during this campaign.
+  "ignoreIssues": {
+    "src/**/*.ts": ["exports", "types"],
+    "tests/**/*.ts": ["exports", "types"],
+    "experiments/ax-optimizer/src/**/*.ts": ["exports", "types"]
+  }
+}

@@ -3,6 +3,19 @@ import { runBaseline, runEvaluation, runOptimization, runSkillCandidates } from 
 import { runSkillPromotion } from "./promote";
 import type { OptimizeTarget } from "./types";
 
+function printLine(line = "") {
+  process.stdout.write(`${line}\n`);
+}
+
+function printJson(value: unknown) {
+  printLine(JSON.stringify(value, null, 2));
+}
+
+function printError(line = "") {
+  process.stderr.write(`${line}\n`);
+}
+
+
 function parseTarget(value: string | undefined): OptimizeTarget {
   if (value === "workflow" || value === "skill") return value;
   throw new Error("target must be one of: workflow, skill");
@@ -13,24 +26,24 @@ async function main() {
 
   switch (command) {
     case "print-config":
-      console.log(JSON.stringify(loadConfig(), null, 2));
+      printJson(loadConfig());
       return;
     case "baseline":
-      console.log(JSON.stringify(await runBaseline(parseTarget(rawTarget)), null, 2));
+      printJson(await runBaseline(parseTarget(rawTarget)));
       return;
     case "optimize":
-      console.log(JSON.stringify(await runOptimization(parseTarget(rawTarget)), null, 2));
+      printJson(await runOptimization(parseTarget(rawTarget)));
       return;
     case "evaluate":
-      console.log(JSON.stringify(await runEvaluation(parseTarget(rawTarget)), null, 2));
+      printJson(await runEvaluation(parseTarget(rawTarget)));
       return;
     case "candidates":
       if (rawTarget !== "skill") throw new Error("candidates currently supports only: skill");
-      console.log(JSON.stringify(await runSkillCandidates(), null, 2));
+      printJson(await runSkillCandidates());
       return;
     case "promote":
       if (rawTarget !== "skill") throw new Error("promote currently supports only: skill");
-      console.log(JSON.stringify(await runSkillPromotion(process.argv.slice(4)[0]), null, 2));
+      printJson(await runSkillPromotion(process.argv.slice(4)[0]));
       return;
     default:
       throw new Error("usage: bun src/cli.ts <print-config|baseline|optimize|evaluate> [workflow|skill] | bun src/cli.ts candidates skill | bun src/cli.ts promote skill [wiki|forge]");
@@ -38,6 +51,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(String(error));
+  printError(String(error));
   process.exit(1);
 });

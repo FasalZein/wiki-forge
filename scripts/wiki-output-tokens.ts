@@ -2,10 +2,23 @@
 
 import { measureOutputText } from "../src/lib/token-budget";
 
+function printLine(line = "") {
+  process.stdout.write(`${line}\n`);
+}
+
+function printJson(value: unknown) {
+  printLine(JSON.stringify(value, null, 2));
+}
+
+function printError(line = "") {
+  process.stderr.write(`${line}\n`);
+}
+
+
 const args = process.argv.slice(2);
 
 if (args.length === 0) {
-  console.error("usage: bun scripts/wiki-output-tokens.ts <wiki-args...>");
+  printError("usage: bun scripts/wiki-output-tokens.ts <wiki-args...>");
   process.exit(1);
 }
 
@@ -19,11 +32,11 @@ const proc = Bun.spawnSync([process.execPath, "src/index.ts", ...args], {
 const stdout = proc.stdout.toString();
 const stderr = proc.stderr.toString();
 
-console.log(JSON.stringify({
+printJson({
   command: args,
   exitCode: proc.exitCode,
   stdout: measureOutputText(stdout),
   stderr: measureOutputText(stderr),
-}, null, 2));
+});
 
 process.exit(proc.exitCode);

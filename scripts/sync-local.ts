@@ -3,6 +3,11 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+function printLine(line = "") {
+  process.stdout.write(`${line}\n`);
+}
+
+
 export const REPO_SKILLS = listRepoSkills(resolve(import.meta.dir, ".."));
 export const COMPANION_SKILLS = ["FasalZein/desloppify"] as const;
 export const INSTALL_SETS = ["full", "wiki-only"] as const;
@@ -29,11 +34,11 @@ async function main(args: string[]) {
   const options = parseSyncArgs(args);
   if (options.audit) {
     const audit = auditInstalledRepoSkills(options);
-    console.log("wiki-forge local skill audit");
-    console.log(`- repo: ${options.repoDir}`);
-    console.log(`- install set: ${options.installSet}`);
-    console.log(`- install root: ${audit.installRoot}`);
-    for (const row of audit.rows) console.log(`- ${row.skill}: ${row.status}`);
+    printLine("wiki-forge local skill audit");
+    printLine(`- repo: ${options.repoDir}`);
+    printLine(`- install set: ${options.installSet}`);
+    printLine(`- install root: ${audit.installRoot}`);
+    for (const row of audit.rows) printLine(`- ${row.skill}: ${row.status}`);
     if (!audit.ok) process.exit(1);
     return;
   }
@@ -44,19 +49,19 @@ async function main(args: string[]) {
   ensureCommand("npm", "npm is required for sync:local");
   ensureCommand("npx", "npx is required for sync:local");
 
-  console.log("wiki-forge local sync");
-  console.log(`- repo: ${options.repoDir}`);
-  console.log(`- install set: ${options.installSet}`);
-  console.log(`- companion skills: ${shouldInstallCompanions(options) ? "yes" : "no"}`);
+  printLine("wiki-forge local sync");
+  printLine(`- repo: ${options.repoDir}`);
+  printLine(`- install set: ${options.installSet}`);
+  printLine(`- companion skills: ${shouldInstallCompanions(options) ? "yes" : "no"}`);
 
   for (const step of plan) {
-    console.log(`- ${step.label}`);
+    printLine(`- ${step.label}`);
     runStep(step, options.repoDir);
   }
 
   assertInstalledRepoSkillsFresh(options);
-  console.log("sync complete");
-  console.log("restart your agent session to pick up refreshed skill instructions");
+  printLine("sync complete");
+  printLine("restart your agent session to pick up refreshed skill instructions");
 }
 
 export function parseSyncArgs(args: string[], repoDir = resolve(import.meta.dir, "..")): SyncOptions {

@@ -4,6 +4,11 @@ import { cpSync, existsSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { homedir, tmpdir } from "node:os";
 
+function printLine(line = "") {
+  process.stdout.write(`${line}\n`);
+}
+
+
 export const DEFAULT_BENCH_COMMANDS = [
   "update-index",
   "maintain",
@@ -274,20 +279,20 @@ function percentile(sorted: number[], value: number) {
 }
 
 function printResults(options: Options, results: BenchResult[], jsonPath: string, tempRoot: string) {
-  console.log(`vault: ${options.vault}`);
-  console.log(`repo: ${options.repo}`);
-  console.log(`base: ${options.base}`);
-  console.log(`iterations: ${options.iterations}`);
-  console.log(`commands: ${options.commands.join(", ")}`);
-  console.log("");
-  console.log("| Benchmark | p50 ms | p95 ms | p99 ms | mean ms | min ms | max ms |");
-  console.log("| --- | ---: | ---: | ---: | ---: | ---: | ---: |");
+  printLine(`vault: ${options.vault}`);
+  printLine(`repo: ${options.repo}`);
+  printLine(`base: ${options.base}`);
+  printLine(`iterations: ${options.iterations}`);
+  printLine(`commands: ${options.commands.join(", ")}`);
+  printLine("");
+  printLine("| Benchmark | p50 ms | p95 ms | p99 ms | mean ms | min ms | max ms |");
+  printLine("| --- | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const result of results) {
-    console.log(`| ${result.label} | ${format(result.p50_ms)} | ${format(result.p95_ms)} | ${format(result.p99_ms)} | ${format(result.mean_ms)} | ${format(result.min_ms)} | ${format(result.max_ms)} |`);
+    printLine(`| ${result.label} | ${format(result.p50_ms)} | ${format(result.p95_ms)} | ${format(result.p99_ms)} | ${format(result.mean_ms)} | ${format(result.min_ms)} | ${format(result.max_ms)} |`);
   }
-  console.log("");
-  console.log(`json: ${jsonPath}`);
-  if (options.keepTemp) console.log(`temp root: ${tempRoot}`);
+  printLine("");
+  printLine(`json: ${jsonPath}`);
+  if (options.keepTemp) printLine(`temp root: ${tempRoot}`);
 }
 
 function format(value: number) {

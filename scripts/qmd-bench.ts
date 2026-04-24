@@ -5,6 +5,11 @@ import { dirname, join, resolve } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { buildStructuredHybridQuery } from "../src/lib/qmd";
 
+function printLine(line = "") {
+  process.stdout.write(`${line}\n`);
+}
+
+
 export const DEFAULT_CANDIDATE_LIMITS = [8, 16, 40] as const;
 
 type BenchSuite = {
@@ -201,26 +206,26 @@ function percentile(sorted: number[], value: number) {
 }
 
 function printResults(options: Options, results: BenchResult[], jsonPath: string, tempPath: string, tempVault: string) {
-  console.log(`vault: ${options.vault}`);
-  console.log(`temp vault: ${tempVault}`);
-  console.log(`index: ${options.indexName}`);
-  console.log(`iterations: ${options.iterations}`);
-  console.log(`candidate limits: ${options.candidateLimits.join(", ")}`);
-  console.log(`structural query: ${options.query}`);
-  console.log(`structural ask: ${options.askQuestion}`);
-  console.log(`general query: ${options.generalQuery}`);
-  console.log(`general ask: ${options.generalAskQuestion}`);
-  console.log(`rationale query: ${options.rationaleQuery}`);
-  console.log(`rationale ask: ${options.rationaleAskQuestion}`);
-  console.log("");
-  console.log("| Benchmark | p50 ms | p95 ms | p99 ms | mean ms | min ms | max ms |");
-  console.log("| --- | ---: | ---: | ---: | ---: | ---: | ---: |");
+  printLine(`vault: ${options.vault}`);
+  printLine(`temp vault: ${tempVault}`);
+  printLine(`index: ${options.indexName}`);
+  printLine(`iterations: ${options.iterations}`);
+  printLine(`candidate limits: ${options.candidateLimits.join(", ")}`);
+  printLine(`structural query: ${options.query}`);
+  printLine(`structural ask: ${options.askQuestion}`);
+  printLine(`general query: ${options.generalQuery}`);
+  printLine(`general ask: ${options.generalAskQuestion}`);
+  printLine(`rationale query: ${options.rationaleQuery}`);
+  printLine(`rationale ask: ${options.rationaleAskQuestion}`);
+  printLine("");
+  printLine("| Benchmark | p50 ms | p95 ms | p99 ms | mean ms | min ms | max ms |");
+  printLine("| --- | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const result of results) {
-    console.log(`| ${result.label} | ${format(result.p50_ms)} | ${format(result.p95_ms)} | ${format(result.p99_ms)} | ${format(result.mean_ms)} | ${format(result.min_ms)} | ${format(result.max_ms)} |`);
+    printLine(`| ${result.label} | ${format(result.p50_ms)} | ${format(result.p95_ms)} | ${format(result.p99_ms)} | ${format(result.mean_ms)} | ${format(result.min_ms)} | ${format(result.max_ms)} |`);
   }
-  console.log("");
-  console.log(`json: ${jsonPath}`);
-  if (options.keepTemp) console.log(`temp root: ${tempPath}`);
+  printLine("");
+  printLine(`json: ${jsonPath}`);
+  if (options.keepTemp) printLine(`temp root: ${tempPath}`);
 }
 
 function format(value: number) {

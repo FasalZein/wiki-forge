@@ -1,4 +1,9 @@
 #!/usr/bin/env bun
+
+function printLine(line = "") {
+  process.stdout.write(`${line}\n`);
+}
+
 // One-off migration: rebind wiki pages from old src/commands/* paths to
 // the new domain layout introduced by PRD-043 (slices 107–113).
 // After slice 115 lands and this script has been run, delete this file.
@@ -118,7 +123,7 @@ for (const page of pages) {
   writeNormalizedPage(page, parsed.content, { ...parsed.data, source_paths: deduped, updated: nowIso() });
 }
 
-console.log(`${dryRun ? "[dry-run] would update" : "updated"}: ${updatedCount}`);
+printLine(`${dryRun ? "[dry-run] would update" : "updated"}: ${updatedCount}`);
 if (process.argv.includes("--verbose")) {
-  for (const page of updatedPages) console.log(`  ${page}`);
+  for (const page of updatedPages) printLine(`  ${page}`);
 }

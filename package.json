@@ -42,10 +42,10 @@
     "eslint-import-resolver-typescript": "4.4.4",
     "eslint-plugin-boundaries": "6.0.2",
     "gpt-tokenizer": "3.4.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "@types/mdast": "4.0.4"
   },
   "dependencies": {
-    "@portaljs/remark-wiki-link": "1.2.0",
     "@tobilu/qmd": "^2.1.0",
     "github-slugger": "2.0.0",
     "gray-matter": "4.0.3",
