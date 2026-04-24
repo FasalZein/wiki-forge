@@ -173,14 +173,15 @@ export function projectRoot(project: string) {
 }
 
 export function safeMatter(pathLabel: string, content: string, options?: { silent?: boolean }) {
+  let parsed: { content: string; data: FrontmatterData } | null = null;
   try {
-    return matter(content) as { content: string; data: FrontmatterData };
+    parsed = matter(content) as { content: string; data: FrontmatterData };
   } catch (error) {
     if (!options?.silent) {
       printError(`warning: could not parse frontmatter for ${pathLabel}: ${error instanceof Error ? error.message : String(error)}`);
     }
-    return null;
   }
+  return parsed;
 }
 
 export function orderFrontmatter(data: FrontmatterData, preferredOrder: string[]) {

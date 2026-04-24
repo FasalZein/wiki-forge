@@ -258,23 +258,15 @@ async function buildTrackedArtifactsSection(
 
 async function findPlanningDocPath(dir: string, id: string): Promise<string | null> {
   if (!await exists(dir)) return null;
-  try {
-    const filename = readdirSync(dir).find((entry: string) => entry.startsWith(`${id}-`) && entry.endsWith(".md"));
-    return filename ? join(dir, filename) : null;
-  } catch {
-    return null;
-  }
+  const filename = readdirSync(dir).find((entry: string) => entry.startsWith(`${id}-`) && entry.endsWith(".md"));
+  return filename ? join(dir, filename) : null;
 }
 
 async function readDocTitle(path: string, fallback: string): Promise<string> {
   if (!await exists(path)) return fallback;
-  try {
-    const parsed = safeMatter(relative(VAULT_ROOT, path), await readText(path), { silent: true });
-    if (parsed && typeof parsed.data.title === "string" && parsed.data.title.trim()) {
-      return parsed.data.title.trim();
-    }
-  } catch {
-    // fall through to path-derived title
+  const parsed = safeMatter(relative(VAULT_ROOT, path), await readText(path), { silent: true });
+  if (parsed && typeof parsed.data.title === "string" && parsed.data.title.trim()) {
+    return parsed.data.title.trim();
   }
   return fallback || basename(path, ".md");
 }

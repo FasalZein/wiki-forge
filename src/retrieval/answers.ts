@@ -295,12 +295,14 @@ function isProjectBoundResearch(
 
 function readProjectFromNote(note: NoteInfo | null | undefined) {
   if (!note?.content) return null;
+  let project: string | null = null;
   try {
     const parsed = matter(note.content);
-    return typeof parsed.data.project === "string" ? parsed.data.project.trim().toLowerCase() : null;
+    project = typeof parsed.data.project === "string" ? parsed.data.project.trim().toLowerCase() : null;
   } catch {
-    return null;
+    project = null;
   }
+  return project;
 }
 
 export function qualitySignalBoost(signals?: NoteQualitySignals): number {

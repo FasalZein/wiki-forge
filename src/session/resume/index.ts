@@ -22,16 +22,12 @@ import { printError, printJson, printLine } from "../../lib/cli-output";
 async function findLatestHandover(project: string): Promise<string | null> {
   const dir = join(projectRoot(project), "handovers");
   if (!await exists(dir)) return null;
-  try {
-    const files = readdirSync(dir)
-      .filter((f) => f.endsWith(".md"))
-      .sort()
-      .reverse();
-    if (!files.length) return null;
-    return join(dir, files[0]);
-  } catch {
-    return null;
-  }
+  const files = readdirSync(dir)
+    .filter((f) => f.endsWith(".md"))
+    .sort()
+    .reverse();
+  if (!files.length) return null;
+  return join(dir, files[0]);
 }
 
 export async function resumeProject(args: string[]) {

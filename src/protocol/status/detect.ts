@@ -75,10 +75,11 @@ export async function deriveForgeLedgerFromArtifacts(
   vaultRoot?: string,
 ): Promise<DerivedForgeLedger> {
   const root = vaultRoot ?? VAULT_ROOT;
+  let result: DerivedForgeLedger;
   try {
-    return await _derive(project, sliceId, root);
+    result = await _derive(project, sliceId, root);
   } catch (err) {
-    return {
+    result = {
       patch: {},
       findings: [
         {
@@ -90,6 +91,7 @@ export async function deriveForgeLedgerFromArtifacts(
       ],
     };
   }
+  return result;
 }
 
 async function _derive(project: string, sliceId: string, vaultRoot: string): Promise<DerivedForgeLedger> {

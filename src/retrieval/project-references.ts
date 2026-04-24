@@ -49,12 +49,8 @@ export function selectSpecMarkdownFileForId(entries: string[], id: string) {
 
 function findProjectSpecFile(project: string, family: "features" | "prds", id: string) {
   const dir = join(VAULT_ROOT, "projects", project, "specs", family);
-  let entries: string[];
-  try {
-    entries = readdirSync(dir);
-  } catch {
-    return null;
-  }
+  if (!existsSync(dir)) return null;
+  const entries = readdirSync(dir);
   const match = selectSpecMarkdownFileForId(entries, id);
   return match ? `projects/${project}/specs/${family}/${match}` : null;
 }
