@@ -12,6 +12,7 @@ import {
   topicCrossLinks,
 } from "../lib/research";
 import { ensureResearchTopic } from "./_shared";
+import { printLine } from "../lib/cli-output";
 
 export async function ingestResearch(args: string[]) {
   const { topic, sources, title } = parseIngestResearchArgs(args);
@@ -69,7 +70,7 @@ export async function ingestResearch(args: string[]) {
     ].join("\n");
     writeNormalizedPage(outputPath, body, data);
     appendLogEntry("ingest-research", data.title as string, { details: [`topic=${normalizedTopic}`, `path=${relative(VAULT_ROOT, outputPath)}`] });
-    console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
+    printLine(`created ${relative(VAULT_ROOT, outputPath)}`);
   }
 }
 

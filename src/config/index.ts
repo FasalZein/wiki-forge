@@ -1,4 +1,5 @@
 import { loadConfigDetailed, type ResolvedConfig } from "../lib/config";
+import { printError, printJson, printLine } from "../lib/cli-output";
 
 export async function configCommand(args: string[]): Promise<void> {
   const effective = args.includes("--effective");
@@ -11,10 +12,10 @@ export async function configCommand(args: string[]): Promise<void> {
   if (repoIndex >= 0 && !repo) throw new Error("missing value for --repo");
 
   const { config, warnings } = loadConfigDetailed(repo);
-  for (const line of warnings) console.error(line);
+  for (const line of warnings) printError(line);
 
   if (json) {
-    console.log(JSON.stringify(serialize(config), null, 2));
+    printJson(serialize(config));
     return;
   }
   printText(config);
@@ -44,14 +45,14 @@ function serialize(config: ResolvedConfig) {
 }
 
 function printText(config: ResolvedConfig): void {
-  console.log("wiki config (effective):");
+  printLine("wiki config (effective):");
   const ignore = config.repo.ignore;
   const value = ignore.value.length ? `[${ignore.value.map((p) => JSON.stringify(p)).join(", ")}]` : "[]";
-  console.log(`  repo.ignore = ${value}  (source: ${ignore.source})`);
-  console.log(`  workflow.phaseSkills.research = ${JSON.stringify(config.workflow.phaseSkills.research.value)}  (source: ${config.workflow.phaseSkills.research.source})`);
-  console.log(`  workflow.phaseSkills.domainModel = ${JSON.stringify(config.workflow.phaseSkills.domainModel.value)}  (source: ${config.workflow.phaseSkills.domainModel.source})`);
-  console.log(`  workflow.phaseSkills.prd = ${JSON.stringify(config.workflow.phaseSkills.prd.value)}  (source: ${config.workflow.phaseSkills.prd.source})`);
-  console.log(`  workflow.phaseSkills.slices = ${JSON.stringify(config.workflow.phaseSkills.slices.value)}  (source: ${config.workflow.phaseSkills.slices.source})`);
-  console.log(`  workflow.phaseSkills.tdd = ${JSON.stringify(config.workflow.phaseSkills.tdd.value)}  (source: ${config.workflow.phaseSkills.tdd.source})`);
-  console.log(`  workflow.phaseSkills.verify = ${JSON.stringify(config.workflow.phaseSkills.verify.value)}  (source: ${config.workflow.phaseSkills.verify.source})`);
+  printLine(`  repo.ignore = ${value}  (source: ${ignore.source})`);
+  printLine(`  workflow.phaseSkills.research = ${JSON.stringify(config.workflow.phaseSkills.research.value)}  (source: ${config.workflow.phaseSkills.research.source})`);
+  printLine(`  workflow.phaseSkills.domainModel = ${JSON.stringify(config.workflow.phaseSkills.domainModel.value)}  (source: ${config.workflow.phaseSkills.domainModel.source})`);
+  printLine(`  workflow.phaseSkills.prd = ${JSON.stringify(config.workflow.phaseSkills.prd.value)}  (source: ${config.workflow.phaseSkills.prd.source})`);
+  printLine(`  workflow.phaseSkills.slices = ${JSON.stringify(config.workflow.phaseSkills.slices.value)}  (source: ${config.workflow.phaseSkills.slices.source})`);
+  printLine(`  workflow.phaseSkills.tdd = ${JSON.stringify(config.workflow.phaseSkills.tdd.value)}  (source: ${config.workflow.phaseSkills.tdd.source})`);
+  printLine(`  workflow.phaseSkills.verify = ${JSON.stringify(config.workflow.phaseSkills.verify.value)}  (source: ${config.workflow.phaseSkills.verify.source})`);
 }

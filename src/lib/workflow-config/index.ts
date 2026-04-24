@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { parse as parseJsonc, printParseErrorCode, type ParseError } from "jsonc-parser";
+import { printError } from "../cli-output";
 type ForgePhase = "research" | "domain-model" | "prd" | "slices" | "tdd" | "verify";
 
 export type ConfigSource = "default" | "system" | "project";
@@ -113,7 +114,7 @@ export function loadConfigDetailed(cwd: string, homeDir: string = homedir()): Lo
 
 export function loadConfig(cwd: string, homeDir: string = homedir()): ResolvedConfig {
   const { config, warnings } = loadConfigDetailed(cwd, homeDir);
-  for (const line of warnings) console.error(line);
+  for (const line of warnings) printError(line);
   return config;
 }
 

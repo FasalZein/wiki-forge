@@ -6,6 +6,7 @@ import { appendLogEntry } from "../lib/log";
 import { exists, readText } from "../lib/fs";
 import { normalizeInfluencedBy, normalizeResearchPageRef } from "../lib/research";
 import { projectPrdsDir, projectTaskHubPath, toVaultWikilinkPath } from "../lib/structure";
+import { printJson, printLine } from "../lib/cli-output";
 
 const RESEARCH_FRONTMATTER_ORDER = [
   "title",
@@ -114,16 +115,16 @@ export async function bridgeResearch(args: string[]) {
     nextAction: `wiki forge status ${project} ${sliceId}`,
   };
   if (json) {
-    console.log(JSON.stringify(result, null, 2));
+    printJson(result);
     return;
   }
-  console.log(`research bridge: ${pageRef} -> ${sliceId}`);
-  console.log(`- project: ${project}`);
-  console.log(`- parent PRD: ${parentPrd}`);
-  console.log(`- added to Prior Research: ${prdChanged ? "yes" : "already present"}`);
-  console.log(`- recorded in influenced_by: ${noteChanged ? "yes" : "already present"}`);
-  console.log(`- recorded in slice ledger: ${ledgerChanged ? "yes" : "already present"}`);
-  console.log(`- next: ${result.nextAction}`);
+  printLine(`research bridge: ${pageRef} -> ${sliceId}`);
+  printLine(`- project: ${project}`);
+  printLine(`- parent PRD: ${parentPrd}`);
+  printLine(`- added to Prior Research: ${prdChanged ? "yes" : "already present"}`);
+  printLine(`- recorded in influenced_by: ${noteChanged ? "yes" : "already present"}`);
+  printLine(`- recorded in slice ledger: ${ledgerChanged ? "yes" : "already present"}`);
+  printLine(`- next: ${result.nextAction}`);
 }
 
 export const adoptResearch = bridgeResearch;

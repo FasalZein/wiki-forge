@@ -5,6 +5,7 @@ import { prdSchema } from "./prd";
 import { sliceHubSchema } from "./slice-hub";
 import { testPlanSchema } from "./test-plan";
 import type { JsonSchema } from "./shared";
+import { printJson, printLine } from "../lib/cli-output";
 
 export const SPEC_SCHEMA_KINDS = ["slice-hub", "plan", "test-plan", "prd", "feature"] as const;
 export type SpecSchemaKind = (typeof SPEC_SCHEMA_KINDS)[number];
@@ -19,12 +20,12 @@ const SCHEMAS: Record<SpecSchemaKind, JsonSchema> = {
 
 export function schemaCommand(args: string[]) {
   if (args.includes("--list")) {
-    console.log(SPEC_SCHEMA_KINDS.join("\n"));
+    printLine(SPEC_SCHEMA_KINDS.join("\n"));
     return;
   }
 
   const kind = args.find((arg) => !arg.startsWith("--"));
   requireValue(kind, "schema-kind");
   if (!(kind in SCHEMAS)) throw new Error(`unknown schema kind: ${kind}`);
-  console.log(JSON.stringify(SCHEMAS[kind as SpecSchemaKind], null, 2));
+  printJson(SCHEMAS[kind as SpecSchemaKind]);
 }

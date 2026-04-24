@@ -12,6 +12,7 @@ import { resolveDirectProjectReferenceResults } from "./project-references";
 import { legacyProjectResearchTopic, questionTokens } from "../lib/research";
 import { createResearchPage } from "../research";
 import type { AnswerBrief, AnswerSource, AskOptions, NoteIndex, NoteInfo, NoteQualitySignals, QmdResult } from "../types";
+import { printLine } from "../lib/cli-output";
 
 export const DEFAULT_ASK_MAX_RESULTS = 4;
 const DEFAULT_ASK_CANDIDATES = 8;
@@ -20,7 +21,7 @@ const DEFAULT_COMPACT_SOURCE_REFS = 3;
 export async function askProject(args: string[]) {
   const options = parseAskOptions(args);
   const brief = await buildAnswerBrief(options);
-  console.log(renderAnswerBrief(brief, { verbose: options.verbose }));
+  printLine(renderAnswerBrief(brief, { verbose: options.verbose }));
 }
 
 export async function fileAnswer(args: string[]) {
@@ -32,8 +33,8 @@ export async function fileAnswer(args: string[]) {
   const existed = await exists(outputPath);
   await writeText(outputPath, contents);
   appendLogEntry("file-answer", options.question, { project: options.project, details: [`path=${relative(VAULT_ROOT, outputPath)}`] });
-  console.log(`${existed ? "updated" : "created"} ${relative(VAULT_ROOT, outputPath)}`);
-  console.log(renderAnswerBrief(brief, { verbose: options.verbose }));
+  printLine(`${existed ? "updated" : "created"} ${relative(VAULT_ROOT, outputPath)}`);
+  printLine(renderAnswerBrief(brief, { verbose: options.verbose }));
 }
 
 function parseAskOptions(args: string[]): AskOptions {
@@ -413,7 +414,7 @@ export async function fileResearch(args: string[]) {
   }
   const { outputPath } = await createResearchPage(topic, title, project);
   appendLogEntry("file-research", title, { ...(project ? { project } : {}), details: [`topic=${topic}`, `path=${relative(VAULT_ROOT, outputPath)}`] });
-  console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
+  printLine(`created ${relative(VAULT_ROOT, outputPath)}`);
 }
 
 function parsePositiveInteger(value: string, label: string) {

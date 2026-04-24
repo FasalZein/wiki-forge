@@ -2,6 +2,7 @@ import { appendFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { exists, readText } from "../../lib/fs";
+import { printError, printLine } from "../../lib/cli-output";
 
 const ENV_LINE = 'export KNOWLEDGE_VAULT_ROOT="$HOME/Knowledge"';
 const COMMENT = "# Wiki CLI vault root";
@@ -12,8 +13,8 @@ export async function setupShell(args: string[]) {
   const rcFile = await resolveRcFile(shell);
 
   if (!rcFile) {
-    console.error(`error: unsupported shell: ${shell}`);
-    console.log(`manually add to your shell config:\n  export KNOWLEDGE_VAULT_ROOT="${vaultPath}"`);
+    printError(`error: unsupported shell: ${shell}`);
+    printLine(`manually add to your shell config:\n  export KNOWLEDGE_VAULT_ROOT="${vaultPath}"`);
     process.exit(1);
   }
 
@@ -23,15 +24,15 @@ export async function setupShell(args: string[]) {
   if (await exists(rcPath)) {
     const content = await readText(rcPath);
     if (content.includes("KNOWLEDGE_VAULT_ROOT")) {
-      console.log(`KNOWLEDGE_VAULT_ROOT already set in ~/${rcFile}`);
+      printLine(`KNOWLEDGE_VAULT_ROOT already set in ~/${rcFile}`);
       return;
     }
   }
 
   appendFileSync(rcPath, `\n${COMMENT}\n${exportLine}\n`, "utf8");
-  console.log(`added to ~/${rcFile}:`);
-  console.log(`  ${exportLine}`);
-  console.log(`\nreload with: source ~/${rcFile}`);
+  printLine(`added to ~/${rcFile}:`);
+  printLine(`  ${exportLine}`);
+  printLine(`\nreload with: source ~/${rcFile}`);
 }
 
 async function resolveRcFile(shell: string): Promise<string | null> {

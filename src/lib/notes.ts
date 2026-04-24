@@ -8,6 +8,7 @@ import type { NoteIndex, NoteInfo, NoteQualitySignals, QmdResult } from "../type
 import { filesFingerprint, readCache, writeCache } from "./cache";
 import { exists, readText } from "./fs";
 import { fromQmdFile, isNonMarkdownAttachment, normalizePath, stripMarkdownExtension, toVaultPath, walkMarkdown } from "./vault";
+import { printError } from "./cli-output";
 
 const NOTE_INDEX_CACHE_VERSION = "1";
 
@@ -279,7 +280,7 @@ function safeMatter(pathLabel: string, content: string, options?: { silent?: boo
   } catch (error) {
     if (isFrontmatterParseError(error)) {
       if (!options?.silent) {
-        console.warn(`warning: could not parse frontmatter for ${pathLabel}: ${error.message}`);
+        printError(`warning: could not parse frontmatter for ${pathLabel}: ${error.message}`);
       }
       return null;
     }

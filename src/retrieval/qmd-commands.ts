@@ -2,10 +2,11 @@ import { buildLexicalSearchQuery, buildStructuredHybridQuery, type RetrievalMode
 import { getQmdStore, sdkHybridAvailable, searchKnowledgeExpandedSdk, searchKnowledgeHybridSdk, searchKnowledgeLexicalSdk, searchKnowledgeStructuredSdk } from "../lib/qmd-sdk";
 import { QMD_INDEX_PATH } from "../constants";
 import { embedKnowledgeIndex, refreshKnowledgeIndex } from "./qmd-freshness";
+import { printError, printJson, printLine } from "../lib/cli-output";
 
 export async function searchVault(args: string[]) {
   const hybrid = args[0] === "--hybrid";
-  if (hybrid) console.warn("warning: 'wiki search --hybrid' overlaps with 'wiki query'. Prefer 'wiki query' for hybrid retrieval.");
+  if (hybrid) printError("warning: 'wiki search --hybrid' overlaps with 'wiki query'. Prefer 'wiki query' for hybrid retrieval.");
   const query = (hybrid ? args.slice(1) : args).join(" ").trim();
   if (!query) {
     throw new Error("missing query");
@@ -14,16 +15,16 @@ export async function searchVault(args: string[]) {
   const mode = resolveSearchRetrievalMode({ hybrid, sdkHybridAvailable: await sdkHybridAvailable() });
   if (mode === "sdk-bm25") {
     const results = await searchKnowledgeLexicalSdk(query);
-    console.log(renderQueryResults(results));
+    printLine(renderQueryResults(results));
     return;
   }
   if (mode === "sdk-hybrid") {
     const results = await searchKnowledgeHybridSdk(query);
-    console.log(renderQueryResults(results));
+    printLine(renderQueryResults(results));
     return;
   }
   const results = await searchKnowledgeStructuredSdk(buildStructuredHybridQuery(query), { cacheKeyPrefix: "search:sdk-structured" });
-  console.log(renderQueryResults(results));
+  printLine(renderQueryResults(results));
 }
 
 export async function queryVault(args: string[]) {
@@ -38,42 +39,42 @@ export async function queryVault(args: string[]) {
   const mode = resolveRetrievalMode(query, { expand, bm25: useBm25, sdkHybridAvailable: await sdkHybridAvailable() });
   if (mode === "expand") {
     const results = await searchKnowledgeExpandedSdk(query, { maxResults: 5, cacheKeyPrefix: "query:sdk-expand" });
-    console.log(renderQueryResults(results));
+    printLine(renderQueryResults(results));
     return;
   }
   if (mode === "bm25") {
     const results = await searchKnowledgeLexicalSdk(buildLexicalSearchQuery(query), { maxResults: 5, cacheKeyPrefix: "query:sdk-bm25" });
-    console.log(renderQueryResults(results));
+    printLine(renderQueryResults(results));
     return;
   }
   if (mode === "sdk-hybrid") {
     const results = await searchKnowledgeHybridSdk(query, { maxResults: 5, cacheKeyPrefix: "query:sdk-hybrid" });
-    console.log(renderQueryResults(results));
+    printLine(renderQueryResults(results));
     return;
   }
   const results = await searchKnowledgeStructuredSdk(buildStructuredHybridQuery(query), { maxResults: 5, cacheKeyPrefix: "query:sdk-structured" });
-  console.log(renderQueryResults(results));
+  printLine(renderQueryResults(results));
 }
 
 export async function qmdStatus() {
   const store = await getQmdStore({ dbPath: QMD_INDEX_PATH });
   const status = await store.getStatus();
   const contexts = await store.listContexts();
-  console.log("QMD Status");
-  console.log("");
-  console.log(`Index: ${QMD_INDEX_PATH}`);
-  console.log(`Documents: ${status.totalDocuments}`);
-  console.log(`Needs embedding: ${status.needsEmbedding}`);
-  console.log(`Vector index: ${status.hasVectorIndex ? "yes" : "no"}`);
-  console.log(`Collections: ${status.collections.length}`);
+  printLine("QMD Status");
+  printLine("");
+  printLine(`Index: ${QMD_INDEX_PATH}`);
+  printLine(`Documents: ${status.totalDocuments}`);
+  printLine(`Needs embedding: ${status.needsEmbedding}`);
+  printLine(`Vector index: ${status.hasVectorIndex ? "yes" : "no"}`);
+  printLine(`Collections: ${status.collections.length}`);
   for (const collection of status.collections) {
-    console.log(`  ${collection.name} (${collection.path})`);
-    console.log(`    Pattern: ${collection.pattern}`);
-    console.log(`    Files: ${collection.documents}`);
+    printLine(`  ${collection.name} (${collection.path})`);
+    printLine(`    Pattern: ${collection.pattern}`);
+    printLine(`    Files: ${collection.documents}`);
     const collectionContexts = contexts.filter((context) => context.collection === collection.name);
     if (collectionContexts.length) {
-      console.log(`    Contexts: ${collectionContexts.length}`);
-      for (const context of collectionContexts) console.log(`      ${context.path || "/"}: ${context.context}`);
+      printLine(`    Contexts: ${collectionContexts.length}`);
+      for (const context of collectionContexts) printLine(`      ${context.path || "/"}: ${context.context}`);
     }
   }
 }
@@ -81,12 +82,12 @@ export async function qmdStatus() {
 export async function qmdUpdate(args: string[] = []) {
   const full = args.includes("--full");
   const { update } = await refreshKnowledgeIndex({ full });
-  console.log(`qmd-update: indexed=${update.indexed} updated=${update.updated} unchanged=${update.unchanged} removed=${update.removed} needsEmbedding=${update.needsEmbedding}${full ? " (full rebuild)" : ""}`);
+  printLine(`qmd-update: indexed=${update.indexed} updated=${update.updated} unchanged=${update.unchanged} removed=${update.removed} needsEmbedding=${update.needsEmbedding}${full ? " (full rebuild)" : ""}`);
 }
 
 export async function qmdEmbed() {
   const result = await embedKnowledgeIndex();
-  console.log(JSON.stringify(result, null, 2));
+  printJson(result);
 }
 
 function renderQueryResults(results: Array<{ file: string; title: string; context?: string; score: number; snippet: string; docid: string }>) {

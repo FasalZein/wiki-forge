@@ -1,4 +1,5 @@
 import { runObsidian } from "./runtime";
+import { printLine } from "../../lib/cli-output";
 
 function noteTargetArgs(note: string) {
   if (note.includes("/") || note.endsWith(".md")) {
@@ -16,7 +17,7 @@ export async function obsidianCommand(args: string[]) {
     const note = args[1];
     if (!note) throw new Error("missing note");
     await runObsidian(["open", ...noteTargetArgs(note)]);
-    console.log(`opened ${note} in Obsidian`);
+    printLine(`opened ${note} in Obsidian`);
     return;
   }
 
@@ -56,7 +57,7 @@ export async function obsidianCommand(args: string[]) {
     if (!name) throw new Error("missing property name");
     if (!value) throw new Error("missing property value");
     await runObsidian(["property:set", ...noteTargetArgs(note), `name=${name}`, `value=${value}`]);
-    console.log(`updated ${note} property ${name}`);
+    printLine(`updated ${note} property ${name}`);
     return;
   }
 

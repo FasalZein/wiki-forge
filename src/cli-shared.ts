@@ -4,6 +4,7 @@ import { join } from "node:path";
 import matter from "gray-matter";
 import { PROJECT_FILES, VAULT_ROOT, VAULT_ROOT_ENV } from "./constants";
 import type { FrontmatterData } from "./types";
+import { printError, printLine } from "./lib/cli-output";
 
 export const FORCE_CONFIRM_FLAG = "--yes-really-force";
 
@@ -164,7 +165,7 @@ Environment:
 
 export function printHelp(args: string[] = []) {
   const showAll = args.includes("--all");
-  console.log(showAll ? `${DEFAULT_HELP_TEXT}\nFull command catalog:\n${FULL_HELP_CATALOG}` : DEFAULT_HELP_TEXT);
+  printLine(showAll ? `${DEFAULT_HELP_TEXT}\nFull command catalog:\n${FULL_HELP_CATALOG}` : DEFAULT_HELP_TEXT);
 }
 
 export function projectRoot(project: string) {
@@ -176,7 +177,7 @@ export function safeMatter(pathLabel: string, content: string, options?: { silen
     return matter(content) as { content: string; data: FrontmatterData };
   } catch (error) {
     if (!options?.silent) {
-      console.warn(`warning: could not parse frontmatter for ${pathLabel}: ${error instanceof Error ? error.message : String(error)}`);
+      printError(`warning: could not parse frontmatter for ${pathLabel}: ${error instanceof Error ? error.message : String(error)}`);
     }
     return null;
   }

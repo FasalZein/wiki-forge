@@ -9,6 +9,7 @@ import { exists, listDirs, readText } from "../lib/fs";
 import { readVerificationLevel } from "../lib/verification";
 import { walkMarkdown } from "../lib/vault";
 import { lintFrontmatter, lintWikilinks } from "../module-format";
+import { printJson, printLine } from "../lib/cli-output";
 
 export type LintingSnapshot = {
   project: string;
@@ -38,8 +39,8 @@ export async function statusProject(args: string[]) {
   else if (await exists(projectsRoot)) projects = listDirs(projectsRoot);
   else projects = [];
   const rows = await Promise.all(projects.map((name) => collectStatusRow(name)));
-  if (json) console.log(JSON.stringify(rows, null, 2));
-  else for (const row of rows) console.log(`${row.project}: modules=${row.modules} pages=${row.pages} bound=${row.bound} unbound=${row.unbound} stale=${row.stale} root=${row.root}`);
+  if (json) printJson(rows);
+  else for (const row of rows) printLine(`${row.project}: modules=${row.modules} pages=${row.pages} bound=${row.bound} unbound=${row.unbound} stale=${row.stale} root=${row.root}`);
 }
 
 export async function lintSemanticProject(args: string[]) {
@@ -47,11 +48,11 @@ export async function lintSemanticProject(args: string[]) {
   requireValue(project, "project");
   const json = args.includes("--json");
   const result = await collectSemanticLintResult(project);
-  if (json) console.log(JSON.stringify(result, null, 2));
+  if (json) printJson(result);
   else if (result.issues.length) {
-    console.log(`semantic lint found ${result.issues.length} issue(s) for ${project}:`);
-    for (const issue of result.issues) console.log(`- ${issue}`);
-  } else console.log(`semantic lint passed for ${project}`);
+    printLine(`semantic lint found ${result.issues.length} issue(s) for ${project}:`);
+    for (const issue of result.issues) printLine(`- ${issue}`);
+  } else printLine(`semantic lint passed for ${project}`);
   if (result.issues.length) throw new Error(`semantic lint failed for ${project}`);
 }
 
@@ -60,11 +61,11 @@ export async function lintProject(args: string[]) {
   requireValue(project, "project");
   const json = args.includes("--json");
   const result = await collectLintResult(project);
-  if (json) console.log(JSON.stringify(result, null, 2));
+  if (json) printJson(result);
   else if (result.issues.length) {
-    console.log(`lint found ${result.issues.length} issue(s) for ${project}:`);
-    for (const issue of result.issues) console.log(`- ${issue}`);
-  } else console.log(`lint passed for ${project}`);
+    printLine(`lint found ${result.issues.length} issue(s) for ${project}:`);
+    for (const issue of result.issues) printLine(`- ${issue}`);
+  } else printLine(`lint passed for ${project}`);
   if (result.issues.length) throw new Error(`lint failed for ${project}`);
 }
 
@@ -73,23 +74,23 @@ export async function verifyProject(args: string[]) {
   requireValue(project, "project");
   const json = args.includes("--json");
   const summary = await collectVerifySummary(project);
-  if (json) console.log(JSON.stringify(summary, null, 2));
+  if (json) printJson(summary);
   else {
-    console.log(`verification summary for ${project}:`);
-    console.log(`- pages: ${summary.pages}`);
-    console.log(`- module specs: ${summary.moduleSpecs}`);
-    console.log(`- stale: ${summary.stale}`);
-    console.log(`- untracked verification: ${summary.untracked}`);
-    console.log(`- unbound pages: ${summary.unboundPages.length}`);
-    console.log(`- levels: ${Object.entries(summary.byLevel).filter(([, count]) => count > 0).map(([level, count]) => `${level}=${count}`).join(" ") || "none"}`);
+    printLine(`verification summary for ${project}:`);
+    printLine(`- pages: ${summary.pages}`);
+    printLine(`- module specs: ${summary.moduleSpecs}`);
+    printLine(`- stale: ${summary.stale}`);
+    printLine(`- untracked verification: ${summary.untracked}`);
+    printLine(`- unbound pages: ${summary.unboundPages.length}`);
+    printLine(`- levels: ${Object.entries(summary.byLevel).filter(([, count]) => count > 0).map(([level, count]) => `${level}=${count}`).join(" ") || "none"}`);
   }
 }
 
 export async function cacheClear() {
   const cachePath = join(VAULT_ROOT, ".cache", "wiki-cli");
-  if (!await exists(cachePath)) return console.log("cache already empty");
+  if (!await exists(cachePath)) return printLine("cache already empty");
   rmSync(cachePath, { recursive: true, force: true });
-  console.log(`cleared ${relative(VAULT_ROOT, cachePath)}`);
+  printLine(`cleared ${relative(VAULT_ROOT, cachePath)}`);
 }
 
 export async function loadLintingSnapshot(project: string, options: { noteIndex?: boolean } = {}): Promise<LintingSnapshot> {

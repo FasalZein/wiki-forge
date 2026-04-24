@@ -3,6 +3,7 @@ import { VERIFICATION_LEVELS, VAULT_ROOT, type VerificationLevel } from "../cons
 import { nowIso, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { exists, readText } from "../lib/fs";
 import { readVerificationLevel } from "../lib/verification";
+import { printError, printLine } from "../lib/cli-output";
 
 export async function resolveWikiPagePath(projectRootPath: string, pageArg: string): Promise<string> {
   const directPath = join(projectRootPath, pageArg);
@@ -33,12 +34,12 @@ export async function applyVerificationLevel(
   const loweringLevel = currentLevel && currentLevel !== "stale" && level !== "stale" && levelIndex(level) < levelIndex(currentLevel);
   const preserveStrongerLevels = level !== "stale" && !options?.allowDowngrade && (options?.preserveStrongerLevels ?? true);
   if (preserveStrongerLevels && loweringLevel) {
-    if (!silent) console.log(`skipped ${label} (kept stronger verification_level: ${currentLevel})`);
+    if (!silent) printLine(`skipped ${label} (kept stronger verification_level: ${currentLevel})`);
     return false;
   }
-  if (!silent && loweringLevel) console.warn(`warning: lowering verification level from ${currentLevel} to ${level}`);
+  if (!silent && loweringLevel) printError(`warning: lowering verification level from ${currentLevel} to ${level}`);
   if (dryRun) {
-    if (!silent) console.log(`would update ${label} -> verification_level: ${level}`);
+    if (!silent) printLine(`would update ${label} -> verification_level: ${level}`);
     return true;
   }
   const data = { ...parsed.data, verification_level: level, updated: nowIso() } as Record<string, unknown>;
@@ -47,7 +48,7 @@ export async function applyVerificationLevel(
     delete data.stale_since;
   }
   writeNormalizedPage(wikiFilePath, parsed.content, data);
-  if (!silent) console.log(`updated ${label} -> verification_level: ${level}`);
+  if (!silent) printLine(`updated ${label} -> verification_level: ${level}`);
   return true;
 }
 

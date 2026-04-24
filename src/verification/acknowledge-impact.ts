@@ -6,6 +6,7 @@ import { resolveRepoPath, assertGitRepo } from "../lib/verification";
 import { appendLogEntry } from "../lib/log";
 import { gitHeadSha } from "../git-utils";
 import { resolveWikiPagePath } from "./verification-shared";
+import { printJson, printLine } from "../lib/cli-output";
 
 /**
  * `wiki acknowledge-impact <project> <page>...` stamps `verified_against: <HEAD-sha>`
@@ -55,9 +56,9 @@ export async function acknowledgeImpact(args: string[]) {
   });
 
   if (json) {
-    console.log(JSON.stringify({ project, sha: headSha, updated }, null, 2));
+    printJson({ project, sha: headSha, updated });
   } else {
-    console.log(`acknowledge-impact for ${project}: ${updated.length} page(s) stamped with verified_against=${headSha.slice(0, 12)}`);
-    for (const row of updated) console.log(`- ${row.page}`);
+    printLine(`acknowledge-impact for ${project}: ${updated.length} page(s) stamped with verified_against=${headSha.slice(0, 12)}`);
+    for (const row of updated) printLine(`- ${row.page}`);
   }
 }

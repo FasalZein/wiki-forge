@@ -21,6 +21,7 @@ import {
 } from "../../module-format";
 import { writeProjectIndex } from "../../hierarchy";
 import { syncProtocolForProject } from "./index";
+import { printLine } from "../../lib/cli-output";
 
 export async function scaffoldProject(project: string | undefined) {
   requireValue(project, "project");
@@ -32,11 +33,11 @@ export async function scaffoldProject(project: string | undefined) {
     const path = join(root, file);
     if (!await exists(path)) {
       writeNormalizedPage(path, scaffoldFile(project, file), {});
-      console.log(`created ${relative(VAULT_ROOT, path)}`);
+      printLine(`created ${relative(VAULT_ROOT, path)}`);
       created += 1;
     }
   }
-  if (created > 0) console.log(`scaffolded ${project}`);
+  if (created > 0) printLine(`scaffolded ${project}`);
   await writeProjectIndex(project);
 }
 
@@ -47,20 +48,20 @@ export async function onboardProject(args: string[]) {
     const outputPath = projectOnboardingPlanPath(options.project);
     await mkdirIfMissing(projectSpecsDir(options.project));
     await writeText(outputPath, await renderOnboardingPlan(options.project, options.repo));
-    console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
+    printLine(`created ${relative(VAULT_ROOT, outputPath)}`);
     await syncProtocolForProject(options.project, options.repo);
   }
-  console.log(`onboarded ${options.project} scaffold in ${relative(VAULT_ROOT, projectRoot(options.project))}`);
+  printLine(`onboarded ${options.project} scaffold in ${relative(VAULT_ROOT, projectRoot(options.project))}`);
 }
 
 export async function onboardPlan(args: string[]) {
   const options = parseOnboardPlanOptions(args);
   const rendered = await renderOnboardingPlan(options.project, options.repo);
-  if (!options.write) return console.log(rendered);
+  if (!options.write) return printLine(rendered);
   const outputPath = projectOnboardingPlanPath(options.project);
   await mkdirIfMissing(projectSpecsDir(options.project));
   await writeText(outputPath, rendered);
-  console.log(`created ${relative(VAULT_ROOT, outputPath)}`);
+  printLine(`created ${relative(VAULT_ROOT, outputPath)}`);
 }
 
 export async function createModule(args: string[]) {
@@ -71,7 +72,7 @@ export async function createModule(args: string[]) {
   const sourceIndex = args.indexOf("--source");
   const sourcePaths = sourceIndex >= 0 ? args.slice(sourceIndex + 1).filter((arg) => !arg.startsWith("--")) : [];
   const specPath = await createModuleInternal(project, moduleName, sourcePaths);
-  console.log(`created ${relative(VAULT_ROOT, specPath)}`);
+  printLine(`created ${relative(VAULT_ROOT, specPath)}`);
 }
 
 export async function createModuleInternal(project: string, moduleName: string, sourcePaths: string[]) {
@@ -118,12 +119,12 @@ export async function normalizeModule(args: string[]) {
   body = ensureSection(body, "## Dependencies", defaultDependenciesSection(), changes);
   body = ensureSection(body, "## Verification", defaultVerificationSection(), changes);
   body = ensureSection(body, "## Cross Links", defaultCrossLinksSection(project, moduleName), changes);
-  if (!changes.length) return console.log(`module already normalized: ${project}/${moduleName}`);
-  console.log(`${write ? "normalized" : "would normalize"} ${project}/${moduleName}:`);
-  for (const change of changes) console.log(`- ${change}`);
-  if (!write) return console.log("dry run only; pass --write to apply changes");
+  if (!changes.length) return printLine(`module already normalized: ${project}/${moduleName}`);
+  printLine(`${write ? "normalized" : "would normalize"} ${project}/${moduleName}:`);
+  for (const change of changes) printLine(`- ${change}`);
+  if (!write) return printLine("dry run only; pass --write to apply changes");
   writeNormalizedPage(specPath, body, data);
-  console.log(`updated ${relative(VAULT_ROOT, specPath)}`);
+  printLine(`updated ${relative(VAULT_ROOT, specPath)}`);
 }
 
 function parseOnboardPlanOptions(args: string[]) {

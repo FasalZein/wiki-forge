@@ -3,6 +3,7 @@ import { VAULT_ROOT } from "../constants";
 import { nowIso, orderFrontmatter, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { exists, readText } from "../lib/fs";
 import { classifyResearchPath, normalizeInfluencedBy, normalizeResearchPageRef, normalizeWikiTarget } from "../lib/research";
+import { printJson, printLine } from "../lib/cli-output";
 
 export async function handoffResearch(args: string[]) {
   const { pageRef, targetRef, json } = parseHandoffArgs(args);
@@ -43,13 +44,13 @@ export async function handoffResearch(args: string[]) {
     nextAction: `append the accepted conclusion to ${targetRef}${applied ? "" : " after verification is complete"}`,
   };
   if (json) {
-    console.log(JSON.stringify(result, null, 2));
+    printJson(result);
     return;
   }
-  console.log(`research handoff: ${pageRef} -> ${targetRef}`);
-  console.log(`- status: ${nextStatus}`);
-  console.log(`- target recorded: ${hadTarget ? "already present" : "added to influenced_by"}`);
-  console.log(`- next: ${result.nextAction}`);
+  printLine(`research handoff: ${pageRef} -> ${targetRef}`);
+  printLine(`- status: ${nextStatus}`);
+  printLine(`- target recorded: ${hadTarget ? "already present" : "added to influenced_by"}`);
+  printLine(`- next: ${result.nextAction}`);
 }
 
 export const distillResearch = handoffResearch;

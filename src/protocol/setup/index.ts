@@ -5,6 +5,7 @@ import { VAULT_ROOT } from "../../constants";
 import { exists, readText } from "../../lib/fs";
 import { resolveRepoPath } from "../../lib/verification";
 import { type ProtocolScope, PROTOCOL_FILES, START_MARKER, END_MARKER, renderProtocolSurface } from "../source";
+import { printJson, printLine } from "../../lib/cli-output";
 
 type ProtocolAuditRow = {
   scope: string;
@@ -38,10 +39,10 @@ export async function syncProtocol(args: string[]) {
   }
 
   const payload = { project, repo, ok: true, scopes: scopes.map((scope) => scope.scope), files: results };
-  if (json) console.log(JSON.stringify(payload, null, 2));
+  if (json) printJson(payload);
   else {
-    console.log(`protocol sync for ${project}:`);
-    for (const row of results) console.log(`- ${row.updated ? "updated" : "ok"}: ${row.path}`);
+    printLine(`protocol sync for ${project}:`);
+    for (const row of results) printLine(`- ${row.updated ? "updated" : "ok"}: ${row.path}`);
   }
 }
 
@@ -77,10 +78,10 @@ export async function auditProtocol(args: string[]) {
     missing: rows.filter((row) => row.status === "missing"),
     stale: rows.filter((row) => row.status === "stale"),
   };
-  if (json) console.log(JSON.stringify(payload, null, 2));
+  if (json) printJson(payload);
   else {
-    console.log(`protocol audit for ${project}: ${payload.ok ? "PASS" : "FAIL"}`);
-    for (const row of rows) console.log(`- ${row.status}: ${row.path}`);
+    printLine(`protocol audit for ${project}: ${payload.ok ? "PASS" : "FAIL"}`);
+    for (const row of rows) printLine(`- ${row.status}: ${row.path}`);
   }
   if (!payload.ok) {
     const error = new Error(`protocol audit failed for ${project}`) as Error & { exitCode: number };

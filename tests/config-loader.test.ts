@@ -121,7 +121,7 @@ describe("loadConfig — type validation", () => {
 describe("loadConfig — unknown keys", () => {
   test("unknown key warns once and returns valid config", () => {
     const { cwd, home } = setupLayers({ projectJsonc: `{ "repo": { "foo": 1 } }` });
-    const spy = spyOn(console, "error").mockImplementation(() => undefined);
+    const spy = spyOn(process.stderr, "write").mockImplementation(() => true);
     try {
       const config = loadConfig(cwd, home);
       expect(config.repo.ignore.source).toBe("default");

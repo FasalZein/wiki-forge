@@ -5,6 +5,7 @@ import { readText } from "../lib/fs";
 import { readVerificationLevel } from "../lib/verification";
 import { walkMarkdown } from "../lib/vault";
 import { applyVerificationLevel, computeLevelFromBooleans, isValidVerificationLevel, resolveWikiPagePath } from "./verification-shared";
+import { printLine } from "../lib/cli-output";
 
 export async function bindSourcePaths(args: string[]) {
   const { project, pageArg, sourcePaths, mode, dryRun } = parseBindArgs(args);
@@ -17,13 +18,13 @@ export async function bindSourcePaths(args: string[]) {
   const currentSourcePaths = normalizeSourcePaths(Array.isArray(parsed.data.source_paths) ? parsed.data.source_paths.map((value) => String(value)) : []);
   const nextSourcePaths = mode === "merge" ? normalizeSourcePaths([...currentSourcePaths, ...incomingSourcePaths]) : incomingSourcePaths;
   const unchanged = currentSourcePaths.length === nextSourcePaths.length && currentSourcePaths.every((value, index) => value === nextSourcePaths[index]);
-  if (unchanged) return console.log(`source_paths already current for ${relative(VAULT_ROOT, wikiFilePath)}`);
+  if (unchanged) return printLine(`source_paths already current for ${relative(VAULT_ROOT, wikiFilePath)}`);
   if (dryRun) {
-    console.log(`would update ${relative(VAULT_ROOT, wikiFilePath)}`);
-    return console.log(`source_paths: ${nextSourcePaths.join(", ")}`);
+    printLine(`would update ${relative(VAULT_ROOT, wikiFilePath)}`);
+    return printLine(`source_paths: ${nextSourcePaths.join(", ")}`);
   }
   writeNormalizedPage(wikiFilePath, parsed.content, { ...parsed.data, source_paths: nextSourcePaths, updated: nowIso() });
-  console.log(`updated ${relative(VAULT_ROOT, wikiFilePath)}`);
+  printLine(`updated ${relative(VAULT_ROOT, wikiFilePath)}`);
 }
 
 function parseBindArgs(args: string[]) {
@@ -82,7 +83,7 @@ export async function verifyPage(args: string[]) {
     for (const page of pages) {
       if (await applyVerificationLevel(page, levelArg, dryRun, relative(VAULT_ROOT, page), false, { allowDowngrade })) updatedCount += 1;
     }
-    return console.log(`${dryRun ? "would update" : "updated"} ${updatedCount} page(s) for ${project}`);
+    return printLine(`${dryRun ? "would update" : "updated"} ${updatedCount} page(s) for ${project}`);
   }
   const level = filteredArgs[filteredArgs.length - 1];
   const pageArgs = filteredArgs.slice(1, -1);
@@ -95,7 +96,7 @@ export async function verifyPage(args: string[]) {
     await assertExists(wikiFilePath, `wiki page not found: ${relative(VAULT_ROOT, wikiFilePath)}`);
     if (await applyVerificationLevel(wikiFilePath, level, dryRun, relative(VAULT_ROOT, wikiFilePath), false, { allowDowngrade })) updatedCount += 1;
   }
-  if (pageArgs.length > 1) console.log(`${dryRun ? "would update" : "updated"} ${updatedCount} page(s) for ${project}`);
+  if (pageArgs.length > 1) printLine(`${dryRun ? "would update" : "updated"} ${updatedCount} page(s) for ${project}`);
 }
 
 export async function migrateVerification(project: string | undefined) {
@@ -115,7 +116,7 @@ export async function migrateVerification(project: string | undefined) {
     delete data.verified_tests;
     writeNormalizedPage(file, parsed.content, data);
     updatedCount += 1;
-    console.log(`migrated ${relative(VAULT_ROOT, file)} -> ${nextLevel}`);
+    printLine(`migrated ${relative(VAULT_ROOT, file)} -> ${nextLevel}`);
   }
-  console.log(`migrated ${updatedCount} file(s) for ${project}`);
+  printLine(`migrated ${updatedCount} file(s) for ${project}`);
 }
