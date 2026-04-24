@@ -9,6 +9,7 @@ import { resolveRepoPath } from "../../lib/verification";
 import { parseEntryUpdated } from "../../git-utils";
 import { collectStaleIndexTargets, writeNamedNavigationTargets } from "../../hierarchy";
 import { collectRefreshFromWorktree, loadProjectSnapshot } from "../shared";
+import { printJson, printLine } from "../../lib/cli-output";
 
 type DirtyAuthoredPage = {
   page: string;
@@ -53,7 +54,7 @@ export async function syncProject(args: string[]) {
   const json = args.includes("--json");
   const write = args.includes("--write") && !args.includes("--report-only");
   const plan = await collectSyncPlan(project, repo, { write });
-  if (json) console.log(JSON.stringify(plan, null, 2));
+  if (json) printJson(plan);
   else renderSyncPlan(plan);
 }
 
@@ -278,16 +279,16 @@ function extractRemainder(content: string) {
 }
 
 function renderSyncPlan(plan: SyncPlan) {
-  console.log(`sync for ${plan.project}: ${plan.reportOnly ? "REPORT" : "APPLIED"}`);
-  console.log(`- repo: ${plan.repo}`);
-  console.log(`- dirty authored pages: ${plan.dirtyPages.length}`);
-  console.log(`- navigation targets: ${plan.writes.navigationTargets.length}`);
-  console.log(`- protocol targets: ${plan.writes.protocolTargets.length}`);
-  console.log(`- project targets: ${plan.writes.projectTargets.length}`);
-  console.log(`- repo changed files: ${plan.repoChanges.changedFiles.length}`);
-  console.log(`- repo impacted pages: ${plan.repoChanges.impactedPages.length}`);
-  for (const page of plan.dirtyPages.slice(0, 10)) console.log(`  - dirty: ${page.page} [${page.contractId}]`);
-  for (const target of plan.writes.navigationTargets.slice(0, 10)) console.log(`  - nav: ${target}`);
-  for (const target of plan.protocol.targets.filter((row) => row.status !== "ok").slice(0, 10)) console.log(`  - protocol: ${target.status} ${target.path}`);
-  for (const target of plan.writes.projectTargets.slice(0, 10)) console.log(`  - project: ${target}`);
+  printLine(`sync for ${plan.project}: ${plan.reportOnly ? "REPORT" : "APPLIED"}`);
+  printLine(`- repo: ${plan.repo}`);
+  printLine(`- dirty authored pages: ${plan.dirtyPages.length}`);
+  printLine(`- navigation targets: ${plan.writes.navigationTargets.length}`);
+  printLine(`- protocol targets: ${plan.writes.protocolTargets.length}`);
+  printLine(`- project targets: ${plan.writes.projectTargets.length}`);
+  printLine(`- repo changed files: ${plan.repoChanges.changedFiles.length}`);
+  printLine(`- repo impacted pages: ${plan.repoChanges.impactedPages.length}`);
+  for (const page of plan.dirtyPages.slice(0, 10)) printLine(`  - dirty: ${page.page} [${page.contractId}]`);
+  for (const target of plan.writes.navigationTargets.slice(0, 10)) printLine(`  - nav: ${target}`);
+  for (const target of plan.protocol.targets.filter((row) => row.status !== "ok").slice(0, 10)) printLine(`  - protocol: ${target.status} ${target.path}`);
+  for (const target of plan.writes.projectTargets.slice(0, 10)) printLine(`  - project: ${target}`);
 }

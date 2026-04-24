@@ -6,13 +6,14 @@ import { parseUpdatedDate, resolveRepoPath, assertGitRepo } from "../../lib/veri
 import { parseProjectRepoArgs, gitLines, normalizeRelPath } from "../../git-utils";
 import { loadProjectSnapshot, isWorktreeSourceNewer } from "../shared";
 import { isCodeFile } from "../health";
+import { printJson, printLine } from "../../lib/cli-output";
 
 export async function commitCheck(args: string[]) {
   const options = parseProjectRepoArgs(args);
   const json = args.includes("--json");
   const verbose = args.includes("--verbose");
   const result = await collectCommitCheck(options.project, options.repo);
-  if (json) console.log(JSON.stringify(result, null, 2));
+  if (json) printJson(result);
   else renderCommitCheck(result, verbose);
   if (!result.ok) throw new Error(`commit-check failed for ${options.project}`);
 }
@@ -44,8 +45,8 @@ export async function installGitHook(args: string[]) {
   writeFileSync(hookPath, script, "utf8");
   chmodSync(hookPath, 0o755);
   const result = { project: options.project, repo, hook, hookPath };
-  if (json) console.log(JSON.stringify(result, null, 2));
-  else console.log(`installed ${hook} hook at ${hookPath}`);
+  if (json) printJson(result);
+  else printLine(`installed ${hook} hook at ${hookPath}`);
 }
 
 export async function collectCommitCheck(project: string, explicitRepo?: string) {
@@ -79,13 +80,13 @@ export async function collectCommitCheck(project: string, explicitRepo?: string)
 }
 
 function renderCommitCheck(result: Awaited<ReturnType<typeof collectCommitCheck>>, verbose: boolean) {
-  console.log(`commit-check for ${result.project}: ${result.ok ? "PASS" : "FAIL"}`);
-  console.log(`- staged files: ${result.stagedFiles.length}`);
-  console.log(`- stale pages: ${result.stalePages.length}`);
-  console.log(`- uncovered staged code files: ${result.uncoveredFiles.length}`);
+  printLine(`commit-check for ${result.project}: ${result.ok ? "PASS" : "FAIL"}`);
+  printLine(`- staged files: ${result.stagedFiles.length}`);
+  printLine(`- stale pages: ${result.stalePages.length}`);
+  printLine(`- uncovered staged code files: ${result.uncoveredFiles.length}`);
   if (verbose || !result.ok) {
-    for (const page of result.stalePages) console.log(`  - stale: ${page.page} <= ${page.staleSources.join(", ")}`);
-    for (const file of result.uncoveredFiles.slice(0, 20)) console.log(`  - uncovered: ${file}`);
+    for (const page of result.stalePages) printLine(`  - stale: ${page.page} <= ${page.staleSources.join(", ")}`);
+    for (const file of result.uncoveredFiles.slice(0, 20)) printLine(`  - uncovered: ${file}`);
   }
 }
 

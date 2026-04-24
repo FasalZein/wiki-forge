@@ -1,6 +1,7 @@
 import { basename, join } from "node:path";
 import { classifyDiagnosticFindings, isHardDiagnostic, groupDiagnosticFindings, type DiagnosticFinding } from "../shared";
 import { readFlagValue } from "../../lib/cli-utils";
+import { printError, printJson, printLine } from "../../lib/cli-output";
 import { exists, readText } from "../../lib/fs";
 import { resolveRepoPath, assertGitRepo } from "../../lib/verification";
 import { parseProjectRepoBaseArgs, resolveBaseRevision } from "../../git-utils";
@@ -19,29 +20,29 @@ export async function gateProject(args: string[]) {
   const worktree = args.includes("--worktree");
   const sliceLocal = args.includes("--slice-local");
   const sliceId = readFlagValue(args, "--slice-id");
-  if (baseFallbackNote) console.error(baseFallbackNote);
+  if (baseFallbackNote) printError(baseFallbackNote);
   const result = await collectGate(project, base, repo, { structuralRefactor, worktree, sliceLocal, sliceId });
   if (json) {
-    console.log(JSON.stringify({ ...result, doctor: compactDoctorForJson(result.doctor) }, null, 2));
+    printJson({ ...result, doctor: compactDoctorForJson(result.doctor) });
   } else {
-    console.log(`gate for ${project}: ${result.ok ? "PASS" : "FAIL"}`);
-    console.log(`- missing tests: ${result.counts.missingTests}`);
-    console.log(`- lint issues: ${result.counts.lint}`);
-    console.log(`- semantic issues: ${result.counts.semantic}`);
-    console.log(`- uncovered changed files: ${result.counts.uncoveredChangedFiles}`);
+    printLine(`gate for ${project}: ${result.ok ? "PASS" : "FAIL"}`);
+    printLine(`- missing tests: ${result.counts.missingTests}`);
+    printLine(`- lint issues: ${result.counts.lint}`);
+    printLine(`- semantic issues: ${result.counts.semantic}`);
+    printLine(`- uncovered changed files: ${result.counts.uncoveredChangedFiles}`);
     if (result.diagnostics.blockers.length) {
-      console.log(`- blockers:`);
-      for (const finding of result.diagnostics.blockers) console.log(`  - [hard][${finding.scope}] ${finding.message}`);
+      printLine(`- blockers:`);
+      for (const finding of result.diagnostics.blockers) printLine(`  - [hard][${finding.scope}] ${finding.message}`);
     }
     if (result.diagnostics.actionableWarnings.length) {
-      console.log(`- actionable warnings:`);
-      for (const finding of result.diagnostics.actionableWarnings) console.log(`  - [soft][${finding.scope}] ${finding.message}`);
+      printLine(`- actionable warnings:`);
+      for (const finding of result.diagnostics.actionableWarnings) printLine(`  - [soft][${finding.scope}] ${finding.message}`);
     }
     if (result.diagnostics.projectDebtWarnings.length) {
-      console.log(`- project debt warnings: ${result.diagnostics.projectDebtWarnings.length} (use --json for details)`);
+      printLine(`- project debt warnings: ${result.diagnostics.projectDebtWarnings.length} (use --json for details)`);
     }
     if (result.diagnostics.historicalWarnings.length) {
-      console.log(`- historical warnings: ${result.diagnostics.historicalWarnings.length} (use --json for details)`);
+      printLine(`- historical warnings: ${result.diagnostics.historicalWarnings.length} (use --json for details)`);
     }
   }
   if (!result.ok) throw new Error(`gate failed for ${project}`);
