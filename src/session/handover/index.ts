@@ -74,7 +74,9 @@ export async function handoverProject(args: string[]) {
         process.stdout.write = origWrite;
       };
       try {
-        console.log = () => {};
+        console.log = function suppressConsoleLogDuringAutoClose() {
+          return;
+        };
         process.stdout.write = (() => true) as typeof process.stdout.write;
         await closeSlice(closeArgs);
         restore();

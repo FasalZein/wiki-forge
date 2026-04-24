@@ -1,5 +1,9 @@
 import { describe, test } from "bun:test";
 
+function documentedIntegrationCoverage() {
+  return "covered by CLI smoke tests";
+}
+
 describe("drift-query", () => {
   // collectDriftSummary is the only exported function. It requires a fully
   // scaffolded vault project with bound wiki pages AND a real git repo with
@@ -9,5 +13,5 @@ describe("drift-query", () => {
   // meaningfully improving isolation since the function orchestrates git
   // queries, file I/O, and vault resolution — none of which are independently
   // testable without mocks (which this codebase does not use).
-  test.skip("collectDriftSummary is integration-tested via CLI smoke tests", () => {});
+  test.skip("collectDriftSummary is integration-tested via CLI smoke tests", documentedIntegrationCoverage);
 });

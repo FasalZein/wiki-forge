@@ -227,10 +227,8 @@ describe("wiki automation commands", () => {
     // Historical done-slice binding exercises stale-page suppression.
     expect(runWiki(["create-issue-slice", "gated", "old payments work", "--source", "src/payments.ts"], env).exitCode).toBe(0);
     expect(runWiki(["complete-task", "gated", "GATED-001"], env).exitCode).toBe(0);
-    // Repair sets status: done on slice docs (complete-task only moves in backlog).
     expect(runWiki(["maintain", "gated", "--repo", repo, "--base", "HEAD~1", "--repair-done-slices"], env).exitCode).toBe(0);
 
-    // Dirty the worktree so the page becomes stale.
     writeFileSync(join(repo, "src", "payments.ts"), "export const total = 99\n", "utf8");
     writeFileSync(join(repo, "tests", "payments.test.ts"), "import { expect, test } from 'bun:test'\nimport { total } from '../src/payments'\ntest('total', () => expect(total).toBe(99))\n", "utf8");
 
@@ -337,13 +335,10 @@ describe("wiki automation commands", () => {
 
     expect(runWiki(["scaffold-project", "gated"], env).exitCode).toBe(0);
     setRepoFrontmatter(vault, repo, "gated");
-    // Create a done-slice that binds to src/payments.ts but NO active module page.
     expect(runWiki(["create-issue-slice", "gated", "old payments work", "--source", "src/payments.ts"], env).exitCode).toBe(0);
     expect(runWiki(["complete-task", "gated", "GATED-001"], env).exitCode).toBe(0);
-    // Repair sets status: done on slice docs.
     expect(runWiki(["maintain", "gated", "--repo", repo, "--base", "HEAD~1", "--repair-done-slices"], env).exitCode).toBe(0);
 
-    // Dirty the worktree.
     writeFileSync(join(repo, "src", "payments.ts"), "export const total = 99\n", "utf8");
     writeFileSync(join(repo, "tests", "payments.test.ts"), "import { expect, test } from 'bun:test'\nimport { total } from '../src/payments'\ntest('total', () => expect(total).toBe(99))\n", "utf8");
 
