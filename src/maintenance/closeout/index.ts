@@ -5,6 +5,7 @@ import { readFlagValue } from "../../lib/cli-utils";
 import { collectLintResult, collectSemanticLintResult } from "../../verification";
 import type { LintingSnapshot } from "../../verification";
 import { classifySliceLocalPageScope, collectSliceLocalContext, fileMatchesSliceClaims } from "../../slice/docs";
+import { printJson, printLine } from "../../lib/cli-output";
 import {
   loadProjectSnapshot,
   projectSnapshotToLintingSnapshot,
@@ -27,11 +28,11 @@ export async function closeoutProject(args: string[]) {
   const sliceId = readFlagValue(args, "--slice-id");
   const indexRefresh = await autoRefreshIndex(options.project, { dryRun });
   const result = await collectCloseout(options.project, options.base, options.repo, undefined, undefined, { worktree, sliceLocal, sliceId });
-  if (json) console.log(JSON.stringify({ ...compactCloseoutForJson(result), indexRefresh }, null, 2));
+  if (json) printJson({ ...compactCloseoutForJson(result), indexRefresh });
   else {
     renderCloseout(result, verbose);
     if (indexRefresh.stale.length) {
-      console.log(dryRun
+      printLine(dryRun
         ? `- index refresh: ${indexRefresh.stale.length} stale (dry-run; skipped)`
         : `- index refresh: ${indexRefresh.written.length} file(s) rewritten`);
     }
@@ -203,40 +204,40 @@ export function renderCloseout(result: Awaited<ReturnType<typeof collectCloseout
     : hasWork
       ? "REVIEW PASS — manual steps remaining"
       : "PASS — ready to close";
-  console.log(`closeout for ${result.project}: ${statusLabel}`);
-  console.log(`- repo: ${result.repo}`);
-  console.log(`- base: ${result.base}`);
-  console.log(`- changed files: ${result.refreshFromGit.changedFiles.length}`);
-  console.log(`- impacted pages: ${result.refreshFromGit.impactedPages.length}`);
+  printLine(`closeout for ${result.project}: ${statusLabel}`);
+  printLine(`- repo: ${result.repo}`);
+  printLine(`- base: ${result.base}`);
+  printLine(`- changed files: ${result.refreshFromGit.changedFiles.length}`);
+  printLine(`- impacted pages: ${result.refreshFromGit.impactedPages.length}`);
   if (result.staleImpactedPages.length) {
-    console.log(`- stale impacted pages: ${result.staleImpactedPages.length} ⚠ (update and verify-page before closing)`);
+    printLine(`- stale impacted pages: ${result.staleImpactedPages.length} ⚠ (update and verify-page before closing)`);
   } else {
-    console.log(`- stale impacted pages: 0`);
+    printLine(`- stale impacted pages: 0`);
   }
-  if (result.suppressedPages.length) console.log(`- suppressed historical done-slice pages: ${result.suppressedPages.length}`);
-  console.log(`- lint: ${result.lint.issues.length}`);
-  console.log(`- semantic: ${result.semanticLint.issues.length}`);
-  console.log(`- missing tests: ${result.refreshFromGit.testHealth.codeFilesWithoutChangedTests.length}`);
+  if (result.suppressedPages.length) printLine(`- suppressed historical done-slice pages: ${result.suppressedPages.length}`);
+  printLine(`- lint: ${result.lint.issues.length}`);
+  printLine(`- semantic: ${result.semanticLint.issues.length}`);
+  printLine(`- missing tests: ${result.refreshFromGit.testHealth.codeFilesWithoutChangedTests.length}`);
   if (result.diagnostics.blockers.length) {
-    console.log(`- blockers:`);
-    for (const finding of result.diagnostics.blockers) console.log(`  - [hard][${finding.scope}] ${finding.message}`);
+    printLine(`- blockers:`);
+    for (const finding of result.diagnostics.blockers) printLine(`  - [hard][${finding.scope}] ${finding.message}`);
   }
   if (result.diagnostics.actionableWarnings.length) {
-    console.log(`- actionable warnings:`);
-    for (const finding of result.diagnostics.actionableWarnings) console.log(`  - [soft][${finding.scope}] ${finding.message}`);
+    printLine(`- actionable warnings:`);
+    for (const finding of result.diagnostics.actionableWarnings) printLine(`  - [soft][${finding.scope}] ${finding.message}`);
   }
   if (result.diagnostics.projectDebtWarnings.length && !verbose) {
-    console.log(`- project debt warnings: ${result.diagnostics.projectDebtWarnings.length} (use --verbose to expand)`);
+    printLine(`- project debt warnings: ${result.diagnostics.projectDebtWarnings.length} (use --verbose to expand)`);
   }
   if (result.diagnostics.historicalWarnings.length && !verbose) {
-    console.log(`- historical warnings: ${result.diagnostics.historicalWarnings.length} (use --verbose to expand)`);
+    printLine(`- historical warnings: ${result.diagnostics.historicalWarnings.length} (use --verbose to expand)`);
   }
   if (verbose) {
-    for (const page of result.refreshFromGit.impactedPages.slice(0, 20)) console.log(`  - impacted: ${page.page} <= ${page.matchedSourcePaths.join(", ")}`);
-    for (const finding of result.findings) console.log(`  - [${finding.blockingSeverity}][${finding.scope}][${finding.severity}] ${finding.message}`);
+    for (const page of result.refreshFromGit.impactedPages.slice(0, 20)) printLine(`  - impacted: ${page.page} <= ${page.matchedSourcePaths.join(", ")}`);
+    for (const finding of result.findings) printLine(`  - [${finding.blockingSeverity}][${finding.scope}][${finding.severity}] ${finding.message}`);
   }
   if (result.nextSteps.length) {
-    console.log(`- manual steps before closing:`);
-    for (const step of result.nextSteps) console.log(`  - ${step}`);
+    printLine(`- manual steps before closing:`);
+    for (const step of result.nextSteps) printLine(`  - ${step}`);
   }
 }

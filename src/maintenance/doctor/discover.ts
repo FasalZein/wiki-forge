@@ -8,6 +8,7 @@ import { findProjectArg, parseProjectRepoBaseArgs } from "../../git-utils";
 import { buildDirectoryTree, listCodeFiles, listRepoMarkdownDocs, readCodePaths } from "../../protocol/discovery/index";
 import { createModuleInternal } from "../../protocol";
 import { guessModuleName } from "../health";
+import { printJson, printLine } from "../../lib/cli-output";
 import {
   loadProjectSnapshot,
   collectRefreshFromGit,
@@ -22,36 +23,36 @@ export async function discoverProject(args: string[]) {
   const json = args.includes("--json");
   const tree = args.includes("--tree");
   const result = await collectDiscoverSummary(project, repo);
-  if (json) console.log(JSON.stringify(tree ? { ...result, tree: buildDirectoryTree(result.uncoveredFiles) } : result, null, 2));
+  if (json) printJson(tree ? { ...result, tree: buildDirectoryTree(result.uncoveredFiles) } : result);
   else if (tree) {
-    console.log(`discover --tree for ${project}:`);
-    console.log(`- repo files: ${result.repoFiles} | bound: ${result.boundFiles} | uncovered: ${result.uncoveredFiles.length}`);
-    console.log(`- unbound pages: ${result.unboundPages.length}`);
-    console.log("");
+    printLine(`discover --tree for ${project}:`);
+    printLine(`- repo files: ${result.repoFiles} | bound: ${result.boundFiles} | uncovered: ${result.uncoveredFiles.length}`);
+    printLine(`- unbound pages: ${result.unboundPages.length}`);
+    printLine("");
     const groups = buildDirectoryTree(result.uncoveredFiles);
     for (const group of groups) {
       const marker = group.files >= 3 ? "  <- module candidate" : "";
-      console.log(`${group.directory}/ (${group.files} files)${marker}`);
+      printLine(`${group.directory}/ (${group.files} files)${marker}`);
     }
     if (result.researchDirs.length) {
-      console.log("\nrepo-local research docs detected:");
-      for (const dir of result.researchDirs) console.log(`  - ${dir}`);
-      console.log("  - file durable findings into wiki research notes; use /research for net-new investigation");
+      printLine("\nrepo-local research docs detected:");
+      for (const dir of result.researchDirs) printLine(`  - ${dir}`);
+      printLine("  - file durable findings into wiki research notes; use /research for net-new investigation");
     }
     if (result.unboundPages.length) {
-      console.log("\nunbound wiki pages:");
-      for (const page of result.unboundPages.slice(0, 15)) console.log(`  - ${page}`);
+      printLine("\nunbound wiki pages:");
+      for (const page of result.unboundPages.slice(0, 15)) printLine(`  - ${page}`);
     }
   } else {
-    console.log(`discover for ${project}:`);
-    console.log(`- repo files: ${result.repoFiles}`);
-    console.log(`- bound files: ${result.boundFiles}`);
-    console.log(`- uncovered files: ${result.uncoveredFiles.length}`);
-    console.log(`- unbound pages: ${result.unboundPages.length}`);
-    console.log(`- placeholder-heavy pages: ${result.placeholderHeavyPages.length}`);
-    console.log(`- repo docs to move: ${result.repoDocFiles.length}`);
-    for (const file of result.uncoveredFiles.slice(0, 20)) console.log(`  - uncovered: ${file}`);
-    for (const file of result.repoDocFiles.slice(0, 20)) console.log(`  - repo-doc: ${file}`);
+    printLine(`discover for ${project}:`);
+    printLine(`- repo files: ${result.repoFiles}`);
+    printLine(`- bound files: ${result.boundFiles}`);
+    printLine(`- uncovered files: ${result.uncoveredFiles.length}`);
+    printLine(`- unbound pages: ${result.unboundPages.length}`);
+    printLine(`- placeholder-heavy pages: ${result.placeholderHeavyPages.length}`);
+    printLine(`- repo docs to move: ${result.repoDocFiles.length}`);
+    for (const file of result.uncoveredFiles.slice(0, 20)) printLine(`  - uncovered: ${file}`);
+    for (const file of result.repoDocFiles.slice(0, 20)) printLine(`  - repo-doc: ${file}`);
   }
 }
 
@@ -110,10 +111,10 @@ export async function ingestDiff(args: string[]) {
   const json = args.includes("--json");
   const result = await collectIngestDiff(options.project, options.base, options.repo);
   appendLogEntry("ingest-diff", options.project, { project: options.project, details: [`base=${options.base}`, `created=${result.created.length}`, `updated=${result.updated.length}`] });
-  if (json) console.log(JSON.stringify(result, null, 2));
+  if (json) printJson(result);
   else {
-    console.log(`ingest-diff for ${options.project}:`);
-    for (const file of result.created) console.log(`- created ${file}`);
-    for (const file of result.updated) console.log(`- updated ${file}`);
+    printLine(`ingest-diff for ${options.project}:`);
+    for (const file of result.created) printLine(`- created ${file}`);
+    for (const file of result.updated) printLine(`- updated ${file}`);
   }
 }

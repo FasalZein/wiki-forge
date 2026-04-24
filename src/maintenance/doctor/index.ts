@@ -4,6 +4,7 @@ import { collectLintResult, collectSemanticLintResult, collectStatusRow, collect
 import type { LintingSnapshot } from "../../verification";
 import { parseProjectRepoBaseArgs } from "../../git-utils";
 import { readSliceSummary } from "../../slice/docs";
+import { printError, printJson, printLine } from "../../lib/cli-output";
 import {
   loadProjectSnapshot,
   collectRefreshFromGit,
@@ -20,28 +21,28 @@ export async function doctorProject(args: string[]) {
   });
   const json = args.includes("--json");
   const worktree = args.includes("--worktree");
-  if (baseFallbackNote) console.error(baseFallbackNote);
+  if (baseFallbackNote) printError(baseFallbackNote);
   const result = await collectDoctor(project, base, repo, { worktree });
   if (json) {
-    console.log(JSON.stringify(compactDoctorForJson(result), null, 2));
+    printJson(compactDoctorForJson(result));
     return;
   }
 
   const gateOk = result.counts.missingTests === 0;
-  console.log(`doctor for ${project}:`);
-  console.log(`- score: ${result.score}/100`);
-  console.log(`- GATE: ${gateOk ? "PASS" : `FAIL — ${result.counts.missingTests} code file(s) without tests`}`);
-  console.log(`- stale=${result.counts.stale} renamed=${result.counts.renamed} deleted=${result.counts.deleted} unbound=${result.counts.unbound}`);
-  console.log(`- lint=${result.counts.lint} semantic=${result.counts.semantic} uncovered=${result.counts.uncovered} repo_docs=${result.counts.repoDocs} missing_tests=${result.counts.missingTests}`);
-  console.log(`- task sections: ${Object.entries(result.backlog.sections).map(([k, v]) => `${k}=${v.length}`).join(" ")}`);
-  if (result.focus.activeTask) console.log(`- active task: ${result.focus.activeTask.id} ${result.focus.activeTask.title} (plan=${result.focus.activeTask.planStatus} test-plan=${result.focus.activeTask.testPlanStatus})`);
-  else if (result.focus.recommendedTask) console.log(`- next task: ${result.focus.recommendedTask.id} ${result.focus.recommendedTask.title}`);
+  printLine(`doctor for ${project}:`);
+  printLine(`- score: ${result.score}/100`);
+  printLine(`- GATE: ${gateOk ? "PASS" : `FAIL — ${result.counts.missingTests} code file(s) without tests`}`);
+  printLine(`- stale=${result.counts.stale} renamed=${result.counts.renamed} deleted=${result.counts.deleted} unbound=${result.counts.unbound}`);
+  printLine(`- lint=${result.counts.lint} semantic=${result.counts.semantic} uncovered=${result.counts.uncovered} repo_docs=${result.counts.repoDocs} missing_tests=${result.counts.missingTests}`);
+  printLine(`- task sections: ${Object.entries(result.backlog.sections).map(([k, v]) => `${k}=${v.length}`).join(" ")}`);
+  if (result.focus.activeTask) printLine(`- active task: ${result.focus.activeTask.id} ${result.focus.activeTask.title} (plan=${result.focus.activeTask.planStatus} test-plan=${result.focus.activeTask.testPlanStatus})`);
+  else if (result.focus.recommendedTask) printLine(`- next task: ${result.focus.recommendedTask.id} ${result.focus.recommendedTask.title}`);
   if (result.backlogWarnings.length) {
-    console.log(`- backlog warnings:`);
-    for (const warning of result.backlogWarnings) console.log(`  - ${warning}`);
+    printLine(`- backlog warnings:`);
+    for (const warning of result.backlogWarnings) printLine(`  - ${warning}`);
   }
-  console.log(`- top actions:`);
-  for (const action of result.topActions) console.log(`  - ${formatMaintenanceActionLabel(action)} ${action.message}`);
+  printLine(`- top actions:`);
+  for (const action of result.topActions) printLine(`  - ${formatMaintenanceActionLabel(action)} ${action.message}`);
 }
 
 export async function collectDoctor(project: string, base: string, explicitRepo?: string, options: { worktree?: boolean; projectSnapshot?: ProjectSnapshot; lintingSnapshot?: LintingSnapshot; precomputedRefreshFromGit?: Awaited<ReturnType<typeof collectRefreshFromGit>> | Awaited<ReturnType<typeof collectRefreshFromWorktree>> } = {}) {

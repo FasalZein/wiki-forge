@@ -4,6 +4,7 @@ import { appendLogEntry } from "../../lib/log";
 import { collectLintResult, collectSemanticLintResult } from "../../verification";
 import type { LintingSnapshot } from "../../verification";
 import { parseProjectRepoBaseArgs } from "../../git-utils";
+import { printJson, printLine } from "../../lib/cli-output";
 import {
   collectHierarchyStatusActions,
   collectLifecycleDriftActions,
@@ -53,51 +54,51 @@ export async function maintainProject(args: string[], repair?: MaintainRepairInp
   const gateOk = missingTests === 0;
   if (json) {
     const shaped = verbose ? result : compactMaintainForJson(result);
-    console.log(JSON.stringify({ ...shaped, ...(repair ? { repair } : {}), indexRefresh, gate: { ok: gateOk, missingTests } }, null, 2));
+    printJson({ ...shaped, ...(repair ? { repair } : {}), indexRefresh, gate: { ok: gateOk, missingTests } });
   } else {
-    if (result.focus.activeTask) console.log(`active task: ${result.focus.activeTask.id} ${result.focus.activeTask.title} (plan=${result.focus.activeTask.planStatus} test-plan=${result.focus.activeTask.testPlanStatus})`);
-    else if (result.focus.recommendedTask) console.log(`next backlog task: ${result.focus.recommendedTask.id} ${result.focus.recommendedTask.title}`);
-    for (const warning of result.focus.warnings) console.log(`- backlog warning: ${warning}`);
+    if (result.focus.activeTask) printLine(`active task: ${result.focus.activeTask.id} ${result.focus.activeTask.title} (plan=${result.focus.activeTask.planStatus} test-plan=${result.focus.activeTask.testPlanStatus})`);
+    else if (result.focus.recommendedTask) printLine(`next backlog task: ${result.focus.recommendedTask.id} ${result.focus.recommendedTask.title}`);
+    for (const warning of result.focus.warnings) printLine(`- backlog warning: ${warning}`);
     if (repair) {
-      console.log(`legacy done-slice repair: repaired=${repair.repaired.length} already_current=${repair.alreadyCurrent} missing_docs=${repair.missingDocs.length}`);
-      if (repair.archiveCandidates.length) console.log(`- archive candidates: ${repair.archiveCandidates.map((candidate) => `${candidate.taskId} (${candidate.ageDays}d)`).join(", ")}`);
+      printLine(`legacy done-slice repair: repaired=${repair.repaired.length} already_current=${repair.alreadyCurrent} missing_docs=${repair.missingDocs.length}`);
+      if (repair.archiveCandidates.length) printLine(`- archive candidates: ${repair.archiveCandidates.map((candidate) => `${candidate.taskId} (${candidate.ageDays}d)`).join(", ")}`);
     }
-    console.log(`maintain plan for ${options.project}:`);
-    console.log(`- repo: ${result.repo}`);
-    console.log(`- base: ${result.base}`);
-    console.log(`- changed files: ${result.refreshFromGit.changedFiles.length}`);
-    console.log(`- impacted pages: ${result.refreshFromGit.impactedPages.length}`);
-    console.log(`- uncovered files: ${result.discover.uncoveredFiles.length}`);
-    console.log(`- repo docs to move: ${result.discover.repoDocFiles.length}`);
-    console.log(`- changed tests: ${result.refreshFromGit.testHealth.changedTestFiles.length}`);
-    console.log(`- code changes without changed tests: ${missingTests}`);
-    console.log(`- lint issues: ${result.lint.issues.length}`);
-    console.log(`- semantic issues: ${result.semanticLint.issues.length}`);
+    printLine(`maintain plan for ${options.project}:`);
+    printLine(`- repo: ${result.repo}`);
+    printLine(`- base: ${result.base}`);
+    printLine(`- changed files: ${result.refreshFromGit.changedFiles.length}`);
+    printLine(`- impacted pages: ${result.refreshFromGit.impactedPages.length}`);
+    printLine(`- uncovered files: ${result.discover.uncoveredFiles.length}`);
+    printLine(`- repo docs to move: ${result.discover.repoDocFiles.length}`);
+    printLine(`- changed tests: ${result.refreshFromGit.testHealth.changedTestFiles.length}`);
+    printLine(`- code changes without changed tests: ${missingTests}`);
+    printLine(`- lint issues: ${result.lint.issues.length}`);
+    printLine(`- semantic issues: ${result.semanticLint.issues.length}`);
     if (indexRefresh.stale.length) {
-      console.log(dryRun
+      printLine(dryRun
         ? `- index refresh: ${indexRefresh.stale.length} stale (dry-run; skipped)`
         : `- index refresh: ${indexRefresh.written.length} file(s) rewritten`);
     } else {
-      console.log(`- index refresh: up to date`);
+      printLine(`- index refresh: up to date`);
     }
-    console.log(`- GATE: ${gateOk ? "PASS" : `FAIL — ${missingTests} code file(s) without tests`}`);
-    console.log(`- actions:`);
+    printLine(`- GATE: ${gateOk ? "PASS" : `FAIL — ${missingTests} code file(s) without tests`}`);
+    printLine(`- actions:`);
     if (verbose) {
-      for (const action of result.actions) console.log(`  - ${formatMaintenanceActionLabel(action)} ${action.message}`);
+      for (const action of result.actions) printLine(`  - ${formatMaintenanceActionLabel(action)} ${action.message}`);
     } else {
-      for (const line of collapseActions(result.actions)) console.log(`  - ${line}`);
+      for (const line of collapseActions(result.actions)) printLine(`  - ${line}`);
     }
     if (verbose) {
-      console.log(`- closeout:`);
-      console.log(`  1. run tests`);
-      console.log(worktree
+      printLine(`- closeout:`);
+      printLine(`  1. run tests`);
+      printLine(worktree
         ? `  2. inspect live worktree changes with wiki maintain ${options.project} --repo ${result.repo} --worktree`
         : `  2. wiki refresh-from-git ${options.project} --base ${options.base}`);
-      console.log(`  3. wiki drift-check ${options.project} --show-unbound`);
-      console.log(`  4. update impacted wiki pages`);
-      console.log(`  5. wiki verify-page ${options.project} <page...> <level>`);
-      console.log(`  6. wiki lint ${options.project} && wiki lint-semantic ${options.project}`);
-      console.log(worktree
+      printLine(`  3. wiki drift-check ${options.project} --show-unbound`);
+      printLine(`  4. update impacted wiki pages`);
+      printLine(`  5. wiki verify-page ${options.project} <page...> <level>`);
+      printLine(`  6. wiki lint ${options.project} && wiki lint-semantic ${options.project}`);
+      printLine(worktree
         ? `  7. wiki gate ${options.project} --repo ${result.repo} --worktree`
         : `  7. wiki gate ${options.project} --repo ${result.repo} --base ${options.base}`);
     }

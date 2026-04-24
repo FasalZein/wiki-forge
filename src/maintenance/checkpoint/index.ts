@@ -8,6 +8,7 @@ import { parseUpdatedDate } from "../../lib/verification";
 import { classifySliceLocalPageScope, collectSliceLocalContext, readSliceSourcePaths } from "../../slice/docs";
 import { classifyFreshnessChurn } from "../freshness-classifier";
 import { loadProjectSnapshot } from "../shared";
+import { printJson, printLine } from "../../lib/cli-output";
 
 type CheckpointPageStatus = {
   page: string;
@@ -31,7 +32,7 @@ export async function checkpoint(args: string[]) {
     options.repo,
     sliceLocal && sliceId ? { sliceId, ...(base ? { base } : {}), strictFreshness } : { ...(base ? { base } : {}), strictFreshness },
   );
-  if (json) console.log(JSON.stringify(result, null, 2));
+  if (json) printJson(result);
   else renderCheckpoint(result);
   if (!result.clean) fail(`checkpoint found ${result.stalePages.length} stale page(s) for ${options.project}`);
 }
@@ -189,31 +190,31 @@ function readBroadBinding(data: Record<string, unknown> | undefined) {
 }
 
 function renderCheckpoint(result: Awaited<ReturnType<typeof collectCheckpoint>>) {
-  console.log(`Checkpoint: ${result.project}`);
-  console.log("");
-  console.log(`Modified files: ${result.modifiedFiles}`);
-  console.log(`Bound wiki pages: ${result.boundPages}`);
+  printLine(`Checkpoint: ${result.project}`);
+  printLine("");
+  printLine(`Modified files: ${result.modifiedFiles}`);
+  printLine(`Bound wiki pages: ${result.boundPages}`);
   for (const page of result.pageStatuses) {
-    if (page.stale) console.log(`  ✗ ${page.page} — stale (source ${page.lastSourceChange}, page ${page.pageUpdated})`);
-    else console.log(`  ✓ ${page.page} — up to date`);
+    if (page.stale) printLine(`  ✗ ${page.page} — stale (source ${page.lastSourceChange}, page ${page.pageUpdated})`);
+    else printLine(`  ✓ ${page.page} — up to date`);
   }
   if (result.nonBlockingBoundPages > 0) {
     const warningCount = result.nonBlockingStalePages.length;
-    console.log(`Non-blocking bound pages: ${result.nonBlockingBoundPages}`);
-    if (warningCount > 0) console.log(`  ! ${warningCount} parent/project page(s) are stale but outside the active slice blocker surface`);
+    printLine(`Non-blocking bound pages: ${result.nonBlockingBoundPages}`);
+    if (warningCount > 0) printLine(`  ! ${warningCount} parent/project page(s) are stale but outside the active slice blocker surface`);
   }
-  console.log("");
+  printLine("");
   if (result.autoHealed.count > 0) {
-    console.log(`Auto-healed pages: ${result.autoHealed.count}`);
-    for (const page of result.autoHealed.pages.slice(0, 50)) console.log(`  ${page.page}`);
-    console.log("");
+    printLine(`Auto-healed pages: ${result.autoHealed.count}`);
+    for (const page of result.autoHealed.pages.slice(0, 50)) printLine(`  ${page.page}`);
+    printLine("");
   }
-  console.log(`Unbound files: ${result.unboundFiles.length}`);
-  for (const file of result.unboundFiles.slice(0, 50)) console.log(`  ${file}`);
-  console.log("");
+  printLine(`Unbound files: ${result.unboundFiles.length}`);
+  for (const file of result.unboundFiles.slice(0, 50)) printLine(`  ${file}`);
+  printLine("");
   if (result.clean && result.nonBlockingStalePages.length > 0) {
-    console.log(`Result: CLEAN (${result.nonBlockingStalePages.length} non-blocking stale page${result.nonBlockingStalePages.length === 1 ? "" : "s"})`);
+    printLine(`Result: CLEAN (${result.nonBlockingStalePages.length} non-blocking stale page${result.nonBlockingStalePages.length === 1 ? "" : "s"})`);
     return;
   }
-  console.log(`Result: ${result.clean ? "CLEAN" : `STALE (${result.stalePages.length} page${result.stalePages.length === 1 ? "" : "s"} need update)`}`);
+  printLine(`Result: ${result.clean ? "CLEAN" : `STALE (${result.stalePages.length} page${result.stalePages.length === 1 ? "" : "s"} need update)`}`);
 }

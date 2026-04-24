@@ -4,11 +4,12 @@ import { loadLintingSnapshot, collectStatusRow, collectVerifySummary } from "../
 import { collectDriftSummary } from "../drift";
 import { loadProjectSnapshot } from "../shared";
 import { collectMaintenancePlan } from "../closeout/maintain";
+import { printJson } from "../../lib/cli-output";
 
 export async function dashboardProject(args: string[]) {
   const options = await parseProjectRepoBaseArgs(args);
   const raw = await collectDashboard(options.project, options.base, options.repo);
-  console.log(JSON.stringify(compactDashboardForJson(raw), null, 2));
+  printJson(compactDashboardForJson(raw));
 }
 
 export async function collectDashboard(project: string, base: string, explicitRepo?: string) {
