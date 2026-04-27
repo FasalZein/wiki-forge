@@ -104,3 +104,23 @@ describe("closeout diagnostics", () => {
     )).toBe(false);
   });
 });
+
+test("closeout JSON separates dirty git attestation from legacy freshness", () => {
+  const { vault, repo } = setupVaultAndRepo();
+  const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+  expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+  setRepoFrontmatter(vault, repo);
+  expect(runWiki(["create-module", "demo", "auth", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+  expect(runWiki(["verify-page", "demo", "modules/auth/spec", "code-verified"], env).exitCode).toBe(0);
+
+  writeFileSync(join(repo, "src", "unbound.ts"), "export const unbound = true\n", "utf8");
+
+  const result = runWiki(["closeout", "demo", "--repo", repo, "--worktree", "--json"], env);
+  const json = JSON.parse(result.stdout.toString());
+
+  expect(json.closureAttestation.git.status).toBe("blocked");
+  expect(json.closureAttestation.git.files).toContain("src/unbound.ts");
+  expect(json.closureAttestation.overall.status).toBe("blocked");
+  expect(json.closureAttestation.wikiFreshness.status).toBe("pass");
+});

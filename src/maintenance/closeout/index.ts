@@ -5,7 +5,9 @@ import { readFlagValue } from "../../lib/cli-utils";
 import { collectLintResult, collectSemanticLintResult } from "../../verification";
 import type { LintingSnapshot } from "../../verification";
 import { classifySliceLocalPageScope, collectSliceLocalContext, fileMatchesSliceClaims } from "../../slice/docs";
-import { collectSliceOwnershipMap } from "../../forge/core/ownership-map";
+import { collectSliceOwnershipMap, type SliceOwnershipMap } from "../../forge/core/ownership-map";
+import { collectGitTruth } from "../../forge/core/git-truth";
+import { collectClosureAttestation } from "../../forge/core/closure-attestation";
 import { printJson, printLine } from "../../lib/cli-output";
 import {
   loadProjectSnapshot,
@@ -107,9 +109,10 @@ export async function collectCloseout(project: string, base: string, explicitRep
   if (lint.issues.length > 0) findings.push({ scope: "project", severity: "warning", message: `${lint.issues.length} structural lint issue(s)` });
   if (semanticLint.issues.length > 0) findings.push({ scope: "project", severity: "warning", message: `${semanticLint.issues.length} semantic lint issue(s)` });
   if (!options.worktree && !sliceLocalContext && staleImpactedPages.length > 0) findings.push({ scope: "slice", severity: "warning", message: `${staleImpactedPages.length} impacted page(s) are stale or otherwise drifted` });
+  let ownership: SliceOwnershipMap | null = null;
   if (sliceLocalContext) {
     pushScopedFileFindings(findings, refreshFromGit.uncoveredFiles, sliceLocalContext, "changed file(s) are not covered by wiki bindings", "warning");
-    const ownership = collectSliceOwnershipMap({
+    ownership = collectSliceOwnershipMap({
       changedFiles: refreshFromGit.changedFiles,
       activeSliceId: sliceLocalContext.sliceId,
       activeClaimPaths: sliceLocalContext.claimPaths,
@@ -137,6 +140,14 @@ export async function collectCloseout(project: string, base: string, explicitRep
   const blockers = classifiedFindings.filter(isHardDiagnostic).map((finding) => finding.message);
   const warnings = classifiedFindings.filter((finding) => !isHardDiagnostic(finding)).map((finding) => finding.message);
   const diagnostics = groupDiagnosticFindings(classifiedFindings);
+  const gitTruth = await collectGitTruth(refreshFromGit.repo);
+  const closureAttestation = collectClosureAttestation({
+    findings: classifiedFindings,
+    staleImpactedPages,
+    gitTruth,
+    ownership,
+    workflowValidation: { ok: blockers.length === 0 },
+  });
   const nextSteps: string[] = [];
   if (staleImpactedPages.length > 0) {
     nextSteps.push(`update impacted wiki pages from code`);
@@ -161,6 +172,7 @@ export async function collectCloseout(project: string, base: string, explicitRep
     semanticLint,
     findings: classifiedFindings,
     diagnostics,
+    closureAttestation,
     blockers,
     warnings,
     nextSteps,
