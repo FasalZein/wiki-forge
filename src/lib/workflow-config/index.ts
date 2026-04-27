@@ -51,9 +51,21 @@ const KNOWN_LEAF_PATHS = new Set([
   "workflow.phaseSkills.verify",
 ]);
 
+export const BUILT_IN_REPO_IGNORE = [
+  ".venv/**",
+  "node_modules/**",
+  ".local-dev/**",
+  "site-packages/**",
+  "coverage/**",
+  "dist/**",
+  "build/**",
+  ".qa-screens/**",
+  "__pycache__/**",
+];
+
 const DEFAULT_CONFIG: ResolvedConfig = {
   repo: {
-    ignore: { value: [], source: "default" },
+    ignore: { value: BUILT_IN_REPO_IGNORE, source: "default" },
   },
   workflow: {
     phaseSkills: {
@@ -163,7 +175,7 @@ function applyLayer(
           `invalid config in ${filePath}: key 'repo.ignore' expected type 'string[]'`,
         );
       }
-      config.repo.ignore = { value: value as string[], source };
+      config.repo.ignore = { value: mergeBuiltInIgnore(value), source };
       return;
     }
     if (path.startsWith("workflow.phaseSkills.")) {
@@ -180,6 +192,10 @@ function applyLayer(
     }
     warnings.push(`warn: ${filePath}: unknown key '${path}' (ignored)`);
   });
+}
+
+function mergeBuiltInIgnore(value: unknown[]): string[] {
+  return [...BUILT_IN_REPO_IGNORE, ...value.map(String)];
 }
 
 function walkLayer(

@@ -25,7 +25,7 @@ describe("wiki config --effective", () => {
     expect(result.exitCode).toBe(0);
     const parsed = JSON.parse(result.stdout.toString());
     expect(parsed.repo.ignore.source).toBe("default");
-    expect(parsed.repo.ignore.value).toEqual([]);
+    expect(parsed.repo.ignore.value).toContain("node_modules/**");
     expect(parsed.workflow.phaseSkills.research.value).toBe("/research");
     expect(parsed.workflow.phaseSkills.verify.value).toBe("/desloppify");
   });
@@ -37,7 +37,8 @@ describe("wiki config --effective", () => {
     expect(result.exitCode).toBe(0);
     const parsed = JSON.parse(result.stdout.toString());
     expect(parsed.repo.ignore.source).toBe("project");
-    expect(parsed.repo.ignore.value).toEqual(["docs/**"]);
+    expect(parsed.repo.ignore.value).toContain("node_modules/**");
+    expect(parsed.repo.ignore.value).toContain("docs/**");
     expect(parsed.workflow.phaseSkills.research.source).toBe("project");
     expect(parsed.workflow.phaseSkills.research.value).toBe("/custom-research");
   });

@@ -72,6 +72,7 @@ Internal / Repair:
   wiki install-git-hook <project> [--repo <path>] [--hook <name>] [--force] [--json]
   wiki refresh-on-merge <project> [--repo <path>] [--base <rev>] [--json] [--verbose]
   wiki lint-repo <project> [--repo <path>] [--json]
+  wiki config --effective|init|validate|explain [path] [--repo <path>] [--json]
   wiki start-slice <project> <slice-id> [--agent <name>] [--repo <path>] [--json]
   wiki verify-slice <project> <slice-id> [--repo <path>] [--json]
   wiki close-slice <project> <slice-id> [--repo <path>] [--base <rev>] [--worktree] [--force] [--yes-really-force] [--json]

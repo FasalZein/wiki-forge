@@ -1,4 +1,5 @@
 export {
+  BUILT_IN_REPO_IGNORE,
   WikiConfigError,
   ignorePatterns,
   isIgnoredDir,

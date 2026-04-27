@@ -26,7 +26,8 @@ describe("loadConfig — zero-config baseline", () => {
   test("no files anywhere: every leaf has source 'default' and defaults are populated", () => {
     const { cwd, home } = setupLayers();
     const config = loadConfig(cwd, home);
-    expect(config.repo.ignore.value).toEqual([]);
+    expect(config.repo.ignore.value).toContain("node_modules/**");
+    expect(config.repo.ignore.value).toContain(".venv/**");
     expect(config.repo.ignore.source).toBe("default");
     expect(config.workflow.phaseSkills.research.value).toBe("/research");
     expect(config.workflow.phaseSkills.domainModel.value).toBe("/domain-model");
@@ -41,7 +42,8 @@ describe("loadConfig — layer precedence", () => {
       systemJsonc: `{ "repo": { "ignore": ["build-output/**"] } }`,
     });
     const config = loadConfig(cwd, home);
-    expect(config.repo.ignore.value).toEqual(["build-output/**"]);
+    expect(config.repo.ignore.value).toContain("node_modules/**");
+    expect(config.repo.ignore.value).toContain("build-output/**");
     expect(config.repo.ignore.source).toBe("system");
   });
 
@@ -51,7 +53,9 @@ describe("loadConfig — layer precedence", () => {
       projectJsonc: `{ "repo": { "ignore": ["b/**"] } }`,
     });
     const config = loadConfig(cwd, home);
-    expect(config.repo.ignore.value).toEqual(["b/**"]);
+    expect(config.repo.ignore.value).toContain("node_modules/**");
+    expect(config.repo.ignore.value).toContain("b/**");
+    expect(config.repo.ignore.value).not.toContain("a/**");
     expect(config.repo.ignore.source).toBe("project");
   });
 
@@ -158,7 +162,9 @@ describe("loadConfig — jsonc features", () => {
       }`,
     });
     const config = loadConfig(cwd, home);
-    expect(config.repo.ignore.value).toEqual(["docs/**", "archive/**"]);
+    expect(config.repo.ignore.value).toContain("node_modules/**");
+    expect(config.repo.ignore.value).toContain("docs/**");
+    expect(config.repo.ignore.value).toContain("archive/**");
     expect(config.repo.ignore.source).toBe("project");
   });
 });

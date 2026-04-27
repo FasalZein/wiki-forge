@@ -14,9 +14,25 @@
         "ignore": {
           "type": "array",
           "description": "Extra glob patterns to exclude from repo scans (markdown doc discovery and source-file discovery). Appended to built-in exclusions; cannot un-ignore them.",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "examples": [
-            ["docs/**", "archive/**"]
+            [
+              "docs/**",
+              "archive/**"
+            ]
+          ],
+          "default": [
+            ".venv/**",
+            "node_modules/**",
+            ".local-dev/**",
+            "site-packages/**",
+            "coverage/**",
+            "dist/**",
+            "build/**",
+            ".qa-screens/**",
+            "__pycache__/**"
           ]
         }
       }
@@ -34,32 +50,44 @@
             "research": {
               "type": "string",
               "description": "Skill alias to recommend when the research phase is next.",
-              "examples": ["/research"]
+              "examples": [
+                "/research"
+              ]
             },
             "domainModel": {
               "type": "string",
               "description": "Skill alias to recommend when the domain-model phase is next.",
-              "examples": ["/domain-model"]
+              "examples": [
+                "/domain-model"
+              ]
             },
             "prd": {
               "type": "string",
               "description": "Skill alias to recommend when the PRD phase is next.",
-              "examples": ["/write-a-prd"]
+              "examples": [
+                "/write-a-prd"
+              ]
             },
             "slices": {
               "type": "string",
               "description": "Skill alias to recommend when slice decomposition is next.",
-              "examples": ["/prd-to-slices"]
+              "examples": [
+                "/prd-to-slices"
+              ]
             },
             "tdd": {
               "type": "string",
               "description": "Skill alias to recommend when implementation/TDD is next.",
-              "examples": ["/tdd"]
+              "examples": [
+                "/tdd"
+              ]
             },
             "verify": {
               "type": "string",
               "description": "Skill alias to recommend when verification/quality review is next.",
-              "examples": ["/desloppify"]
+              "examples": [
+                "/desloppify"
+              ]
             }
           }
         }
