@@ -362,7 +362,7 @@ describe("wiki coordination commands", () => {
     expect(promptIdx).toBeGreaterThan(contextIdx);
 
     // Prompt block is printed exactly once.
-    const promptCount = (stdout.match(/--- next session prompt ---/g) || []).length;
+    const promptCount = (stdout.match(/--- next session prompt ---/g) || []).length; // desloppify:ignore EMPTY_ARRAY_FALLBACK
     expect(promptCount).toBe(1);
 
     // Last non-empty line is the handover file path — so even aggressive truncation

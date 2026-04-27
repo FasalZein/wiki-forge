@@ -150,3 +150,9 @@ Use `prd-to-issues` (the GitHub variant) only when:
 - You need cross-repo issue references
 
 For solo or agent-driven work, wiki slices are faster and more token-efficient.
+
+## Local skill maintenance
+
+After editing `skills/*/SKILL.md`, run `bun run sync:local`.
+Optionally run `bun run sync:local -- --audit`.
+Then restart the agent session.

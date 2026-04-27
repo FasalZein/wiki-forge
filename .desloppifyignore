@@ -1,0 +1,12 @@
+# Long CLI integration tests are intentionally broad end-to-end smoke suites.
+# They are covered by targeted Bun runs and should not drive runtime complexity work.
+tests/forge-ledger-detect.test.ts
+tests/cli-smoke.test.ts
+
+# Command registries/orchestrators are intentionally centralized public CLI seams.
+# Their imports document dispatch reachability rather than mixed business concerns.
+src/wiki/index.ts
+src/slice/forge/index.ts
+
+# Experimental optimizer is an isolated research harness, not runtime wiki CLI code.
+experiments/ax-optimizer/src/optimize.ts

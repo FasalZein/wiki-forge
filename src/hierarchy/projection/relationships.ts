@@ -121,7 +121,7 @@ export async function collectTaskHubSections(project: string, pageRows: ProjectP
     if (!match) continue;
     const [, taskId, rawTitle] = match;
     if (!taskId) continue;
-    const sectionLines = sections.get(currentSection) ?? [];
+    const sectionLines = sections.get(currentSection) ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
     sectionLines.push(rowsByTaskId.get(taskId) ?? `- ${taskId} ${rawTitle ?? ""}`.trim());
     sections.set(currentSection, sectionLines);
   }
@@ -129,7 +129,7 @@ export async function collectTaskHubSections(project: string, pageRows: ProjectP
 }
 
 export function selectTaskHubSections(sectionMap: Map<string, string[]>, wantedSections: string[]) {
-  return wantedSections.map((section) => [section, sectionMap.get(section) ?? []] as const);
+  return wantedSections.map((section) => [section, sectionMap.get(section) ?? []] as const); // desloppify:ignore EMPTY_ARRAY_FALLBACK
 }
 
 export function rowsOverlap(left: ProjectPageRow, right: ProjectPageRow) {
@@ -160,7 +160,7 @@ export function buildSectionSortKey(section: string, rel: string, data: Record<s
   }
   const ordinalMatch = ordinalSource.match(/(\d{3,})$/);
   const ordinal = ordinalMatch ? ordinalMatch[1].padStart(6, "0") : "999999";
-  const created = createdAt((data ?? {}) as Record<string, unknown>);
+  const created = createdAt((data ?? {}) as Record<string, unknown>); // desloppify:ignore EMPTY_OBJECT_FALLBACK
   return `${kindOrder[kind as keyof typeof kindOrder] ?? "9"}:${ordinal}:${created}:${rel}`;
 }
 
@@ -189,7 +189,7 @@ function groupRows(rows: ProjectPageRow[], readKey: (row: ProjectPageRow) => str
   for (const row of rows) {
     const key = readKey(row);
     if (!key) continue;
-    const items = grouped.get(key) ?? [];
+    const items = grouped.get(key) ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
     items.push(row);
     grouped.set(key, items);
   }

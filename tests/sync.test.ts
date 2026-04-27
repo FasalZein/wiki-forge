@@ -80,8 +80,11 @@ describe("wiki sync reconciler", () => {
     expect(refreshedSummary).toContain("Source: `src`");
 
     const checkpoint = runWiki(["checkpoint", "demo", "--repo", repo, "--json"], env);
-    expect(checkpoint.exitCode).toBe(0);
+    expect(checkpoint.exitCode).toBe(1);
     const checkpointJson = JSON.parse(checkpoint.stdout.toString());
+    expect(checkpointJson.freshnessClean).toBe(true);
     expect(checkpointJson.stalePages).toEqual([]);
+    expect(checkpointJson.gitTruth.clean).toBe(false);
+    expect(checkpointJson.gitTruth.changedFiles).toEqual(["AGENTS.md", "CLAUDE.md", "src/auth.ts"]);
   });
 });

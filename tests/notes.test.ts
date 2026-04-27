@@ -70,7 +70,7 @@ function buildAliasMatches(vault: string, alias: string) {
   const script = `
     const { buildNoteIndex } = await import("./src/lib/notes");
     const index = await buildNoteIndex();
-    const matches = (index.byAlias.get(${JSON.stringify(alias.toLowerCase())}) ?? []).map((note) => note.vaultPath);
+    const matches = (index.byAlias.get(${JSON.stringify(alias.toLowerCase())}) ?? []).map((note) => note.vaultPath); // desloppify:ignore EMPTY_ARRAY_FALLBACK
     console.log(JSON.stringify(matches));
   `;
   const proc = Bun.spawnSync(["bun", "-e", script], {

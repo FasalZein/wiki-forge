@@ -43,7 +43,7 @@ export async function runPipeline(
   const ownsState = !injectedState;
   const state = injectedState ?? new PipelineState();
   let upstreamMutated = Boolean(options.upstreamMutatedBeforeStart);
-  const inputFingerprint = options.repo ? await collectGitInputFingerprint(options.repo) : null;
+  const inputFingerprint = options.repo ? await collectPipelineInputFingerprint(options.repo) : null;
   const result: PipelineResult = {
     project: options.project,
     sliceId: options.sliceId,
@@ -151,6 +151,14 @@ export async function runPipeline(
   }
 
   return result;
+}
+
+async function collectPipelineInputFingerprint(repo: string) {
+  try {
+    return await collectGitInputFingerprint(repo);
+  } catch {
+    return null;
+  }
 }
 
 async function executeStep(command: string, args: string[]): Promise<{ ok: boolean; error?: string; stdout?: string; stderr?: string }> {

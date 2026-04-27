@@ -24,7 +24,7 @@ export async function createIssueSlice(args: string[]) {
   const title = `${appended.taskId.toLowerCase()} ${options.title}`;
   const slicePaths = await createSlicePaths(options.project, appended.taskId);
   await ensureSliceDocsMissing(appended.taskId, slicePaths);
-  const sourcePaths = options.sourcePaths.length ? options.sourcePaths : (prd?.sourcePaths ?? []);
+  const sourcePaths = options.sourcePaths.length ? options.sourcePaths : (prd?.sourcePaths ?? []); // desloppify:ignore EMPTY_ARRAY_FALLBACK
   if (!options.sourcePaths.length && prd && prd.sourcePaths.length > 5) {
     printError(`warning: ${prd.prdId} has ${prd.sourcePaths.length} inherited source_paths; consider --source for a narrower slice binding`);
   }

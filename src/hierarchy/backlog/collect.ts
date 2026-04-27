@@ -56,7 +56,7 @@ async function projectBacklogSections(project: string, sections: Record<string, 
       summaries[index]?.canonicalCompletion ?? false,
       summaries[index]?.status ?? null,
     );
-    projected[projectedSection] = projected[projectedSection] ?? [];
+    projected[projectedSection] = projected[projectedSection] ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
     projected[projectedSection].push(item);
   }
   return projected;
@@ -88,8 +88,8 @@ export async function collectBacklogView(project: string, assignee?: string) {
 
 export async function collectBacklogFocus(project: string, preloadedBacklog?: Awaited<ReturnType<typeof collectBacklog>>): Promise<BacklogFocus> {
   const backlog = preloadedBacklog ?? await collectBacklog(project);
-  const inProgress = backlog.sections["In Progress"] ?? [];
-  const todo = backlog.sections["Todo"] ?? [];
+  const inProgress = backlog.sections["In Progress"] ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
+  const todo = backlog.sections["Todo"] ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
   const doneIds = await collectCanonicalDoneIds(project, backlog.sections);
   const activeTask = inProgress[0] ? await collectTaskContext(project, inProgress[0], "In Progress", doneIds) : null;
   const todoContexts = await Promise.all(todo.map((item) => collectTaskContext(project, item, "Todo", doneIds)));

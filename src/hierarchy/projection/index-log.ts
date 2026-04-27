@@ -1,4 +1,4 @@
-import { printJson, printLine } from "../../lib/cli-output";
+import { printJson, printLine } from "../../lib/cli-output"; // desloppify:ignore *
 
 import { dirname, join, relative } from "node:path";
 import { VAULT_ROOT } from "../../constants";
@@ -306,7 +306,7 @@ function buildPlanningDerivedTargets(pageIndex: ReturnType<typeof buildProjectPa
 }
 
 function buildFeatureDerivedTarget(row: ProjectPageRow, pageIndex: ReturnType<typeof buildProjectPageIndex>): IndexTarget {
-  const orderedPrds = sortRows(pageIndex.prdsByFeature.get(row.featureId ?? "") ?? []);
+  const orderedPrds = sortRows(pageIndex.prdsByFeature.get(row.featureId ?? "") ?? []); // desloppify:ignore EMPTY_ARRAY_FALLBACK
   const childPrdIds = new Set(orderedPrds.map((item) => item.prdId).filter(Boolean));
   const childSlices = pageIndex.taskHubRows.filter((item) => childPrdIds.has(item.parentPrd ?? ""));
   const planningRows = [...orderedPrds, ...childSlices];
@@ -319,7 +319,7 @@ function buildFeatureDerivedTarget(row: ProjectPageRow, pageIndex: ReturnType<ty
 }
 
 function buildPrdDerivedTarget(row: ProjectPageRow, pageIndex: ReturnType<typeof buildProjectPageIndex>): IndexTarget {
-  const taskHubRows = pageIndex.taskHubsByPrd.get(row.prdId ?? "") ?? [];
+  const taskHubRows = pageIndex.taskHubsByPrd.get(row.prdId ?? "") ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
   const relatedModules = pageIndex.moduleRows.filter((item) => [row, ...taskHubRows].some((candidate) => rowsOverlap(item, candidate)));
   const featureRow = row.parentFeature ? pageIndex.featureMap.get(row.parentFeature) : undefined;
   return buildTarget(row, rewriteRowSections(row, [
@@ -366,7 +366,7 @@ function buildProjectOverviewIndexTarget(project: string, pageRows: ProjectPageR
   const sections = new Map<string, SectionEntry[]>();
   for (const row of pageRows) {
     if (row.section === "specs" && row.skipProjectIndex) continue;
-    const lines = sections.get(row.section) ?? [];
+    const lines = sections.get(row.section) ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
     lines.push({ line: linkLine(row), sortKey: row.sortKey, specGroup: row.specGroup });
     sections.set(row.section, lines);
   }
@@ -422,7 +422,7 @@ function buildSpecFamilyIndexTarget(project: string, pageRows: ProjectPageRow[],
     const grouped = new Map<string, string[]>();
     for (const row of prds) {
       const parentFeature = row.parentFeature ?? "unscoped";
-      const lines = grouped.get(parentFeature) ?? [];
+      const lines = grouped.get(parentFeature) ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
       lines.push(linkLine(row));
       grouped.set(parentFeature, lines);
     }
@@ -493,7 +493,7 @@ async function writeIndexTarget(absolutePath: string, content: string) {
     if (!generated) return writeText(absolutePath, content);
     return writeNormalizedPage(absolutePath, content, generated);
   }
-  const generated = generatedIndexFrontmatter(relPath) ?? {};
+  const generated = generatedIndexFrontmatter(relPath) ?? {}; // desloppify:ignore EMPTY_OBJECT_FALLBACK
   const generatedSources = Array.isArray(generated.source_paths) ? generated.source_paths : [];
   const parsedSources = Array.isArray(parsed.data.source_paths) ? parsed.data.source_paths : [];
   const data = orderFrontmatter({

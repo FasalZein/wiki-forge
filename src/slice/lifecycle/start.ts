@@ -243,8 +243,8 @@ export async function startSlice(args: string[]) {
     return;
   }
 
-  const dependencies = coreResult.dependencies ?? [];
-  const sourcePaths = coreResult.sourcePaths ?? [];
+  const dependencies = coreResult.dependencies ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
+  const sourcePaths = coreResult.sourcePaths ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
   let dependencySummary: string;
   if (dependencies.length) {
     dependencySummary = dependencies.map((dependency) => {

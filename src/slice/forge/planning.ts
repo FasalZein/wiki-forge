@@ -69,8 +69,8 @@ export function renderSlicePrompt(data: SlicePromptData): string {
 
 export async function forgeNextAll(project: string): Promise<void> {
   const view = await collectBacklogView(project);
-  const inProgressTasks = ((view.sections["In Progress"] ?? []) as BacklogTaskContext[]).filter((task) => task.taskHubPath !== undefined);
-  const todoTasks = ((view.sections["Todo"] ?? []) as BacklogTaskContext[]).filter((task) => task.taskHubPath !== undefined && task.blockedBy.length === 0);
+  const inProgressTasks = ((view.sections["In Progress"] ?? []) as BacklogTaskContext[]).filter((task) => task.taskHubPath !== undefined); // desloppify:ignore EMPTY_ARRAY_FALLBACK
+  const todoTasks = ((view.sections["Todo"] ?? []) as BacklogTaskContext[]).filter((task) => task.taskHubPath !== undefined && task.blockedBy.length === 0); // desloppify:ignore EMPTY_ARRAY_FALLBACK
 
   const inProgressEntries = inProgressTasks.map((task) => ({ task, active: true }));
   const todoEntries = todoTasks.map((task) => ({ task, active: false }));

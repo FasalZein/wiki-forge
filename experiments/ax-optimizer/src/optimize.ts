@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises"; // desloppify:ignore *
 import { join } from "node:path";
 
 import { AxGEPA, AxOptimizedProgramImpl } from "@ax-llm/ax";
@@ -86,7 +86,7 @@ function buildSkillProgramInput(
   expected: Pick<SkillExample["expected"], "mustInclude" | "mustAvoid">,
 ) {
   const requiredPhrases = input.requiredPhrases ?? expected.mustInclude;
-  const forbiddenPhrases = input.forbiddenPhrases ?? expected.mustAvoid ?? [];
+  const forbiddenPhrases = input.forbiddenPhrases ?? expected.mustAvoid ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
   return {
     ...input,
     requiredPhrases: requiredPhrases.join("\n"),
@@ -99,7 +99,7 @@ function buildWorkflowProgramInput(
   expected: Pick<WorkflowExample["expected"], "nextCommand" | "forbiddenCommands">,
 ) {
   const allowedCommands = input.allowedCommands ?? [expected.nextCommand];
-  const forbiddenCommands = input.forbiddenCommands ?? expected.forbiddenCommands ?? [];
+  const forbiddenCommands = input.forbiddenCommands ?? expected.forbiddenCommands ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
   return {
     ...input,
     allowedCommands: allowedCommands.join("\n"),

@@ -230,7 +230,8 @@ describe("wiki workflow handoff improvements", () => {
 
     const json = JSON.parse(runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD~1", "--json"], env).stdout.toString());
     expect(json.noHandoverButBreadcrumb).toBe(true);
-    expect(json.lastForgeRun).toBeDefined();
+    expect(json.lastForgeRun.lastForgeRun).toBe("2026-04-18T12:00:00.000Z");
+    expect(json.lastForgeRun.lastForgeStep).toBe("verify-slice");
 
     const text = runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD~1"], env);
     expect(text.exitCode).toBe(0);

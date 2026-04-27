@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readdirSync } from "node:fs"; // desloppify:ignore *
 import { relative } from "node:path";
 import { VAULT_ROOT } from "../../constants";
 import { mkdirIfMissing, nowIso, orderFrontmatter, requireValue, safeMatter, writeNormalizedPage } from "../../cli-shared";

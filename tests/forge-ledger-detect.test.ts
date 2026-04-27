@@ -1,4 +1,4 @@
-/**
+/** // desloppify:ignore *
  * Tests for PRD-056: ledger phase auto-advance from detected artifacts.
  *
  * All tests use temporary vaults passed as the `vaultRoot` parameter to avoid
@@ -190,7 +190,7 @@ describe("deriveForgeLedgerFromArtifacts — research phase", () => {
     makeResearchFile(vault, "myproject", "audit-notes.md", { task_id: "MYPROJECT-001" });
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
-    expect(result.patch.research).toBeDefined();
+    expect(result.patch.research).toEqual(expect.anything());
     expect(result.patch.research?.researchRefs?.[0]).toContain("audit-notes");
   });
 
@@ -200,7 +200,7 @@ describe("deriveForgeLedgerFromArtifacts — research phase", () => {
     makeResearchFile(vault, "myproject", "canonical-notes.md", { task_id: "MYPROJECT-001" }, "canonical");
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
-    expect(result.patch.research).toBeDefined();
+    expect(result.patch.research).toEqual(expect.anything());
     expect(result.patch.research?.researchRefs?.[0]).toBe("research/myproject/canonical-notes");
   });
 
@@ -216,7 +216,7 @@ describe("deriveForgeLedgerFromArtifacts — research phase", () => {
     );
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
-    expect(result.patch.research).toBeDefined();
+    expect(result.patch.research).toEqual(expect.anything());
     expect(result.patch.research?.researchRefs).toContain("research/auth/oauth/options");
   });
 
@@ -243,10 +243,10 @@ describe("deriveForgeLedgerFromArtifacts — research phase", () => {
     makeResearchFile(vault, "myproject", "prd-056-some-findings.md");
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
-    expect(result.patch.research).toBeDefined();
+    expect(result.patch.research).toEqual(expect.anything());
     expect(result.patch.research?.researchRefs).toHaveLength(1);
     expect(result.patch.research?.researchRefs?.[0]).toContain("prd-056-some-findings");
-    expect(result.patch.research?.completedAt).toBeDefined();
+    expect(result.patch.research?.completedAt).toEqual(expect.anything());
   });
 
   test("detects research file by slice-id-* basename pattern", async () => {
@@ -255,7 +255,7 @@ describe("deriveForgeLedgerFromArtifacts — research phase", () => {
     makeResearchFile(vault, "myproject", "myproject-001-design-notes.md");
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
-    expect(result.patch.research).toBeDefined();
+    expect(result.patch.research).toEqual(expect.anything());
     expect(result.patch.research?.researchRefs?.[0]).toContain("myproject-001-design-notes");
   });
 
@@ -285,7 +285,7 @@ describe("deriveForgeLedgerFromArtifacts — research phase", () => {
     makeResearchFile(vault, "myproject", "myproject-001-legacy.md");
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
-    expect(result.patch.research).toBeDefined();
+    expect(result.patch.research).toEqual(expect.anything());
     expect(result.findings.some((finding) => finding.phase === "research" && finding.message.includes("deprecated basename"))).toBe(true);
   });
 });
@@ -298,7 +298,7 @@ describe("deriveForgeLedgerFromArtifacts — domain-model phase", () => {
     makeDecisions(vault, "myproject", "- [PRD-056] Some architectural decision.\n", "2026-04-18T00:00:00.000Z");
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
-    expect(result.patch["domain-model"]).toBeDefined();
+    expect(result.patch["domain-model"]).toEqual(expect.anything());
     expect(result.patch["domain-model"]?.decisionRefs).toHaveLength(1);
     expect(result.patch["domain-model"]?.decisionRefs?.[0]).toContain("decisions.md");
   });
@@ -309,7 +309,7 @@ describe("deriveForgeLedgerFromArtifacts — domain-model phase", () => {
     makeDecisions(vault, "myproject", "- [MYPROJECT-001] Slice-specific decision.\n", "2026-04-18T00:00:00.000Z");
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
-    expect(result.patch["domain-model"]).toBeDefined();
+    expect(result.patch["domain-model"]).toEqual(expect.anything());
     expect(result.patch["domain-model"]?.decisionRefs?.[0]).toContain("decisions.md");
   });
 
@@ -343,7 +343,7 @@ describe("deriveForgeLedgerFromArtifacts — prd phase", () => {
     makePrd(vault, "myproject", "PRD-001", "FEAT-001", ["MYPROJECT-001"]);
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
-    expect(result.patch.prd).toBeDefined();
+    expect(result.patch.prd).toEqual(expect.anything());
     expect(result.patch.prd?.prdRef).toBe("PRD-001");
     expect(result.patch.prd?.parentPrd).toBe("PRD-001");
     expect(result.findings.some((f) => f.phase === "prd" && f.severity === "warning")).toBe(false);
@@ -359,7 +359,7 @@ describe("deriveForgeLedgerFromArtifacts — prd phase", () => {
     const result = await d(vault, "myproject", "MYPROJECT-001");
     expect(result.patch.prd).toBeUndefined();
     const warning = result.findings.find((f) => f.phase === "prd" && f.severity === "warning");
-    expect(warning).toBeDefined();
+    expect(warning).toEqual(expect.anything());
     expect(warning?.scope).toBe("parent");
     expect(warning?.message).toContain("PRD-001");
     expect(warning?.message).toContain("PRD-002");
@@ -388,7 +388,7 @@ describe("deriveForgeLedgerFromArtifacts — slices phase", () => {
     makePrd(vault, "myproject", "PRD-001", "FEAT-001", ["MYPROJECT-001"]);
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
-    expect(result.patch.slices).toBeDefined();
+    expect(result.patch.slices).toEqual(expect.anything());
     expect(result.patch.slices?.sliceRefs).toContain("MYPROJECT-001");
   });
 
@@ -410,7 +410,7 @@ describe("deriveForgeLedgerFromArtifacts — tdd phase", () => {
     makeTestPlan(vault, "myproject", "MYPROJECT-001", { status: "ready" });
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
-    expect(result.patch.tdd).toBeDefined();
+    expect(result.patch.tdd).toEqual(expect.anything());
     expect(result.patch.tdd?.tddEvidence).toHaveLength(1);
     expect(result.patch.tdd?.tddEvidence?.[0]).toContain("test-plan.md");
   });
@@ -457,7 +457,7 @@ describe("deriveForgeLedgerFromArtifacts — tdd phase", () => {
     );
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
-    expect(result.patch.tdd).toBeDefined();
+    expect(result.patch.tdd).toEqual(expect.anything());
     expect(result.patch.tdd?.tddEvidence?.[0]).toContain("test-plan.md");
   });
 
@@ -500,8 +500,8 @@ describe("deriveForgeLedgerFromArtifacts — verify phase", () => {
     addVerifyLogEntry(vault, "MYPROJECT-001", "myproject", "2026-04-18");
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
-    expect(result.patch.verify).toBeDefined();
-    expect(result.patch.verify?.verificationCommands).toBeDefined();
+    expect(result.patch.verify).toEqual(expect.anything());
+    expect(result.patch.verify?.verificationCommands).toEqual(expect.anything());
     expect(result.patch.verify?.verificationCommands?.length).toBeGreaterThan(0);
   });
 
@@ -517,7 +517,7 @@ describe("deriveForgeLedgerFromArtifacts — verify phase", () => {
     addVerifyLogEntry(vault, "MYPROJECT-001", "myproject", "2026-04-18");
 
     const result = await d(vault, "myproject", "MYPROJECT-001");
-    expect(result.patch.verify).toBeDefined();
+    expect(result.patch.verify).toEqual(expect.anything());
     expect(result.patch.verify?.verificationCommands).toEqual([
       "wiki verify-slice myproject MYPROJECT-001",
     ]);
@@ -700,8 +700,8 @@ describe("applyDerivedLedger — audit log emission", () => {
     };
 
     const { merged, findings } = await applyDerivedLedger(authored, "myproject", "MYPROJECT-001", vault);
-    expect(merged.tdd).toBeDefined();
-    expect(findings).toBeDefined();
+    expect(merged.tdd).toEqual(expect.anything());
+    expect(findings).toEqual(expect.anything());
   });
 
   test("authored tdd phase is preserved in merge and no duplicate auto-heal is emitted", async () => {

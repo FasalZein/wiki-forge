@@ -352,3 +352,9 @@ A good research report:
 6. **Is original synthesis** — Not copy-paste from any single source
 7. **Was autonomous** — Did not stop to ask the user mid-research
 8. **Kept context clean** — Used subagents so the main model had room to think
+
+## Local skill maintenance
+
+After editing `skills/*/SKILL.md`, run `bun run sync:local`.
+Optionally run `bun run sync:local -- --audit`.
+Then restart the agent session.

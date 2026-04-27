@@ -21,6 +21,7 @@ describe("slice ownership map", () => {
         "node_modules/pkg/index.js",
         ".venv/bin/python",
         "notes/todo.txt",
+        "tests/payments.test.ts",
       ],
       activeSliceId: "DEMO-001",
       activeClaimPaths: ["src/payments"],
@@ -33,10 +34,11 @@ describe("slice ownership map", () => {
       { file: "notes/todo.txt", kind: "unowned" },
       { file: "src/payments.ts", kind: "unowned" },
       { file: "src/payments/helpers.ts", kind: "active-slice", matchedClaimPath: "src/payments", ownerSliceId: "DEMO-001" },
+      { file: "tests/payments.test.ts", kind: "active-slice", matchedClaimPath: "test-support", ownerSliceId: "DEMO-001" },
     ]);
     expect(map.counts).toEqual({
       "ignored-generated": 3,
-      "active-slice": 1,
+      "active-slice": 2,
       "other-open-slice": 0,
       "closed-slice-amendment": 0,
       unowned: 2,

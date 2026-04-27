@@ -7,7 +7,7 @@ export async function lintRepo(args: string[]) {
   const options = parseProjectRepoArgs(args);
   const json = args.includes("--json");
   const snapshot = await loadProjectSnapshot(options.project, options.repo, { includeRepoInventory: true });
-  const violations = snapshot.repoDocFiles ?? [];
+  const violations = snapshot.repoDocFiles ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
   const result = { project: options.project, repo: snapshot.repo, ok: violations.length === 0, violations };
   if (json) printJson(result);
   else {

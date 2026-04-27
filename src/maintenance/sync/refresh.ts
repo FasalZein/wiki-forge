@@ -35,7 +35,7 @@ export async function refreshFromGit(args: string[]) {
   const json = args.includes("--json");
   const verbose = args.includes("--verbose");
   const result = await collectRefreshFromGit(options.project, options.base, options.repo);
-  const cascadeRefreshActions = result.cascadeRefreshActions ?? [];
+  const cascadeRefreshActions = result.cascadeRefreshActions ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
   for (const action of cascadeRefreshActions) {
     if (action._apply) await action._apply();
   }

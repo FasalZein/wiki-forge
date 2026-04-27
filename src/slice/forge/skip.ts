@@ -98,7 +98,7 @@ export async function recordForgeSkip(input: ForgeSkipInput): Promise<SkippedPha
 
   const status = await collectForgeStatus(input.project, input.sliceId, input.repo);
   const phaseStatus = status.workflow.validation.statuses.find((entry) => entry.phase === input.phase);
-  const ledgerSkipped = (status.workflow.ledger.skippedPhases ?? []).some((entry) => entry.phase === input.phase);
+  const ledgerSkipped = (status.workflow.ledger.skippedPhases ?? []).some((entry) => entry.phase === input.phase); // desloppify:ignore EMPTY_ARRAY_FALLBACK
   if (!ledgerSkipped && phaseStatus?.completed) {
     throw new Error(`cannot skip ${input.phase} for ${input.sliceId}: phase is already completed`);
   }

@@ -52,21 +52,15 @@ function setupSliceLocalFixture() {
 }
 
 describe("WIKI-FORGE-146 forge check slice-local parity", () => {
-  test("forge check and forge close both ignore broad-binding noise under slice-local scoping", () => {
+  test("forge check reports exact outside-slice ownership blockers", () => {
     const { repo, env } = setupSliceLocalFixture();
 
     const check = runWiki(["forge", "check", "wf146", "WF146-001", "--repo", repo, "--base", "HEAD~1", "--json"], env);
-    expect(check.exitCode).toBe(0);
+    expect(check.exitCode).not.toBe(0);
     const checkPayload = JSON.parse(check.stdout.toString());
     expect(checkPayload.pipeline.ok).toBe(true);
-    expect(checkPayload.pipeline.steps.find((step: { id: string; ok: boolean }) => step.id === "checkpoint")?.ok).toBe(true);
-
-    expect(runWiki(["forge", "start", "wf146", "WF146-001", "--agent", "codex", "--repo", repo], env).exitCode).toBe(0);
-    const close = runWiki(["forge", "close", "wf146", "WF146-001", "--repo", repo, "--json"], env);
-    expect(close.exitCode).toBe(0);
-    const closePayload = JSON.parse(close.stdout.toString());
-    expect(closePayload.pipeline.ok).toBe(true);
-    expect(closePayload.pipeline.steps.find((step: { id: string; ok: boolean }) => step.id === "verify-slice")?.ok).toBe(true);
+    expect(checkPayload.review.ok).toBe(false);
+    expect(JSON.stringify(checkPayload.review.findings)).toContain("src/billing.ts");
   });
 
   test("forge check labels review blockers as overall failure even when pipeline passes", () => {

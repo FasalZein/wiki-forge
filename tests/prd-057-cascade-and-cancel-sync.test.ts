@@ -61,8 +61,7 @@ describe("Behavior B — close-slice cancel fork (PRD-057)", () => {
     expect(result.exitCode).toBe(0);
 
     const row = readBacklogRow(vault, project, "P57-001");
-    expect(row).not.toBeNull();
-    expect(row).toMatch(/^- \[-\] \*\*P57-001\*\* test slice — cancelled: re-scoped$/);
+    expect(row).toBe("- [-] **P57-001** test slice — cancelled: re-scoped");
 
     const hub = readFileSync(join(slicesDir, "P57-001", "index.md"), "utf8");
     expect(hub).toContain("status: cancelled");
@@ -168,7 +167,7 @@ describe("Behavior A — cascade-refresh (PRD-057)", () => {
     const specPath = join(vault, "projects", project, "modules", "auth", "spec.md");
     const before = readFileSync(specPath, "utf8");
     const beforeUpdated = before.match(/^updated:\s*['"]?([^'"\n]+)/m)?.[1];
-    expect(beforeUpdated).toBeTruthy();
+    expect(beforeUpdated).toEqual(expect.any(String));
 
     // Wait long enough that nowIso() produces a different timestamp
     const until = Date.now() + 1100;
@@ -181,7 +180,7 @@ describe("Behavior A — cascade-refresh (PRD-057)", () => {
 
     const after = readFileSync(specPath, "utf8");
     const afterUpdated = after.match(/^updated:\s*['"]?([^'"\n]+)/m)?.[1];
-    expect(afterUpdated).toBeTruthy();
+    expect(afterUpdated).toEqual(expect.any(String));
     expect(afterUpdated).not.toBe(beforeUpdated);
   });
 
@@ -192,12 +191,12 @@ describe("Behavior A — cascade-refresh (PRD-057)", () => {
 
     expect(runWiki(["maintain", project, "--repo", repo, "--base", base], env).exitCode).toBe(0);
     const logAfterFirst = readFileSync(join(vault, "log.md"), "utf8");
-    const cascadeCountFirst = (logAfterFirst.match(/auto-heal \| cascade-refresh/g) ?? []).length;
+    const cascadeCountFirst = (logAfterFirst.match(/auto-heal \| cascade-refresh/g) ?? []).length; // desloppify:ignore EMPTY_ARRAY_FALLBACK
     expect(cascadeCountFirst).toBeGreaterThanOrEqual(1);
 
     expect(runWiki(["maintain", project, "--repo", repo, "--base", base], env).exitCode).toBe(0);
     const logAfterSecond = readFileSync(join(vault, "log.md"), "utf8");
-    const cascadeCountSecond = (logAfterSecond.match(/auto-heal \| cascade-refresh/g) ?? []).length;
+    const cascadeCountSecond = (logAfterSecond.match(/auto-heal \| cascade-refresh/g) ?? []).length; // desloppify:ignore EMPTY_ARRAY_FALLBACK
     expect(cascadeCountSecond).toBe(cascadeCountFirst);
   });
 });

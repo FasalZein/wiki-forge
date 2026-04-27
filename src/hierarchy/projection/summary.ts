@@ -68,8 +68,8 @@ async function collectSummary(project: string, explicitRepo?: string) {
   try { const d = await collectDriftSummary(project, explicitRepo, lintingSnapshot); drift = { fresh: d.fresh, stale: d.stale, unknown: d.unknown, deleted: d.deleted, renamed: d.renamed }; } catch {}
   const backlog = await collectBacklog(project);
   const focus = await collectBacklogFocus(project, backlog);
-  const activeWork = backlog.sections["In Progress"] ?? [];
-  const topTodo = (backlog.sections["Todo"] ?? []).slice(0, 5);
+  const activeWork = backlog.sections["In Progress"] ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
+  const topTodo = (backlog.sections["Todo"] ?? []).slice(0, 5); // desloppify:ignore EMPTY_ARRAY_FALLBACK
   const base = await resolveDefaultBase(project, explicitRepo);
   return { project, description, repo: repoPath, base, status, verify, drift, activeWork, topTodo, focus };
 }

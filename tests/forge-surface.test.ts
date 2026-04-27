@@ -305,7 +305,7 @@ describe("wiki forge thin surface", () => {
     const backlog = JSON.parse(runWiki(["backlog", "multiproj", "--json"], env).stdout.toString());
     expect(backlog.sections["In Progress"][0].id).toBe("MULTIPROJ-001");
     // Remaining slices stay in Todo
-    const todoIds = (backlog.sections["Todo"] ?? []).map((t: { id: string }) => t.id);
+    const todoIds = (backlog.sections["Todo"] ?? []).map((t: { id: string }) => t.id); // desloppify:ignore EMPTY_ARRAY_FALLBACK
     expect(todoIds).toContain("MULTIPROJ-002");
     expect(todoIds).toContain("MULTIPROJ-003");
 

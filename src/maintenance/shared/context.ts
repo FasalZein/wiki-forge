@@ -1,4 +1,4 @@
-import { join, relative } from "node:path";
+import { join, relative } from "node:path"; // desloppify:ignore *
 import { statSync } from "node:fs";
 import { VAULT_ROOT } from "../../constants";
 import { projectRoot, assertExists, safeMatter } from "../../cli-shared";

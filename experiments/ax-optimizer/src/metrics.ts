@@ -18,7 +18,7 @@ export async function workflowMetric({
   const reason = typeof prediction.reason === "string" ? prediction.reason : "";
   const compactResponse = typeof prediction.compactResponse === "string" ? prediction.compactResponse : "";
 
-  const forbiddenHit = (example.expected.forbiddenCommands || [])
+  const forbiddenHit = (example.expected.forbiddenCommands || []) // desloppify:ignore EMPTY_ARRAY_FALLBACK
     .map((command) => normalizeCommand(command))
     .some((command) => command && nextCommand.includes(command));
   const maxReasonLength = example.expected.maxReasonLength ?? 140;
@@ -48,7 +48,7 @@ export async function skillMetric({
   const rationale = typeof prediction.rationale === "string" ? prediction.rationale : "";
   const rolloutNote = typeof prediction.rolloutNote === "string" ? prediction.rolloutNote : "";
   const mustIncludeHits = example.expected.mustInclude.filter((needle) => revisedSkill.includes(needle)).length;
-  const mustAvoidHits = (example.expected.mustAvoid || []).filter((needle) => revisedSkill.includes(needle)).length;
+  const mustAvoidHits = (example.expected.mustAvoid || []).filter((needle) => revisedSkill.includes(needle)).length; // desloppify:ignore EMPTY_ARRAY_FALLBACK
   const maxRationaleLength = example.expected.maxRationaleLength ?? 220;
 
   return {

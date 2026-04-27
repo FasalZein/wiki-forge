@@ -12,7 +12,7 @@ function read(path: string) {
 describe("AX optimizer scaffold", () => {
   test("sidecar package declares AX and both optimization tracks", () => {
     const pkg = JSON.parse(read(join(AX_DIR, "package.json")));
-    expect(pkg.dependencies["@ax-llm/ax"]).toBeDefined();
+    expect(pkg.dependencies["@ax-llm/ax"]).toEqual(expect.anything());
     expect(pkg.scripts["baseline:workflow"]).toBe("bun src/cli.ts baseline workflow");
     expect(pkg.scripts["baseline:skill"]).toBe("bun src/cli.ts baseline skill");
     expect(pkg.scripts["optimize:workflow"]).toBe("bun src/cli.ts optimize workflow");

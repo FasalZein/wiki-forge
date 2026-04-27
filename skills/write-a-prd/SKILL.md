@@ -125,3 +125,9 @@ For focused changes that still need a PRD but don't need full research:
 ## What Happens Next
 
 After `wiki create-prd` succeeds and `wiki update-index <project> --write` refreshes navigation, hand off to `/prd-to-slices` to decompose the PRD into vertical slices. Do NOT begin implementation from just a PRD — slices gate the TDD loop and the wiki closeout. Skipping straight to code bypasses the hard gate that "no production code change is complete without a slice with tests."
+
+## Local skill maintenance
+
+After editing `skills/*/SKILL.md`, run `bun run sync:local`.
+Optionally run `bun run sync:local -- --audit`.
+Then restart the agent session.

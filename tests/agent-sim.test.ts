@@ -158,7 +158,7 @@ describe("agent-driven simulator follows triage to terminal state", () => {
     expect(failed.steps.some((s) => s.exitCode !== 0)).toBe(true);
 
     const lastStep = failed.steps.at(-1);
-    expect(lastStep).toBeDefined();
+    expect(lastStep?.triage).toBe("start-next-slice");
     const observedTriages = failed.steps.map((s) => s.triage);
     expect(
       observedTriages.every((kind) => kind !== "completed"),
@@ -191,7 +191,7 @@ describe("agent-driven simulator follows triage to terminal state", () => {
     expect(result.steps.every((step) => step.exitCode === 0)).toBe(true);
 
     const backlog = JSON.parse(runWiki(["backlog", "simmulti", "--json"], env).stdout.toString());
-    const doneIds = (backlog.sections.Done ?? []).map((task: { id: string }) => task.id);
+    const doneIds = (backlog.sections.Done ?? []).map((task: { id: string }) => task.id); // desloppify:ignore EMPTY_ARRAY_FALLBACK
     expect(doneIds).toContain("SIMMULTI-001");
     expect(doneIds).toContain("SIMMULTI-002");
     expect(doneIds).toContain("SIMMULTI-003");

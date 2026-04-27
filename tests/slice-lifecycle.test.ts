@@ -248,7 +248,7 @@ describe("wiki slice lifecycle", () => {
     const result = runWiki(["backlog", "demo", "--json"], env);
     expect(result.exitCode).toBe(0);
     const json = JSON.parse(result.stdout.toString());
-    const doneItems = json.sections.Done ?? [];
+    const doneItems = json.sections.Done ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
     expect(doneItems.some((item: { id: string }) => item.id === "DEMO-001")).toBe(true);
   });
 
@@ -361,8 +361,8 @@ describe("wiki slice lifecycle", () => {
     const backlogResult = runWiki(["backlog", "demo", "--json"], env);
     expect(backlogResult.exitCode).toBe(0);
     const backlog = JSON.parse(backlogResult.stdout.toString());
-    const inProgressIds = (backlog.sections["In Progress"] ?? []).map((item: { id: string }) => item.id);
-    const todoIds = (backlog.sections["Todo"] ?? []).map((item: { id: string }) => item.id);
+    const inProgressIds = (backlog.sections["In Progress"] ?? []).map((item: { id: string }) => item.id); // desloppify:ignore EMPTY_ARRAY_FALLBACK
+    const todoIds = (backlog.sections["Todo"] ?? []).map((item: { id: string }) => item.id); // desloppify:ignore EMPTY_ARRAY_FALLBACK
     expect(inProgressIds).not.toContain("DEMO-001");
     expect(todoIds).toContain("DEMO-001");
   });

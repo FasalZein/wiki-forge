@@ -3,7 +3,7 @@
     "skillName": "wiki",
     "sourcePath": "skills/wiki/SKILL.md",
     "taskBrief": "Tighten command authority, generated-page handling, and freshness repair guidance without collapsing wiki into forge policy.",
-    "acceptanceCriteria": "Preserve the wiki scope boundary, keep checkpoint and maintain authoritative, mention generated pages, and keep sync:local plus restart guidance only for skill edits.",
+    "acceptanceCriteria": "Preserve wiki scope boundary, keep checkpoint and maintain authoritative, mention generated pages, and keep sync:local plus restart guidance only for skill edits.",
     "repoContext": "This repo uses wiki as the second-brain layer and forge as the SDLC layer. After editing skills/*/SKILL.md, run bun run sync:local, optionally bun run sync:local -- --audit, then restart the agent session.",
     "mustInclude": [
       "wiki checkpoint",
@@ -22,7 +22,7 @@
     "sourcePath": "skills/forge/SKILL.md",
     "taskBrief": "Improve workflow-vs-repair routing so stale-page closeout or checkpoint debt routes to explicit maintenance commands rather than generic forge reruns.",
     "acceptanceCriteria": "Preserve command authority, keep forge as the workflow layer, prefer concrete repair commands when verify/close fails, and mention sync:local plus restart guidance only for applied skill changes.",
-    "repoContext": "This repo separates wiki from forge. The current product bug class is stale-page closeout noise surfacing as a verify loop. The skill must preserve checkpoint as freshness truth, maintain as repair plan, forge status as workflow truth, and resume as context only.",
+    "repoContext": "This repo uses wiki as the second-brain layer and forge as the SDLC layer. After editing skills/*/SKILL.md, run bun run sync:local, optionally bun run sync:local -- --audit, then restart the agent session.",
     "mustInclude": [
       "wiki checkpoint",
       "wiki maintain",
@@ -33,6 +33,140 @@
     ],
     "mustAvoid": [
       "wiki forge run is always the next step"
+    ]
+  },
+  {
+    "skillName": "domain-model",
+    "sourcePath": "skills/domain-model/SKILL.md",
+    "taskBrief": "Tighten wiki-native domain-model guidance so decisions and domain language become durable forge evidence instead of conversational notes.",
+    "acceptanceCriteria": "Preserve one-question-at-a-time interviewing, codebase exploration, decisionRefs expectations, and wiki-native outputs. Mention sync:local plus restart only for skill edits.",
+    "repoContext": "This repo uses wiki as the second-brain layer and forge as the SDLC layer. After editing skills/*/SKILL.md, run bun run sync:local, optionally bun run sync:local -- --audit, then restart the agent session.",
+    "mustInclude": [
+      "projects/<project>/decisions.md",
+      "projects/<project>/architecture/domain-language.md",
+      "wiki forge status",
+      "decisionRefs",
+      "one at a time",
+      "bun run sync:local",
+      "restart the agent session"
+    ],
+    "mustAvoid": [
+      "repo-local docs/adr"
+    ]
+  },
+  {
+    "skillName": "grill-me",
+    "sourcePath": "skills/grill-me/SKILL.md",
+    "taskBrief": "Clarify compatibility role versus domain-model while preserving relentless plan stress-testing for explicit user requests.",
+    "acceptanceCriteria": "Preserve one-question-at-a-time interrogation, recommended answers, compatibility with older grill references, and route forge-driven pre-PRD work to domain-model.",
+    "repoContext": "This repo uses wiki as the second-brain layer and forge as the SDLC layer. After editing skills/*/SKILL.md, run bun run sync:local, optionally bun run sync:local -- --audit, then restart the agent session.",
+    "mustInclude": [
+      "/domain-model",
+      "one question at a time",
+      "recommended answer",
+      "Open Questions",
+      "wiki vault",
+      "bun run sync:local",
+      "restart the agent session"
+    ],
+    "mustAvoid": [
+      "replace domain-model"
+    ]
+  },
+  {
+    "skillName": "improve-codebase-architecture",
+    "sourcePath": "skills/improve-codebase-architecture/SKILL.md",
+    "taskBrief": "Improve architecture-review prompting so findings become wiki-filed evidence and accepted refactors become forge-tracked work, not ad-hoc edits.",
+    "acceptanceCriteria": "Preserve deep-module framing, cadence boundaries, no mid-slice rule, wiki filing, and forge conversion path.",
+    "repoContext": "This repo uses wiki as the second-brain layer and forge as the SDLC layer. After editing skills/*/SKILL.md, run bun run sync:local, optionally bun run sync:local -- --audit, then restart the agent session.",
+    "mustInclude": [
+      "deep module",
+      "Do not run mid-slice",
+      "wiki vault",
+      "/forge",
+      "accepted refactor",
+      "bun run sync:local",
+      "restart the agent session"
+    ],
+    "mustAvoid": [
+      "make changes immediately"
+    ]
+  },
+  {
+    "skillName": "prd-to-slices",
+    "sourcePath": "skills/prd-to-slices/SKILL.md",
+    "taskBrief": "Tighten PRD decomposition guidance toward thin tracer-bullet vertical slices with ready plan/test-plan docs and dependency hygiene.",
+    "acceptanceCriteria": "Preserve requirement that PRD already exists, vertical slice rules, backlog/task docs, and no external issue creation.",
+    "repoContext": "This repo uses wiki as the second-brain layer and forge as the SDLC layer. After editing skills/*/SKILL.md, run bun run sync:local, optionally bun run sync:local -- --audit, then restart the agent session.",
+    "mustInclude": [
+      "tracer bullet",
+      "vertical slices",
+      "plan.md",
+      "test-plan.md",
+      "wiki backlog",
+      "bun run sync:local",
+      "restart the agent session"
+    ],
+    "mustAvoid": [
+      "horizontal layer ticket"
+    ]
+  },
+  {
+    "skillName": "research",
+    "sourcePath": "skills/research/SKILL.md",
+    "taskBrief": "Improve research prompting so autonomous research stays citation-backed, uses subagents/tools appropriately, and files project-scoped outputs for later forge bridging.",
+    "acceptanceCriteria": "Preserve Exa/Firecrawl/AlphaXiv workflow, citations, synthesis, project-scoped filing, and avoid using research for simple docs lookup.",
+    "repoContext": "This repo uses wiki as the second-brain layer and forge as the SDLC layer. After editing skills/*/SKILL.md, run bun run sync:local, optionally bun run sync:local -- --audit, then restart the agent session.",
+    "mustInclude": [
+      "Exa",
+      "Firecrawl",
+      "AlphaXiv",
+      "citations",
+      "research/<project>",
+      "wiki research file",
+      "bun run sync:local",
+      "restart the agent session"
+    ],
+    "mustAvoid": [
+      "uncited claims"
+    ]
+  },
+  {
+    "skillName": "tdd",
+    "sourcePath": "skills/tdd/SKILL.md",
+    "taskBrief": "Clarify strict TDD while supporting characterization-test TDD for behavior-preserving refactors, without creating a skip path for implementation work.",
+    "acceptanceCriteria": "Preserve red-green-refactor, public behavior tests, no private-method tests, subagent-vs-linear decision, and no code without behavior evidence.",
+    "repoContext": "This repo uses wiki as the second-brain layer and forge as the SDLC layer. After editing skills/*/SKILL.md, run bun run sync:local, optionally bun run sync:local -- --audit, then restart the agent session.",
+    "mustInclude": [
+      "red-green-refactor",
+      "public interfaces",
+      "characterization",
+      "subagent-vs-linear",
+      "wiki forge run <project> <slice> --repo <path>",
+      "bun run sync:local",
+      "restart the agent session"
+    ],
+    "mustAvoid": [
+      "No exceptions."
+    ]
+  },
+  {
+    "skillName": "write-a-prd",
+    "sourcePath": "skills/write-a-prd/SKILL.md",
+    "taskBrief": "Tighten PRD writing so it consumes research/domain-model evidence, explores code truth, and produces wiki-native PRDs ready for slicing.",
+    "acceptanceCriteria": "Preserve feature prerequisite, Prior Research links, domain-model outputs, code exploration, and wiki vault filing.",
+    "repoContext": "This repo uses wiki as the second-brain layer and forge as the SDLC layer. After editing skills/*/SKILL.md, run bun run sync:local, optionally bun run sync:local -- --audit, then restart the agent session.",
+    "mustInclude": [
+      "--feature <FEAT-ID>",
+      "Prior Research",
+      "projects/<project>/decisions.md",
+      "projects/<project>/architecture/domain-language.md",
+      "code is the source of truth",
+      "bun run sync:local",
+      "restart the agent session"
+    ],
+    "mustAvoid": [
+      "write from memory"
     ]
   }
 ]

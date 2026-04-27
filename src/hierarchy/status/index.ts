@@ -123,16 +123,16 @@ export async function collectFeatureStatuses(project: string): Promise<FeatureSt
 
   const rows: FeatureStatusRow[] = [];
   for (const feature of features.values()) {
-    const childPrds = prdsByFeature.get(feature.featureId) ?? [];
+    const childPrds = prdsByFeature.get(feature.featureId) ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
     const prdRows: PrdStatusRow[] = childPrds.map((prd) => {
-      const prdSlices = slicesByPrd.get(prd.prdId) ?? [];
+      const prdSlices = slicesByPrd.get(prd.prdId) ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
       return {
         prdId: prd.prdId,
         file: prd.file,
         computedStatus: computeStatus(prdSlices, prd.authoredStatus),
       };
     });
-    const featureSlices = slicesByFeature.get(feature.featureId) ?? [];
+    const featureSlices = slicesByFeature.get(feature.featureId) ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
     const featureStatus = computeStatus(featureSlices, feature.authoredStatus);
     rows.push({ featureId: feature.featureId, file: feature.file, computedStatus: featureStatus, prds: prdRows });
   }

@@ -8,8 +8,8 @@ describe("schemas/wiki.config.schema.json", () => {
   test("exists and parses as valid JSON", () => {
     const raw = readFileSync(schemaPath, "utf8");
     const parsed = JSON.parse(raw);
-    expect(parsed.$schema).toBeDefined();
-    expect(parsed.$id).toBeDefined();
+    expect(parsed.$schema).toBe("https://json-schema.org/draft/2020-12/schema");
+    expect(parsed.$id).toBe("https://wiki-forge.dev/schemas/wiki.config.schema.json");
   });
 
   test("describes the repo.ignore key as a string array", () => {

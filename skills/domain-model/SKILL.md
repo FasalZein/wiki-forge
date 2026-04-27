@@ -118,3 +118,9 @@ Only offer to create an ADR when all three are true:
 3. **The result of a real trade-off** — there were genuine alternatives and you picked one for specific reasons
 
 If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md). For wiki-forge-managed projects, record the decision in the wiki's decision surface instead of creating `docs/adr/`.
+
+## Local skill maintenance
+
+After editing `skills/*/SKILL.md`, run `bun run sync:local`.
+Optionally run `bun run sync:local -- --audit`.
+Then restart the agent session.

@@ -5,7 +5,7 @@ import { VAULT_ROOT } from "../constants";
 import type { QmdResult } from "../types";
 
 export function extractCanonicalReferenceIds(question: string) {
-  const matches = question.match(/\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+\b/giu) ?? [];
+  const matches = question.match(/\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+\b/giu) ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
   return matches.map((match) => match.toUpperCase()).filter((match, index, values) => values.indexOf(match) === index);
 }
 

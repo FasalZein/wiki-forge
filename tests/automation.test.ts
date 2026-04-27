@@ -53,9 +53,11 @@ describe("wiki automation commands", () => {
 
     expect(runWiki(["verify-page", "demo", "modules/auth/spec", "code-verified"], env).exitCode).toBe(0);
     const passing = runWiki(["checkpoint", "demo", "--repo", repo, "--json"], env);
-    expect(passing.exitCode).toBe(0);
+    expect(passing.exitCode).toBe(1);
     const passingJson = JSON.parse(passing.stdout.toString());
-    expect(passingJson.clean).toBe(true);
+    expect(passingJson.freshnessClean).toBe(true);
+    expect(passingJson.clean).toBe(false);
+    expect(passingJson.gitTruth.clean).toBe(false);
     expect(passingJson.unboundFiles).toContain("src/fusion.ts");
   });
 

@@ -111,7 +111,7 @@ describe("forge status unmet requirements", () => {
     expect(result.exitCode).toBe(0);
     const payload = JSON.parse(result.stdout.toString());
 
-    expect(payload.workflow.ledger["domain-model"]).toBeDefined();
+    expect(payload.workflow.ledger["domain-model"].completedAt).toBe("2026-04-19T00:00:01.000Z");
     expect(payload.workflow.ledger.grill).toBeUndefined();
   });
 

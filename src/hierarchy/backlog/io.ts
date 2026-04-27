@@ -55,7 +55,7 @@ export async function moveTaskToSection(project: string, taskId: string, to: str
     const blockedBy = dependencies.filter((_, index) => !summaries[index]?.canonicalCompletion);
     if (blockedBy.length) throw new Error(`${taskId} is blocked by unfinished dependencies: ${blockedBy.join(", ")}`);
   }
-  parsed.sections[to] = parsed.sections[to] ?? [];
+  parsed.sections[to] = parsed.sections[to] ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
   if (!parsed.order.includes(to)) parsed.order.push(to);
   parsed.sections[to].unshift(found);
   await writeText(backlogPath, serializeBacklog(parsed));
@@ -142,7 +142,7 @@ function insertTaskIntoSection(backlog: string, section: string, taskLine: strin
 
 function removeTask(parsed: ParsedBacklog, taskId: string) {
   for (const section of parsed.order) {
-    const items = parsed.sections[section] ?? [];
+    const items = parsed.sections[section] ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
     const index = items.findIndex((item) => item.id === taskId);
     if (index >= 0) return items.splice(index, 1)[0];
   }

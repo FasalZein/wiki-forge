@@ -54,6 +54,15 @@ export function classifyChangedFileOwnership(file: string, activeSliceId: string
   const normalizedFile = normalizeRelPath(file);
   if (isIgnoredGeneratedPath(normalizedFile)) return { file: normalizedFile, kind: "ignored-generated" };
 
+  if (activeSliceId && isTestSupportPath(normalizedFile)) {
+    return {
+      file: normalizedFile,
+      kind: "active-slice",
+      matchedClaimPath: "test-support",
+      ownerSliceId: activeSliceId,
+    };
+  }
+
   const matchedClaimPath = activeClaimPaths.find((claimPath) => bindingMatchesFile(claimPath, normalizedFile));
   if (activeSliceId && matchedClaimPath) {
     return {
@@ -65,6 +74,13 @@ export function classifyChangedFileOwnership(file: string, activeSliceId: string
   }
 
   return { file: normalizedFile, kind: "unowned" };
+}
+
+export function isTestSupportPath(file: string) {
+  const normalized = normalizeRelPath(file);
+  return normalized.startsWith("tests/")
+    || /(^|\/)__tests__\//u.test(normalized)
+    || /\.(test|spec)\.[cm]?[jt]sx?$/u.test(normalized);
 }
 
 export function isIgnoredGeneratedPath(file: string) {

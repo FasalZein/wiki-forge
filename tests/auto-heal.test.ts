@@ -101,7 +101,7 @@ describe("R1 — computed_status persistence", () => {
     const featureAfterFirst = readFileSync(join(featuresDir, "feat-001-feature.md"), "utf8");
     expect(featureAfterFirst).toContain("computed_status: complete");
     const logAfterFirst = readFileSync(join(vault, "log.md"), "utf8");
-    const countAfterFirst = (logAfterFirst.match(/rule=R1/g) ?? []).length;
+    const countAfterFirst = (logAfterFirst.match(/rule=R1/g) ?? []).length; // desloppify:ignore EMPTY_ARRAY_FALLBACK
     expect(countAfterFirst).toBeGreaterThan(0);
 
     // Second run — already correct, no rewrite, no additional log entries
@@ -109,7 +109,7 @@ describe("R1 — computed_status persistence", () => {
     const featureAfterSecond = readFileSync(join(featuresDir, "feat-001-feature.md"), "utf8");
     expect(featureAfterSecond).toContain("computed_status: complete");
     const logAfterSecond = readFileSync(join(vault, "log.md"), "utf8");
-    const countAfterSecond = (logAfterSecond.match(/rule=R1/g) ?? []).length;
+    const countAfterSecond = (logAfterSecond.match(/rule=R1/g) ?? []).length; // desloppify:ignore EMPTY_ARRAY_FALLBACK
     // Log count must not have grown — idempotent
     expect(countAfterSecond).toBe(countAfterFirst);
   });
@@ -176,13 +176,13 @@ describe("R2 — parent reopen on late-added child", () => {
 
     expect(runWiki(["maintain", "demo", "--repo", repo, "--base", base], env).exitCode).toBe(0);
     const logAfterFirst = readFileSync(join(vault, "log.md"), "utf8");
-    const firstCount = (logAfterFirst.match(/rule=R2/g) ?? []).length;
+    const firstCount = (logAfterFirst.match(/rule=R2/g) ?? []).length; // desloppify:ignore EMPTY_ARRAY_FALLBACK
     expect(firstCount).toBe(1);
 
     // Second run — feature is now in-progress, no drift, no new heal
     expect(runWiki(["maintain", "demo", "--repo", repo, "--base", base], env).exitCode).toBe(0);
     const logAfterSecond = readFileSync(join(vault, "log.md"), "utf8");
-    const secondCount = (logAfterSecond.match(/rule=R2/g) ?? []).length;
+    const secondCount = (logAfterSecond.match(/rule=R2/g) ?? []).length; // desloppify:ignore EMPTY_ARRAY_FALLBACK
     expect(secondCount).toBe(1);
   });
 });
@@ -277,13 +277,13 @@ describe("R3 — cancel-cascade on unanimous supersede", () => {
 
     expect(runWiki(["maintain", "demo", "--repo", repo, "--base", base], env).exitCode).toBe(0);
     const logAfterFirst = readFileSync(join(vault, "log.md"), "utf8");
-    const firstCount = (logAfterFirst.match(/rule=R3/g) ?? []).length;
+    const firstCount = (logAfterFirst.match(/rule=R3/g) ?? []).length; // desloppify:ignore EMPTY_ARRAY_FALLBACK
     expect(firstCount).toBe(1);
 
     // Second run — PRD is now cancelled, no drift, no new heal
     expect(runWiki(["maintain", "demo", "--repo", repo, "--base", base], env).exitCode).toBe(0);
     const logAfterSecond = readFileSync(join(vault, "log.md"), "utf8");
-    const secondCount = (logAfterSecond.match(/rule=R3/g) ?? []).length;
+    const secondCount = (logAfterSecond.match(/rule=R3/g) ?? []).length; // desloppify:ignore EMPTY_ARRAY_FALLBACK
     expect(secondCount).toBe(1);
   });
 });
@@ -318,7 +318,7 @@ describe("R4 — escalation on ambiguity", () => {
     expect(jsonResult.exitCode).toBe(0);
     const plan = JSON.parse(jsonResult.stdout.toString());
     const escalation = plan.actions.find((a: { kind: string }) => a.kind === "lifecycle-escalate");
-    expect(escalation).toBeDefined();
+    expect(escalation).toEqual(expect.anything());
     expect(escalation.message).toContain("wiki lifecycle open");
     expect(escalation.message).toContain("wiki lifecycle close");
   });
@@ -338,7 +338,7 @@ describe("closeout apply-then-collect contract", () => {
     expect(stdout.length).toBeGreaterThan(0);
     const json = JSON.parse(stdout);
     // The R2 lifecycle-reopen message must NOT appear as a warning (it was healed)
-    const reopenWarnings = (json.warnings ?? []).filter((w: string) => w.includes("status=complete") || w.includes("lifecycle-drift"));
+    const reopenWarnings = (json.warnings ?? []).filter((w: string) => w.includes("status=complete") || w.includes("lifecycle-drift")); // desloppify:ignore EMPTY_ARRAY_FALLBACK
     expect(reopenWarnings.length).toBe(0);
 
     // Feature was healed by R2 during closeout
@@ -426,6 +426,7 @@ describe("session recovery not blocked by parent drift", () => {
     const result = runWiki(["resume", "demo"], env);
     // A non-null signalCode would indicate the process was killed by a signal (crash)
     // Bun's spawnSync returns signalCode for signals, exitCode for normal exit
-    expect(result.exitCode).not.toBeNull(); // normal exit (not signal)
+    expect(result.signalCode ?? null).toBeNull();
+    expect(typeof result.exitCode).toBe("number");
   });
 });

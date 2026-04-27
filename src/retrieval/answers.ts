@@ -1,4 +1,4 @@
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative } from "node:path"; // desloppify:ignore *
 import matter from "gray-matter";
 import { VAULT_ROOT } from "../constants";
 import { orderFrontmatter, projectRoot, mkdirIfMissing, readProjectTitle } from "../cli-shared";

@@ -101,7 +101,7 @@ export async function collectLifecycleDriftActions(project: string): Promise<Hie
     if (!parsed) continue;
     const recordedStatus = typeof parsed.data.status === "string" ? parsed.data.status : null;
     if (recordedStatus === "complete" && row.computedStatus !== "complete") {
-      const slices = byFeature.get(row.featureId) ?? [];
+      const slices = byFeature.get(row.featureId) ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
       actions.push(buildLifecycleDriftAction("feature", row.featureId, row.file, parsed, slices, project));
     }
     for (const prd of row.prds) {
@@ -111,7 +111,7 @@ export async function collectLifecycleDriftActions(project: string): Promise<Hie
       if (!prdParsed) continue;
       const prdRecordedStatus = typeof prdParsed.data.status === "string" ? prdParsed.data.status : null;
       if (prdRecordedStatus === "complete" && prd.computedStatus !== "complete") {
-        const slices = byPrd.get(prd.prdId) ?? [];
+        const slices = byPrd.get(prd.prdId) ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
         actions.push(buildLifecycleDriftAction("prd", prd.prdId, prd.file, prdParsed, slices, project));
       }
     }

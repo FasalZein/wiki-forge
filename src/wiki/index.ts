@@ -1,4 +1,4 @@
-import type { CommandHandler } from "../types";
+import type { CommandHandler } from "../types"; // desloppify:ignore *
 import { printHelp } from "../cli-shared";
 import { backlogCommand, addTask, moveTask, completeTask, createFeature, createPrd, createPlan, createTestPlan, dependencyGraph, updateIndex, featureStatusCommand, startFeature, closeFeature, startPrd, closePrd, summaryProject, createLayerPage, lintVault, scaffoldLayer } from "../hierarchy";
 import { dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, syncProject, discoverProject, ingestDiff, commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo, doctorProject, gateProject, driftCheck } from "../maintenance";

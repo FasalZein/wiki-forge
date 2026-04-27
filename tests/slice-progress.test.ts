@@ -218,8 +218,7 @@ describe("readSliceHandoff", () => {
     });
 
     const handoff = callReadHandoff(vault, "sptest6", "SPTEST6-001");
-    expect(handoff).not.toBeNull();
-    expect(handoff!.lastForgeRun).toBe("2026-04-18T12:00:00.000Z");
+    expect(handoff?.lastForgeRun).toBe("2026-04-18T12:00:00.000Z");
     expect(handoff!.lastForgeStep).toBe("checkpoint");
     expect(handoff!.lastForgeState).toBe("passed");
     expect(handoff!.lastForgeOk).toBe(true);
@@ -245,8 +244,7 @@ describe("readSliceHandoff", () => {
     });
 
     const handoff = callReadHandoff(vault, "sptest7", "SPTEST7-001");
-    expect(handoff).not.toBeNull();
-    expect(handoff!.lastForgeState).toBe("running");
+    expect(handoff?.lastForgeState).toBe("running");
     expect(handoff!.lastForgeOk).toBeUndefined();
     expect(handoff!.nextAction).toContain("wiki forge run sptest7 SPTEST7-001");
   });

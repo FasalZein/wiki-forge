@@ -12,9 +12,13 @@ Use it when changing runtime/product behavior, continuing a slice, or closing ve
 
 ## Commands
 
-- Start or resume: `wiki resume <project> --repo <path> --base <rev>`
+- Start or resume context: `wiki resume <project> --repo <path> --base <rev>`
 - Pick work: `wiki forge next <project>`
-- Inspect a slice: `wiki forge status <project> <slice> --repo <path>`
+- Inspect workflow truth: `wiki forge status <project> <slice> --repo <path>`
+- Inspect workflow truth in machine-readable form: `wiki forge status <project> <slice> --json`
+- Refresh freshness truth before closeout or after drift suspicion: `wiki checkpoint`
+- Repair stale state, closeout debt, or verify-loop conditions: `wiki maintain`
+- Reconnect research when implementation needs fresh evidence: `wiki research bridge`
 - Plan work: `wiki forge plan <project> <feature-name>`
 - Run work: `wiki forge run <project> [slice-id] --repo <path>`
 - Waive a skippable phase: `wiki forge skip <project> <slice> <phase> --reason <text>`
@@ -29,11 +33,15 @@ After planning, obey the runtime subagent policy: evaluate subagent-driven vs li
 
 `tdd` and `verify` are not skippable. Research, domain-model, PRD, and slices may be skipped only with an audited `wiki forge skip` reason.
 
+When verify or closeout fails, do not assume a generic forge rerun is correct. Use `wiki forge status <project> <slice> --json` as workflow truth, `wiki checkpoint` as freshness truth, and `wiki maintain` as the explicit repair path for stale-page closeout noise, checkpoint debt, or repeated verify loops. Use `wiki resume` for context only, not as proof that freshness or repair work is complete.
+
+If evidence or implementation context has drifted, use `wiki research bridge` before continuing delivery work.
+
 For full details, run `wiki help` or `wiki help --all`.
 
 ## Skill edits
 
-After editing repo skill files, run:
+After applying repo skill file changes, run:
 
 ```bash
 bun run sync:local
