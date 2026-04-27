@@ -8,7 +8,7 @@ import { isPrePhaseTriage, renderSteeringPacket } from "../../protocol/steering/
 import { collectSessionActivity, resolveSessionId } from "../shared";
 import { assertGitRepo, resolveRepoPath } from "../../lib/verification";
 import { collectCheckpoint, collectMaintenancePlan, collapseActions } from "../../maintenance";
-import { resolveWorkflowSteering } from "../../protocol";
+import { resolveTargetWorkflowSteering, resolveWorkflowSteering } from "../../protocol";
 import { readSliceHandoff } from "../../slice/pipeline/index";
 import {
   collectDirtyRepoStatus,
@@ -46,25 +46,18 @@ export async function resumeProject(args: string[]) {
     findLatestHandover(options.project),
   ]);
   const handoff = maintain.focus.activeTask ? await readSliceHandoff(options.project, maintain.focus.activeTask.id) : null;
-  const steeringResolution = await resolveWorkflowSteering(options.project, {
-    repo,
-    base: options.base,
-    focus: maintain.focus,
-    handoff,
-  });
-  const focusTask = steeringResolution.focusTask;
-  const workflowNextPhase = steeringResolution.workflowNextPhase;
-
-  const dirty = await collectDirtyRepoStatus(repo);
-  const recentCommits = await collectRecentCommits(repo, 5);
-  const stalePages = checkpoint.stalePages.slice(0, 10).map((row) => row.page);
-  const recentNotes = (await projectLogEntries(options.project, "note")).slice(0, 5);
 
   let handoverMeta: {
     harness: string | null;
     agent: string | null;
     created_at: string | null;
     status: string | null;
+    schemaVersion: number | null;
+    handoverComplete: boolean | null;
+    targetSlice: string | null;
+    nextCommand: string | null;
+    workflowLane: string | null;
+    workflowPhase: string | null;
     nextPriorities: string | null;
     trackedArtifacts: string | null;
     accomplishments: string[];
@@ -84,6 +77,12 @@ export async function resumeProject(args: string[]) {
         agent: typeof parsed.data.agent === "string" ? parsed.data.agent : null,
         created_at: typeof parsed.data.created_at === "string" ? parsed.data.created_at : null,
         status: typeof parsed.data.status === "string" ? parsed.data.status : null,
+        schemaVersion: typeof parsed.data.schema_version === "number" ? parsed.data.schema_version : null,
+        handoverComplete: typeof parsed.data.handover_complete === "boolean" ? parsed.data.handover_complete : null,
+        targetSlice: typeof parsed.data.target_slice === "string" ? parsed.data.target_slice : null,
+        nextCommand: typeof parsed.data.next_command === "string" ? parsed.data.next_command : null,
+        workflowLane: typeof parsed.data.workflow_lane === "string" ? parsed.data.workflow_lane : null,
+        workflowPhase: typeof parsed.data.workflow_phase === "string" ? parsed.data.workflow_phase : null,
         nextPriorities: prioritiesMatch?.[1]?.trim() ?? null,
         trackedArtifacts: artifactsMatch?.[1]?.trim() ?? null,
         accomplishments: parseHandoverBulletSection(accomplishmentsMatch?.[1]),
@@ -93,10 +92,36 @@ export async function resumeProject(args: string[]) {
     }
   }
 
+  const handoverTargetSlice = handoverMeta?.targetSlice ?? null;
+  const handoverTargetHandoff = handoverTargetSlice ? await readSliceHandoff(options.project, handoverTargetSlice) : null;
+  const effectiveHandoff = handoverTargetHandoff ?? handoff;
+  const steeringResolution = handoverTargetSlice
+    ? await resolveTargetWorkflowSteering(options.project, {
+      repo,
+      base: options.base,
+      focus: maintain.focus,
+      sliceId: handoverTargetSlice,
+      handoff: effectiveHandoff,
+    })
+    : await resolveWorkflowSteering(options.project, {
+      repo,
+      base: options.base,
+      focus: maintain.focus,
+      handoff: effectiveHandoff,
+    });
+  const focusTask = "focusTask" in steeringResolution ? steeringResolution.focusTask : steeringResolution.targetTask;
+  const workflowNextPhase = steeringResolution.workflowNextPhase;
+  const handoverTargetOverride = Boolean(handoverTargetSlice && maintain.focus.activeTask?.id !== handoverTargetSlice);
+
+  const dirty = await collectDirtyRepoStatus(repo);
+  const recentCommits = await collectRecentCommits(repo, 5);
+  const stalePages = checkpoint.stalePages.slice(0, 10).map((row) => row.page);
+  const recentNotes = (await projectLogEntries(options.project, "note")).slice(0, 5);
+
   const actions = maintain.actions.slice(0, 8);
   const actionSummary = collapseActions(maintain.actions).slice(0, 6);
   const handoverIso = handoverMeta?.created_at ?? null;
-  const handoffIso = handoff?.lastForgeRun ?? null;
+  const handoffIso = effectiveHandoff?.lastForgeRun ?? null;
   const handoverStale = Boolean(
     handoverIso && handoffIso && new Date(handoffIso).getTime() > new Date(handoverIso).getTime(),
   );
@@ -116,11 +141,12 @@ export async function resumeProject(args: string[]) {
     actionSummary,
     actionCount: maintain.actions.length,
     handoverStale,
+    handoverTargetOverride,
     noHandoverButBreadcrumb,
     ...(workflowNextPhase !== null ? { workflowNextPhase } : {}),
     triage: steeringResolution.triage,
     steering: steeringResolution.steering,
-    ...(handoff ? { lastForgeRun: handoff } : {}),
+    ...(effectiveHandoff ? { lastForgeRun: effectiveHandoff } : {}),
     ...(handoverMeta ? { lastHandover: { path: relative(VAULT_ROOT, latestHandoverPath!), ...handoverMeta } } : {}),
   };
   if (json) {
@@ -130,11 +156,15 @@ export async function resumeProject(args: string[]) {
   for (const line of renderSteeringPacket(payload.steering)) printLine(`- ${line}`);
   const showsRecovery =
     payload.triage.kind === "resume-failed-forge" || isPrePhaseTriage(payload.triage);
-  const focusId = payload.activeTask?.id ?? payload.nextTask?.id ?? null;
+  const focusId = focusTask?.id ?? payload.activeTask?.id ?? payload.nextTask?.id ?? null;
   if (showsRecovery && focusId) {
     printLine(`  recovery: wiki forge release ${options.project} ${focusId}`);
   }
   printLine("");
+  if (handoverTargetOverride && handoverTargetSlice) {
+    printLine(`⚠  handover target ${handoverTargetSlice} overrides backlog active ${maintain.focus.activeTask?.id ?? "none"}`);
+    printLine("");
+  }
   if (noHandoverButBreadcrumb) {
     printLine(`⚠  no handover file — resuming from pipeline breadcrumb (previous session ended without wiki handover)`);
     printLine("");
@@ -149,13 +179,13 @@ export async function resumeProject(args: string[]) {
   if (payload.workflowNextPhase !== undefined) {
     printLine(`- workflow next phase: ${payload.workflowNextPhase ?? "complete"}`);
   }
-  if (handoff) {
-    const forgeState = handoff.lastForgeState === "running"
+  if (effectiveHandoff) {
+    const forgeState = effectiveHandoff.lastForgeState === "running"
       ? "INCOMPLETE"
-      : handoff.lastForgeOk
+      : effectiveHandoff.lastForgeOk
         ? "PASS"
         : "FAIL";
-    printLine(`- last forge run: ${forgeState} at ${handoff.lastForgeStep} (${handoff.lastForgeRun})`);
+    printLine(`- last forge run: ${forgeState} at ${effectiveHandoff.lastForgeStep} (${effectiveHandoff.lastForgeRun})`);
   }
   printLine(`- dirty: modified=${dirty.modifiedFiles.length} staged=${dirty.stagedFiles.length} untracked=${dirty.untrackedFiles.length}`);
   if (handoverMeta) {

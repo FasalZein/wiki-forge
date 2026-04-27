@@ -5,6 +5,7 @@ import { nowIso, orderFrontmatter, projectRoot, safeMatter } from "../../cli-sha
 import { ensureDir, exists, readText, writeText } from "../../lib/fs";
 import { renderHandoverAlignmentReminder } from "../../protocol/source/index";
 import { tailLog } from "../../lib/log";
+import type { ForgeSteeringPacket } from "../../protocol/steering/index";
 import { type SessionSummary, resolveAgent, resolveSessionId } from "./activity";
 import { type DirtyRepoStatus, collectDirtyRepoStatus } from "../../maintenance/shared";
 import { resolveBaseRevision } from "../../git-utils";
@@ -81,6 +82,7 @@ export type HandoverResult = {
   repo: string;
   base: string;
   focus: { activeTask: HandoverFocusTask | null; recommendedTask: HandoverFocusTask | null; warnings: string[] };
+  steering?: ForgeSteeringPacket | null;
   dirty: DirtyRepoStatus;
   sessionActivity: SessionSummary;
   recentCommits: string[];
@@ -94,6 +96,7 @@ export type HandoverContent = {
   nextSessionPrompt: string;
   accomplishments: string[];
   blockers: string[];
+  mode?: "authored" | "auto-only";
 };
 
 export async function writeHandoverFile(result: HandoverResult, content: HandoverContent, harness?: string): Promise<string> {
@@ -120,19 +123,27 @@ export async function writeHandoverFile(result: HandoverResult, content: Handove
   }
   const trackedArtifacts = await buildTrackedArtifactsSection(result.project, result.focus);
 
+  const targetSlice = activeTask?.id ?? result.focus.recommendedTask?.id ?? null;
   const frontmatter = orderFrontmatter({
     title: `Handover ${date} ${sid}`,
     type: "handover",
+    schema_version: 2,
     project: result.project,
     harness: harness ?? null,
     agent,
     session_id: sid,
     created_at: nowIso(),
+    handover_complete: true,
+    handover_mode: content.mode ?? "auto-only",
+    target_slice: targetSlice,
+    next_command: result.steering?.nextCommand ?? null,
+    workflow_lane: result.steering?.lane ?? null,
+    workflow_phase: result.steering?.phase ?? null,
     active_feature: activeFeature,
     active_prd: activePrd,
     active_slices: activeSlices,
     status: "current",
-  }, ["title", "type", "project", "harness", "agent", "session_id", "created_at", "active_feature", "active_prd", "active_slices", "status"]);
+  }, ["title", "type", "schema_version", "project", "harness", "agent", "session_id", "created_at", "handover_complete", "handover_mode", "target_slice", "next_command", "workflow_lane", "workflow_phase", "active_feature", "active_prd", "active_slices", "status"]);
 
   const lines: string[] = [];
   lines.push(`# Handover — ${date}`);

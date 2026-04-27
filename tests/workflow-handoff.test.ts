@@ -265,6 +265,60 @@ describe("wiki workflow handoff improvements", () => {
     expect(text.stdout.toString()).toContain("last forge run: INCOMPLETE");
   });
 
+  test("handover writes a complete machine-readable default without authored flags", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "auth slice"], env).exitCode).toBe(0);
+    expect(runWiki(["forge", "start", "demo", "DEMO-001", "--repo", repo, "--json"], env).exitCode).toBe(0);
+
+    const handover = runWiki(["handover", "demo", "--repo", repo, "--base", "HEAD", "--json"], env);
+    expect(handover.exitCode).toBe(0);
+    const json = JSON.parse(handover.stdout.toString());
+    expect(json.handoverMode).toBe("auto-only");
+    expect(json.handoverPath).toBeTruthy();
+
+    const handoverContent = readFileSync(join(vault, json.handoverPath), "utf8");
+    expect(handoverContent).toContain("schema_version: 2");
+    expect(handoverContent).toContain("handover_complete: true");
+    expect(handoverContent).toContain("handover_mode: auto-only");
+    expect(handoverContent).toContain("target_slice: DEMO-001");
+    expect(handoverContent).toContain("next_command:");
+    expect(handoverContent).toContain("## What Was Accomplished");
+    expect(handoverContent).toContain("## Blockers & Open Questions");
+  });
+
+  test("resume uses the latest handover target instead of blindly following an older active slice", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "old active"], env).exitCode).toBe(0);
+    expect(runWiki(["forge", "start", "demo", "DEMO-001", "--repo", repo, "--json"], env).exitCode).toBe(0);
+    expect(runWiki(["create-issue-slice", "demo", "handover target"], env).exitCode).toBe(0);
+    expect(runWiki(["forge", "start", "demo", "DEMO-002", "--repo", repo, "--json"], env).exitCode).toBe(0);
+
+    const handover = runWiki(["handover", "demo", "--repo", repo, "--base", "HEAD", "--json"], env);
+    expect(handover.exitCode).toBe(0);
+    expect(runWiki(["move-task", "demo", "DEMO-001", "--to", "In Progress"], env).exitCode).toBe(0);
+
+    const resume = runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD", "--json"], env);
+    expect(resume.exitCode).toBe(0);
+    const json = JSON.parse(resume.stdout.toString());
+    expect(json.activeTask.id).toBe("DEMO-001");
+    expect(json.lastHandover.targetSlice).toBe("DEMO-002");
+    expect(json.handoverTargetOverride).toBe(true);
+    expect(json.steering.nextCommand).toContain("DEMO-002");
+    expect(json.triage.command).toContain("DEMO-002");
+
+    const text = runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD"], env);
+    expect(text.exitCode).toBe(0);
+    expect(text.stdout.toString()).toContain("handover target DEMO-002 overrides backlog active DEMO-001");
+  });
+
   test("resume preserves verify-phase maintenance recovery commands instead of falling back to forge run", () => {
     const { vault, repo } = setupPassingRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };

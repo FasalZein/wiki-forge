@@ -282,15 +282,18 @@ describe("wiki coordination commands", () => {
     expect(json.shortPrompt).not.toContain("wiki forge run demo DEMO-001");
   });
 
-  test("handover requires authored context by default and keeps an explicit auto-only escape hatch", () => {
+  test("handover defaults to complete auto-only context and keeps the explicit escape hatch", () => {
     const { vault, repo } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
     expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
     setRepoFrontmatter(vault, repo);
 
-    const failing = runWiki(["handover", "demo", "--repo", repo, "--base", "HEAD~1", "--json", "--no-write"], env);
-    expect(failing.exitCode).toBe(1);
-    expect(failing.stderr.toString()).toContain("--accomplished <text>");
+    const defaultAuto = runWiki(["handover", "demo", "--repo", repo, "--base", "HEAD~1", "--json", "--no-write"], env);
+    expect(defaultAuto.exitCode).toBe(0);
+    const defaultJson = JSON.parse(defaultAuto.stdout.toString());
+    expect(defaultJson.handoverMode).toBe("auto-only");
+    expect(Array.isArray(defaultJson.accomplishments)).toBe(true);
+    expect(Array.isArray(defaultJson.blockers)).toBe(true);
 
     const autoOnly = runWiki(["handover", "demo", "--repo", repo, "--base", "HEAD~1", "--allow-auto-only", "--json", "--no-write"], env);
     expect(autoOnly.exitCode).toBe(0);

@@ -146,7 +146,7 @@ export async function handoverProject(args: string[]) {
 
   let handoverPath: string | null = null;
   if (!noWrite) {
-    handoverPath = await writeHandoverFile(result, { shortPrompt, nextSessionPrompt, accomplishments, blockers }, harness);
+    handoverPath = await writeHandoverFile(result, { shortPrompt, nextSessionPrompt, accomplishments, blockers, mode: handoverMode }, harness);
   }
 
   if (json) {
@@ -239,13 +239,5 @@ function validateHandoverInputs(input: {
   if (input.noBlockers && input.authoredBlockers.length > 0) {
     throw new Error("cannot combine --blocker with --no-blockers");
   }
-  if (input.allowAutoOnly) {
-    return;
-  }
-  if (input.authoredAccomplishments.length === 0) {
-    throw new Error("wiki handover requires at least one --accomplished <text>; use --allow-auto-only to bypass");
-  }
-  if (input.authoredBlockers.length === 0 && !input.noBlockers) {
-    throw new Error("wiki handover requires --blocker <text> or --no-blockers; use --allow-auto-only to bypass");
-  }
+  void input.allowAutoOnly;
 }
