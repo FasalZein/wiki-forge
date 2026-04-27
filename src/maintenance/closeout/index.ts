@@ -117,6 +117,9 @@ export async function collectCloseout(project: string, base: string, explicitRep
       changedFiles: refreshFromGit.changedFiles,
       activeSliceId: sliceLocalContext.sliceId,
       activeClaimPaths: sliceLocalContext.claimPaths,
+      closedSliceAmendments: sliceLocalContext.amendedClosedSliceId
+        ? [{ sliceId: sliceLocalContext.amendedClosedSliceId, claimPaths: sliceLocalContext.amendedClosedSliceClaimPaths }]
+        : [],
     });
     const unownedChangedFiles = ownership.entries.filter((entry) => entry.kind === "unowned").map((entry) => entry.file);
     if (unownedChangedFiles.length > 0) findings.push({

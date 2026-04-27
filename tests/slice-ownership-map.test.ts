@@ -45,6 +45,23 @@ describe("slice ownership map", () => {
     });
   });
 
+  test("classifies closed slice amendment files separately from active slice claims", () => {
+    const map = collectSliceOwnershipMap({
+      changedFiles: ["src/payments.ts", "src/profile.ts"],
+      activeSliceId: "DEMO-002",
+      activeClaimPaths: ["src/payments.ts", "src/profile.ts"],
+      closedSliceAmendments: [{ sliceId: "DEMO-001", claimPaths: ["src/payments.ts"] }],
+    });
+
+    expect(map.entries).toEqual([
+      { file: "src/payments.ts", kind: "closed-slice-amendment", matchedClaimPath: "src/payments.ts", ownerSliceId: "DEMO-001" },
+      { file: "src/profile.ts", kind: "active-slice", matchedClaimPath: "src/profile.ts", ownerSliceId: "DEMO-002" },
+    ]);
+    expect(map.counts["closed-slice-amendment"]).toBe(1);
+    expect(map.counts["active-slice"]).toBe(1);
+    expect(map.counts.unowned).toBe(0);
+  });
+
   test("includes the default ignored/generated path segments", () => {
     expect(DEFAULT_IGNORED_GENERATED_PATH_SEGMENTS).toEqual([
       ".venv",

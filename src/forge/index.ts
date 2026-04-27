@@ -1,5 +1,5 @@
 import type { CommandHandler } from "../types";
-import { forgeCheck, forgeClose, forgeEvidence, forgeNext, forgeOpen, forgePlan, forgeRelease, forgeReview, forgeRun, forgeSkip, forgeStart, forgeStatus } from "../slice/forge";
+import { forgeAmend, forgeCheck, forgeClose, forgeEvidence, forgeNext, forgeOpen, forgePlan, forgeRelease, forgeReview, forgeRun, forgeSkip, forgeStart, forgeStatus } from "../slice/forge";
 
 export const FORGE_COMMANDS: Record<string, CommandHandler> = {
   "forge:start": (args) => forgeStart(args),
@@ -13,6 +13,7 @@ export const FORGE_COMMANDS: Record<string, CommandHandler> = {
   "forge:status": (args) => forgeStatus(args),
   "forge:plan": (args) => forgePlan(args),
   "forge:next": (args) => forgeNext(args),
+  "forge:amend": (args) => forgeAmend(args),
   "forge:release": (args) => forgeRelease(args),
 };
 
@@ -31,8 +32,9 @@ export function resolveForgeCommand(rest: string[]) {
     status: "forge:status",
     plan: "forge:plan",
     next: "forge:next",
+    amend: "forge:amend",
     release: "forge:release",
-  }[subcommand as "start" | "open" | "check" | "close" | "run" | "skip" | "evidence" | "review" | "status" | "plan" | "next" | "release"];
+  }[subcommand as "start" | "open" | "check" | "close" | "run" | "skip" | "evidence" | "review" | "status" | "plan" | "next" | "amend" | "release"];
   if (!mapped) throw new Error(`unknown forge subcommand: ${subcommand}. Run 'wiki help' for usage.`);
   return { command: mapped, args: subArgs };
 }

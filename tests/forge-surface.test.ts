@@ -41,6 +41,7 @@ describe("wiki forge thin surface", () => {
     expect(output).toContain("Internal / Repair");
     expect(output).toContain("wiki forge start");
     expect(output).toContain("wiki forge status");
+    expect(output).toContain("wiki forge amend");
   });
 
   test("forge run chains check then close in a single pass", () => {

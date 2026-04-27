@@ -120,6 +120,9 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
       changedFiles: doctor.maintain.refreshFromGit.changedFiles,
       activeSliceId: sliceLocalContext.sliceId,
       activeClaimPaths: sliceLocalContext.claimPaths,
+      closedSliceAmendments: sliceLocalContext.amendedClosedSliceId
+        ? [{ sliceId: sliceLocalContext.amendedClosedSliceId, claimPaths: sliceLocalContext.amendedClosedSliceClaimPaths }]
+        : [],
     });
     const sliceUncovered = doctor.maintain.refreshFromGit.uncoveredFiles.filter((file) => fileMatchesSliceClaims(file, sliceLocalContext));
     const unownedChangedFiles = ownership.entries.filter((entry) => entry.kind === "unowned").map((entry) => entry.file);

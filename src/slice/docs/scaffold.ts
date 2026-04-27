@@ -12,8 +12,18 @@ import { printError, printJson, printLine } from "../../lib/cli-output";
 type PrdRecord = { prdId: string; title: string; parentFeature?: string; linkPath: string; sourcePaths: string[] };
 type SliceSpecKind = "task-hub" | "plan" | "test-plan";
 type SlicePaths = { taskSpecsDir: string; indexPath: string; planPath: string; testPlanPath: string };
+export type CreateIssueSliceResult = {
+  project: string;
+  taskId: string;
+  section: string;
+  title: string;
+  backlogPath: string;
+  indexPath: string;
+  planPath: string;
+  testPlanPath: string;
+};
 
-export async function createIssueSlice(args: string[]) {
+export async function createIssueSliceCore(args: string[]): Promise<CreateIssueSliceResult> {
   const options = parseTaskArgs(args);
   if (options.assignee) await assertKnownAgent(options.project, options.assignee);
   const prd = options.parentPrd ? await resolvePrdRecord(options.project, options.parentPrd) : null;
@@ -55,7 +65,7 @@ export async function createIssueSlice(args: string[]) {
       `test=${relative(VAULT_ROOT, slicePaths.testPlanPath)}`,
     ],
   });
-  const result = {
+  return {
     project: options.project,
     taskId: appended.taskId,
     section: options.section,
@@ -65,9 +75,13 @@ export async function createIssueSlice(args: string[]) {
     planPath: relative(VAULT_ROOT, slicePaths.planPath),
     testPlanPath: relative(VAULT_ROOT, slicePaths.testPlanPath),
   };
-  if (options.json) printJson(result);
+}
+
+export async function createIssueSlice(args: string[]) {
+  const result = await createIssueSliceCore(args);
+  if (args.includes("--json")) printJson(result);
   else {
-    printLine(`created issue slice ${appended.taskId}`);
+    printLine(`created issue slice ${result.taskId}`);
     printLine(`- backlog: ${result.backlogPath}`);
     printLine(`- index: ${result.indexPath}`);
     printLine(`- plan: ${result.planPath}`);

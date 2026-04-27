@@ -1,11 +1,13 @@
 import { bindingMatchesFile } from "../../git-utils";
-import { readSliceHub } from "./readers";
+import { readSliceHub, readSliceSourcePaths } from "./readers";
 
 type DiagnosticScope = "slice" | "parent" | "project" | "history";
 
 export type SliceLocalContext = {
   sliceId: string;
   claimPaths: string[];
+  amendedClosedSliceId: string | null;
+  amendedClosedSliceClaimPaths: string[];
   parentPrd: string | null;
   parentFeature: string | null;
   parentPrdPage: string | null;
@@ -21,6 +23,10 @@ export async function collectSliceLocalContext(
   const claimPaths = readStringArray(hub.data.claim_paths).length
     ? readStringArray(hub.data.claim_paths)
     : readStringArray(hub.data.source_paths);
+  const amendedClosedSliceId = typeof hub.data.amendment_of === "string" && hub.data.amendment_of.trim()
+    ? hub.data.amendment_of.trim().toUpperCase()
+    : null;
+  const amendedClosedSliceClaimPaths = amendedClosedSliceId ? await readSliceSourcePaths(project, amendedClosedSliceId) : [];
   const parentPrd = typeof hub.data.parent_prd === "string" ? hub.data.parent_prd : null;
   const parentFeature = typeof hub.data.parent_feature === "string" ? hub.data.parent_feature : null;
   const parentPrdPage = parentPrd
@@ -29,7 +35,7 @@ export async function collectSliceLocalContext(
   const parentFeaturePage = parentFeature
     ? pageEntries?.find((entry) => entry.parsed?.data.feature_id === parentFeature)?.page ?? null
     : null;
-  return { sliceId, claimPaths, parentPrd, parentFeature, parentPrdPage, parentFeaturePage };
+  return { sliceId, claimPaths, amendedClosedSliceId, amendedClosedSliceClaimPaths, parentPrd, parentFeature, parentPrdPage, parentFeaturePage };
 }
 
 export function classifySliceLocalPageScope(page: string, context: SliceLocalContext): DiagnosticScope {
@@ -39,7 +45,8 @@ export function classifySliceLocalPageScope(page: string, context: SliceLocalCon
 }
 
 export function fileMatchesSliceClaims(file: string, context: SliceLocalContext) {
-  return context.claimPaths.some((claimPath) => bindingMatchesFile(claimPath, file));
+  const claimPaths = [...context.claimPaths, ...context.amendedClosedSliceClaimPaths];
+  return claimPaths.some((claimPath) => bindingMatchesFile(claimPath, file));
 }
 
 function readStringArray(value: unknown) {

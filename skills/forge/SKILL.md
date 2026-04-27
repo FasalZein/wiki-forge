@@ -21,6 +21,7 @@ Use it when changing runtime/product behavior, continuing a slice, or closing ve
 - Reconnect research when implementation needs fresh evidence: `wiki research bridge`
 - Plan work: `wiki forge plan <project> <feature-name>`
 - Run work: `wiki forge run <project> [slice-id] --repo <path>`
+- Create a follow-up for closed work without reopening it: `wiki forge amend <project> <closed-slice-id> --reason <text>`
 - Waive a skippable phase: `wiki forge skip <project> <slice> <phase> --reason <text>`
 
 ## Contract

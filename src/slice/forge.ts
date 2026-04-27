@@ -1,4 +1,5 @@
 export {
+  forgeAmend,
   forgeCheck,
   forgeClose,
   forgeEvidence,

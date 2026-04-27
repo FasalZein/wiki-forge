@@ -56,6 +56,7 @@ Internal / Repair:
   wiki forge close <project> [slice-id] [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
   wiki forge evidence <project> <slice-id> <tdd|verify> [--red <text>] [--green <text>] [--command <cmd>] [--note <text>] [--json]
   wiki forge review record <project> <slice-id> --verdict <approved|needs_changes|approved_with_followups> --reviewer <name> [--model <model>] [--artifact <path>] [--blocker <text>] [--repo <path>]
+  wiki forge amend <project> <closed-slice-id> --reason <text> [--title <text>] [--source <path...>] [--agent <name>] [--start] [--repo <path>] [--json]
   wiki forge status <project> [slice-id] [--json]
   wiki forge release <project> <slice-id>
   wiki maintain <project> [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json] [--verbose]
