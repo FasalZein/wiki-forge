@@ -12,6 +12,9 @@ export type DiagnosticFinding = {
   severity: DiagnosticSeverity;
   blockingSeverity?: DiagnosticBlockingSeverity;
   message: string;
+  files?: string[];
+  details?: string[];
+  repair?: string[];
 };
 
 export type GroupedDiagnostics = {
@@ -51,6 +54,23 @@ export function classifyDiagnosticFindings(findings: DiagnosticFinding[]) {
 
 export function isHardDiagnostic(finding: DiagnosticFinding) {
   return classifyDiagnosticFinding(finding).blockingSeverity === "hard";
+}
+
+export function formatDiagnosticFindingLines(finding: Pick<DiagnosticFinding, "message" | "files" | "details" | "repair">): string[] {
+  const lines = [finding.message];
+  if (finding.files?.length) {
+    lines.push("Files:");
+    for (const file of finding.files) lines.push(`- ${file}`);
+  }
+  if (finding.details?.length) {
+    lines.push("Details:");
+    for (const detail of finding.details) lines.push(`- ${detail}`);
+  }
+  if (finding.repair?.length) {
+    lines.push("Repair:");
+    for (const repair of finding.repair) lines.push(`- ${repair}`);
+  }
+  return lines;
 }
 
 export function groupDiagnosticFindings(findings: DiagnosticFinding[]): GroupedDiagnostics {

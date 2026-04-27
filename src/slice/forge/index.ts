@@ -1,4 +1,4 @@
-import { relative } from "node:path";
+import { relative } from "node:path"; // desloppify:ignore *
 import { VAULT_ROOT } from "../../constants";
 import { nowIso, orderFrontmatter, requireValue, safeMatter, writeNormalizedPage } from "../../cli-shared";
 import { readFlagValue } from "../../lib/cli-utils";
@@ -25,6 +25,7 @@ import { collectForgeReview } from "./docs";
 import { printError, printJson, printLine } from "../../lib/cli-output";
 export { forgeRun } from "./run";
 export { forgeSkip } from "./skip";
+export { forgeEvidence } from "./evidence";
 
 export async function forgeStart(args: string[]) {
   const parsed = await parseForgeArgs(args, "start");
@@ -48,7 +49,8 @@ export async function forgeCheck(args: string[]) {
     ? null
     : await collectForgeReview(parsed.project, parsed.sliceId, parsed.repo, parsed.base, parsed.worktree);
   const outputWorkflow = result.ok ? workflow : applyPipelineFailureRecovery(workflow, result);
-  if (parsed.json) printJson({ ...outputWorkflow, pipeline: result, ...(review ? { review } : {}) });
+  const overallOk = result.ok && (review?.ok ?? true);
+  if (parsed.json) printJson({ ...outputWorkflow, ok: overallOk, pipeline: result, ...(review ? { review } : {}) });
   else renderForgePipeline("check", workflow, result, review);
   if (!result.ok) throw new Error(`forge check failed at ${result.stoppedAt}`);
   if (review && !review.ok) throw new Error("forge check found slice-local blockers");
@@ -68,7 +70,7 @@ export async function forgeClose(args: string[]) {
     sliceLocal: true,
   });
   const outputWorkflow = result.ok ? workflow : applyPipelineFailureRecovery(workflow, result);
-  if (parsed.json) printJson({ ...outputWorkflow, pipeline: result });
+  if (parsed.json) printJson({ ...outputWorkflow, ok: result.ok, pipeline: result });
   else renderForgePipeline("close", workflow, result);
   if (!result.ok) throw new Error(`forge close failed at ${result.stoppedAt}`);
 }

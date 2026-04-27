@@ -173,6 +173,7 @@ describe("gate test_exemptions", () => {
     const missingTestsBlockers = json.findings.filter((f: { severity: string; scope: string; message: string }) => f.severity === "blocker" && f.scope === "slice" && f.message.includes("changed code file"));
     expect(missingTestsBlockers.length).toBe(1);
     expect(missingTestsBlockers[0].message).toBe("1 changed code file(s) have no matching changed tests");
+    expect(missingTestsBlockers[0].files).toEqual(["src/payments.ts"]);
   });
 
   test("glob pattern exemption (*.d.ts) removes matching files from blockers", () => {
@@ -193,5 +194,6 @@ describe("gate test_exemptions", () => {
     const missingTestsBlockers = json.findings.filter((f: { severity: string; scope: string; message: string }) => f.severity === "blocker" && f.scope === "slice" && f.message.includes("changed code file"));
     expect(missingTestsBlockers.length).toBe(1);
     expect(missingTestsBlockers[0].message).toBe("1 changed code file(s) have no matching changed tests");
+    expect(missingTestsBlockers[0].files).toEqual(["src/payments.ts"]);
   });
 });

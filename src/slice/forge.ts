@@ -1,6 +1,7 @@
 export {
   forgeCheck,
   forgeClose,
+  forgeEvidence,
   forgeNext,
   forgeOpen,
   forgePlan,

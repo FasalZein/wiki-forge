@@ -5,6 +5,7 @@ export {
   DIAGNOSTIC_BLOCKING_SEVERITY,
   classifyDiagnosticFinding,
   classifyDiagnosticFindings,
+  formatDiagnosticFindingLines,
   formatMaintenanceActionLabel,
   groupDiagnosticFindings,
   isHardDiagnostic,

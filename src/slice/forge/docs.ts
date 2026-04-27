@@ -4,12 +4,13 @@ import { VAULT_ROOT } from "../../constants";
 import { safeMatter } from "../../cli-shared";
 import { exists, readText } from "../../lib/fs";
 import { collectCloseout, collectGate } from "../../maintenance";
+import type { DiagnosticFinding } from "../../maintenance/shared";
 
 export type MatterDoc = { path: string; data: Record<string, unknown>; content: string };
 
 export type ForgeReview = {
   ok: boolean;
-  findings: Array<{ scope: string; severity: string; message: string }>;
+  findings: Array<Pick<DiagnosticFinding, "scope" | "severity" | "message" | "files" | "details" | "repair">>;
   blockers: string[];
   warnings: string[];
 };
@@ -30,6 +31,9 @@ export async function collectForgeReview(
       scope: finding.scope,
       severity: finding.severity,
       message: finding.message,
+      ...(finding.files ? { files: finding.files } : {}),
+      ...(finding.details ? { details: finding.details } : {}),
+      ...(finding.repair ? { repair: finding.repair } : {}),
     })),
     blockers: gate.blockers,
     warnings: gate.warnings,

@@ -3,6 +3,9 @@ import { collectForgeStatus } from "../../protocol";
 import type { PipelineResult } from "../pipeline";
 import type { ForgeReview } from "./docs";
 import { printLine } from "../../lib/cli-output";
+import { formatDiagnosticFindingLines, type DiagnosticFinding } from "../../maintenance/shared";
+
+type RenderableDiagnosticFinding = Pick<DiagnosticFinding, "message" | "files" | "details" | "repair">;
 
 export type ResolvedForgeWorkflow = Awaited<ReturnType<typeof collectForgeStatus>> & {
   triage: ForgeTriage;
@@ -27,9 +30,15 @@ export function renderForgePipeline(
   review?: ForgeReview | null,
 ) {
   const resolvedWorkflow = applyPipelineFailureRecovery(workflow, result);
-  printLine(`forge ${action} ${workflow.project}/${workflow.sliceId}: ${result.ok ? "PASS" : "FAIL"}`);
+  const reviewOk = review?.ok ?? true;
+  const overallOk = result.ok && reviewOk;
+  printLine(`forge ${action} ${workflow.project}/${workflow.sliceId}: ${overallOk ? "PASS" : "FAIL"}`);
+  printLine(`- pipeline: ${result.ok ? "PASS" : "FAIL"}`);
+  if (review) printLine(`- review gate: ${reviewOk ? "PASS" : "FAIL"}`);
+  printLine(`- overall: ${overallOk ? "PASS" : "FAIL"}`);
   for (const line of renderSteeringPacket(resolvedWorkflow.steering)) printLine(`- ${line}`);
   printLine(`- active slice: ${resolvedWorkflow.activeSlice ?? "none"}`);
+  printGitTruthLine(resolvedWorkflow.gitTruth);
   printLine(`- workflow next phase: ${resolvedWorkflow.workflow.validation.nextPhase ?? "complete"}`);
   printLine(`- next action: ${resolvedWorkflow.triage.command}`);
   for (const step of result.steps) {
@@ -53,9 +62,7 @@ export function renderForgePipeline(
   }
   if (review) {
     if (review.blockers.length) printLine(`- slice-local blockers: ${review.blockers.length}`);
-    for (const finding of review.findings) {
-      printLine(`- [${finding.scope}][${finding.severity}] ${finding.message}`);
-    }
+    for (const finding of review.findings) printDiagnosticFinding(`- [${finding.scope}][${finding.severity}]`, finding);
   }
 }
 
@@ -64,6 +71,7 @@ export function renderForgeStatus(workflow: ResolvedForgeWorkflow) {
   for (const line of renderSteeringPacket(workflow.steering)) printLine(`- ${line}`);
   printLine(`- active slice: ${workflow.activeSlice ?? "none"}`);
   printLine(`- recommended slice: ${workflow.recommendedSlice ?? "none"}`);
+  printGitTruthLine(workflow.gitTruth);
   printLine(`- parent prd: ${workflow.parentPrd ?? "none"}`);
   printLine(`- parent feature: ${workflow.parentFeature ?? "none"}`);
   printLine(`- plan: ${workflow.planStatus}`);
@@ -91,6 +99,31 @@ export function renderForgeStatusWithoutSlice(status: ForgeStatusWithoutSlice) {
   printLine(`- recommended slice: ${status.recommendedSlice ?? "none"}`);
   printLine(`- next action: ${status.triage.command}`);
   printLine(`  reason: ${status.triage.reason}`);
+}
+
+function printGitTruthLine(gitTruth: unknown) {
+  if (!gitTruth || typeof gitTruth !== "object") return;
+  const truth = gitTruth as Record<string, unknown>;
+  if (truth.unavailable === true) {
+    printLine(`- git worktree: unavailable (${String(truth.error ?? "unknown error")})`);
+    return;
+  }
+  if (truth.clean === true) {
+    printLine(`- git worktree: CLEAN`);
+    return;
+  }
+  const counts = truth.counts && typeof truth.counts === "object" ? truth.counts as Record<string, unknown> : {};
+  const parts = ["staged", "unstaged", "untracked", "deleted", "renamed"]
+    .map((key) => [key, Number(counts[key] ?? 0)] as const)
+    .filter(([, count]) => count > 0)
+    .map(([key, count]) => `${count} ${key}`);
+  printLine(`- git worktree: DIRTY (${parts.join(", ") || "changed files"})`);
+}
+
+function printDiagnosticFinding(prefix: string, finding: RenderableDiagnosticFinding) {
+  const [firstLine = finding.message, ...detailLines] = formatDiagnosticFindingLines(finding);
+  printLine(`${prefix} ${firstLine}`);
+  for (const line of detailLines) printLine(`  ${line}`);
 }
 
 export function resolveFailedPipelineStep(result: PipelineResult): PipelineStepResult | undefined {

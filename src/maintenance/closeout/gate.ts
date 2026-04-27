@@ -1,5 +1,5 @@
 import { basename, join } from "node:path";
-import { classifyDiagnosticFindings, isHardDiagnostic, groupDiagnosticFindings, type DiagnosticFinding } from "../shared";
+import { classifyDiagnosticFindings, formatDiagnosticFindingLines, isHardDiagnostic, groupDiagnosticFindings, type DiagnosticFinding } from "../shared";
 import { readFlagValue } from "../../lib/cli-utils";
 import { printError, printJson, printLine } from "../../lib/cli-output";
 import { exists, readText } from "../../lib/fs";
@@ -32,11 +32,11 @@ export async function gateProject(args: string[]) {
     printLine(`- uncovered changed files: ${result.counts.uncoveredChangedFiles}`);
     if (result.diagnostics.blockers.length) {
       printLine(`- blockers:`);
-      for (const finding of result.diagnostics.blockers) printLine(`  - [hard][${finding.scope}] ${finding.message}`);
+      for (const finding of result.diagnostics.blockers) printDiagnosticFinding(`  - [hard][${finding.scope}]`, finding);
     }
     if (result.diagnostics.actionableWarnings.length) {
       printLine(`- actionable warnings:`);
-      for (const finding of result.diagnostics.actionableWarnings) printLine(`  - [soft][${finding.scope}] ${finding.message}`);
+      for (const finding of result.diagnostics.actionableWarnings) printDiagnosticFinding(`  - [soft][${finding.scope}]`, finding);
     }
     if (result.diagnostics.projectDebtWarnings.length) {
       printLine(`- project debt warnings: ${result.diagnostics.projectDebtWarnings.length} (use --json for details)`);
@@ -65,13 +65,36 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
       const hub = await readSliceHub(project, sliceLocalContext.sliceId);
       const exemptions = Array.isArray(hub.data.test_exemptions) ? hub.data.test_exemptions.map(String) : [];
       const isExempt = (file: string) => exemptions.some((p) => p.includes("*") ? new Bun.Glob(p).match(file) || new Bun.Glob(p).match(basename(file)) : file === p || file.endsWith(`/${p}`));
-      const nonExemptMissing = doctor.maintain.refreshFromGit.testHealth.codeFilesWithoutChangedTests.filter((file) => !isExempt(file));
+      const testHealth = doctor.maintain.refreshFromGit.testHealth;
+      const nonExemptMissing = testHealth.codeFilesWithoutChangedTests.filter((file) => !isExempt(file));
       const sliceMissingTests = nonExemptMissing.filter((file) => fileMatchesSliceClaims(file, sliceLocalContext));
       const otherMissingTests = nonExemptMissing.filter((file) => !fileMatchesSliceClaims(file, sliceLocalContext));
-      if (sliceMissingTests.length > 0) findings.push({ scope: "slice", severity: "blocker", message: `${sliceMissingTests.length} changed code file(s) have no matching changed tests` });
-      if (otherMissingTests.length > 0) findings.push({ scope: "history", severity: "warning", message: `${otherMissingTests.length} changed file(s) outside the active slice also need test coverage` });
+      if (sliceMissingTests.length > 0) findings.push({
+        scope: "slice",
+        severity: "blocker",
+        message: `${sliceMissingTests.length} changed code file(s) have no matching changed tests`,
+        files: sliceMissingTests,
+        details: buildTestMatcherDetails(testHealth, sliceMissingTests),
+        repair: buildMissingTestRepair(project, sliceLocalContext.sliceId, repo, base, options.worktree),
+      });
+      if (otherMissingTests.length > 0) findings.push({
+        scope: "history",
+        severity: "warning",
+        message: `${otherMissingTests.length} changed file(s) outside the active slice also need test coverage`,
+        files: otherMissingTests,
+        details: buildTestMatcherDetails(testHealth, otherMissingTests),
+        repair: [`Bind the file to the active slice or move the change out of this diff, then rerun ${formatForgeCheckCommand(project, sliceLocalContext.sliceId, repo, base, options.worktree)}.`],
+      });
     } else {
-      findings.push({ scope: "slice", severity: "blocker", message: `${doctor.counts.missingTests} changed code file(s) have no matching changed tests` });
+      const testHealth = doctor.maintain.refreshFromGit.testHealth;
+      findings.push({
+        scope: "slice",
+        severity: "blocker",
+        message: `${doctor.counts.missingTests} changed code file(s) have no matching changed tests`,
+        files: testHealth.codeFilesWithoutChangedTests,
+        details: buildTestMatcherDetails(testHealth, testHealth.codeFilesWithoutChangedTests),
+        repair: [`Add or update tests for the listed changed code files, then rerun wiki gate ${project} --repo ${repo} ${options.worktree ? "--worktree" : `--base ${base}`}.`],
+      });
     }
   }
   let closeout;
@@ -136,6 +159,42 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
   };
 }
 
+type TestHealthDiagnosticInput = {
+  changedTestFiles: string[];
+  codeTestMatches?: Array<{ file: string; keys: string[]; matchedTestFiles: string[] }>;
+};
+
+function buildTestMatcherDetails(testHealth: TestHealthDiagnosticInput, files: string[]) {
+  const details = [
+    `Changed tests considered: ${testHealth.changedTestFiles.length ? testHealth.changedTestFiles.join(", ") : "none"}`,
+  ];
+  const matches = testHealth.codeTestMatches ?? [];
+  for (const file of files) {
+    const match = matches.find((entry) => entry.file === file);
+    if (!match) continue;
+    details.push(`${file} matcher keys: ${match.keys.length ? match.keys.join(", ") : "none"}`);
+  }
+  return details;
+}
+
+function buildMissingTestRepair(project: string, sliceId: string, repo: string, base: string, worktree: boolean | undefined) {
+  const rerun = formatForgeCheckCommand(project, sliceId, repo, base, worktree);
+  return [
+    "Add or update a changed test whose name/path matches the listed code file, or document intentional indirect coverage with a test_exemptions entry on the slice hub.",
+    `Rerun: ${rerun}`,
+  ];
+}
+
+function formatForgeCheckCommand(project: string, sliceId: string, repo: string, base: string, worktree: boolean | undefined) {
+  return `wiki forge check ${project} ${sliceId} --repo ${repo} ${worktree ? "--worktree" : `--base ${base}`}`;
+}
+
+function printDiagnosticFinding(prefix: string, finding: DiagnosticFinding) {
+  const [firstLine = finding.message, ...detailLines] = formatDiagnosticFindingLines(finding);
+  printLine(`${prefix} ${firstLine}`);
+  for (const line of detailLines) printLine(`    ${line}`);
+}
+
 async function collectStructuralRefactorStatus(repo: string, base: string) {
   const blockers: string[] = [];
   const checks = await Promise.all((await resolveRepoScriptChecks(repo)).map((check) => runRepoCheck(repo, check)));
@@ -150,7 +209,7 @@ async function collectStructuralRefactorStatus(repo: string, base: string) {
 async function resolveRepoScriptChecks(repo: string) {
   const packageJsonPath = join(repo, "package.json");
   if (!await exists(packageJsonPath)) return [] as Array<{ label: string; command: string[] }>;
-  const scripts = JSON.parse(await readText(packageJsonPath)).scripts ?? {};
+  const scripts = JSON.parse(await readText(packageJsonPath)).scripts ?? {}; // desloppify:ignore EMPTY_OBJECT_FALLBACK
   const checks: Array<{ label: string; command: string[] }> = [];
   if (typeof scripts.check === "string") checks.push({ label: "typecheck", command: ["bun", "run", "check"] });
   else if (typeof scripts.typecheck === "string") checks.push({ label: "typecheck", command: ["bun", "run", "typecheck"] });

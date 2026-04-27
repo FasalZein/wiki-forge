@@ -74,11 +74,26 @@ export function guessModuleName(file: string) {
 export function collectChangedTestHealth(changedFiles: string[]) {
   const changedTestFiles = changedFiles.filter(isTestFile);
   const changedCodeFiles = changedFiles.filter((file) => isCodeFile(file) && !isTestFile(file));
-  const changedTestKeys = new Set(changedTestFiles.flatMap(testMatchKeys));
-  const codeFilesWithoutChangedTests = changedCodeFiles.filter((file) => !codeMatchKeys(file).some((key) => changedTestKeys.has(key)));
+  const changedTestsWithKeys = changedTestFiles.map((file) => ({ file, keys: testMatchKeys(file) }));
+  const changedTestKeys = new Set(changedTestsWithKeys.flatMap((test) => test.keys));
+  const codeTestMatches = changedCodeFiles.map((file) => {
+    const keys = codeMatchKeys(file);
+    const matchedTestFiles = changedTestsWithKeys
+      .filter((test) => test.keys.some((key) => keys.includes(key)))
+      .map((test) => test.file);
+    return {
+      file,
+      keys,
+      matchedTestFiles,
+    };
+  });
+  const codeFilesWithoutChangedTests = codeTestMatches
+    .filter((match) => !match.keys.some((key) => changedTestKeys.has(key)))
+    .map((match) => match.file);
   return {
     changedTestFiles,
     changedCodeFiles,
     codeFilesWithoutChangedTests,
+    codeTestMatches,
   };
 }

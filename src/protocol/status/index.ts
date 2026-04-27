@@ -1,4 +1,5 @@
-import { readVerificationLevel } from "../../lib/verification";
+import { collectGitTruth } from "../../forge/core/git-truth";
+import { resolveRepoPath, readVerificationLevel } from "../../lib/verification";
 import { projectPrdsDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath } from "../../lib/structure";
 import { extractVerificationSpecsFromTestPlan } from "../../verification";
 import {
@@ -58,6 +59,7 @@ export async function collectForgeStatus(project: string, sliceId: string, repo?
       verificationLevel,
     },
   );
+  const gitTruth = await collectStatusGitTruth(project, repo);
   const triage = buildForgeTriage(project, sliceId, {
     activeSlice: focus.activeTask?.id ?? null,
     sliceStatus: context?.sliceStatus ?? null,
@@ -78,6 +80,7 @@ export async function collectForgeStatus(project: string, sliceId: string, repo?
     parentPrd: parentPrd ?? null,
     parentFeature: parentFeature ?? null,
     designPressure,
+    gitTruth,
     planStatus: context?.planStatus ?? "missing",
     testPlanStatus: context?.testPlanStatus ?? "missing",
     verificationLevel,
@@ -100,6 +103,19 @@ export async function collectForgeStatus(project: string, sliceId: string, repo?
       designPressure,
     }),
   };
+}
+
+async function collectStatusGitTruth(project: string, repo: string | undefined) {
+  try {
+    const resolvedRepo = await resolveRepoPath(project, repo);
+    return await collectGitTruth(resolvedRepo);
+  } catch (error) {
+    return {
+      repo: repo ?? null,
+      unavailable: true,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 export { compactForgeStatusForJson, compactWorkflowValidationForJson } from "./format";

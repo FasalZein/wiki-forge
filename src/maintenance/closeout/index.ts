@@ -1,6 +1,6 @@
 import { parseProjectRepoBaseArgs } from "../../git-utils";
 import { collectHierarchyStatusActions, collectLifecycleDriftActions, collectCancelledSyncActions } from "../../hierarchy";
-import { classifyDiagnosticFindings, isHardDiagnostic, groupDiagnosticFindings, type DiagnosticFinding, type DiagnosticScope, type MaintenanceAction } from "../shared";
+import { classifyDiagnosticFindings, formatDiagnosticFindingLines, isHardDiagnostic, groupDiagnosticFindings, type DiagnosticFinding, type DiagnosticScope, type MaintenanceAction } from "../shared";
 import { readFlagValue } from "../../lib/cli-utils";
 import { collectLintResult, collectSemanticLintResult } from "../../verification";
 import type { LintingSnapshot } from "../../verification";
@@ -95,14 +95,24 @@ export async function collectCloseout(project: string, base: string, explicitRep
     pushScopedFileFindings(findings, refreshFromGit.testHealth.codeFilesWithoutChangedTests, sliceLocalContext, "changed code file(s) have no matching changed tests", "blocker");
     pushScopedStalePageFindings(findings, staleImpactedPages, sliceLocalContext);
   } else {
-    if (refreshFromGit.testHealth.codeFilesWithoutChangedTests.length > 0) findings.push({ scope: "slice", severity: "blocker", message: `${refreshFromGit.testHealth.codeFilesWithoutChangedTests.length} changed code file(s) have no matching changed tests` });
+    if (refreshFromGit.testHealth.codeFilesWithoutChangedTests.length > 0) findings.push({
+      scope: "slice",
+      severity: "blocker",
+      message: `${refreshFromGit.testHealth.codeFilesWithoutChangedTests.length} changed code file(s) have no matching changed tests`,
+      files: refreshFromGit.testHealth.codeFilesWithoutChangedTests,
+    });
     if (options.worktree && staleImpactedPages.length > 0) findings.push({ scope: "slice", severity: "blocker", message: `${staleImpactedPages.length} impacted page(s) are stale or otherwise drifted` });
   }
   if (lint.issues.length > 0) findings.push({ scope: "project", severity: "warning", message: `${lint.issues.length} structural lint issue(s)` });
   if (semanticLint.issues.length > 0) findings.push({ scope: "project", severity: "warning", message: `${semanticLint.issues.length} semantic lint issue(s)` });
   if (!options.worktree && !sliceLocalContext && staleImpactedPages.length > 0) findings.push({ scope: "slice", severity: "warning", message: `${staleImpactedPages.length} impacted page(s) are stale or otherwise drifted` });
   if (sliceLocalContext) pushScopedFileFindings(findings, refreshFromGit.uncoveredFiles, sliceLocalContext, "changed file(s) are not covered by wiki bindings", "warning");
-  else if (refreshFromGit.uncoveredFiles.length > 0) findings.push({ scope: "slice", severity: "warning", message: `${refreshFromGit.uncoveredFiles.length} changed file(s) are not covered by wiki bindings` });
+  else if (refreshFromGit.uncoveredFiles.length > 0) findings.push({
+    scope: "slice",
+    severity: "warning",
+    message: `${refreshFromGit.uncoveredFiles.length} changed file(s) are not covered by wiki bindings`,
+    files: refreshFromGit.uncoveredFiles,
+  });
   const suppressedPages = options.worktree && "suppressedPages" in refreshFromGit ? (refreshFromGit as { suppressedPages: WorktreeImpactedPage[] }).suppressedPages : [];
   const outsideActiveHierarchyFiles = options.worktree && "outsideActiveHierarchyFiles" in refreshFromGit ? (refreshFromGit as { outsideActiveHierarchyFiles: string[] }).outsideActiveHierarchyFiles : [];
   if (suppressedPages.length > 0) findings.push({ scope: "history", severity: "warning", message: `${suppressedPages.length} non-actionable planning page(s) suppressed from stale check` });
@@ -166,8 +176,18 @@ function pushScopedFileFindings(
 ) {
   const sliceFiles = files.filter((file) => fileMatchesSliceClaims(file, context));
   const historyFiles = files.filter((file) => !fileMatchesSliceClaims(file, context));
-  if (sliceFiles.length > 0) findings.push({ scope: "slice", severity: sliceSeverity, message: `${sliceFiles.length} ${messageSuffix}` });
-  if (historyFiles.length > 0) findings.push({ scope: "history", severity: "warning", message: `${historyFiles.length} changed file(s) outside the active slice also need attention` });
+  if (sliceFiles.length > 0) findings.push({
+    scope: "slice",
+    severity: sliceSeverity,
+    message: `${sliceFiles.length} ${messageSuffix}`,
+    files: sliceFiles,
+  });
+  if (historyFiles.length > 0) findings.push({
+    scope: "history",
+    severity: "warning",
+    message: `${historyFiles.length} changed file(s) outside the active slice also need attention`,
+    files: historyFiles,
+  });
 }
 
 function pushScopedStalePageFindings(
@@ -211,11 +231,11 @@ export function renderCloseout(result: Awaited<ReturnType<typeof collectCloseout
   printLine(`- missing tests: ${result.refreshFromGit.testHealth.codeFilesWithoutChangedTests.length}`);
   if (result.diagnostics.blockers.length) {
     printLine(`- blockers:`);
-    for (const finding of result.diagnostics.blockers) printLine(`  - [hard][${finding.scope}] ${finding.message}`);
+    for (const finding of result.diagnostics.blockers) printDiagnosticFinding(`  - [hard][${finding.scope}]`, finding);
   }
   if (result.diagnostics.actionableWarnings.length) {
     printLine(`- actionable warnings:`);
-    for (const finding of result.diagnostics.actionableWarnings) printLine(`  - [soft][${finding.scope}] ${finding.message}`);
+    for (const finding of result.diagnostics.actionableWarnings) printDiagnosticFinding(`  - [soft][${finding.scope}]`, finding);
   }
   if (result.diagnostics.projectDebtWarnings.length && !verbose) {
     printLine(`- project debt warnings: ${result.diagnostics.projectDebtWarnings.length} (use --verbose to expand)`);
@@ -225,10 +245,16 @@ export function renderCloseout(result: Awaited<ReturnType<typeof collectCloseout
   }
   if (verbose) {
     for (const page of result.refreshFromGit.impactedPages.slice(0, 20)) printLine(`  - impacted: ${page.page} <= ${page.matchedSourcePaths.join(", ")}`);
-    for (const finding of result.findings) printLine(`  - [${finding.blockingSeverity}][${finding.scope}][${finding.severity}] ${finding.message}`);
+    for (const finding of result.findings) printDiagnosticFinding(`  - [${finding.blockingSeverity}][${finding.scope}][${finding.severity}]`, finding);
   }
   if (result.nextSteps.length) {
     printLine(`- manual steps before closing:`);
     for (const step of result.nextSteps) printLine(`  - ${step}`);
   }
+}
+
+function printDiagnosticFinding(prefix: string, finding: DiagnosticFinding) {
+  const [firstLine = finding.message, ...detailLines] = formatDiagnosticFindingLines(finding);
+  printLine(`${prefix} ${firstLine}`);
+  for (const line of detailLines) printLine(`    ${line}`);
 }

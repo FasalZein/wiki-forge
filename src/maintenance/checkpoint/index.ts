@@ -4,6 +4,7 @@ import { VAULT_ROOT } from "../../constants";
 import { fail, nowIso, writeNormalizedPage } from "../../cli-shared";
 import { parseProjectRepoArgs, bindingMatchesFile, gitChangedFiles } from "../../git-utils";
 import { readFlagValue } from "../../lib/cli-utils";
+import { collectGitTruth, formatGitTruthSummary } from "../../forge/core/git-truth";
 import { parseUpdatedDate } from "../../lib/verification";
 import { classifySliceLocalPageScope, collectSliceLocalContext, readSliceSourcePaths } from "../../slice/docs";
 import { classifyFreshnessChurn } from "../freshness-classifier";
@@ -34,11 +35,12 @@ export async function checkpoint(args: string[]) {
   );
   if (json) printJson(result);
   else renderCheckpoint(result);
-  if (!result.clean) fail(`checkpoint found ${result.stalePages.length} stale page(s) for ${options.project}`);
+  if (!result.clean) fail(`checkpoint not clean for ${options.project}: ${result.stalePages.length} stale page(s), git ${formatGitTruthSummary(result.gitTruth)}`);
 }
 
 export async function collectCheckpoint(project: string, explicitRepo?: string, sliceFilter?: { sliceId?: string; base?: string; strictFreshness?: boolean }) {
   const snapshot = await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
+  const gitTruth = await collectGitTruth(snapshot.repo);
   const sliceSourcePaths = sliceFilter?.sliceId
     ? await readSliceSourcePaths(project, sliceFilter.sliceId)
     : null;
@@ -60,7 +62,7 @@ export async function collectCheckpoint(project: string, explicitRepo?: string, 
   const modifiedFiles = new Set<string>();
   const unboundFiles = new Set<string>();
   const pageStatuses = new Map<string, { page: string; file: string; parsed: NonNullable<(typeof snapshot.pageEntries)[number]["parsed"]>; matchedSourcePaths: Set<string>; lastSourceChangeMs: number; pageUpdatedMs: number | null; pageUpdated: string; broadBinding: boolean }>();
-  const filesToInspect = changedFiles ?? snapshot.repoFiles ?? [];
+  const filesToInspect = changedFiles ?? snapshot.repoFiles ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
   const churn = changedFiles !== null ? classifyFreshnessChurn(changedFiles) : null;
   const canAutoHeal = changedFiles !== null && !sliceFilter?.strictFreshness && churn?.semanticNeutral === true;
   const healedAt = nowIso();
@@ -162,10 +164,13 @@ export async function collectCheckpoint(project: string, explicitRepo?: string, 
     .filter((entry) => entry.stale)
     .map((entry) => ({ page: entry.page, lastSourceChange: entry.lastSourceChange, pageUpdated: entry.pageUpdated, scope: entry.scope }));
 
+  const freshnessClean = blockingPageStatuses.every((entry) => !entry.stale);
+
   return {
     project,
     repo: snapshot.repo,
     ...(sliceFilter?.base ? { base: sliceFilter.base } : {}),
+    gitTruth,
     modifiedFiles: modifiedFiles.size,
     boundPages: blockingPageStatuses.length,
     pageStatuses: blockingPageStatuses,
@@ -179,7 +184,8 @@ export async function collectCheckpoint(project: string, explicitRepo?: string, 
       pages: autoHealedPages,
       ...(churn ? { churn } : {}),
     },
-    clean: blockingPageStatuses.every((entry) => !entry.stale),
+    freshnessClean,
+    clean: freshnessClean && gitTruth.clean,
   };
 }
 
@@ -192,7 +198,15 @@ function readBroadBinding(data: Record<string, unknown> | undefined) {
 function renderCheckpoint(result: Awaited<ReturnType<typeof collectCheckpoint>>) {
   printLine(`Checkpoint: ${result.project}`);
   printLine("");
-  printLine(`Modified files: ${result.modifiedFiles}`);
+  printLine(`Wiki modified files: ${result.modifiedFiles}`);
+  printLine(`Git worktree: ${result.gitTruth.clean ? "CLEAN" : `DIRTY (${formatGitTruthSummary(result.gitTruth)})`}`);
+  if (!result.gitTruth.clean) {
+    if (result.gitTruth.staged.length) printLine(`  staged: ${result.gitTruth.staged.length}`);
+    if (result.gitTruth.unstaged.length) printLine(`  unstaged: ${result.gitTruth.unstaged.length}`);
+    if (result.gitTruth.untracked.length) printLine(`  untracked: ${result.gitTruth.untracked.length}`);
+    if (result.gitTruth.deleted.length) printLine(`  deleted: ${result.gitTruth.deleted.length}`);
+    if (result.gitTruth.renamed.length) printLine(`  renamed: ${result.gitTruth.renamed.length}`);
+  }
   printLine(`Bound wiki pages: ${result.boundPages}`);
   for (const page of result.pageStatuses) {
     if (page.stale) printLine(`  ✗ ${page.page} — stale (source ${page.lastSourceChange}, page ${page.pageUpdated})`);
@@ -212,6 +226,11 @@ function renderCheckpoint(result: Awaited<ReturnType<typeof collectCheckpoint>>)
   printLine(`Unbound files: ${result.unboundFiles.length}`);
   for (const file of result.unboundFiles.slice(0, 50)) printLine(`  ${file}`);
   printLine("");
+  if (!result.gitTruth.clean) {
+    const staleSuffix = result.stalePages.length > 0 ? `; ${result.stalePages.length} stale page${result.stalePages.length === 1 ? "" : "s"}` : "";
+    printLine(`Result: DIRTY (${formatGitTruthSummary(result.gitTruth)}${staleSuffix})`);
+    return;
+  }
   if (result.clean && result.nonBlockingStalePages.length > 0) {
     printLine(`Result: CLEAN (${result.nonBlockingStalePages.length} non-blocking stale page${result.nonBlockingStalePages.length === 1 ? "" : "s"})`);
     return;

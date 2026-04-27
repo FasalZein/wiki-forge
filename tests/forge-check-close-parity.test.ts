@@ -69,6 +69,26 @@ describe("WIKI-FORGE-146 forge check slice-local parity", () => {
     expect(closePayload.pipeline.steps.find((step: { id: string; ok: boolean }) => step.id === "verify-slice")?.ok).toBe(true);
   });
 
+  test("forge check labels review blockers as overall failure even when pipeline passes", () => {
+    const { repo, env } = setupSliceLocalFixture();
+    writeFileSync(join(repo, "src", "auth.ts"), "export const auth = 2\n", "utf8");
+    runGit(repo, ["add", "src/auth.ts"]);
+    runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "change auth without tests"]);
+    const oldTime = new Date("2000-01-01T00:00:00Z");
+    utimesSync(join(repo, "src", "auth.ts"), oldTime, oldTime);
+
+    const check = runWiki(["forge", "check", "wf146", "WF146-001", "--repo", repo, "--base", "HEAD~1"], env);
+    const output = check.stdout.toString() + check.stderr.toString();
+
+    expect(check.exitCode).not.toBe(0);
+    expect(output).toContain("forge check wf146/WF146-001: FAIL");
+    expect(output).toContain("- pipeline: PASS");
+    expect(output).toContain("- review gate: FAIL");
+    expect(output).toContain("- overall: FAIL");
+    expect(output).toContain("src/auth.ts");
+    expect(output).not.toContain("forge check wf146/WF146-001: PASS");
+  });
+
   test("non-slice-local checkpoint still reports broad-binding noise", () => {
     const { repo, env } = setupSliceLocalFixture();
 
