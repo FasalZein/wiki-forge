@@ -17,6 +17,7 @@ const AMENDMENT_FRONTMATTER_ORDER = [
   "depends_on", "amendment_of", "amendment_reason", "amendment_created_at",
   "parent_prd", "parent_feature", "claimed_by", "claimed_at", "claim_paths",
   "created_at", "updated", "started_at", "completed_at", "status", "verification_level",
+  "review_policy",
 ];
 
 type ForgeAmendArgs = {
@@ -160,9 +161,9 @@ function parseForgeAmendArgs(args: string[]): ForgeAmendArgs {
 async function patchAmendmentDocs(project: string, amendmentSliceId: string, closedSliceId: string, reason: string, createdAt: string) {
   const closedSliceLink = toVaultWikilinkPath(projectTaskHubPath(project, closedSliceId));
   const docs = [
-    { path: projectTaskHubPath(project, amendmentSliceId), section: buildIndexAmendmentSection(closedSliceId, closedSliceLink, reason) },
-    { path: projectTaskPlanPath(project, amendmentSliceId), section: buildPlanAmendmentSection(closedSliceId, closedSliceLink, reason) },
-    { path: projectTaskTestPlanPath(project, amendmentSliceId), section: buildTestPlanAmendmentSection(closedSliceId, closedSliceLink, reason) },
+    { path: projectTaskHubPath(project, amendmentSliceId), section: buildIndexAmendmentSection(closedSliceId, closedSliceLink, reason), requiresReview: true },
+    { path: projectTaskPlanPath(project, amendmentSliceId), section: buildPlanAmendmentSection(closedSliceId, closedSliceLink, reason), requiresReview: false },
+    { path: projectTaskTestPlanPath(project, amendmentSliceId), section: buildTestPlanAmendmentSection(closedSliceId, closedSliceLink, reason), requiresReview: false },
   ];
 
   for (const doc of docs) {
@@ -176,6 +177,7 @@ async function patchAmendmentDocs(project: string, amendmentSliceId: string, clo
       amendment_of: closedSliceId,
       amendment_reason: reason,
       amendment_created_at: createdAt,
+      ...(doc.requiresReview ? { review_policy: { required_approvals: 1 } } : {}),
       updated: createdAt,
     }, AMENDMENT_FRONTMATTER_ORDER);
     writeNormalizedPage(doc.path, insertAmendmentSection(parsed.content, doc.section), data);

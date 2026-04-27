@@ -42,6 +42,7 @@ describe("wiki forge amend", () => {
     expect(amendmentHub).toContain("amendment_reason: production regression");
     expect(amendmentHub).toContain("depends_on:\n  - AMENDPROJ-001");
     expect(amendmentHub).toContain("source_paths:\n  - src/payments.ts");
+    expect(amendmentHub).toContain("review_policy:\n  required_approvals: 1");
     expect(amendmentHub).toContain("Do not reopen or edit the closed slice");
     expect(readFileSync(amendmentPlanPath, "utf8")).toContain("Preserve the original close evidence");
     expect(readFileSync(amendmentTestPlanPath, "utf8")).toContain("Add regression coverage");
