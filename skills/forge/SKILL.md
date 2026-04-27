@@ -6,23 +6,50 @@ description: >
 
 # Forge
 
-Forge is the delivery workflow layer for tracked implementation work.
+Forge is the delivery workflow layer for tracked implementation work. It owns workflow state, slice ownership, Git boundaries, verification evidence, review evidence, and close readiness. Wiki remains the knowledge/freshness layer; Forge decides whether implementation may proceed or close.
 
-Use it when changing runtime/product behavior, continuing a slice, or closing verified work. The CLI owns phase ordering and recovery; do not treat this skill body as the source of workflow truth.
+Use this skill when changing runtime/product behavior, continuing a slice, creating follow-up work, or closing verified work. The CLI owns phase ordering and recovery; do not treat this skill body as the source of workflow truth.
+
+## Current overhaul baseline
+
+The P0 trust layer is in place:
+
+- Git truth is explicit in checkpoint/status outputs; a dirty worktree cannot be reported as clean.
+- Changed files are classified as active-slice, other-open-slice, closed-slice-amendment, ignored/generated, or unowned.
+- Pipeline steps are invalidated by Git/content fingerprints instead of stale pass state.
+- Closure readiness is attested across freshness, Git, ownership, verification, review, and ledger/workflow state.
+- Review evidence is structured and blocks when `review_policy.required_approvals` requires it.
+- Closed work is amended through a new slice via `wiki forge amend`, not by reopening old close evidence.
+
+P1/P2 work is still open: richer verification specs, behavior evidence mapping, typed/scoped checks, lower false positives, and a first-class dogfood harness.
 
 ## Commands
 
 - Start or resume context: `wiki resume <project> --repo <path> --base <rev>`
-- Pick work: `wiki forge next <project>`
-- Inspect workflow truth: `wiki forge status <project> <slice> --repo <path>`
-- Inspect workflow truth in machine-readable form: `wiki forge status <project> <slice> --json`
-- Refresh freshness truth before closeout or after drift suspicion: `wiki checkpoint`
-- Repair stale state, closeout debt, or verify-loop conditions: `wiki maintain`
+- Pick work: `wiki forge next <project> --repo <path>`
+- Inspect workflow truth: `wiki forge status <project> [slice] --repo <path>`
+- Inspect workflow truth in machine-readable form: `wiki forge status <project> [slice] --repo <path> --json`
+- Refresh freshness/Git truth: `wiki checkpoint <project> --repo <path> --base <rev>`
+- Repair stale state, closeout debt, or verify-loop conditions: `wiki maintain <project> --repo <path> --base <rev>`
 - Reconnect research when implementation needs fresh evidence: `wiki research bridge`
-- Plan work: `wiki forge plan <project> <feature-name>`
-- Run work: `wiki forge run <project> [slice-id] --repo <path>`
-- Create a follow-up for closed work without reopening it: `wiki forge amend <project> <closed-slice-id> --reason <text>`
+- Plan work: `wiki forge plan <project> <feature-name> --repo <path>`
+- Record TDD/verification evidence: `wiki forge evidence <project> <slice> <tdd|verify> ...`
+- Record review evidence: `wiki forge review record <project> <slice> --verdict <approved|needs_changes|approved_with_followups> --reviewer <name> [--repo <path>]`
+- Run check+close chain: `wiki forge run <project> [slice-id] --repo <path>`
+- Create a follow-up for closed work without reopening it: `wiki forge amend <project> <closed-slice-id> --reason <text> [--start] [--repo <path>]`
 - Waive a skippable phase: `wiki forge skip <project> <slice> <phase> --reason <text>`
+
+If the installed `wiki` binary is unavailable while dogfooding this repository, use `bun src/index.ts ...` from the repo root as the equivalent CLI entrypoint.
+
+## Dogfood contract
+
+For non-trivial repo changes, do not rely on tests alone as proof that Forge works.
+
+1. Run `wiki forge next <project> --repo <path>` before choosing work. If the active slice is stale or unrelated, create/repair the tracked slice instead of silently doing ad-hoc work.
+2. Run `wiki forge status <project> [slice] --repo <path> --json` before implementation and before closeout; treat it as workflow truth.
+3. Run `wiki checkpoint <project> --repo <path> --base <rev> --json` when Git or freshness truth matters.
+4. Record evidence in the slice (`wiki forge evidence ...`) and, when policy requires it, record review (`wiki forge review record ...`).
+5. Close through `wiki forge run ...` or explain explicitly why the dogfood close cannot be used yet. If it cannot be used, record the gap as follow-up work.
 
 ## Contract
 
