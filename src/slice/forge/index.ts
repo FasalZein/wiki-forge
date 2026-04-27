@@ -26,6 +26,7 @@ import { printError, printJson, printLine } from "../../lib/cli-output";
 export { forgeRun } from "./run";
 export { forgeSkip } from "./skip";
 export { forgeEvidence } from "./evidence";
+export { forgeReview } from "./review";
 
 export async function forgeStart(args: string[]) {
   const parsed = await parseForgeArgs(args, "start");

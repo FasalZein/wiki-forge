@@ -3,6 +3,7 @@ export {
   forgeClose,
   forgeEvidence,
   forgeNext,
+  forgeReview,
   forgeOpen,
   forgePlan,
   forgeRelease,

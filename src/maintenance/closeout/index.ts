@@ -8,6 +8,7 @@ import { classifySliceLocalPageScope, collectSliceLocalContext, fileMatchesSlice
 import { collectSliceOwnershipMap, type SliceOwnershipMap } from "../../forge/core/ownership-map";
 import { collectGitTruth } from "../../forge/core/git-truth";
 import { collectClosureAttestation } from "../../forge/core/closure-attestation";
+import { collectReviewGateStatus } from "../../forge/core/reviews";
 import { printJson, printLine } from "../../lib/cli-output";
 import {
   loadProjectSnapshot,
@@ -141,12 +142,17 @@ export async function collectCloseout(project: string, base: string, explicitRep
   const warnings = classifiedFindings.filter((finding) => !isHardDiagnostic(finding)).map((finding) => finding.message);
   const diagnostics = groupDiagnosticFindings(classifiedFindings);
   const gitTruth = await collectGitTruth(refreshFromGit.repo);
+  const reviewGate = options.sliceId ? await collectReviewGateStatus(project, options.sliceId, refreshFromGit.repo) : null;
   const closureAttestation = collectClosureAttestation({
     findings: classifiedFindings,
     staleImpactedPages,
     gitTruth,
     ownership,
     workflowValidation: { ok: blockers.length === 0 },
+    review: reviewGate ? {
+      status: reviewGate.status === "passed" ? "pass" : reviewGate.status === "blocked" ? "blocked" : reviewGate.status,
+      summary: reviewGate.status === "not-required" ? "Review is not required" : `Review gate ${reviewGate.status}: ${reviewGate.approvals}/${reviewGate.requiredApprovals} approval(s)`,
+    } : null,
   });
   const nextSteps: string[] = [];
   if (staleImpactedPages.length > 0) {
