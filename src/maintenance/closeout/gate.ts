@@ -9,6 +9,7 @@ import { isTestFile } from "../health";
 import { collectDoctor, compactDoctorForJson } from "../doctor";
 import { collectCloseout } from "./index";
 import { collectSliceLocalContext, fileMatchesSliceClaims, readSliceHub } from "../../slice/docs";
+import { collectSliceOwnershipMap } from "../../forge/core/ownership-map";
 
 export async function gateProject(args: string[]) {
   const { project, repo, base, baseFallbackNote } = await parseProjectRepoBaseArgs(args, {
@@ -115,11 +116,16 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
   if (doctor.counts.semantic > 0) findings.push({ scope: "project", severity: "warning", message: `${doctor.counts.semantic} semantic lint issue(s)` });
   if (!options.worktree && doctor.drift.stale > 0) findings.push({ scope: "project", severity: "warning", message: `${doctor.drift.stale} impacted/bound page(s) are stale — run refresh, update docs, and verify-page before closeout` });
   if (sliceLocalContext) {
+    const ownership = collectSliceOwnershipMap({
+      changedFiles: doctor.maintain.refreshFromGit.changedFiles,
+      activeSliceId: sliceLocalContext.sliceId,
+      activeClaimPaths: sliceLocalContext.claimPaths,
+    });
     const sliceUncovered = doctor.maintain.refreshFromGit.uncoveredFiles.filter((file) => fileMatchesSliceClaims(file, sliceLocalContext));
-    const otherUncovered = doctor.maintain.refreshFromGit.uncoveredFiles.filter((file) => !fileMatchesSliceClaims(file, sliceLocalContext));
-    if (sliceUncovered.length > 0) findings.push({ scope: "slice", severity: "warning", message: `${sliceUncovered.length} changed file(s) are not covered by wiki bindings` });
-    if (otherUncovered.length > 0) findings.push({ scope: "history", severity: "warning", message: `${otherUncovered.length} changed file(s) outside the active slice are not covered by wiki bindings` });
-  } else if (doctor.maintain.refreshFromGit.uncoveredFiles.length > 0) findings.push({ scope: "slice", severity: "warning", message: `${doctor.maintain.refreshFromGit.uncoveredFiles.length} changed file(s) are not covered by wiki bindings` });
+    const unownedChangedFiles = ownership.entries.filter((entry) => entry.kind === "unowned").map((entry) => entry.file);
+    if (sliceUncovered.length > 0) findings.push({ scope: "slice", severity: "warning", message: `${sliceUncovered.length} changed file(s) are not covered by wiki bindings`, files: sliceUncovered });
+    if (unownedChangedFiles.length > 0) findings.push({ scope: "history", severity: "blocker", message: `${unownedChangedFiles.length} changed file(s) are unowned by the active slice`, files: unownedChangedFiles });
+  } else if (doctor.maintain.refreshFromGit.uncoveredFiles.length > 0) findings.push({ scope: "slice", severity: "warning", message: `${doctor.maintain.refreshFromGit.uncoveredFiles.length} changed file(s) are not covered by wiki bindings`, files: doctor.maintain.refreshFromGit.uncoveredFiles });
   if (doctor.counts.repoDocs > 0) findings.push({ scope: "project", severity: "warning", message: `${doctor.counts.repoDocs} repo markdown doc(s) should live in the wiki vault` });
   for (const warning of doctor.backlogConsistencyWarnings) findings.push({ scope: "history", severity: "warning", message: warning });
   for (const action of doctor.maintain.actions.filter((action) => action.scope === "parent")) findings.push({ scope: "parent", severity: "warning", message: action.message });

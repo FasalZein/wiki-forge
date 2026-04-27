@@ -5,6 +5,7 @@ import { readFlagValue } from "../../lib/cli-utils";
 import { collectLintResult, collectSemanticLintResult } from "../../verification";
 import type { LintingSnapshot } from "../../verification";
 import { classifySliceLocalPageScope, collectSliceLocalContext, fileMatchesSliceClaims } from "../../slice/docs";
+import { collectSliceOwnershipMap } from "../../forge/core/ownership-map";
 import { printJson, printLine } from "../../lib/cli-output";
 import {
   loadProjectSnapshot,
@@ -106,8 +107,21 @@ export async function collectCloseout(project: string, base: string, explicitRep
   if (lint.issues.length > 0) findings.push({ scope: "project", severity: "warning", message: `${lint.issues.length} structural lint issue(s)` });
   if (semanticLint.issues.length > 0) findings.push({ scope: "project", severity: "warning", message: `${semanticLint.issues.length} semantic lint issue(s)` });
   if (!options.worktree && !sliceLocalContext && staleImpactedPages.length > 0) findings.push({ scope: "slice", severity: "warning", message: `${staleImpactedPages.length} impacted page(s) are stale or otherwise drifted` });
-  if (sliceLocalContext) pushScopedFileFindings(findings, refreshFromGit.uncoveredFiles, sliceLocalContext, "changed file(s) are not covered by wiki bindings", "warning");
-  else if (refreshFromGit.uncoveredFiles.length > 0) findings.push({
+  if (sliceLocalContext) {
+    pushScopedFileFindings(findings, refreshFromGit.uncoveredFiles, sliceLocalContext, "changed file(s) are not covered by wiki bindings", "warning");
+    const ownership = collectSliceOwnershipMap({
+      changedFiles: refreshFromGit.changedFiles,
+      activeSliceId: sliceLocalContext.sliceId,
+      activeClaimPaths: sliceLocalContext.claimPaths,
+    });
+    const unownedChangedFiles = ownership.entries.filter((entry) => entry.kind === "unowned").map((entry) => entry.file);
+    if (unownedChangedFiles.length > 0) findings.push({
+      scope: "history",
+      severity: "blocker",
+      message: `${unownedChangedFiles.length} changed file(s) are unowned by the active slice`,
+      files: unownedChangedFiles,
+    });
+  } else if (refreshFromGit.uncoveredFiles.length > 0) findings.push({
     scope: "slice",
     severity: "warning",
     message: `${refreshFromGit.uncoveredFiles.length} changed file(s) are not covered by wiki bindings`,

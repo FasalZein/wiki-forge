@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { join } from "node:path";
 import { assertGitRepo } from "../../lib/verification";
 
 export type GitStatusKind = "staged" | "unstaged" | "untracked" | "deleted" | "renamed";
@@ -67,6 +69,27 @@ export async function collectGitTruth(repo: string): Promise<GitTruth> {
   return truth;
 }
 
+export async function collectGitInputFingerprint(repo: string): Promise<string> {
+  await assertGitRepo(repo);
+  const hash = createHash("sha256");
+  hash.update(`HEAD\n${await gitText(repo, ["rev-parse", "--verify", "HEAD"], "unborn")}\n`);
+  hash.update(`STATUS\n${await gitText(repo, ["status", "--porcelain=v1", "--untracked-files=all"], "")}\n`);
+  hash.update(`DIFF\n${await gitText(repo, ["diff", "--binary", "--no-ext-diff", "HEAD", "--"], "")}\n`);
+  hash.update(`STAGED\n${await gitText(repo, ["diff", "--cached", "--binary", "--no-ext-diff", "HEAD", "--"], "")}\n`);
+  const untrackedFiles = await gitText(repo, ["ls-files", "--others", "--exclude-standard", "-z"], "");
+  for (const file of untrackedFiles.split("\0").filter(Boolean).sort()) {
+    hash.update(`UNTRACKED:${file}\n`);
+    try {
+      const bytes = await Bun.file(join(repo, file)).arrayBuffer();
+      hash.update(new Uint8Array(bytes));
+      hash.update("\n");
+    } catch {
+      hash.update("unreadable\n");
+    }
+  }
+  return hash.digest("hex");
+}
+
 export function formatGitTruthSummary(truth: GitTruth) {
   if (truth.clean) return "clean";
   const parts: string[] = [];
@@ -112,6 +135,12 @@ function buildGitTruth(repo: string, input: Pick<GitTruth, "staged" | "unstaged"
     counts,
     fingerprint,
   };
+}
+
+async function gitText(repo: string, args: string[], fallback: string): Promise<string> {
+  const proc = await Bun.$`git ${args}`.cwd(repo).quiet().nothrow();
+  if (proc.exitCode !== 0) return fallback;
+  return proc.stdout.toString().replace(/\r\n/g, "\n").trimEnd();
 }
 
 function parseRename(rawPath: string): GitRenamedFile {

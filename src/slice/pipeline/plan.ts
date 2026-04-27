@@ -19,6 +19,8 @@ export interface PipelineStepResult {
   durationMs: number | null;
   rerunCommand: string;
   upstreamMutated: boolean;
+  skippedReason?: "completed" | "fingerprint-mismatch";
+  previousFingerprint?: string | null;
 }
 
 export type PipelineRunOptions = {

@@ -1,3 +1,4 @@
+import { collectGitInputFingerprint } from "../../forge/core/git-truth";
 import { PipelineState } from "../../lib/pipeline-state";
 import {
   buildPipelineRerunCommand,
@@ -28,6 +29,8 @@ export interface RunPipelineOptions extends PipelineRunOptions {
     durationMs: number | null;
     rerunCommand: string;
     upstreamMutated: boolean;
+    skippedReason?: "completed" | "fingerprint-mismatch";
+    previousFingerprint?: string | null;
   }) => Promise<void>;
 }
 
@@ -40,6 +43,7 @@ export async function runPipeline(
   const ownsState = !injectedState;
   const state = injectedState ?? new PipelineState();
   let upstreamMutated = Boolean(options.upstreamMutatedBeforeStart);
+  const inputFingerprint = options.repo ? await collectGitInputFingerprint(options.repo) : null;
   const result: PipelineResult = {
     project: options.project,
     sliceId: options.sliceId,
@@ -51,7 +55,8 @@ export async function runPipeline(
 
   try {
     for (const step of steps) {
-      const skipped = !options.dryRun && state.shouldSkip(options.project, options.sliceId, step.id);
+      const skipDecision = state.getSkipDecision(options.project, options.sliceId, step.id, inputFingerprint);
+      const skipped = !options.dryRun && skipDecision.shouldSkip;
       const args = buildPipelineStepArgs(step, options);
       const rerunCommand = buildPipelineRerunCommand(step.command, args);
       if (skipped) {
@@ -74,6 +79,9 @@ export async function runPipeline(
             durationMs: null,
             rerunCommand,
             upstreamMutated,
+            ...(skipDecision.reason === "completed" || skipDecision.reason === "fingerprint-mismatch"
+              ? { skippedReason: skipDecision.reason, previousFingerprint: skipDecision.previousFingerprint }
+              : { previousFingerprint: skipDecision.previousFingerprint }),
           });
         }
         continue;
@@ -85,7 +93,7 @@ export async function runPipeline(
           label: step.label,
           skipped: false,
           ok: true,
-          error: null,
+          error: skipDecision.reason === "fingerprint-mismatch" ? "git fingerprint changed since last successful run" : null,
           durationMs: null,
           rerunCommand,
           upstreamMutated,
@@ -94,7 +102,7 @@ export async function runPipeline(
       }
 
       const startedAt = new Date().toISOString();
-      state.record(options.project, options.sliceId, step.id, startedAt, null, false, null);
+      state.record(options.project, options.sliceId, step.id, startedAt, null, false, null, inputFingerprint);
 
       const run = executor
         ? await executor(step.command, args)
@@ -102,7 +110,7 @@ export async function runPipeline(
 
       const completedAt = new Date().toISOString();
       const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();
-      state.record(options.project, options.sliceId, step.id, startedAt, completedAt, run.ok, run.error ?? null);
+      state.record(options.project, options.sliceId, step.id, startedAt, completedAt, run.ok, run.error ?? null, inputFingerprint);
 
       result.steps.push({
         id: step.id,
@@ -126,6 +134,7 @@ export async function runPipeline(
           durationMs,
           rerunCommand,
           upstreamMutated,
+          previousFingerprint: inputFingerprint,
         });
       }
 

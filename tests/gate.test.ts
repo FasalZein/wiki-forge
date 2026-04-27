@@ -55,6 +55,32 @@ describe("gate diagnostics", () => {
     )).toBe(true);
   });
 
+  test("reports exact unowned changed files for slice-local gate", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+    expect(runWiki(["create-issue-slice", "demo", "payments slice", "--source", "src/auth.ts"], env).exitCode).toBe(0);
+    expect(runWiki(["move-task", "demo", "DEMO-001", "--to", "In Progress"], env).exitCode).toBe(0);
+
+    writeFileSync(join(repo, "src", "auth.ts"), "export const a = 3\n", "utf8");
+    writeFileSync(join(repo, "src", "outside.ts"), "export const outside = 1\n", "utf8");
+    mkdirSync(join(repo, "coverage"), { recursive: true });
+    writeFileSync(join(repo, "coverage", "lcov.info"), "TN:\n", "utf8");
+
+    const result = runWiki(["gate", "demo", "--repo", repo, "--worktree", "--slice-local", "--slice-id", "DEMO-001", "--json"], env);
+    expect(result.exitCode).toBe(1);
+    const json = JSON.parse(result.stdout.toString());
+
+    expect(json.findings.some((finding: { scope: string; severity: string; message: string; files?: string[] }) =>
+      finding.scope === "history"
+      && finding.severity === "blocker"
+      && finding.message === "1 changed file(s) are unowned by the active slice"
+      && JSON.stringify(finding.files) === JSON.stringify(["src/outside.ts"])
+    )).toBe(true);
+  });
+
   test("separates project and historical warnings from actionable warnings", () => {
     const { vault, repo } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
