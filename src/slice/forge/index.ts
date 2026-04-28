@@ -23,7 +23,7 @@ import {
 } from "./output";
 import { collectForgeReview } from "./docs";
 import { printError, printJson, printLine } from "../../lib/cli-output";
-import { v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus } from "../../v1/cli/commands";
+import { v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus } from "../../v1/cli/commands";
 import { forgeEvidence as legacyForgeEvidence } from "./evidence";
 import { forgeReview as legacyForgeReview } from "./review";
 import { forgeRun as legacyForgeRun } from "./run";
@@ -67,6 +67,10 @@ export async function forgeStart(args: string[]) {
 }
 
 export async function forgeCheck(args: string[]) {
+  if (shouldUseV1ForgeCheck(args)) {
+    await v1ForgeCheck(args);
+    return;
+  }
   const parsed = await parseForgeArgs(args, "check");
   const workflow = await collectForgeStatus(parsed.project, parsed.sliceId, parsed.repo);
   const result = await runPipeline({
@@ -474,6 +478,10 @@ export function shouldUseV1ForgeRelease(args: readonly string[]): boolean {
 }
 
 export function shouldUseV1ForgeClose(args: readonly string[]): boolean {
+  return hasProjectAndSlice(args) && !args.includes("--legacy");
+}
+
+export function shouldUseV1ForgeCheck(args: readonly string[]): boolean {
   return hasProjectAndSlice(args) && !args.includes("--legacy");
 }
 

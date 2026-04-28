@@ -13,7 +13,7 @@ import { statusProject, lintProject, lintSemanticProject, verifyProject, cacheCl
 import { configCommand } from "../config";
 import { schemaCommand } from "../schema";
 import { findProjectArg } from "../git-utils";
-import { v1Compat, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus } from "../v1/cli/commands";
+import { v1Compat, v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus } from "../v1/cli/commands";
 
 export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   help: (args) => printHelp(args),
@@ -112,6 +112,7 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "v1:forge:status": (args) => v1ForgeStatus(args),
   "v1:forge:start": (args) => v1ForgeStart(args),
   "v1:forge:release": (args) => v1ForgeRelease(args),
+  "v1:forge:check": (args) => v1ForgeCheck(args),
   "v1:forge:close": (args) => v1ForgeClose(args),
   "v1:forge:run": (args) => v1ForgeRun(args),
   "v1:forge:evidence": (args) => v1ForgeEvidence(args),
@@ -173,6 +174,7 @@ function resolveV1Command(rawArgs: string[]) {
     if (subcommand === "status") return { command: "v1:forge:status", args: subArgs };
     if (subcommand === "start") return { command: "v1:forge:start", args: subArgs };
     if (subcommand === "release") return { command: "v1:forge:release", args: subArgs };
+    if (subcommand === "check") return { command: "v1:forge:check", args: subArgs };
     if (subcommand === "close") return { command: "v1:forge:close", args: subArgs };
     if (subcommand === "run") return { command: "v1:forge:run", args: subArgs };
     if (subcommand === "evidence") return { command: "v1:forge:evidence", args: subArgs };

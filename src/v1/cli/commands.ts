@@ -3,7 +3,7 @@ import { requireValue } from "../../cli-shared";
 import { describeLegacyCommand } from "./legacy-compat";
 import { renderForgeNextJson, renderForgeNextText } from "./render-forge-next";
 import { loadV1ProjectProjection } from "../vault/load-project";
-import { closeV1Slice, releaseV1Slice, startV1Slice } from "../vault/slice-store";
+import { checkV1SliceClose, closeV1Slice, releaseV1Slice, startV1Slice } from "../vault/slice-store";
 import { recordV1ReviewEvidence, recordV1TddEvidence, recordV1VerificationEvidence } from "../vault/evidence-store";
 
 export async function v1ForgeNext(args: string[]): Promise<void> {
@@ -38,6 +38,20 @@ export async function v1ForgeRelease(args: string[]): Promise<void> {
   const result = await releaseV1Slice({ project, sliceId });
   if (json) printJson(result);
   else printLine(`released ${sliceId}`);
+}
+
+export async function v1ForgeCheck(args: string[]): Promise<void> {
+  const json = args.includes("--json");
+  const positional = args.filter((arg) => !arg.startsWith("--"));
+  const project = positional[0];
+  const sliceId = positional[1];
+  requireValue(project, "project");
+  requireValue(sliceId, "slice-id");
+  const closedBy = readFlagValue(args, "--closed-by") ?? readFlagValue(args, "--agent") ?? "agent";
+  const result = await checkV1SliceClose({ project, sliceId, closedBy });
+  if (json) printJson(result);
+  else printLine(result.status === "accepted" ? `check passed ${sliceId}` : `rejected ${result.rejection.code}`);
+  if (result.status === "rejected") throw Object.assign(new Error(result.rejection.reason), { exitCode: 1 });
 }
 
 export async function v1ForgeClose(args: string[]): Promise<void> {

@@ -79,7 +79,7 @@ export async function releaseV1Slice(input: V1ReleaseSliceInput): Promise<V1Rele
   };
 }
 
-export async function closeV1Slice(input: V1CloseSliceInput): Promise<KernelResult> {
+export async function checkV1SliceClose(input: V1CloseSliceInput): Promise<KernelResult> {
   const now = input.now ?? new Date().toISOString();
   const intent: CloseSliceIntent = {
     kind: "intent",
@@ -96,12 +96,17 @@ export async function closeV1Slice(input: V1CloseSliceInput): Promise<KernelResu
       closedBy: input.closedBy,
     },
   };
-  const result = evaluateCloseSliceIntent(intent, {
+  return evaluateCloseSliceIntent(intent, {
     project: input.project,
     sliceId: input.sliceId,
     evidence: await readV1Evidence(input.project, input.sliceId, input.vaultRoot),
     reviewPolicy: { required: true },
   });
+}
+
+export async function closeV1Slice(input: V1CloseSliceInput): Promise<KernelResult> {
+  const now = input.now ?? new Date().toISOString();
+  const result = await checkV1SliceClose({ ...input, now });
   if (result.status === "accepted") {
     await updateSliceFrontmatter(input.project, input.sliceId, {
       status: "done",
