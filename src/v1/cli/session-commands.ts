@@ -3,7 +3,7 @@ import { printJson, printLine } from "../../lib/cli-output";
 import { readLatestV1Handover, writeV1Handover } from "../handover/store";
 import { loadV1ProjectProjection } from "../vault/load-project";
 import { buildV1PromptPacket } from "../prompt/packet";
-import { tailV1MemoryLog, writeV1MemoryLogEntry, writeV1MemoryNote } from "../memory/store";
+import { tailMemoryLog, writeMemoryLogEntry, writeMemoryNote } from "../../wiki/memory/store";
 
 export async function v1Resume(args: string[]): Promise<void> {
   const json = args.includes("--json");
@@ -54,7 +54,7 @@ export async function v1Note(args: string[]): Promise<void> {
   requireValue(project, "project");
   const message = positional.slice(1).join(" ").trim();
   requireValue(message || undefined, "message");
-  const record = await writeV1MemoryNote({
+  const record = await writeMemoryNote({
     project,
     message,
     agent: readFlagValue(args, "--agent") ?? "agent",
@@ -75,7 +75,7 @@ export async function v1Log(args: string[]): Promise<void> {
     requireValue(project, "project");
     requireValue(entryKind, "kind");
     requireValue(title || undefined, "title");
-    const record = await writeV1MemoryLogEntry({
+    const record = await writeMemoryLogEntry({
       project,
       entryKind,
       title,
@@ -90,7 +90,7 @@ export async function v1Log(args: string[]): Promise<void> {
     const project = positional[0];
     requireValue(project, "project");
     const count = Number.parseInt(positional[1] ?? "10", 10);
-    const tail = await tailV1MemoryLog(project, Number.isFinite(count) && count > 0 ? count : 10);
+    const tail = await tailMemoryLog(project, Number.isFinite(count) && count > 0 ? count : 10);
     if (json) printJson(tail);
     else for (const entry of tail.entries) printLine(`${entry.createdAt} ${entry.entryKind} | ${entry.title}`);
     return;
