@@ -23,14 +23,31 @@ import {
 } from "./output";
 import { collectForgeReview } from "./docs";
 import { printError, printJson, printLine } from "../../lib/cli-output";
-import { v1ForgeClose, v1ForgeNext, v1ForgeRelease, v1ForgeRun, v1ForgeStart, v1ForgeStatus } from "../../v1/cli/commands";
+import { v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus } from "../../v1/cli/commands";
+import { forgeEvidence as legacyForgeEvidence } from "./evidence";
+import { forgeReview as legacyForgeReview } from "./review";
 import { forgeRun as legacyForgeRun } from "./run";
 export { forgeSkip } from "./skip";
-export { forgeEvidence } from "./evidence";
-export { forgeReview } from "./review";
 export { forgeAmend } from "./amend";
 
 
+
+
+export async function forgeEvidence(args: string[]) {
+  if (shouldUseV1ForgeEvidence(args)) {
+    await v1ForgeEvidence(args);
+    return;
+  }
+  await legacyForgeEvidence(args);
+}
+
+export async function forgeReview(args: string[]) {
+  if (shouldUseV1ForgeReview(args)) {
+    await v1ForgeReview(args);
+    return;
+  }
+  await legacyForgeReview(args);
+}
 
 export async function forgeRun(args: string[]) {
   if (shouldUseV1ForgeRun(args)) {
@@ -466,5 +483,14 @@ export function shouldUseV1ForgeRun(args: readonly string[]): boolean {
 
 function hasProjectAndSlice(args: readonly string[]): boolean {
   return args.filter((arg) => !arg.startsWith("--")).length >= 2;
+}
+
+export function shouldUseV1ForgeEvidence(args: readonly string[]): boolean {
+  return args.filter((arg) => !arg.startsWith("--")).length >= 3 && !args.includes("--legacy");
+}
+
+export function shouldUseV1ForgeReview(args: readonly string[]): boolean {
+  const positional = args.filter((arg) => !arg.startsWith("--"));
+  return positional[0] === "record" && positional.length >= 3 && !args.includes("--legacy");
 }
 
