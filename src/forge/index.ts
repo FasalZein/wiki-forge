@@ -1,30 +1,30 @@
 import type { CommandHandler } from "../types";
 import {
-  v1ForgeAmend,
-  v1ForgeCheck,
-  v1ForgeClose,
-  v1ForgeEvidence,
-  v1ForgeNext,
-  v1ForgePlan,
-  v1ForgeRelease,
-  v1ForgeReview,
-  v1ForgeRun,
-  v1ForgeStart,
-  v1ForgeStatus,
-} from "../v1/cli/commands";
+  forgeAmendCommand,
+  forgeCheckCommand,
+  forgeCloseCommand,
+  forgeEvidenceCommand,
+  forgeNextCommand,
+  forgePlanCommand,
+  forgeReleaseCommand,
+  forgeReviewCommand,
+  forgeRunCommand,
+  forgeStartCommand,
+  forgeStatusCommand,
+} from "./workflow/commands";
 
 export const FORGE_COMMANDS: Record<string, CommandHandler> = {
-  "forge:start": (args) => v1ForgeStart(args),
-  "forge:check": (args) => v1ForgeCheck(args),
-  "forge:close": (args) => v1ForgeClose(args),
-  "forge:run": (args) => v1ForgeRun(args),
-  "forge:evidence": (args) => v1ForgeEvidence(args),
-  "forge:review": (args) => v1ForgeReview(args),
-  "forge:status": (args) => v1ForgeStatus(args),
-  "forge:plan": (args) => v1ForgePlan(args),
-  "forge:next": (args) => v1ForgeNext(args),
-  "forge:amend": (args) => v1ForgeAmend(args),
-  "forge:release": (args) => v1ForgeRelease(args),
+  "forge:start": (args) => forgeStartCommand(args),
+  "forge:check": (args) => forgeCheckCommand(args),
+  "forge:close": (args) => forgeCloseCommand(args),
+  "forge:run": (args) => forgeRunCommand(args),
+  "forge:evidence": (args) => forgeEvidenceCommand(args),
+  "forge:review": (args) => forgeReviewCommand(args),
+  "forge:status": (args) => forgeStatusCommand(args),
+  "forge:plan": (args) => forgePlanCommand(args),
+  "forge:next": (args) => forgeNextCommand(args),
+  "forge:amend": (args) => forgeAmendCommand(args),
+  "forge:release": (args) => forgeReleaseCommand(args),
 };
 
 const FORGE_SUBCOMMANDS = {
