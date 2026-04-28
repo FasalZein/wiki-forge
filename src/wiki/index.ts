@@ -6,7 +6,7 @@ import { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeMo
 import { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch, handoffResearch, bridgeResearch, distillResearch, adoptResearch } from "../research";
 import { askProject, fileAnswer, fileResearch } from "../retrieval/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "../retrieval/qmd-commands";
-import { nextProject, noteProject, exportPrompt, logCommand } from "../session";
+import { noteProject, exportPrompt, logCommand } from "../session";
 import { claimSlice, startSlice, verifySlice, closeSlice, createIssueSlice, repairHistoricalDoneSlices } from "../slice";
 import { pipelineCommand, pipelineResetCommand } from "../slice/pipeline";
 import { statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, bindSourcePaths, migrateVerification, verifyPage, acknowledgeImpact } from "../verification";
@@ -44,7 +44,7 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   handover: (args) => v1Handover(args),
   claim: (args) => claimSlice(args),
   note: (args) => noteProject(args),
-  next: (args) => nextProject(args),
+  next: (args) => v1ForgeNext(args),
   "start-slice": (args) => startSlice(args),
   "verify-slice": (args) => verifySlice(args),
   "close-slice": (args) => closeSlice(args),
@@ -166,6 +166,7 @@ export function resolveWikiCommand(rawArgs: string[]) {
   }
   if (command === "handover") return { command: "v1:handover", args: rest };
   if (command === "resume") return { command: "v1:resume", args: rest };
+  if (command === "next") return { command: "v1:forge:next", args: rest };
   if (command === "v1") {
     return resolveV1Command(rest);
   }
