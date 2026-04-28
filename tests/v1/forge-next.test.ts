@@ -48,7 +48,10 @@ describe("v1 forge next projection", () => {
 
     expect(evaluateForgeNext({
       project: "wiki-forge",
-      slices: [{ ...readySlice, taskId: "WIKI-FORGE-218", status: "done" }],
+      slices: [
+        { ...readySlice, taskId: "WIKI-FORGE-218", status: "done" },
+        { ...readySlice, taskId: "WIKI-FORGE-024", status: "draft" },
+      ],
     })).toEqual({
       status: "empty",
       project: "wiki-forge",

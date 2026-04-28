@@ -42,7 +42,7 @@ export function evaluateForgeNext(input: ForgeNextInput): ForgeNextProjection {
     };
   }
 
-  const readySlice = input.slices.find((slice) => slice.status === "ready" || slice.status === "draft");
+  const readySlice = input.slices.find((slice) => slice.status === "ready");
   if (readySlice) {
     return {
       status: "ready",

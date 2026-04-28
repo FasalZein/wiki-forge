@@ -7,7 +7,7 @@ import { describeLegacyCommand } from "../../src/v1/cli/legacy-compat";
 
 afterEach(() => cleanupTempPaths());
 
-function createVaultWithSlice(status: "ready" | "in-progress" | "done") {
+function createVaultWithSlice(status: "draft" | "ready" | "in-progress" | "done") {
   const vault = tempDir("wiki-v1-cutover-vault");
   initVault(vault);
   const sliceDir = join(vault, "projects", "demo", "specs", "slices", "DEMO-001");
@@ -39,6 +39,19 @@ describe("legacy forge read-only V1 cutover", () => {
       project: "demo",
       nextSliceId: "DEMO-001",
       nextAction: "start-ready-slice",
+      source: "canonical-records",
+    });
+  });
+
+  test("wiki forge next returns empty when only draft legacy slices exist", () => {
+    const vault = createVaultWithSlice("draft");
+    const result = runWiki(["forge", "next", "demo", "--json"], { vault });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.json()).toEqual({
+      status: "empty",
+      project: "demo",
+      nextAction: "plan-next-slice",
       source: "canonical-records",
     });
   });
