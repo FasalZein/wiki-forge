@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { WIKI_COMMANDS, resolveWikiCommand } from "../../src/wiki";
-import { assertLifecycleMutationAllowed, assertGeneratedProjectionReadAllowed, getCommandSurfaceEntry, listCommandSurfaceEntries } from "../../src/v1/cli/command-surface";
+import { assertLifecycleMutationAllowed, assertGeneratedProjectionReadAllowed, getCommandSurfaceEntry, listCommandSurfaceEntries } from "../../src/wiki/runtime/command-surface";
 
-describe("V1 command surface registry", () => {
+describe("command surface registry", () => {
   test("classifies every top-level command registered in the CLI", () => {
     const classified = new Set(listCommandSurfaceEntries().flatMap((entry) => entry.publicCommands));
     const unclassified = Object.keys(WIKI_COMMANDS).filter((command) => !command.includes(":") && !classified.has(command));
@@ -14,13 +14,13 @@ describe("V1 command surface registry", () => {
     expect(getCommandSurfaceEntry("search")).toMatchObject({ domain: "wiki-memory", mayMutateLifecycle: false });
     expect(getCommandSurfaceEntry("query")).toMatchObject({ domain: "wiki-memory", mayMutateLifecycle: false });
     expect(getCommandSurfaceEntry("ask")).toMatchObject({ domain: "wiki-memory", mayMutateLifecycle: false });
-    expect(getCommandSurfaceEntry("handover")).toMatchObject({ domain: "wiki-memory", v1Handler: "v1:handover", mayMutateLifecycle: false });
-    expect(getCommandSurfaceEntry("resume")).toMatchObject({ domain: "wiki-memory", v1Handler: "v1:resume", mayMutateLifecycle: false });
+    expect(getCommandSurfaceEntry("handover")).toMatchObject({ domain: "wiki-memory", handler: "v1:handover", mayMutateLifecycle: false });
+    expect(getCommandSurfaceEntry("resume")).toMatchObject({ domain: "wiki-memory", handler: "v1:resume", mayMutateLifecycle: false });
   });
 
-  test("classifies Forge workflow commands as V1-owned", () => {
-    expect(getCommandSurfaceEntry("next")).toMatchObject({ domain: "forge-workflow", v1Handler: "v1:forge:next", mayMutateLifecycle: false });
-    expect(getCommandSurfaceEntry("forge")).toMatchObject({ domain: "forge-workflow", v1Handler: "forge:*" });
+  test("classifies Forge workflow commands as Forge-owned", () => {
+    expect(getCommandSurfaceEntry("next")).toMatchObject({ domain: "forge-workflow", handler: "v1:forge:next", mayMutateLifecycle: false });
+    expect(getCommandSurfaceEntry("forge")).toMatchObject({ domain: "forge-workflow", handler: "forge:*" });
   });
 
   test("enforces lifecycle mutation and generated projection boundaries", () => {
