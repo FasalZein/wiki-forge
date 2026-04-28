@@ -4,7 +4,7 @@ import { join } from "node:path";
 import matter from "gray-matter";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
 import { resolveWikiCommand } from "../../src/wiki";
-import { shouldUseV1ForgeCheck } from "../../src/slice/forge";
+import { shouldUseV1ForgeCheck } from "../../src/v1/cli/cutover";
 
 const sliceId = "DEMO-001";
 

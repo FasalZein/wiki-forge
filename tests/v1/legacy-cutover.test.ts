@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
-import { shouldUseV1ForgeNext, shouldUseV1ForgeStatus } from "../../src/slice/forge";
+import { shouldUseV1ForgeNext, shouldUseV1ForgeStatus } from "../../src/v1/cli/cutover";
 import { describeLegacyCommand } from "../../src/v1/cli/legacy-compat";
 
 afterEach(() => cleanupTempPaths());

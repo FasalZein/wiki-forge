@@ -24,6 +24,7 @@ import {
 import { collectForgeReview } from "./docs";
 import { printError, printJson, printLine } from "../../lib/cli-output";
 import { v1ForgeAmend, v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgePlan, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus } from "../../v1/cli/commands";
+import { shouldUseV1ForgeNext, shouldUseV1ForgeStatus } from "../../v1/cli/cutover";
 export { forgeSkip } from "./skip";
 
 
@@ -354,53 +355,17 @@ export async function forgeNext(args: string[]) {
   }
 }
 
-export function shouldUseV1ForgeNext(args: readonly string[]): boolean {
-  if (args.includes("--prompt") || args.includes("--prompt-json") || args.includes("--all")) return false;
-  return args.some((arg) => !arg.startsWith("--"));
-}
-
-export function shouldUseV1ForgeStatus(args: readonly string[]): boolean {
-  return args.some((arg) => !arg.startsWith("--"));
-}
-
-export function shouldUseV1ForgeStart(args: readonly string[]): boolean {
-  return hasProjectAndSlice(args);
-}
-
-export function shouldUseV1ForgeRelease(args: readonly string[]): boolean {
-  return hasProjectAndSlice(args);
-}
-
-export function shouldUseV1ForgePlan(args: readonly string[]): boolean {
-  return args.some((arg) => !arg.startsWith("--"));
-}
-
-export function shouldUseV1ForgeClose(args: readonly string[]): boolean {
-  return hasProjectAndSlice(args);
-}
-
-export function shouldUseV1ForgeCheck(args: readonly string[]): boolean {
-  return hasProjectAndSlice(args);
-}
-
-export function shouldUseV1ForgeAmend(args: readonly string[]): boolean {
-  return hasProjectAndSlice(args);
-}
-
-export function shouldUseV1ForgeRun(args: readonly string[]): boolean {
-  return args.filter((arg) => !arg.startsWith("--")).length >= 1;
-}
-
-function hasProjectAndSlice(args: readonly string[]): boolean {
-  return args.filter((arg) => !arg.startsWith("--")).length >= 2;
-}
-
-export function shouldUseV1ForgeEvidence(args: readonly string[]): boolean {
-  return args.filter((arg) => !arg.startsWith("--")).length >= 3;
-}
-
-export function shouldUseV1ForgeReview(args: readonly string[]): boolean {
-  const positional = args.filter((arg) => !arg.startsWith("--"));
-  return positional[0] === "record" && positional.length >= 3;
-}
+export {
+  shouldUseV1ForgeAmend,
+  shouldUseV1ForgeCheck,
+  shouldUseV1ForgeClose,
+  shouldUseV1ForgeEvidence,
+  shouldUseV1ForgeNext,
+  shouldUseV1ForgePlan,
+  shouldUseV1ForgeRelease,
+  shouldUseV1ForgeReview,
+  shouldUseV1ForgeRun,
+  shouldUseV1ForgeStart,
+  shouldUseV1ForgeStatus,
+} from "../../v1/cli/cutover";
 

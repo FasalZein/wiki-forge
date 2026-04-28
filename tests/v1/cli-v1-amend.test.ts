@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
 import { describeLegacyCommand } from "../../src/v1/cli/legacy-compat";
-import { shouldUseV1ForgeAmend } from "../../src/slice/forge";
+import { shouldUseV1ForgeAmend } from "../../src/v1/cli/cutover";
 
 afterEach(() => cleanupTempPaths());
 

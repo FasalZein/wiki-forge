@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import matter from "gray-matter";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
-import { shouldUseV1ForgeEvidence, shouldUseV1ForgeReview } from "../../src/slice/forge";
+import { shouldUseV1ForgeEvidence, shouldUseV1ForgeReview } from "../../src/v1/cli/cutover";
 
 const sliceId = "DEMO-001";
 
