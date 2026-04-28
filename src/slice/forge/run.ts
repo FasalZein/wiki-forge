@@ -144,6 +144,7 @@ export async function forgeRun(args: string[]) {
     worktree: parsed.worktree,
     sliceLocal: true,
     upstreamMutatedBeforeStart: true,
+    forwardStepStderr: parsed.json,
     onStepComplete,
   });
   if (parsed.json) {

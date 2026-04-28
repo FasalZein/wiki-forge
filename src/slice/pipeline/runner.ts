@@ -22,6 +22,7 @@ export interface PipelineResult {
 
 export interface RunPipelineOptions extends PipelineRunOptions {
   upstreamMutatedBeforeStart?: boolean;
+  forwardStepStderr?: boolean;
   onStepComplete?: (step: {
     id: string;
     label: string;
@@ -105,9 +106,10 @@ export async function runPipeline(
       const startedAt = new Date().toISOString();
       state.record(options.project, options.sliceId, step.id, startedAt, null, false, null, inputFingerprint);
 
+      const progressLabel = `${options.phase}:${step.id}`;
       const run = executor
         ? await executor(step.command, args)
-        : await executeStep(step.command, args);
+        : await executeStep(step.command, args, Boolean(options.forwardStepStderr), progressLabel);
 
       const completedAt = new Date().toISOString();
       const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();
@@ -164,10 +166,25 @@ async function collectPipelineInputFingerprint(repo: string) {
 
 const PIPELINE_STEP_OUTPUT_CHARS = 64_000;
 const PIPELINE_STEP_OUTPUT_TAIL_CHARS = 12_000;
+const DEFAULT_PIPELINE_HEARTBEAT_MS = 10_000;
 
-async function executeStep(command: string, args: string[]): Promise<{ ok: boolean; error?: string; stdout?: string; stderr?: string }> {
+async function executeStep(
+  command: string,
+  args: string[],
+  forwardStderr: boolean,
+  progressLabel: string,
+): Promise<{ ok: boolean; error?: string; stdout?: string; stderr?: string }> {
   const wikiPath = process.argv[1];
   if (!wikiPath) return { ok: false, error: "cannot resolve current wiki entrypoint" };
+
+  const progressStartedAt = Date.now();
+  let heartbeat: ReturnType<typeof setInterval> | null = null;
+  if (forwardStderr) {
+    process.stderr.write(`[forge] ${progressLabel} started\n`);
+    heartbeat = setInterval(() => {
+      process.stderr.write(`[forge] ${progressLabel} still running (${Date.now() - progressStartedAt}ms)\n`);
+    }, readProgressHeartbeatMs());
+  }
 
   const proc = Bun.spawn({
     cmd: [process.argv[0], wikiPath, command, ...args],
@@ -186,12 +203,23 @@ async function executeStep(command: string, args: string[]): Promise<{ ok: boole
     drainBoundedTextStream(proc.stderr, {
       maxChars: PIPELINE_STEP_OUTPUT_CHARS,
       tailChars: PIPELINE_STEP_OUTPUT_TAIL_CHARS,
+      forward: forwardStderr ? (chunk) => process.stderr.write(chunk) : undefined,
+      forwardMaxChars: 16_000,
       truncationLabel: "pipeline step stderr truncated",
     }),
     proc.exited,
   ]);
+  if (heartbeat) clearInterval(heartbeat);
   const stdout = stdoutResult.text.trim();
   const stderr = stderrResult.text.trim();
-  if (exitCode === 0) return { ok: true, stdout: stdout || undefined };
+  const ok = exitCode === 0;
+  if (forwardStderr) process.stderr.write(`[forge] ${progressLabel} ${ok ? "passed" : "failed"} (${Date.now() - progressStartedAt}ms)\n`);
+  if (ok) return { ok: true, stdout: stdout || undefined };
   return { ok: false, error: stderr || `exit code ${exitCode}`, stdout: stdout || undefined, stderr: stderr || undefined };
+}
+
+function readProgressHeartbeatMs() {
+  const raw = Number(process.env.WIKI_FORGE_PROGRESS_HEARTBEAT_MS ?? DEFAULT_PIPELINE_HEARTBEAT_MS);
+  if (!Number.isFinite(raw) || raw <= 0) return DEFAULT_PIPELINE_HEARTBEAT_MS;
+  return Math.max(10, Math.floor(raw));
 }
