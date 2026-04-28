@@ -6,11 +6,11 @@ import { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeMo
 import { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch, handoffResearch, bridgeResearch, distillResearch, adoptResearch } from "../research";
 import { askProject, fileAnswer, fileResearch } from "../retrieval/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "../retrieval/qmd-commands";
-import { noteProject, exportPrompt, logCommand } from "../session";
+import { noteProject, logCommand } from "../session";
 import { statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, bindSourcePaths, migrateVerification, verifyPage, acknowledgeImpact } from "../verification";
 import { configCommand } from "../config";
 import { schemaCommand } from "../schema";
-import { v1Compat, v1ForgeAmend, v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgePlan, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus, v1Handover, v1Resume } from "../v1/cli/commands";
+import { v1Compat, v1ExportPrompt, v1ForgeAmend, v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgePlan, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus, v1Handover, v1Resume } from "../v1/cli/commands";
 import { assertCommandNotQuarantined } from "../v1/cli/command-surface";
 
 export const WIKI_COMMANDS: Record<string, CommandHandler> = {
@@ -47,7 +47,7 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "verify-slice": quarantinedCommand("verify-slice"),
   "close-slice": quarantinedCommand("close-slice"),
   "acknowledge-impact": (args) => acknowledgeImpact(args),
-  "export-prompt": (args) => exportPrompt(args),
+  "export-prompt": (args) => v1ExportPrompt(args),
   resume: (args) => v1Resume(args),
   doctor: (args) => doctorProject(args),
   gate: (args) => gateProject(args),
@@ -115,6 +115,7 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "v1:forge:review": (args) => v1ForgeReview(args),
   "v1:handover": (args) => v1Handover(args),
   "v1:resume": (args) => v1Resume(args),
+  "v1:export-prompt": (args) => v1ExportPrompt(args),
   "v1:compat": (args) => v1Compat(args),
 };
 
@@ -166,6 +167,7 @@ export function resolveWikiCommand(rawArgs: string[]) {
   if (command === "handover") return { command: "v1:handover", args: rest };
   if (command === "resume") return { command: "v1:resume", args: rest };
   if (command === "next") return { command: "v1:forge:next", args: rest };
+  if (command === "export-prompt") return { command: "v1:export-prompt", args: rest };
   if (command === "v1") {
     return resolveV1Command(rest);
   }
@@ -194,6 +196,9 @@ function resolveV1Command(rawArgs: string[]) {
   }
   if (area === "handover") {
     return { command: "v1:handover", args: [subcommand, ...subArgs].filter((arg): arg is string => Boolean(arg)) };
+  }
+  if (area === "export-prompt") {
+    return { command: "v1:export-prompt", args: [subcommand, ...subArgs].filter((arg): arg is string => Boolean(arg)) };
   }
   if (area === "compat") {
     return { command: "v1:compat", args: [subcommand, ...subArgs].filter((arg): arg is string => Boolean(arg)) };

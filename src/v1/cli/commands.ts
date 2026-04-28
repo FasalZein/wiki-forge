@@ -6,7 +6,7 @@ import { loadV1ProjectProjection, loadV1SliceStatus } from "../vault/load-projec
 import { amendV1Slice, checkV1SliceClose, closeV1Slice, releaseV1Slice, startV1Slice } from "../vault/slice-store";
 import { addPlanningPrd, addPlanningSlice, completePlanningSession, createPlanningArtifacts, evaluatePlanningSessionGate, readPlanningSession, recordPlanningAnswer, type PlanningSession, type PlanningSessionGate, type PlanningSkill } from "../vault/planning-session-store";
 import { recordV1ReviewEvidence, recordV1TddEvidence, recordV1VerificationEvidence } from "../vault/evidence-store";
-export { v1Handover, v1Resume } from "./session-commands";
+export { v1ExportPrompt, v1Handover, v1Resume } from "./session-commands";
 
 export async function v1ForgeNext(args: string[]): Promise<void> {
   await renderV1ForgeProjection(args);
