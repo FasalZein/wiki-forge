@@ -126,8 +126,26 @@ describe("V1 forge plan", () => {
     expect(existsSync(join(vault, "projects", "demo", "specs"))).toBe(false);
     expect(existsSync(join(vault, "projects", "demo", "forge", "features", "FEAT-001-safer-deploy.md"))).toBe(true);
     expect(existsSync(join(vault, "projects", "demo", "forge", "prds", "PRD-001-deployment-safety-prd.md"))).toBe(true);
+    const featureMarkdown = readFileSync(join(vault, "projects", "demo", "forge", "features", "FEAT-001-safer-deploy.md"), "utf8");
+    expect(featureMarkdown).toContain("## Decisions");
+    expect(featureMarkdown).toContain("Planning session is canonical lifecycle input");
+
+    const prdMarkdown = readFileSync(join(vault, "projects", "demo", "forge", "prds", "PRD-001-deployment-safety-prd.md"), "utf8");
+    expect(prdMarkdown).toContain("## Domain Terms");
+    expect(prdMarkdown).toContain("## Acceptance Criteria");
+    expect(prdMarkdown).toContain("## Handover Hints");
+
     const sliceHub = matter(readFileSync(join(vault, "projects", "demo", "forge", "slices", "DEMO-001", "index.md"), "utf8"));
     expect(sliceHub.data).toMatchObject({ task_id: "DEMO-001", parent_prd: "PRD-001", parent_feature: "FEAT-001", planning_session: "safer-deploy", status: "draft" });
+    expect(sliceHub.content).toContain("## User Job");
+    expect(sliceHub.content).toContain("## Handover Hints");
+
+    const slicePlan = readFileSync(join(vault, "projects", "demo", "forge", "slices", "DEMO-001", "plan.md"), "utf8");
+    expect(slicePlan).toContain("## TDD Plan");
+    expect(slicePlan).toContain("## Verification Expectations");
+
+    const testPlan = readFileSync(join(vault, "projects", "demo", "forge", "slices", "DEMO-001", "test-plan.md"), "utf8");
+    expect(testPlan).toContain("## Targeted Verification");
   });
 
   test("resolver and compatibility metadata declare V1 ownership", () => {

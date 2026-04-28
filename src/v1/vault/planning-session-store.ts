@@ -5,6 +5,7 @@ import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../../constants";
 import { nowIso, orderFrontmatter, writeNormalizedPage } from "../../cli-shared";
 import { forgeFeaturePath, forgePrdPath, forgeProjectDir, forgeSliceDir, forgeSlicePath, forgeSlicePlanPath, forgeSliceTestPlanPath, forgePlanningSessionPath } from "./forge-paths";
+import { renderFeatureBody, renderPrdBody, renderSliceHubBody, renderSlicePlanBody, renderSliceTestPlanBody } from "./planning-artifact-templates";
 
 export type PlanningSkill = "torpathy" | "domain-model" | "grill-me";
 
@@ -164,7 +165,7 @@ export async function createPlanningArtifacts(input: PlanningArtifactsInput): Pr
   const featureSlug = slugify(input.featureName);
   const featurePath = absoluteVaultPath(vaultRoot, forgeFeaturePath(input.project, featureId, featureSlug));
   await mkdir(absoluteVaultPath(vaultRoot, `${forgeProjectDir(input.project)}/features`), { recursive: true });
-  writeNormalizedPage(featurePath, featureBody(session), orderV1Frontmatter({
+  writeNormalizedPage(featurePath, renderFeatureBody(session), orderV1Frontmatter({
     title: input.featureName,
     type: "forge-feature",
     project: input.project,
@@ -187,7 +188,7 @@ export async function createPlanningArtifacts(input: PlanningArtifactsInput): Pr
     prdCounter += 1;
     const prdId = `PRD-${String(prdCounter).padStart(3, "0")}`;
     const prdPath = absoluteVaultPath(vaultRoot, forgePrdPath(input.project, prdId, slugify(candidate.name)));
-    writeNormalizedPage(prdPath, prdBody(session, candidate), orderV1Frontmatter({
+    writeNormalizedPage(prdPath, renderPrdBody(session, candidate), orderV1Frontmatter({
       title: candidate.name,
       type: "forge-prd",
       project: input.project,
@@ -289,70 +290,6 @@ function planningSessionBody(session: PlanningSession): string {
   ].join("\n");
 }
 
-function featureBody(session: PlanningSession): string {
-  return [
-    `# ${session.featureName}`,
-    "",
-    "> [!summary]",
-    "> Created from a completed V1 Forge planning session.",
-    "",
-    "## Planning Session",
-    "",
-    `- Session: [[projects/${session.project}/forge/sessions/${session.sessionId}]]`,
-    "",
-    "## PRDs",
-    "",
-    ...session.prds.map((prd) => `- ${prd.name}`),
-  ].join("\n");
-}
-
-function prdBody(session: PlanningSession, prd: PlanningPrdCandidate): string {
-  const grillAnswers = session.answers.filter((answer) => answer.skill === "grill-me" && answer.prdName === prd.name);
-  return [
-    `# ${prd.name}`,
-    "",
-    "## Problem",
-    "",
-    "Captured from the completed V1 planning session.",
-    "",
-    "## Goals",
-    "",
-    ...prd.slices.map((slice) => `- Enable: ${slice}`),
-    "",
-    "## Non-Goals",
-    "",
-    "- Anything not resolved by the planning session remains out of scope.",
-    "",
-    "## Users / Actors",
-    "",
-    "- Agents and maintainers using Forge lifecycle commands.",
-    "",
-    "## User Stories",
-    "",
-    ...prd.slices.map((slice, index) => `${index + 1}. As an agent, I want ${slice}, so that implementation work starts from a verified plan.`),
-    "",
-    "## Acceptance Criteria",
-    "",
-    ...prd.slices.map((slice) => `- [ ] ${slice}`),
-    "",
-    "## Prior Research",
-    "",
-    `- [[projects/${session.project}/forge/sessions/${session.sessionId}]]`,
-    "",
-    "## Open Questions",
-    "",
-    "- None for this PRD session.",
-    "",
-    "## Implementation Decisions",
-    "",
-    ...session.answers.filter((answer) => answer.skill !== "grill-me").map((answer) => `- ${answer.skill}: ${answer.response}`),
-    "",
-    "## Grill Session",
-    "",
-    ...grillAnswers.map((answer) => `- ${answer.response}`),
-  ].join("\n");
-}
-
 type PlannedSliceInput = {
   readonly vaultRoot: string;
   readonly project: string;
@@ -379,40 +316,9 @@ async function writePlannedSlice(input: PlannedSliceInput): Promise<void> {
     updated: input.now,
     status: "draft",
   };
-  writeNormalizedPage(absoluteVaultPath(input.vaultRoot, forgeSlicePath(input.project, input.sliceId)), [
-    `# ${input.sliceId} — ${input.title}`,
-    "",
-    "> [!summary]",
-    "> V1 planned slice created from an approved PRD planning session.",
-    "",
-    "## Scope",
-    "",
-    `- ${input.title}`,
-  ].join("\n"), orderV1Frontmatter({ ...baseFrontmatter, review_policy: { required_approvals: 1 } }));
-  writeNormalizedPage(absoluteVaultPath(input.vaultRoot, forgeSlicePlanPath(input.project, input.sliceId)), [
-    `# ${input.sliceId} ${input.title}`,
-    "",
-    "## Scope",
-    "",
-    `- ${input.title}`,
-    "",
-    "## Acceptance Criteria",
-    "",
-    `- [ ] ${input.title}`,
-  ].join("\n"), orderV1Frontmatter({ ...baseFrontmatter, type: "forge-slice-plan" }));
-  writeNormalizedPage(absoluteVaultPath(input.vaultRoot, forgeSliceTestPlanPath(input.project, input.sliceId)), [
-    `# ${input.sliceId} ${input.title}`,
-    "",
-    "## Red Tests",
-    "",
-    `- [ ] Add a failing test for: ${input.title}`,
-    "",
-    "## Verification Commands",
-    "",
-    "```bash",
-    "bun test",
-    "```",
-  ].join("\n"), orderV1Frontmatter({ ...baseFrontmatter, type: "forge-slice-test-plan" }));
+  writeNormalizedPage(absoluteVaultPath(input.vaultRoot, forgeSlicePath(input.project, input.sliceId)), renderSliceHubBody(input), orderV1Frontmatter({ ...baseFrontmatter, review_policy: { required_approvals: 1 } }));
+  writeNormalizedPage(absoluteVaultPath(input.vaultRoot, forgeSlicePlanPath(input.project, input.sliceId)), renderSlicePlanBody(input), orderV1Frontmatter({ ...baseFrontmatter, type: "forge-slice-plan" }));
+  writeNormalizedPage(absoluteVaultPath(input.vaultRoot, forgeSliceTestPlanPath(input.project, input.sliceId)), renderSliceTestPlanBody(input), orderV1Frontmatter({ ...baseFrontmatter, type: "forge-slice-test-plan" }));
 }
 
 async function nextNumericId(vaultRoot: string, project: string, kind: "feature" | "prd"): Promise<string> {
