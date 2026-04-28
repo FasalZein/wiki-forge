@@ -114,6 +114,7 @@ export async function forgeRun(args: string[]) {
     dryRun: parsed.dryRun,
     worktree: parsed.worktree,
     sliceLocal: true,
+    forwardStepStderr: parsed.json,
     onStepComplete,
   });
   const review = parsed.dryRun

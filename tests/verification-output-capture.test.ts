@@ -133,6 +133,8 @@ describe("verification output capture", () => {
 
     const result = runWiki(["forge", "run", "noisyfail", "NOISYFAIL-001", "--repo", repo, "--json"], env);
     expect(result.exitCode).toBe(1);
+    expect(result.stderr.toString()).toContain("[forge] close:checkpoint started");
+    expect(result.stderr.toString()).toContain("[forge] close:checkpoint passed");
     expect(result.stderr.toString()).toContain("[forge] verify:verify-slice started");
     expect(result.stderr.toString()).toContain("pipeline step stderr truncated: live output capped");
     expect(result.stderr.toString()).toContain("[forge] verify:verify-slice failed");
