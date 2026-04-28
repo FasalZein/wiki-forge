@@ -33,6 +33,14 @@ describe("V1 command surface registry", () => {
     expect(() => assertGeneratedProjectionReadAllowed("dashboard")).not.toThrow();
   });
 
+  test("disables ambiguous lifecycle-like top-level commands", async () => {
+    for (const command of ["status", "gate", "closeout"]) {
+      expect(getCommandSurfaceEntry(command)).toMatchObject({ domain: "ambiguous-disabled" });
+      expect(() => resolveWikiCommand([command, "demo"])).toThrow("ambiguous command is disabled");
+      await expect(WIKI_COMMANDS[command](["demo"])).rejects.toThrow("ambiguous command is disabled");
+    }
+  });
+
   test("quarantines legacy workflow commands instead of routing them to legacy", async () => {
     for (const command of ["backlog", "add-task", "move-task", "complete-task", "claim", "start-slice", "verify-slice", "close-slice", "pipeline", "pipeline-reset", "create-feature", "create-prd", "create-plan", "create-test-plan", "create-issue-slice", "start-feature", "close-feature", "start-prd", "close-prd"]) {
       expect(getCommandSurfaceEntry(command)).toMatchObject({ domain: "legacy-quarantined" });

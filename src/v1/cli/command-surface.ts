@@ -1,4 +1,4 @@
-export type CommandSurfaceDomain = "wiki-memory" | "forge-workflow" | "admin-view" | "migration" | "legacy-quarantined";
+export type CommandSurfaceDomain = "wiki-memory" | "forge-workflow" | "admin-view" | "migration" | "legacy-quarantined" | "ambiguous-disabled";
 
 export type CommandSurfaceEntry = {
   readonly publicCommands: readonly string[];
@@ -22,7 +22,9 @@ const COMMAND_SURFACE = [
   entry(["next"], "forge-workflow", "Top-level alias for V1 Forge next action.", { v1Handler: "v1:forge:next", mayMutateLifecycle: false }),
   entry(["v1", "v1:forge:next", "v1:forge:status", "v1:forge:plan", "v1:forge:start", "v1:forge:release", "v1:forge:amend", "v1:forge:check", "v1:forge:close", "v1:forge:run", "v1:forge:evidence", "v1:forge:review", "v1:handover", "v1:resume", "v1:export-prompt", "v1:compat"], "admin-view", "Explicit V1/internal command namespace."),
   entry(["dashboard", "dependency-graph", "summary", "update-index", "feature-status", "scaffold-layer", "create-layer-page", "lint-vault"], "admin-view", "Generated views or hierarchy admin; never lifecycle authority.", { mayReadGeneratedProjections: true }),
-  entry(["checkpoint", "maintain", "refresh", "refresh-from-git", "sync", "discover", "ingest-diff", "commit-check", "install-git-hook", "refresh-on-merge", "lint-repo", "doctor", "gate", "closeout", "status", "lint", "lint-semantic", "verify", "bind", "drift-check", "verify-page", "migrate-verification", "cache-clear", "acknowledge-impact"], "admin-view", "Wiki maintenance/freshness/verification admin; must not be treated as Forge lifecycle authority."),
+  entry(["checkpoint", "maintain", "refresh", "refresh-from-git", "sync", "discover", "ingest-diff", "commit-check", "install-git-hook", "refresh-on-merge", "lint-repo", "doctor", "lint", "lint-semantic", "verify", "bind", "drift-check", "verify-page", "migrate-verification", "cache-clear", "acknowledge-impact"], "admin-view", "Wiki maintenance/freshness/verification admin; must not be treated as Forge lifecycle authority."),
+  entry(["status"], "ambiguous-disabled", "Top-level status is ambiguous. Use `wiki forge status` for workflow truth or `wiki checkpoint` for memory freshness.", { replacement: "wiki forge status" }),
+  entry(["gate", "closeout"], "ambiguous-disabled", "Top-level gate/closeout duplicate Forge close/check language. Use explicit Forge commands.", { replacement: "wiki forge check" }),
   entry(["create-feature", "create-prd", "create-plan", "create-test-plan", "create-issue-slice", "start-feature", "close-feature", "start-prd", "close-prd"], "legacy-quarantined", "Legacy planning/lifecycle command; V1 planning owns artifact creation.", { replacement: "wiki forge plan" }),
   entry(["backlog", "add-task", "move-task", "complete-task"], "legacy-quarantined", "Legacy backlog command; V1 Forge status/next/close own lifecycle.", { replacement: "wiki forge status" }),
   entry(["claim", "start-slice"], "legacy-quarantined", "Legacy slice claim command; V1 start owns the invariant.", { replacement: "wiki forge start" }),
@@ -41,8 +43,12 @@ export function getCommandSurfaceEntry(command: string): CommandSurfaceEntry | u
 
 export function assertCommandNotQuarantined(command: string): void {
   const entry = getCommandSurfaceEntry(command);
-  if (entry?.domain !== "legacy-quarantined") return;
-  throw new Error(`legacy workflow command is quarantined: ${command}. Use ${entry.replacement ?? "a V1 command"}.`);
+  if (entry?.domain === "legacy-quarantined") {
+    throw new Error(`legacy workflow command is quarantined: ${command}. Use ${entry.replacement ?? "a V1 command"}.`);
+  }
+  if (entry?.domain === "ambiguous-disabled") {
+    throw new Error(`ambiguous command is disabled: ${command}. Use ${entry.replacement ?? "an explicit V1 command"}.`);
+  }
 }
 
 export function assertLifecycleMutationAllowed(command: string): void {

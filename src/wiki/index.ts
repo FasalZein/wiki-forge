@@ -1,13 +1,13 @@
 import type { CommandHandler } from "../types"; // desloppify:ignore *
 import { printHelp } from "../cli-shared";
 import { dependencyGraph, updateIndex, featureStatusCommand, summaryProject, createLayerPage, lintVault, scaffoldLayer } from "../hierarchy";
-import { dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, syncProject, discoverProject, ingestDiff, commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo, doctorProject, gateProject, driftCheck } from "../maintenance";
+import { dashboardProject, maintainProject, refreshProject, refreshFromGit, syncProject, discoverProject, ingestDiff, commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo, doctorProject, driftCheck } from "../maintenance";
 import { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeModule, syncProtocol, auditProtocol, obsidianCommand, setupShell } from "../protocol";
 import { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch, handoffResearch, bridgeResearch, distillResearch, adoptResearch } from "../research";
 import { askProject, fileAnswer, fileResearch } from "../retrieval/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "../retrieval/qmd-commands";
 import { noteProject, logCommand } from "../session";
-import { statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, bindSourcePaths, migrateVerification, verifyPage, acknowledgeImpact } from "../verification";
+import { lintProject, lintSemanticProject, verifyProject, cacheClear, bindSourcePaths, migrateVerification, verifyPage, acknowledgeImpact } from "../verification";
 import { configCommand } from "../config";
 import { schemaCommand } from "../schema";
 import { v1Compat, v1ExportPrompt, v1ForgeAmend, v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgePlan, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus, v1Handover, v1Resume } from "../v1/cli/commands";
@@ -30,7 +30,7 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "onboard-plan": (args) => onboardPlan(args),
   "normalize-module": (args) => normalizeModule(args),
   dashboard: (args) => dashboardProject(args),
-  closeout: (args) => closeoutProject(args),
+  closeout: quarantinedCommand("closeout"),
   "commit-check": (args) => commitCheck(args),
   "install-git-hook": (args) => installGitHook(args),
   "refresh-on-merge": (args) => refreshOnMerge(args),
@@ -50,7 +50,7 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "export-prompt": (args) => v1ExportPrompt(args),
   resume: (args) => v1Resume(args),
   doctor: (args) => doctorProject(args),
-  gate: (args) => gateProject(args),
+  gate: quarantinedCommand("gate"),
   maintain: (args) => maintainProject(args),
   refresh: (args) => refreshProject(args),
   "refresh-from-git": (args) => refreshFromGit(args),
@@ -60,7 +60,7 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "update-index": (args) => updateIndex(args),
   log: (args) => logCommand(args),
   obsidian: (args) => obsidianCommand(args),
-  status: (args) => statusProject(args),
+  status: quarantinedCommand("status"),
   lint: (args) => lintProject(args),
   "lint-semantic": (args) => lintSemanticProject(args),
   verify: (args) => verifyProject(args),
