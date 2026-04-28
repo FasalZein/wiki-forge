@@ -6,6 +6,7 @@ import { loadV1ProjectProjection, loadV1SliceStatus } from "../vault/load-projec
 import { amendV1Slice, checkV1SliceClose, closeV1Slice, releaseV1Slice, startV1Slice } from "../vault/slice-store";
 import { addPlanningPrd, addPlanningSlice, completePlanningSession, createPlanningArtifacts, evaluatePlanningSessionGate, readPlanningSession, recordPlanningAnswer, type PlanningSession, type PlanningSessionGate, type PlanningSkill } from "../vault/planning-session-store";
 import { recordV1ReviewEvidence, recordV1TddEvidence, recordV1VerificationEvidence } from "../vault/evidence-store";
+import { writeV1Handover } from "../handover/store";
 
 export async function v1ForgeNext(args: string[]): Promise<void> {
   await renderV1ForgeProjection(args);
@@ -212,6 +213,33 @@ export async function v1ForgeReview(args: string[]): Promise<void> {
   });
   if (json) printJson(record);
   else printLine(`recorded review evidence for ${sliceId}`);
+}
+
+export async function v1Handover(args: string[]): Promise<void> {
+  const json = args.includes("--json");
+  const positional = readPositionalArgs(args, ["--session", "--agent", "--feature", "--prd", "--slice", "--summary", "--next-action", "--prompt"]);
+  const project = positional[0];
+  requireValue(project, "project");
+  const sessionId = readFlagValue(args, "--session") ?? new Date().toISOString().slice(0, 10);
+  const summary = readFlagValue(args, "--summary");
+  const nextAction = readFlagValue(args, "--next-action");
+  const copyPastePrompt = readFlagValue(args, "--prompt");
+  requireValue(summary, "--summary");
+  requireValue(nextAction, "--next-action");
+  requireValue(copyPastePrompt, "--prompt");
+  const result = await writeV1Handover({
+    project,
+    sessionId,
+    agent: readFlagValue(args, "--agent") ?? "agent",
+    summary,
+    nextAction,
+    copyPastePrompt,
+    relatedFeatures: readRepeatedFlagValues(args, "--feature"),
+    relatedPrds: readRepeatedFlagValues(args, "--prd"),
+    relatedSlices: readRepeatedFlagValues(args, "--slice"),
+  });
+  if (json) printJson(result);
+  else printLine(`wrote ${result.path}`);
 }
 
 export function v1Compat(args: string[]): void {
@@ -441,6 +469,14 @@ function readPositionalArgs(args: readonly string[], valueFlags: readonly string
 function readFlagValue(args: readonly string[], flag: string): string | undefined {
   const index = args.indexOf(flag);
   return index >= 0 ? args[index + 1] : undefined;
+}
+
+function readRepeatedFlagValues(args: readonly string[], flag: string): readonly string[] {
+  const values: string[] = [];
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] === flag && args[index + 1]) values.push(args[index + 1]);
+  }
+  return values;
 }
 
 async function renderV1ForgeProjection(args: string[]): Promise<void> {

@@ -13,7 +13,7 @@ import { statusProject, lintProject, lintSemanticProject, verifyProject, cacheCl
 import { configCommand } from "../config";
 import { schemaCommand } from "../schema";
 import { findProjectArg } from "../git-utils";
-import { v1Compat, v1ForgeAmend, v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgePlan, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus } from "../v1/cli/commands";
+import { v1Compat, v1ForgeAmend, v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgePlan, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus, v1Handover } from "../v1/cli/commands";
 
 export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   help: (args) => printHelp(args),
@@ -41,7 +41,7 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "protocol:sync": (args) => syncProtocol(args),
   "protocol:audit": (args) => auditProtocol(args),
   "dependency-graph": (args) => dependencyGraph(args),
-  handover: (args) => handoverProject(args),
+  handover: (args) => v1Handover(args),
   claim: (args) => claimSlice(args),
   note: (args) => noteProject(args),
   next: (args) => nextProject(args),
@@ -119,6 +119,7 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "v1:forge:run": (args) => v1ForgeRun(args),
   "v1:forge:evidence": (args) => v1ForgeEvidence(args),
   "v1:forge:review": (args) => v1ForgeReview(args),
+  "v1:handover": (args) => v1Handover(args),
   "v1:compat": (args) => v1Compat(args),
 };
 
@@ -162,6 +163,7 @@ export function resolveWikiCommand(rawArgs: string[]) {
     if (!mapped) throw new Error(`unknown protocol subcommand: ${subcommand}. Run 'wiki help' for usage.`);
     return { command: mapped, args: subArgs };
   }
+  if (command === "handover") return { command: "v1:handover", args: rest };
   if (command === "v1") {
     return resolveV1Command(rest);
   }
@@ -184,6 +186,9 @@ function resolveV1Command(rawArgs: string[]) {
     if (subcommand === "evidence") return { command: "v1:forge:evidence", args: subArgs };
     if (subcommand === "review") return { command: "v1:forge:review", args: subArgs };
     throw new Error(`unknown v1 forge subcommand: ${subcommand ?? ""}. Run 'wiki help' for usage.`);
+  }
+  if (area === "handover") {
+    return { command: "v1:handover", args: [subcommand, ...subArgs].filter((arg): arg is string => Boolean(arg)) };
   }
   if (area === "compat") {
     return { command: "v1:compat", args: [subcommand, ...subArgs].filter((arg): arg is string => Boolean(arg)) };
