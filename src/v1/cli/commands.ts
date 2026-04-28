@@ -55,7 +55,35 @@ export async function v1ForgeClose(args: string[]): Promise<void> {
 }
 
 export async function v1ForgeRun(args: string[]): Promise<void> {
-  await v1ForgeClose(args);
+  const json = args.includes("--json");
+  const positional = readPositionalArgs(args, ["--agent", "--closed-by"]);
+  const project = positional[0];
+  const sliceId = positional[1];
+  requireValue(project, "project");
+  const agent = readFlagValue(args, "--agent") ?? readFlagValue(args, "--closed-by") ?? "agent";
+  if (sliceId) {
+    await v1ForgeClose(args);
+    return;
+  }
+
+  const projection = await loadV1ProjectProjection(project);
+  if (projection.status === "active") {
+    const result = await closeV1Slice({ project, sliceId: projection.activeSliceId, closedBy: agent });
+    if (json) printJson(result);
+    else printLine(result.status === "accepted" ? `closed ${projection.activeSliceId}` : `rejected ${result.rejection.code}`);
+    if (result.status === "rejected") throw Object.assign(new Error(result.rejection.reason), { exitCode: 1 });
+    return;
+  }
+  if (projection.status === "ready") {
+    const result = await startV1Slice({ project, sliceId: projection.nextSliceId, agent });
+    if (json) printJson(result);
+    else printLine(result.status === "accepted" ? `started ${projection.nextSliceId}` : `rejected ${result.rejection.code}`);
+    if (result.status === "rejected") throw Object.assign(new Error(result.rejection.reason), { exitCode: 1 });
+    return;
+  }
+  if (json) printLine(renderForgeNextJson(projection));
+  else printLine(renderForgeNextText(projection));
+  if (projection.status === "conflict" || projection.status === "needs-repair") throw Object.assign(new Error(`cannot run ${project}: ${projection.status}`), { exitCode: 1 });
 }
 
 export async function v1ForgeEvidence(args: string[]): Promise<void> {
@@ -131,6 +159,20 @@ function parseReviewVerdict(value: string): "approved" | "needs-changes" | "appr
   const normalized = value.replaceAll("_", "-");
   if (normalized === "approved" || normalized === "needs-changes" || normalized === "approved-with-followups") return normalized;
   throw new Error(`invalid review verdict: ${value}`);
+}
+
+function readPositionalArgs(args: readonly string[], valueFlags: readonly string[]): readonly string[] {
+  const valueFlagSet = new Set(valueFlags);
+  const positional: string[] = [];
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg.startsWith("--")) {
+      if (valueFlagSet.has(arg)) index += 1;
+      continue;
+    }
+    positional.push(arg);
+  }
+  return positional;
 }
 
 function readFlagValue(args: readonly string[], flag: string): string | undefined {

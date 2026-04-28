@@ -49,7 +49,7 @@ describe("legacy mutating forge V1 cutover", () => {
     expect(shouldUseV1ForgeRelease(["demo", sliceId])).toBe(true);
     expect(shouldUseV1ForgeClose(["demo", sliceId, "--json"])).toBe(true);
     expect(shouldUseV1ForgeRun(["demo", sliceId, "--json"])).toBe(true);
-    expect(shouldUseV1ForgeRun(["demo", "--json"])).toBe(false);
+    expect(shouldUseV1ForgeRun(["demo", "--json"])).toBe(true);
     expect(shouldUseV1ForgeRun(["demo", sliceId, "--legacy", "--json"])).toBe(false);
   });
 
@@ -69,6 +69,20 @@ describe("legacy mutating forge V1 cutover", () => {
     expect(result.exitCode).toBe(0);
     expect(result.json()).toEqual({ status: "released", project: "demo", sliceId });
     expect(sliceData(vault).status).toBe("ready");
+  });
+
+  test("default project-level wiki forge run starts ready or closes active slices through V1", () => {
+    const readyVault = createVault("ready");
+    const readyResult = runWiki(["forge", "run", "demo", "--agent", "codex", "--json"], { vault: readyVault });
+    expect(readyResult.exitCode).toBe(0);
+    expect(readyResult.json()).toMatchObject({ status: "accepted" });
+    expect(sliceData(readyVault).status).toBe("in-progress");
+
+    const activeVault = createVault("in-progress", true);
+    const activeResult = runWiki(["forge", "run", "demo", "--agent", "codex", "--json"], { vault: activeVault });
+    expect(activeResult.exitCode).toBe(0);
+    expect(activeResult.json()).toMatchObject({ status: "accepted" });
+    expect(sliceData(activeVault).status).toBe("done");
   });
 
   test("default wiki forge close and slice-specific run route to V1 close path", () => {

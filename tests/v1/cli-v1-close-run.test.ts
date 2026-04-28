@@ -92,4 +92,13 @@ describe("v1 close/run command adapters", () => {
     expect(result.json()).toMatchObject({ status: "accepted" });
     expect(sliceData(vault).status).toBe("done");
   });
+
+  test("v1 project-level run resolves active slice and closes it", () => {
+    const vault = createVaultWithEvidence(passingEvidence());
+    const result = runWiki(["v1", "forge", "run", "demo", "--agent", "codex", "--json"], { vault });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.json()).toMatchObject({ status: "accepted" });
+    expect(sliceData(vault).status).toBe("done");
+  });
 });

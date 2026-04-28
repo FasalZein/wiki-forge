@@ -478,7 +478,7 @@ export function shouldUseV1ForgeClose(args: readonly string[]): boolean {
 }
 
 export function shouldUseV1ForgeRun(args: readonly string[]): boolean {
-  return hasProjectAndSlice(args) && !args.includes("--legacy");
+  return args.filter((arg) => !arg.startsWith("--")).length >= 1 && !args.includes("--legacy");
 }
 
 function hasProjectAndSlice(args: readonly string[]): boolean {
