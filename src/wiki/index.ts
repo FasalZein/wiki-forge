@@ -14,6 +14,7 @@ import { configCommand } from "../config";
 import { schemaCommand } from "../schema";
 import { findProjectArg } from "../git-utils";
 import { v1Compat, v1ForgeAmend, v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgePlan, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus, v1Handover, v1Resume } from "../v1/cli/commands";
+import { assertCommandNotQuarantined } from "../v1/cli/command-surface";
 
 export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   help: (args) => printHelp(args),
@@ -164,6 +165,7 @@ export function resolveWikiCommand(rawArgs: string[]) {
     if (!mapped) throw new Error(`unknown protocol subcommand: ${subcommand}. Run 'wiki help' for usage.`);
     return { command: mapped, args: subArgs };
   }
+  assertCommandNotQuarantined(command);
   if (command === "handover") return { command: "v1:handover", args: rest };
   if (command === "resume") return { command: "v1:resume", args: rest };
   if (command === "next") return { command: "v1:forge:next", args: rest };
