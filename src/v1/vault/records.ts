@@ -118,17 +118,15 @@ function decodeSliceWorkflowRecord(document: VaultDocument): RecordDecodeResult<
   const parentFeature = readString(document.frontmatter.parent_feature);
   const parentPrd = readString(document.frontmatter.parent_prd);
   if (!taskId) common.diagnostics.push(missingRequiredField("task_id", "slice record"));
-  if (!parentFeature) common.diagnostics.push(missingRequiredField("parent_feature", "slice record"));
-  if (!parentPrd) common.diagnostics.push(missingRequiredField("parent_prd", "slice record"));
-  if (common.diagnostics.length > 0 || !common.record || !taskId || !parentFeature || !parentPrd) return { status: "repairable", diagnostics: common.diagnostics };
+  if (common.diagnostics.length > 0 || !common.record || !taskId) return { status: "repairable", diagnostics: common.diagnostics };
   return {
     status: "valid",
     record: {
       ...common.record,
       kind: "slice",
       taskId,
-      parentFeature,
-      parentPrd,
+      parentFeature: parentFeature ?? "",
+      parentPrd: parentPrd ?? "",
       sourcePaths: readStringArray(document.frontmatter.source_paths),
       ...optionalString("planningSession", document.frontmatter.planning_session),
     },

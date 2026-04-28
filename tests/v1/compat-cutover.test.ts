@@ -61,7 +61,7 @@ describe("v1 compatibility cutover", () => {
     });
   });
 
-  test("import preserves source files and writes only to explicit V1 target paths", () => {
+  test("legacy specs documents are refused instead of imported by runtime compatibility", () => {
     const plan = planProjectImport({
       project: "wiki-forge",
       targetRoot: "projects/wiki-forge/v1",
@@ -69,15 +69,11 @@ describe("v1 compatibility cutover", () => {
     });
 
     expect(plan).toEqual({
-      status: "planned",
+      status: "refused",
       preserveSourceFiles: true,
-      writes: [
-        {
-          sourcePath: "projects/wiki-forge/specs/slices/WIKI-FORGE-220/index.md",
-          targetPath: "projects/wiki-forge/v1/slices/WIKI-FORGE-220.json",
-          recordKind: "slice",
-        },
-      ],
+      quarantinedPaths: ["projects/wiki-forge/specs/slices/WIKI-FORGE-220/index.md"],
+      reason: "quarantined lifecycle records cannot participate in V1 import",
+      writes: [],
     });
   });
 });

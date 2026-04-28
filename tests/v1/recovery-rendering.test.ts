@@ -45,6 +45,7 @@ describe("v1 recovery rendering", () => {
       source: "canonical-records",
       diagnostics: [
         "MissingRequiredField: slice record is missing required field: task_id",
+        "InvalidFieldType: slice record spec_kind must be task-hub",
         "UnknownLifecycleShape: document has project metadata but no recognized canonical record kind",
       ],
     });

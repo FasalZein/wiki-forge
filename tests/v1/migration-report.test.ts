@@ -31,18 +31,23 @@ project: wiki-forge
 `);
 
 describe("v1 migration report", () => {
-  test("migration dry-run reports valid repairable and quarantined records", () => {
+  test("migration dry-run quarantines legacy specs records under the no-fallback V1 model", () => {
     const report = buildMigrationReport({
       project: "wiki-forge",
       documents: [validSlice, repairableSlice, quarantinedNote],
     });
 
-    expect(report.summary).toEqual({ valid: 1, repairable: 1, quarantined: 1, projection: 0 });
+    expect(report.summary).toEqual({ valid: 0, repairable: 0, quarantined: 3, projection: 0 });
     expect(report.issues).toEqual([
       {
+        path: "projects/wiki-forge/specs/slices/WIKI-FORGE-220/index.md",
+        status: "quarantined",
+        diagnostics: ["UnknownLifecycleShape: document has project metadata but no recognized canonical record kind"],
+      },
+      {
         path: "projects/wiki-forge/specs/slices/WIKI-FORGE-221/index.md",
-        status: "repairable",
-        diagnostics: ["MissingRequiredField: slice record is missing required field: task_id"],
+        status: "quarantined",
+        diagnostics: ["UnknownLifecycleShape: document has project metadata but no recognized canonical record kind"],
       },
       {
         path: "projects/wiki-forge/notes/random.md",
@@ -63,17 +68,17 @@ describe("v1 migration report", () => {
     expect(importPlan).toEqual({
       status: "refused",
       reason: "quarantined lifecycle records cannot participate in V1 import",
-      quarantinedPaths: ["projects/wiki-forge/notes/random.md"],
+      quarantinedPaths: ["projects/wiki-forge/specs/slices/WIKI-FORGE-220/index.md", "projects/wiki-forge/notes/random.md"],
       preserveSourceFiles: true,
       writes: [],
     });
   });
 
-  test("existing current vault can be classified without writes", () => {
+  test("legacy specs documents classify as quarantined under V1", () => {
     const classification = classifyLegacyDocument(validSlice);
     const report = buildMigrationReport({ project: "wiki-forge", documents: [validSlice] });
 
-    expect(classification.status).toBe("valid");
+    expect(classification.status).toBe("quarantined");
     expect(report.writes).toEqual([]);
     expect(report.preserveSourceFiles).toBe(true);
   });

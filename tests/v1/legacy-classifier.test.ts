@@ -59,14 +59,10 @@ describe("v1 legacy document classifier", () => {
     });
   });
 
-  test("valid slice document is classified as canonical lifecycle truth", () => {
+  test("legacy specs slice documents are quarantined under V1", () => {
     const document = parseVaultDocument("projects/wiki-forge/specs/slices/WIKI-FORGE-213/index.md", validSliceMarkdown);
     const classification = classifyLegacyDocument(document);
 
-    expect(classification.status).toBe("valid");
-    expect(classification.canonical).toBe(true);
-    if (classification.status !== "valid") throw new Error("expected valid classification");
-    expect(classification.record.kind).toBe("slice");
-    expect(classification.record.taskId).toBe("WIKI-FORGE-213");
+    expect(classification.status).toBe("quarantined");
   });
 });
