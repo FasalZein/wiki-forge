@@ -1,4 +1,5 @@
 import { collectGitInputFingerprint } from "../../forge/core/git-truth";
+import { drainBoundedTextStream } from "../../lib/bounded-output";
 import { PipelineState } from "../../lib/pipeline-state";
 import {
   buildPipelineRerunCommand,
@@ -161,6 +162,9 @@ async function collectPipelineInputFingerprint(repo: string) {
   }
 }
 
+const PIPELINE_STEP_OUTPUT_CHARS = 64_000;
+const PIPELINE_STEP_OUTPUT_TAIL_CHARS = 12_000;
+
 async function executeStep(command: string, args: string[]): Promise<{ ok: boolean; error?: string; stdout?: string; stderr?: string }> {
   const wikiPath = process.argv[1];
   if (!wikiPath) return { ok: false, error: "cannot resolve current wiki entrypoint" };
@@ -173,13 +177,21 @@ async function executeStep(command: string, args: string[]): Promise<{ ok: boole
     stderr: "pipe",
   });
 
-  const [rawStdout, rawStderr, exitCode] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
+  const [stdoutResult, stderrResult, exitCode] = await Promise.all([
+    drainBoundedTextStream(proc.stdout, {
+      maxChars: PIPELINE_STEP_OUTPUT_CHARS,
+      tailChars: PIPELINE_STEP_OUTPUT_TAIL_CHARS,
+      truncationLabel: "pipeline step stdout truncated",
+    }),
+    drainBoundedTextStream(proc.stderr, {
+      maxChars: PIPELINE_STEP_OUTPUT_CHARS,
+      tailChars: PIPELINE_STEP_OUTPUT_TAIL_CHARS,
+      truncationLabel: "pipeline step stderr truncated",
+    }),
     proc.exited,
   ]);
-  const stdout = rawStdout.trim();
-  const stderr = rawStderr.trim();
+  const stdout = stdoutResult.text.trim();
+  const stderr = stderrResult.text.trim();
   if (exitCode === 0) return { ok: true, stdout: stdout || undefined };
   return { ok: false, error: stderr || `exit code ${exitCode}`, stdout: stdout || undefined, stderr: stderr || undefined };
 }

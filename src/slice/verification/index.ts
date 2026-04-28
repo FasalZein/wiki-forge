@@ -3,6 +3,7 @@ import { VAULT_ROOT } from "../../constants";
 import { nowIso, orderFrontmatter, requireValue, writeNormalizedPage } from "../../cli-shared";
 import { bindingMatchesFile, gitHeadSha, gitLines } from "../../git-utils";
 import { exists } from "../../lib/fs";
+import { drainBoundedTextStream } from "../../lib/bounded-output";
 import { appendLogEntry } from "../../lib/log";
 import { projectTaskHubPath, projectTaskPlanPath } from "../../lib/structure";
 import { assertGitRepo, resolveRepoPath } from "../../lib/verification";
@@ -101,23 +102,19 @@ type VerificationRunResult = {
   failures: string[];
 };
 
-async function drainStream(stream: ReadableStream<Uint8Array>, forward: boolean): Promise<string> {
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  const chunks: string[] = [];
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    chunks.push(chunk);
-    if (forward) process.stderr.write(chunk);
-  }
-  const tail = decoder.decode();
-  if (tail) {
-    chunks.push(tail);
-    if (forward) process.stderr.write(tail);
-  }
-  return chunks.join("");
+const VERIFICATION_CAPTURE_CHARS = 64_000;
+const VERIFICATION_CAPTURE_TAIL_CHARS = 12_000;
+const VERIFICATION_LIVE_FORWARD_CHARS = 16_000;
+
+async function drainVerificationStream(stream: ReadableStream<Uint8Array>, forward: boolean, needles: string[]) {
+  return drainBoundedTextStream(stream, {
+    maxChars: VERIFICATION_CAPTURE_CHARS,
+    tailChars: VERIFICATION_CAPTURE_TAIL_CHARS,
+    forward: forward ? (chunk) => process.stderr.write(chunk) : undefined,
+    forwardMaxChars: VERIFICATION_LIVE_FORWARD_CHARS,
+    truncationLabel: "verification output truncated",
+    needles,
+  });
 }
 
 async function runVerificationCommand(repo: string, spec: VerificationCommandSpec, streamingAllowed: boolean = true): Promise<VerificationRunResult> {
@@ -157,28 +154,30 @@ async function runVerificationCommand(repo: string, spec: VerificationCommandSpe
     }, 15_000);
   }
 
-  let rawStdout: string;
-  let rawStderr: string;
+  let stdoutCapture: Awaited<ReturnType<typeof drainVerificationStream>>;
+  let stderrCapture: Awaited<ReturnType<typeof drainVerificationStream>>;
   let exitCode: number;
   try {
-    [rawStdout, rawStderr, exitCode] = await Promise.all([
-      drainStream(proc.stdout, streamingAllowed),
-      drainStream(proc.stderr, streamingAllowed),
+    [stdoutCapture, stderrCapture, exitCode] = await Promise.all([
+      drainVerificationStream(proc.stdout, streamingAllowed, spec.stdoutContains),
+      drainVerificationStream(proc.stderr, streamingAllowed, spec.stderrContains),
       proc.exited,
     ]);
   } finally {
     if (heartbeat !== undefined) clearInterval(heartbeat);
   }
 
-  const stdout = rawStdout.trim();
-  const stderr = rawStderr.trim();
+  const stdout = stdoutCapture.text.trim();
+  const stderr = stderrCapture.text.trim();
+  const stdoutNeedles = new Set(stdoutCapture.matchedNeedles);
+  const stderrNeedles = new Set(stderrCapture.matchedNeedles);
   const failures: string[] = [];
   if (exitCode !== spec.expectedExitCode) failures.push(`expected exit ${spec.expectedExitCode}, got ${exitCode}`);
   for (const expected of spec.stdoutContains) {
-    if (!stdout.includes(expected)) failures.push(`stdout missing: ${expected}`);
+    if (!stdoutNeedles.has(expected)) failures.push(`stdout missing: ${expected}`);
   }
   for (const expected of spec.stderrContains) {
-    if (!stderr.includes(expected)) failures.push(`stderr missing: ${expected}`);
+    if (!stderrNeedles.has(expected)) failures.push(`stderr missing: ${expected}`);
   }
   return {
     label: spec.label,
