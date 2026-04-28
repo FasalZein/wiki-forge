@@ -10,12 +10,11 @@ afterEach(() => cleanupTempPaths());
 function createVaultWithSlice(status: "draft" | "ready" | "in-progress" | "done") {
   const vault = tempDir("wiki-v1-cutover-vault");
   initVault(vault);
-  const sliceDir = join(vault, "projects", "demo", "specs", "slices", "DEMO-001");
+  const sliceDir = join(vault, "projects", "demo", "forge", "slices", "DEMO-001");
   mkdirSync(sliceDir, { recursive: true });
   writeFileSync(join(sliceDir, "index.md"), `---
 title: DEMO-001 first slice
-type: spec
-spec_kind: task-hub
+type: forge-slice
 project: demo
 task_id: DEMO-001
 status: ${status}

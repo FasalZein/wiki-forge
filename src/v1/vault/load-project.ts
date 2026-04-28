@@ -4,9 +4,11 @@ import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../../constants";
 import { evaluateForgeNext } from "../forge/next-intent";
 import { projectSliceToStatus, type ForgeNextProjection, type V1SliceProjectionRecord, type V1SliceStatusProjection } from "../forge/status-projection";
-import { classifyLegacyDocument, type LegacyClassification } from "./legacy-classifier";
 import { parseVaultDocument } from "./frontmatter-codec";
 import { readV1Evidence } from "./evidence-store";
+import { decodeV1ForgeRecord, type V1ForgeRecord } from "./records";
+import { forgeSlicePath, forgeProjectDir } from "./forge-paths";
+import type { SliceRecord } from "./document";
 
 export type RawVaultDocument = {
   readonly path: string;
@@ -29,38 +31,29 @@ export async function loadV1SliceStatus(project: string, sliceId: string, vaultR
     };
   }
   const vaultDocument = parseVaultDocument(document.path, document.markdown);
-  const classification = classifyLegacyDocument(vaultDocument);
-  if (classification.status === "projection") {
+  const decoded = decodeV1ForgeRecord(vaultDocument);
+  if (decoded.status !== "valid") {
     return {
       status: "needs-repair",
       project,
       sliceId,
       source: "canonical-records",
-      diagnostics: [{ code: "UnknownLifecycleShape", message: classification.reason }],
+      diagnostics: decoded.diagnostics,
     };
   }
-  if (classification.status !== "valid") {
+  if (decoded.record.kind !== "slice") {
     return {
       status: "needs-repair",
       project,
       sliceId,
       source: "canonical-records",
-      diagnostics: classification.diagnostics,
-    };
-  }
-  if (classification.record.kind !== "slice") {
-    return {
-      status: "needs-repair",
-      project,
-      sliceId,
-      source: "canonical-records",
-      diagnostics: [{ code: "UnknownLifecycleShape", message: "canonical document is not a slice record" }],
+      diagnostics: [{ code: "UnknownLifecycleShape", message: "canonical document is not a V1 forge slice record" }],
     };
   }
   return projectSliceToStatus({
     project,
     sliceId,
-    record: classification.record,
+    record: toSliceRecord(decoded.record),
     frontmatter: {
       claimedBy: readString(vaultDocument.frontmatter.claimed_by),
       claimedAt: readString(vaultDocument.frontmatter.claimed_at),
@@ -72,7 +65,7 @@ export async function loadV1SliceStatus(project: string, sliceId: string, vaultR
 }
 
 export async function readProjectSliceDocuments(project: string, vaultRoot = VAULT_ROOT): Promise<readonly RawVaultDocument[]> {
-  const slicesRoot = join(vaultRoot, "projects", project, "specs", "slices");
+  const slicesRoot = join(vaultRoot, `${forgeProjectDir(project)}/slices`);
   if (!existsSync(slicesRoot)) return [];
   const entries = await readdir(slicesRoot, { withFileTypes: true });
   const documents: RawVaultDocument[] = [];
@@ -89,7 +82,7 @@ export async function readProjectSliceDocuments(project: string, vaultRoot = VAU
 }
 
 export async function readProjectSliceDocument(project: string, sliceId: string, vaultRoot = VAULT_ROOT): Promise<RawVaultDocument | null> {
-  const indexPath = join(vaultRoot, "projects", project, "specs", "slices", sliceId, "index.md");
+  const indexPath = join(vaultRoot, forgeSlicePath(project, sliceId));
   if (!existsSync(indexPath)) return null;
   return {
     path: normalizeVaultPath(relative(vaultRoot, indexPath)),
@@ -98,22 +91,37 @@ export async function readProjectSliceDocument(project: string, sliceId: string,
 }
 
 export function projectDocumentsToForgeNext(project: string, documents: readonly RawVaultDocument[]): ForgeNextProjection {
-  const classifications = documents.map((document) => classifyLegacyDocument(parseVaultDocument(document.path, document.markdown)));
+  const decoded = documents.map((document) => decodeV1ForgeRecord(parseVaultDocument(document.path, document.markdown)));
   return evaluateForgeNext({
     project,
-    slices: classifications.flatMap(sliceProjectionRecord),
-    legacyClassifications: classifications,
+    slices: decoded.flatMap(sliceProjectionRecord),
+    legacyClassifications: [],
   });
 }
 
-function sliceProjectionRecord(classification: LegacyClassification): readonly V1SliceProjectionRecord[] {
-  if (classification.status !== "valid" || classification.record.kind !== "slice") return [];
+function sliceProjectionRecord(decoded: ReturnType<typeof decodeV1ForgeRecord>): readonly V1SliceProjectionRecord[] {
+  if (decoded.status !== "valid" || decoded.record.kind !== "slice") return [];
   return [{
-    project: classification.record.project,
-    taskId: classification.record.taskId,
-    title: classification.record.title,
-    status: classification.record.status,
+    project: decoded.record.project,
+    taskId: decoded.record.taskId,
+    title: decoded.record.title,
+    status: decoded.record.status,
   }];
+}
+
+function toSliceRecord(record: Extract<V1ForgeRecord, { readonly kind: "slice" }>): SliceRecord {
+  return {
+    kind: "slice",
+    path: record.path,
+    project: record.project,
+    taskId: record.taskId,
+    title: record.title,
+    status: record.status,
+    specKind: "task-hub",
+    parentPrd: record.parentPrd,
+    parentFeature: record.parentFeature,
+    sourcePaths: record.sourcePaths,
+  };
 }
 
 function readString(value: unknown): string | null {

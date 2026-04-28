@@ -44,7 +44,7 @@ const changeSet: AcceptedChangeSet = {
       kind: "slice",
       project: "wiki-forge",
       id: "WIKI-FORGE-212",
-      path: "projects/wiki-forge/specs/slices/WIKI-FORGE-212/index.md",
+      path: "projects/wiki-forge/forge/slices/WIKI-FORGE-212/index.md",
     },
   ],
   operations: [
@@ -54,7 +54,7 @@ const changeSet: AcceptedChangeSet = {
         kind: "slice",
         project: "wiki-forge",
         id: "WIKI-FORGE-212",
-        path: "projects/wiki-forge/specs/slices/WIKI-FORGE-212/index.md",
+        path: "projects/wiki-forge/forge/slices/WIKI-FORGE-212/index.md",
       },
       fields: [
         {
@@ -67,7 +67,7 @@ const changeSet: AcceptedChangeSet = {
   ],
   affectedFiles: [
     {
-      path: "projects/wiki-forge/specs/slices/WIKI-FORGE-212/index.md",
+      path: "projects/wiki-forge/forge/slices/WIKI-FORGE-212/index.md",
       authority: "authored",
       reason: "Slice claim is recorded on the task hub.",
     },
@@ -99,7 +99,7 @@ describe("v1 kernel intent/result primitives", () => {
         ],
         files: [
           {
-            path: "projects/wiki-forge/specs/slices/WIKI-FORGE-210/index.md",
+            path: "projects/wiki-forge/forge/slices/WIKI-FORGE-210/index.md",
             reason: "Existing active claim blocks the requested slice.",
           },
         ],

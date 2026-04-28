@@ -27,8 +27,8 @@ describe("v1 recovery rendering", () => {
 
   test("repairable and quarantined legacy docs render diagnostics, not guessed next actions", () => {
     const repairable = classifyLegacyDocument(parseVaultDocument(
-      "projects/wiki-forge/specs/slices/WIKI-FORGE-217/index.md",
-      `---\ntitle: WIKI-FORGE-217\ntype: spec\nspec_kind: task-hub\nproject: wiki-forge\nstatus: ready\n---\n# missing task id\n`,
+      "projects/wiki-forge/forge/slices/WIKI-FORGE-217/index.md",
+      `---\ntitle: WIKI-FORGE-217\ntype: forge-slice\nproject: wiki-forge\nstatus: ready\n---\n# missing task id\n`,
     ));
     const quarantined = classifyLegacyDocument(parseVaultDocument(
       "projects/wiki-forge/notes/random.md",

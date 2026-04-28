@@ -4,7 +4,7 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../../constants";
 import { nowIso, orderFrontmatter, writeNormalizedPage } from "../../cli-shared";
-import { projectFeaturePath, projectFeaturesDir, projectPrdPath, projectPrdsDir, projectTaskDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath } from "../../lib/structure";
+import { forgeFeaturePath, forgePrdPath, forgeProjectDir, forgeSliceDir, forgeSlicePath, forgeSlicePlanPath, forgeSliceTestPlanPath, forgePlanningSessionPath } from "./forge-paths";
 
 export type PlanningSkill = "torpathy" | "domain-model" | "grill-me";
 
@@ -162,12 +162,11 @@ export async function createPlanningArtifacts(input: PlanningArtifactsInput): Pr
   }
   const featureId = await nextNumericId(vaultRoot, input.project, "feature");
   const featureSlug = slugify(input.featureName);
-  const featurePath = projectFeaturePath(input.project, featureId, featureSlug).replace(VAULT_ROOT, vaultRoot);
-  await mkdir(projectFeaturesDir(input.project).replace(VAULT_ROOT, vaultRoot), { recursive: true });
+  const featurePath = absoluteVaultPath(vaultRoot, forgeFeaturePath(input.project, featureId, featureSlug));
+  await mkdir(absoluteVaultPath(vaultRoot, `${forgeProjectDir(input.project)}/features`), { recursive: true });
   writeNormalizedPage(featurePath, featureBody(session), orderV1Frontmatter({
     title: input.featureName,
-    type: "spec",
-    spec_kind: "feature",
+    type: "forge-feature",
     project: input.project,
     feature_id: featureId,
     status: "draft",
@@ -183,15 +182,14 @@ export async function createPlanningArtifacts(input: PlanningArtifactsInput): Pr
   }[] = [];
   let prdCounter = await currentMaxNumber(vaultRoot, input.project, "prd");
   let sliceCounter = await currentMaxNumber(vaultRoot, input.project, "slice");
-  await mkdir(projectPrdsDir(input.project).replace(VAULT_ROOT, vaultRoot), { recursive: true });
+  await mkdir(absoluteVaultPath(vaultRoot, `${forgeProjectDir(input.project)}/prds`), { recursive: true });
   for (const candidate of session.prds) {
     prdCounter += 1;
     const prdId = `PRD-${String(prdCounter).padStart(3, "0")}`;
-    const prdPath = projectPrdPath(input.project, prdId, slugify(candidate.name)).replace(VAULT_ROOT, vaultRoot);
+    const prdPath = absoluteVaultPath(vaultRoot, forgePrdPath(input.project, prdId, slugify(candidate.name)));
     writeNormalizedPage(prdPath, prdBody(session, candidate), orderV1Frontmatter({
       title: candidate.name,
-      type: "spec",
-      spec_kind: "prd",
+      type: "forge-prd",
       project: input.project,
       prd_id: prdId,
       parent_feature: featureId,
@@ -246,7 +244,7 @@ function parsePlanningSession(raw: string): PlanningSession {
 
 async function writePlanningSession(session: PlanningSession, vaultRoot: string): Promise<PlanningSession> {
   const path = planningSessionPath(vaultRoot, session.project, session.featureName);
-  await mkdir(join(vaultRoot, "projects", session.project, "planning-sessions"), { recursive: true });
+  await mkdir(absoluteVaultPath(vaultRoot, `${forgeProjectDir(session.project)}/sessions`), { recursive: true });
   const frontmatter = orderV1Frontmatter({
     title: `Planning session — ${session.featureName}`,
     type: "planning-session",
@@ -300,7 +298,7 @@ function featureBody(session: PlanningSession): string {
     "",
     "## Planning Session",
     "",
-    `- Session: [[projects/${session.project}/planning-sessions/${session.sessionId}]]`,
+    `- Session: [[projects/${session.project}/forge/sessions/${session.sessionId}]]`,
     "",
     "## PRDs",
     "",
@@ -339,7 +337,7 @@ function prdBody(session: PlanningSession, prd: PlanningPrdCandidate): string {
     "",
     "## Prior Research",
     "",
-    `- [[projects/${session.project}/planning-sessions/${session.sessionId}]]`,
+    `- [[projects/${session.project}/forge/sessions/${session.sessionId}]]`,
     "",
     "## Open Questions",
     "",
@@ -367,11 +365,11 @@ type PlannedSliceInput = {
 };
 
 async function writePlannedSlice(input: PlannedSliceInput): Promise<void> {
-  const dir = projectTaskDir(input.project, input.sliceId).replace(VAULT_ROOT, input.vaultRoot);
+  const dir = absoluteVaultPath(input.vaultRoot, forgeSliceDir(input.project, input.sliceId));
   await mkdir(dir, { recursive: true });
   const baseFrontmatter = {
     title: `${input.sliceId} ${input.title}`,
-    type: "spec",
+    type: "forge-slice",
     project: input.project,
     task_id: input.sliceId,
     parent_prd: input.prdId,
@@ -381,7 +379,7 @@ async function writePlannedSlice(input: PlannedSliceInput): Promise<void> {
     updated: input.now,
     status: "draft",
   };
-  writeNormalizedPage(projectTaskHubPath(input.project, input.sliceId).replace(VAULT_ROOT, input.vaultRoot), [
+  writeNormalizedPage(absoluteVaultPath(input.vaultRoot, forgeSlicePath(input.project, input.sliceId)), [
     `# ${input.sliceId} — ${input.title}`,
     "",
     "> [!summary]",
@@ -390,8 +388,8 @@ async function writePlannedSlice(input: PlannedSliceInput): Promise<void> {
     "## Scope",
     "",
     `- ${input.title}`,
-  ].join("\n"), orderV1Frontmatter({ ...baseFrontmatter, spec_kind: "task-hub", review_policy: { required_approvals: 1 } }));
-  writeNormalizedPage(projectTaskPlanPath(input.project, input.sliceId).replace(VAULT_ROOT, input.vaultRoot), [
+  ].join("\n"), orderV1Frontmatter({ ...baseFrontmatter, review_policy: { required_approvals: 1 } }));
+  writeNormalizedPage(absoluteVaultPath(input.vaultRoot, forgeSlicePlanPath(input.project, input.sliceId)), [
     `# ${input.sliceId} ${input.title}`,
     "",
     "## Scope",
@@ -401,8 +399,8 @@ async function writePlannedSlice(input: PlannedSliceInput): Promise<void> {
     "## Acceptance Criteria",
     "",
     `- [ ] ${input.title}`,
-  ].join("\n"), orderV1Frontmatter({ ...baseFrontmatter, spec_kind: "plan" }));
-  writeNormalizedPage(projectTaskTestPlanPath(input.project, input.sliceId).replace(VAULT_ROOT, input.vaultRoot), [
+  ].join("\n"), orderV1Frontmatter({ ...baseFrontmatter, type: "forge-slice-plan" }));
+  writeNormalizedPage(absoluteVaultPath(input.vaultRoot, forgeSliceTestPlanPath(input.project, input.sliceId)), [
     `# ${input.sliceId} ${input.title}`,
     "",
     "## Red Tests",
@@ -414,7 +412,7 @@ async function writePlannedSlice(input: PlannedSliceInput): Promise<void> {
     "```bash",
     "bun test",
     "```",
-  ].join("\n"), orderV1Frontmatter({ ...baseFrontmatter, spec_kind: "test-plan" }));
+  ].join("\n"), orderV1Frontmatter({ ...baseFrontmatter, type: "forge-slice-test-plan" }));
 }
 
 async function nextNumericId(vaultRoot: string, project: string, kind: "feature" | "prd"): Promise<string> {
@@ -424,11 +422,7 @@ async function nextNumericId(vaultRoot: string, project: string, kind: "feature"
 }
 
 async function currentMaxNumber(vaultRoot: string, project: string, kind: "feature" | "prd" | "slice"): Promise<number> {
-  const dir = kind === "feature"
-    ? projectFeaturesDir(project).replace(VAULT_ROOT, vaultRoot)
-    : kind === "prd"
-      ? projectPrdsDir(project).replace(VAULT_ROOT, vaultRoot)
-      : join(vaultRoot, "projects", project, "specs", "slices");
+  const dir = absoluteVaultPath(vaultRoot, `${forgeProjectDir(project)}/${kind === "feature" ? "features" : kind === "prd" ? "prds" : "slices"}`);
   if (!existsSync(dir)) return 0;
   const entries = await readdir(dir, { withFileTypes: true });
   const pattern = kind === "feature" ? /^FEAT-(\d+)/u : kind === "prd" ? /^PRD-(\d+)/u : new RegExp(`^${project.replace(/[^a-zA-Z0-9]+/gu, "-").replace(/^-+|-+$/gu, "").toUpperCase()}-(\\d+)`, "u");
@@ -439,7 +433,7 @@ async function currentMaxNumber(vaultRoot: string, project: string, kind: "featu
 }
 
 function planningSessionPath(vaultRoot: string, project: string, featureName: string): string {
-  return join(vaultRoot, "projects", project, "planning-sessions", `${planningSessionId(featureName)}.md`);
+  return absoluteVaultPath(vaultRoot, forgePlanningSessionPath(project, planningSessionId(featureName)));
 }
 
 function planningSessionId(featureName: string): string {
@@ -503,9 +497,13 @@ function isPlanningArtifacts(value: unknown): value is PlanningArtifacts {
 
 function orderV1Frontmatter(data: Record<string, unknown>): Record<string, unknown> {
   return orderFrontmatter(data, [
-    "title", "type", "spec_kind", "project", "feature_name", "session_id", "feature_id", "prd_id", "task_id",
+    "title", "type", "project", "feature_name", "session_id", "feature_id", "prd_id", "task_id",
     "parent_feature", "parent_prd", "planning_session", "status", "created_at", "updated", "answers", "prds", "artifacts", "review_policy",
   ]);
+}
+
+function absoluteVaultPath(vaultRoot: string, relativePath: string): string {
+  return join(vaultRoot, relativePath);
 }
 
 function slugify(value: string): string {

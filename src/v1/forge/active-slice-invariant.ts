@@ -49,7 +49,7 @@ export function validateSingleActiveSlice(input: ActiveSliceInvariantInput): Ker
 }
 
 export function sliceHubPath(project: string, sliceId: string): string {
-  return `projects/${project}/specs/slices/${sliceId}/index.md`;
+  return `projects/${project}/forge/slices/${sliceId}/index.md`;
 }
 
 function activeClaimToRecord(claim: ActiveSliceClaim): ChangeTargetRecord {

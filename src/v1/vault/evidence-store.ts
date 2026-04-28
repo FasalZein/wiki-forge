@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { VAULT_ROOT } from "../../constants";
+import { forgeSlicePath } from "./forge-paths";
 import type { ReviewEvidenceRecord, TddEvidenceRecord, V1EvidenceRecord, VerificationEvidenceRecord } from "../forge/evidence";
 
 export type RecordTddEvidenceInput = {
@@ -92,5 +93,5 @@ function isEvidenceRecord(value: unknown): value is V1EvidenceRecord {
 }
 
 function sliceIndexPath(vaultRoot: string, project: string, sliceId: string): string {
-  return join(vaultRoot, "projects", project, "specs", "slices", sliceId, "index.md");
+  return join(vaultRoot, forgeSlicePath(project, sliceId));
 }

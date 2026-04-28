@@ -30,14 +30,13 @@ describe("V1 forge amend", () => {
       started: false,
     });
 
-    const closedHub = readFileSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "index.md"), "utf8");
+    const closedHub = readFileSync(join(vault, "projects", "demo", "forge", "slices", "DEMO-001", "index.md"), "utf8");
     expect(closedHub).toContain("status: done");
     expect(closedHub).not.toContain("amendment_of:");
 
-    const amendmentHub = matter(readFileSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-002", "index.md"), "utf8"));
+    const amendmentHub = matter(readFileSync(join(vault, "projects", "demo", "forge", "slices", "DEMO-002", "index.md"), "utf8"));
     expect(amendmentHub.data).toMatchObject({
-      type: "spec",
-      spec_kind: "task-hub",
+      type: "forge-slice",
       project: "demo",
       task_id: "DEMO-002",
       status: "draft",
@@ -48,8 +47,8 @@ describe("V1 forge amend", () => {
     expect(amendmentHub.data.depends_on).toEqual(["DEMO-001"]);
     expect(amendmentHub.data.source_paths).toEqual(["src/payments.ts"]);
     expect(amendmentHub.content).toContain("Do not reopen or edit the closed slice");
-    expect(readFileSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-002", "plan.md"), "utf8")).toContain("Preserve the original close evidence");
-    expect(readFileSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-002", "test-plan.md"), "utf8")).toContain("Add regression coverage");
+    expect(readFileSync(join(vault, "projects", "demo", "forge", "slices", "DEMO-002", "plan.md"), "utf8")).toContain("Preserve the original close evidence");
+    expect(readFileSync(join(vault, "projects", "demo", "forge", "slices", "DEMO-002", "test-plan.md"), "utf8")).toContain("Add regression coverage");
   });
 
   test("can start a V1 amendment without moving a legacy backlog row", () => {
@@ -65,7 +64,7 @@ describe("V1 forge amend", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.json()).toMatchObject({ amendmentSliceId: "DEMO-002", started: true });
-    const amendmentHub = matter(readFileSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-002", "index.md"), "utf8"));
+    const amendmentHub = matter(readFileSync(join(vault, "projects", "demo", "forge", "slices", "DEMO-002", "index.md"), "utf8"));
     expect(amendmentHub.data.status).toBe("in-progress");
     expect(amendmentHub.data.claimed_by).toBe("codex");
     expect(typeof amendmentHub.data.claimed_at).toBe("string");
@@ -104,7 +103,7 @@ type SliceFixture = {
 };
 
 function writeClosedV1Slice(vault: string, project: string, sliceId: string, fixture: SliceFixture) {
-  const sliceDir = join(vault, "projects", project, "specs", "slices", sliceId);
+  const sliceDir = join(vault, "projects", project, "forge", "slices", sliceId);
   mkdirSync(sliceDir, { recursive: true });
   writeFileSync(join(sliceDir, "index.md"), matter.stringify(`# ${sliceId}\n`, {
     title: `${sliceId} test slice`,

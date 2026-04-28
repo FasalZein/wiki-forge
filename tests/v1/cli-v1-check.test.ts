@@ -13,7 +13,7 @@ afterEach(() => cleanupTempPaths());
 function createVault(evidence: readonly Record<string, unknown>[] = []) {
   const vault = tempDir("wiki-v1-check-vault");
   initVault(vault);
-  const sliceDir = join(vault, "projects", "demo", "specs", "slices", sliceId);
+  const sliceDir = join(vault, "projects", "demo", "forge", "slices", sliceId);
   mkdirSync(sliceDir, { recursive: true });
   const frontmatter: Record<string, unknown> = {
     title: `${sliceId} test slice`,
@@ -39,7 +39,7 @@ function passingEvidence() {
 }
 
 function sliceData(vault: string) {
-  const raw = readFileSync(join(vault, "projects", "demo", "specs", "slices", sliceId, "index.md"), "utf8");
+  const raw = readFileSync(join(vault, "projects", "demo", "forge", "slices", sliceId, "index.md"), "utf8");
   return matter(raw).data;
 }
 

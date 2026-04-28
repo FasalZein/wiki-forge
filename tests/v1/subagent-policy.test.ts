@@ -73,7 +73,7 @@ describe("v1 subagent execution policy", () => {
       ],
     })).toEqual({
       status: "rejected",
-      reason: "canonical specs and lifecycle state are parent-owned unless explicitly delegated",
+      reason: "canonical workflow pages and lifecycle state are parent-owned unless explicitly delegated",
     });
 
     expect(evaluateSubagentPolicy({

@@ -12,12 +12,11 @@ afterEach(() => cleanupTempPaths());
 function createVault() {
   const vault = tempDir("wiki-v1-evidence-cutover-vault");
   initVault(vault);
-  const sliceDir = join(vault, "projects", "demo", "specs", "slices", sliceId);
+  const sliceDir = join(vault, "projects", "demo", "forge", "slices", sliceId);
   mkdirSync(sliceDir, { recursive: true });
   writeFileSync(join(sliceDir, "index.md"), `---
 title: ${sliceId} test slice
-type: spec
-spec_kind: task-hub
+type: forge-slice
 project: demo
 task_id: ${sliceId}
 status: in-progress
@@ -30,7 +29,7 @@ claimed_at: '2026-04-28T05:00:00.000Z'
 }
 
 function evidence(vault: string) {
-  const raw = readFileSync(join(vault, "projects", "demo", "specs", "slices", sliceId, "index.md"), "utf8");
+  const raw = readFileSync(join(vault, "projects", "demo", "forge", "slices", sliceId, "index.md"), "utf8");
   return matter(raw).data.v1_evidence;
 }
 

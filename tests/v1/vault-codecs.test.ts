@@ -29,14 +29,14 @@ source_paths:
 
 describe("v1 vault frontmatter codecs", () => {
   test("valid current-style slice hub decodes into a typed SliceRecord", () => {
-    const document = parseVaultDocument("projects/wiki-forge/specs/slices/WIKI-FORGE-213/index.md", validSliceMarkdown);
+    const document = parseVaultDocument("projects/wiki-forge/forge/slices/WIKI-FORGE-213/index.md", validSliceMarkdown);
     const decoded = decodeSliceRecord(document);
 
     expect(decoded.status).toBe("valid");
     if (decoded.status !== "valid") throw new Error("expected valid slice");
     expect(decoded.record).toEqual({
       kind: "slice",
-      path: "projects/wiki-forge/specs/slices/WIKI-FORGE-213/index.md",
+      path: "projects/wiki-forge/forge/slices/WIKI-FORGE-213/index.md",
       project: "wiki-forge",
       taskId: "WIKI-FORGE-213",
       title: "WIKI-FORGE-213 v1 vault codecs and legacy classifier",
@@ -60,7 +60,7 @@ describe("v1 vault frontmatter codecs", () => {
   });
 
   test("missing task_id becomes repairable with exact diagnostic", () => {
-    const document = parseVaultDocument("projects/wiki-forge/specs/slices/WIKI-FORGE-213/index.md", validSliceMarkdown.replace("task_id: WIKI-FORGE-213\n", ""));
+    const document = parseVaultDocument("projects/wiki-forge/forge/slices/WIKI-FORGE-213/index.md", validSliceMarkdown.replace("task_id: WIKI-FORGE-213\n", ""));
     const decoded = decodeSliceRecord(document);
 
     expect(decoded).toEqual({
@@ -76,7 +76,7 @@ describe("v1 vault frontmatter codecs", () => {
   });
 
   test("project identity mismatch becomes repairable with exact diagnostic", () => {
-    const document = parseVaultDocument("projects/wiki-forge/specs/slices/WIKI-FORGE-213/index.md", validSliceMarkdown.replace("project: wiki-forge", "project: old-name"));
+    const document = parseVaultDocument("projects/wiki-forge/forge/slices/WIKI-FORGE-213/index.md", validSliceMarkdown.replace("project: wiki-forge", "project: old-name"));
     const decoded = decodeSliceRecord(document);
 
     expect(decoded).toEqual({

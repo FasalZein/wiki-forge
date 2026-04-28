@@ -12,7 +12,7 @@ afterEach(() => cleanupTempPaths());
 function createVault(status: "ready" | "in-progress", evidence = false) {
   const vault = tempDir("wiki-v1-mutating-cutover-vault");
   initVault(vault);
-  const sliceDir = join(vault, "projects", "demo", "specs", "slices", sliceId);
+  const sliceDir = join(vault, "projects", "demo", "forge", "slices", sliceId);
   mkdirSync(sliceDir, { recursive: true });
   const data: Record<string, unknown> = {
     title: `${sliceId} test slice`,
@@ -38,7 +38,7 @@ function createVault(status: "ready" | "in-progress", evidence = false) {
 }
 
 function sliceData(vault: string) {
-  const raw = readFileSync(join(vault, "projects", "demo", "specs", "slices", sliceId, "index.md"), "utf8");
+  const raw = readFileSync(join(vault, "projects", "demo", "forge", "slices", sliceId, "index.md"), "utf8");
   return matter(raw).data;
 }
 

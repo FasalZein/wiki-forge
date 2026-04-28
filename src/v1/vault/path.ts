@@ -21,8 +21,8 @@ export function inferProjectFromPath(path: VaultPath): string | null {
 export function isSliceHubPath(path: VaultPath): boolean {
   const parsed = parseProjectPath(path);
   if (!parsed) return false;
-  const [specs, slices, sliceId, fileName] = parsed.rest;
-  return specs === "specs" && slices === "slices" && Boolean(sliceId) && fileName === "index.md";
+  const [forge, slices, sliceId, fileName] = parsed.rest;
+  return forge === "forge" && slices === "slices" && Boolean(sliceId) && fileName === "index.md";
 }
 
 export function isProjectIndexPath(path: VaultPath): boolean {

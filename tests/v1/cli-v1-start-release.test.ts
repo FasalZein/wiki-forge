@@ -10,12 +10,11 @@ function createVaultWithSlices(slices: readonly { id: string; status: "ready" | 
   const vault = tempDir("wiki-v1-start-vault");
   initVault(vault);
   for (const slice of slices) {
-    const sliceDir = join(vault, "projects", "demo", "specs", "slices", slice.id);
+    const sliceDir = join(vault, "projects", "demo", "forge", "slices", slice.id);
     mkdirSync(sliceDir, { recursive: true });
     writeFileSync(join(sliceDir, "index.md"), `---
 title: ${slice.id} test slice
-type: spec
-spec_kind: task-hub
+type: forge-slice
 project: demo
 task_id: ${slice.id}
 status: ${slice.status}
@@ -27,7 +26,7 @@ ${slice.claimedBy ? `claimed_by: ${slice.claimedBy}\nclaimed_at: '2026-04-28T05:
 }
 
 function readSlice(vault: string, sliceId: string) {
-  return readFileSync(join(vault, "projects", "demo", "specs", "slices", sliceId, "index.md"), "utf8");
+  return readFileSync(join(vault, "projects", "demo", "forge", "slices", sliceId, "index.md"), "utf8");
 }
 
 describe("v1 forge start/release command adapters", () => {

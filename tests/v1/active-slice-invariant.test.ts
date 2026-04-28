@@ -42,7 +42,7 @@ describe("v1 active slice invariant", () => {
     if (result.status !== "accepted") throw new Error("expected start intent to be accepted");
     expect(result.changeset.authority.scope).toBe("forge-lifecycle");
     expect(result.changeset.targetRecords.map((record) => record.id)).toEqual(["WIKI-FORGE-214"]);
-    expect(result.changeset.affectedFiles[0]?.path).toBe("projects/wiki-forge/specs/slices/WIKI-FORGE-214/index.md");
+    expect(result.changeset.affectedFiles[0]?.path).toBe("projects/wiki-forge/forge/slices/WIKI-FORGE-214/index.md");
   });
 
   test("StartSlice rejects with AnotherSliceActive when one slice is active", () => {

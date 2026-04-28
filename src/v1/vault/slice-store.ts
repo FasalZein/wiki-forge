@@ -12,9 +12,10 @@ import { evaluateReviewGate } from "../forge/review-gate";
 import { hasPassedTargetedVerification, hasPassedTddEvidence } from "../forge/verification-gate";
 import type { ForgeProjectState } from "../forge/types";
 import { readProjectSliceDocuments } from "./load-project";
-import { classifyLegacyDocument } from "./legacy-classifier";
 import { parseVaultDocument } from "./frontmatter-codec";
 import { readV1Evidence } from "./evidence-store";
+import { decodeV1ForgeRecord } from "./records";
+import { forgeProjectDir, forgeSliceDir, forgeSlicePath, forgeSlicePlanPath, forgeSliceTestPlanPath } from "./forge-paths";
 
 export type V1StartSliceInput = {
   readonly project: string;
@@ -206,12 +207,12 @@ export async function loadForgeProjectState(project: string, vaultRoot = VAULT_R
   return {
     project,
     activeSlices: documents.flatMap((document) => {
-      const classification = classifyLegacyDocument(parseVaultDocument(document.path, document.markdown));
-      if (classification.status !== "valid" || classification.record.kind !== "slice" || classification.record.status !== "in-progress") return [];
+      const decoded = decodeV1ForgeRecord(parseVaultDocument(document.path, document.markdown));
+      if (decoded.status !== "valid" || decoded.record.kind !== "slice" || decoded.record.status !== "in-progress") return [];
       const claimedBy = readClaimedBy(document.markdown);
       return [{
         project,
-        sliceId: classification.record.taskId,
+        sliceId: decoded.record.taskId,
         ...(claimedBy ? { claimedBy } : {}),
       }];
     }),
@@ -235,16 +236,16 @@ async function updateSliceFrontmatter(
 }
 
 function sliceIndexPath(vaultRoot: string, project: string, sliceId: string): string {
-  return join(vaultRoot, "projects", project, "specs", "slices", sliceId, "index.md");
+  return join(vaultRoot, forgeSlicePath(project, sliceId));
 }
 
 function sliceDocPaths(vaultRoot: string, project: string, sliceId: string) {
-  const dir = join(vaultRoot, "projects", project, "specs", "slices", sliceId);
+  const dir = join(vaultRoot, forgeSliceDir(project, sliceId));
   return {
     dir,
-    indexPath: join(dir, "index.md"),
-    planPath: join(dir, "plan.md"),
-    testPlanPath: join(dir, "test-plan.md"),
+    indexPath: join(vaultRoot, forgeSlicePath(project, sliceId)),
+    planPath: join(vaultRoot, forgeSlicePlanPath(project, sliceId)),
+    testPlanPath: join(vaultRoot, forgeSliceTestPlanPath(project, sliceId)),
   };
 }
 
@@ -254,16 +255,16 @@ async function readClosedV1SliceHub(project: string, sliceId: string, vaultRoot:
   const raw = await readFile(path, "utf8");
   const relativePath = normalizeVaultPath(relative(vaultRoot, path));
   const document = parseVaultDocument(relativePath, raw);
-  const classification = classifyLegacyDocument(document);
-  if (classification.status !== "valid" || classification.record.kind !== "slice" || classification.record.taskId !== sliceId) {
+  const decoded = decodeV1ForgeRecord(document);
+  if (decoded.status !== "valid" || decoded.record.kind !== "slice" || decoded.record.taskId !== sliceId) {
     throw new Error(`slice is not a V1 canonical slice record: ${project}/${sliceId}`);
   }
-  if (classification.record.status !== "done") {
+  if (decoded.record.status !== "done") {
     throw new Error(`cannot amend ${sliceId}: slice is not closed in V1 lifecycle truth`);
   }
   const parsed = matter(raw);
   const evidence = await readV1Evidence(project, sliceId, vaultRoot);
-  if (!hasRequiredCloseEvidence(parsed.data, evidence) && !hasImportedLegacyCloseEvidence(parsed.data)) {
+  if (!hasRequiredCloseEvidence(parsed.data, evidence)) {
     throw new Error(`cannot amend ${sliceId}: slice is not closed in V1 lifecycle truth`);
   }
   return document;
@@ -278,18 +279,10 @@ function hasRequiredCloseEvidence(data: Record<string, unknown>, evidence: Await
     && evaluateReviewGate(evidence, { required: true }).status === "approved";
 }
 
-function hasImportedLegacyCloseEvidence(data: Record<string, unknown>): boolean {
-  return data.status === "done"
-    && readTimestampValue(data.completed_at) !== null
-    && data.last_forge_step === "close-slice"
-    && data.last_forge_state === "passed"
-    && data.last_forge_ok === true;
-}
-
 async function nextV1SliceId(vaultRoot: string, project: string): Promise<string> {
   const prefix = project.replace(/[^a-zA-Z0-9]+/gu, "-").replace(/^-+|-+$/gu, "").toUpperCase();
-  const slicesRoot = join(vaultRoot, "projects", project, "specs", "slices");
-  if (!existsSync(slicesRoot)) throw new Error(`project slices directory not found: ${project}`);
+  const slicesRoot = join(vaultRoot, `${forgeProjectDir(project)}/slices`);
+  if (!existsSync(slicesRoot)) return `${prefix}-001`;
   const entries = await readdir(slicesRoot, { withFileTypes: true });
   const pattern = new RegExp(`^${escapeRegExp(prefix)}-(\\d{3})$`, "u");
   let max = 0;
@@ -328,7 +321,7 @@ function writeAmendmentDocs(input: WriteAmendmentDocsInput): void {
   const closedLink = sliceDocVaultLink(input.project, input.closedSliceId, "index");
   const baseFrontmatter = {
     title: `${input.amendmentSliceId} ${input.title}`,
-    type: "spec",
+    type: "forge-slice",
     project: input.project,
     source_paths: input.sourcePaths,
     task_id: input.amendmentSliceId,
@@ -362,8 +355,8 @@ function writeAmendmentDocs(input: WriteAmendmentDocsInput): void {
     "",
     "## Cross Links",
     "",
-    `- [[projects/${input.project}/specs/index]]`,
-  ].join("\n"), orderV1SliceFrontmatter({ ...baseFrontmatter, spec_kind: "task-hub", review_policy: { required_approvals: 1 } }));
+    `- [[projects/${input.project}/forge/slices/${input.amendmentSliceId}/index]]`,
+  ].join("\n"), orderV1SliceFrontmatter({ ...baseFrontmatter, review_policy: { required_approvals: 1 } }));
 
   writeNormalizedPage(input.paths.planPath, [
     `# ${input.amendmentSliceId} ${input.title}`,
@@ -389,7 +382,7 @@ function writeAmendmentDocs(input: WriteAmendmentDocsInput): void {
     "",
     `- [[${hubLink}]]`,
     `- [[${testPlanLink}]]`,
-  ].join("\n"), orderV1SliceFrontmatter({ ...baseFrontmatter, spec_kind: "plan" }));
+  ].join("\n"), orderV1SliceFrontmatter({ ...baseFrontmatter, type: "forge-slice-plan" }));
 
   writeNormalizedPage(input.paths.testPlanPath, [
     `# ${input.amendmentSliceId} ${input.title}`,
@@ -421,12 +414,12 @@ function writeAmendmentDocs(input: WriteAmendmentDocsInput): void {
     "",
     `- [[${hubLink}]]`,
     `- [[${planLink}]]`,
-  ].join("\n"), orderV1SliceFrontmatter({ ...baseFrontmatter, spec_kind: "test-plan" }));
+  ].join("\n"), orderV1SliceFrontmatter({ ...baseFrontmatter, type: "forge-slice-test-plan" }));
 }
 
 function orderV1SliceFrontmatter(data: Record<string, unknown>) {
   return orderFrontmatter(data, [
-    "title", "type", "spec_kind", "project", "source_paths", "task_id",
+    "title", "type", "project", "source_paths", "task_id",
     "depends_on", "amendment_of", "amendment_reason", "amendment_created_at",
     "parent_prd", "parent_feature", "created_at", "updated", "status", "review_policy",
     "claimed_by", "claimed_at",
@@ -453,7 +446,7 @@ function readTimestampValue(value: unknown): string | null {
 }
 
 function sliceDocVaultLink(project: string, sliceId: string, kind: "index" | "plan" | "test-plan"): string {
-  return `projects/${project}/specs/slices/${sliceId}/${kind}`;
+  return `projects/${project}/forge/slices/${sliceId}/${kind}`;
 }
 
 function normalizeVaultPath(path: string): string {

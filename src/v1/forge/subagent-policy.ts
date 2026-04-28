@@ -47,7 +47,7 @@ export function evaluateSubagentPolicy(input: SubagentPolicyInput): SubagentPoli
     if (input.grants.every((grant) => grant.delegatedCanonicalArtifacts)) {
       return { status: "accepted", defaultAccess: "delegated-canonical-artifacts" };
     }
-    return { status: "rejected", reason: "canonical specs and lifecycle state are parent-owned unless explicitly delegated" };
+    return { status: "rejected", reason: "canonical workflow pages and lifecycle state are parent-owned unless explicitly delegated" };
   }
 
   if (input.grants.every((grant) => grant.mode === "implementation")) {

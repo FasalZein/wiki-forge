@@ -50,9 +50,9 @@ describe("V1 forge plan", () => {
         },
       ],
     });
-    expect(existsSync(join(vault, "projects", "demo", "specs", "features"))).toBe(false);
-    expect(existsSync(join(vault, "projects", "demo", "specs", "prds"))).toBe(false);
-    expect(existsSync(join(vault, "projects", "demo", "specs", "slices"))).toBe(false);
+    expect(existsSync(join(vault, "projects", "demo", "forge", "features"))).toBe(false);
+    expect(existsSync(join(vault, "projects", "demo", "forge", "prds"))).toBe(false);
+    expect(existsSync(join(vault, "projects", "demo", "forge", "slices"))).toBe(false);
   });
 
   test("default legacy forge plan routes to the same V1 gate and ignores --legacy", () => {
@@ -68,7 +68,7 @@ describe("V1 forge plan", () => {
       featureName: "new onboarding",
       requiredSkills: ["torpathy", "domain-model", "grill-me", "write-a-prd", "prd-to-slices"],
     });
-    expect(existsSync(join(vault, "projects", "demo", "specs", "slices"))).toBe(false);
+    expect(existsSync(join(vault, "projects", "demo", "forge", "slices"))).toBe(false);
   });
 
   test("persists planning-session answers and blocks completion until every PRD is grilled and sliced", () => {
@@ -93,7 +93,7 @@ describe("V1 forge plan", () => {
     expect(complete.exitCode).toBe(0);
     expect(complete.json()).toMatchObject({ status: "ready-for-artifacts", session: { status: "ready-for-artifacts" } });
 
-    const sessionPath = join(vault, "projects", "demo", "planning-sessions", "safer-deploy.md");
+    const sessionPath = join(vault, "projects", "demo", "forge", "sessions", "safer-deploy.md");
     const sessionDoc = matter(readFileSync(sessionPath, "utf8"));
     expect(sessionDoc.data.status).toBe("ready-for-artifacts");
     expect(sessionDoc.data.answers.map((answer: { skill: string }) => answer.skill)).toEqual(["torpathy", "domain-model", "grill-me"]);
@@ -113,7 +113,7 @@ describe("V1 forge plan", () => {
     const blockedCreate = runWiki([...base, "--create-artifacts", "--json"], { vault });
     expect(blockedCreate.exitCode).toBe(1);
     expect(blockedCreate.stderr.toString()).toContain("planning session is not complete");
-    expect(existsSync(join(vault, "projects", "demo", "specs", "features"))).toBe(false);
+    expect(existsSync(join(vault, "projects", "demo", "forge", "features"))).toBe(false);
 
     expect(runWiki([...base, "--complete-session"], { vault }).exitCode).toBe(0);
     const created = runWiki([...base, "--create-artifacts", "--json"], { vault });
@@ -123,9 +123,10 @@ describe("V1 forge plan", () => {
       artifacts: { featureId: "FEAT-001", prds: [{ prdId: "PRD-001", name: "Deployment safety PRD", slices: ["DEMO-001"] }] },
     });
 
-    expect(existsSync(join(vault, "projects", "demo", "specs", "features", "FEAT-001-safer-deploy.md"))).toBe(true);
-    expect(existsSync(join(vault, "projects", "demo", "specs", "prds", "PRD-001-deployment-safety-prd.md"))).toBe(true);
-    const sliceHub = matter(readFileSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "index.md"), "utf8"));
+    expect(existsSync(join(vault, "projects", "demo", "specs"))).toBe(false);
+    expect(existsSync(join(vault, "projects", "demo", "forge", "features", "FEAT-001-safer-deploy.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "demo", "forge", "prds", "PRD-001-deployment-safety-prd.md"))).toBe(true);
+    const sliceHub = matter(readFileSync(join(vault, "projects", "demo", "forge", "slices", "DEMO-001", "index.md"), "utf8"));
     expect(sliceHub.data).toMatchObject({ task_id: "DEMO-001", parent_prd: "PRD-001", parent_feature: "FEAT-001", planning_session: "safer-deploy", status: "draft" });
   });
 

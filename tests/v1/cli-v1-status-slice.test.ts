@@ -19,7 +19,7 @@ type SliceFixtureOptions = {
 function createVaultWithSlice(options: SliceFixtureOptions) {
   const vault = tempDir("wiki-v1-status-slice-vault");
   initVault(vault);
-  const sliceDir = join(vault, "projects", "demo", "specs", "slices", sliceId);
+  const sliceDir = join(vault, "projects", "demo", "forge", "slices", sliceId);
   mkdirSync(sliceDir, { recursive: true });
   const frontmatter: Record<string, unknown> = {
     title: `${sliceId} test slice`,

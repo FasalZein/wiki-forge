@@ -105,7 +105,7 @@ describe("v1 close slice evidence gates", () => {
           kind: "slice",
           project: "wiki-forge",
           id: "WIKI-FORGE-218",
-          path: "projects/wiki-forge/specs/slices/WIKI-FORGE-218/index.md",
+          path: "projects/wiki-forge/forge/slices/WIKI-FORGE-218/index.md",
         },
         fields: [
           { name: "status", authority: "authored", value: "done" },

@@ -12,7 +12,7 @@ afterEach(() => cleanupTempPaths());
 function createVaultWithEvidence(evidence: readonly Record<string, unknown>[]) {
   const vault = tempDir("wiki-v1-close-vault");
   initVault(vault);
-  const sliceDir = join(vault, "projects", "demo", "specs", "slices", sliceId);
+  const sliceDir = join(vault, "projects", "demo", "forge", "slices", sliceId);
   mkdirSync(sliceDir, { recursive: true });
   const frontmatter: Record<string, unknown> = {
     title: `${sliceId} test slice`,
@@ -38,7 +38,7 @@ function passingEvidence() {
 }
 
 function sliceData(vault: string) {
-  const raw = readFileSync(join(vault, "projects", "demo", "specs", "slices", sliceId, "index.md"), "utf8");
+  const raw = readFileSync(join(vault, "projects", "demo", "forge", "slices", sliceId, "index.md"), "utf8");
   return matter(raw).data;
 }
 
@@ -56,7 +56,7 @@ describe("v1 close/run command adapters", () => {
 
   test("v1 close rejects missing evidence and does not mutate the slice", () => {
     const vault = createVaultWithEvidence([]);
-    const before = readFileSync(join(vault, "projects", "demo", "specs", "slices", sliceId, "index.md"), "utf8");
+    const before = readFileSync(join(vault, "projects", "demo", "forge", "slices", sliceId, "index.md"), "utf8");
     const result = runWiki(["v1", "forge", "close", "demo", sliceId, "--closed-by", "codex", "--json"], { vault });
 
     expect(result.exitCode).toBe(1);
@@ -64,7 +64,7 @@ describe("v1 close/run command adapters", () => {
       status: "rejected",
       rejection: { code: "MissingTddEvidence" },
     });
-    const after = readFileSync(join(vault, "projects", "demo", "specs", "slices", sliceId, "index.md"), "utf8");
+    const after = readFileSync(join(vault, "projects", "demo", "forge", "slices", sliceId, "index.md"), "utf8");
     expect(after).toBe(before);
   });
 
