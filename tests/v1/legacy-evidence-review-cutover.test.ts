@@ -35,11 +35,11 @@ function evidence(vault: string) {
 }
 
 describe("legacy evidence/review V1 cutover", () => {
-  test("helper predicates keep escape hatches on legacy", () => {
+  test("implemented evidence/review commands do not fall back to legacy", () => {
     expect(shouldUseV1ForgeEvidence(["demo", sliceId, "tdd", "--command", "bun test", "--json"])).toBe(true);
-    expect(shouldUseV1ForgeEvidence(["demo", sliceId, "tdd", "--legacy", "--command", "bun test"])).toBe(false);
+    expect(shouldUseV1ForgeEvidence(["demo", sliceId, "tdd", "--legacy", "--command", "bun test"])).toBe(true);
     expect(shouldUseV1ForgeReview(["record", "demo", sliceId, "--verdict", "approved", "--reviewer", "reviewer"])).toBe(true);
-    expect(shouldUseV1ForgeReview(["record", "demo", sliceId, "--legacy", "--verdict", "approved", "--reviewer", "reviewer"])).toBe(false);
+    expect(shouldUseV1ForgeReview(["record", "demo", sliceId, "--legacy", "--verdict", "approved", "--reviewer", "reviewer"])).toBe(true);
   });
 
   test("default wiki forge evidence tdd routes to V1", () => {

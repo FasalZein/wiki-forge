@@ -1,4 +1,4 @@
-export type LegacyCompatibilityStatus = "v1-compatible" | "legacy-admin" | "legacy-only";
+export type LegacyCompatibilityStatus = "v1-owned" | "legacy-admin" | "legacy-only";
 
 export type LegacyCompatibilityEntry = {
   readonly command: string;
@@ -7,19 +7,18 @@ export type LegacyCompatibilityEntry = {
   readonly reason: string;
 };
 
+const V1_OWNED_REASON = "V1-owned command; no legacy fallback";
+
 const LEGACY_COMPATIBILITY_REPORT: readonly LegacyCompatibilityEntry[] = [
-  {
-    command: "wiki forge next",
-    status: "v1-compatible",
-    replacement: "wiki v1 forge next",
-    reason: "default read-only command routes to V1; use --legacy for old diagnostics",
-  },
-  {
-    command: "wiki forge status",
-    status: "v1-compatible",
-    replacement: "wiki v1 forge status",
-    reason: "default read-only command routes to V1; use --legacy for old diagnostics",
-  },
+  v1Owned("wiki forge next", "wiki v1 forge next"),
+  v1Owned("wiki forge status", "wiki v1 forge status"),
+  v1Owned("wiki forge start", "wiki v1 forge start"),
+  v1Owned("wiki forge release", "wiki v1 forge release"),
+  v1Owned("wiki forge evidence", "wiki v1 forge evidence"),
+  v1Owned("wiki forge review record", "wiki v1 forge review record"),
+  v1Owned("wiki forge check", "wiki v1 forge check"),
+  v1Owned("wiki forge close", "wiki v1 forge close"),
+  v1Owned("wiki forge run", "wiki v1 forge run"),
   {
     command: "wiki maintain",
     status: "legacy-admin",
@@ -38,5 +37,14 @@ export function describeLegacyCommand(command: string): LegacyCompatibilityEntry
     status: "legacy-only",
     replacement: null,
     reason: "no V1 lifecycle replacement declared",
+  };
+}
+
+function v1Owned(command: string, replacement: string): LegacyCompatibilityEntry {
+  return {
+    command,
+    status: "v1-owned",
+    replacement,
+    reason: V1_OWNED_REASON,
   };
 }

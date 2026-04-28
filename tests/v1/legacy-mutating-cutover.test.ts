@@ -43,14 +43,14 @@ function sliceData(vault: string) {
 }
 
 describe("legacy mutating forge V1 cutover", () => {
-  test("helper predicates keep unsupported forms on legacy", () => {
+  test("implemented mutating commands do not fall back to legacy", () => {
     expect(shouldUseV1ForgeStart(["demo", sliceId, "--json"])).toBe(true);
-    expect(shouldUseV1ForgeStart(["demo", sliceId, "--legacy", "--json"])).toBe(false);
+    expect(shouldUseV1ForgeStart(["demo", sliceId, "--legacy", "--json"])).toBe(true);
     expect(shouldUseV1ForgeRelease(["demo", sliceId])).toBe(true);
     expect(shouldUseV1ForgeClose(["demo", sliceId, "--json"])).toBe(true);
     expect(shouldUseV1ForgeRun(["demo", sliceId, "--json"])).toBe(true);
     expect(shouldUseV1ForgeRun(["demo", "--json"])).toBe(true);
-    expect(shouldUseV1ForgeRun(["demo", sliceId, "--legacy", "--json"])).toBe(false);
+    expect(shouldUseV1ForgeRun(["demo", sliceId, "--legacy", "--json"])).toBe(true);
   });
 
   test("default wiki forge start routes to V1", () => {

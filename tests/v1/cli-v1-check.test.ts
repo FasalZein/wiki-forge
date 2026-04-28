@@ -44,13 +44,13 @@ function sliceData(vault: string) {
 }
 
 describe("v1 check command adapter", () => {
-  test("resolver and cutover predicate map v1/legacy check", () => {
+  test("resolver and cutover predicate keep implemented check on V1", () => {
     expect(resolveWikiCommand(["v1", "forge", "check", "demo", sliceId, "--json"])).toEqual({
       command: "v1:forge:check",
       args: ["demo", sliceId, "--json"],
     });
     expect(shouldUseV1ForgeCheck(["demo", sliceId, "--json"])).toBe(true);
-    expect(shouldUseV1ForgeCheck(["demo", sliceId, "--legacy", "--json"])).toBe(false);
+    expect(shouldUseV1ForgeCheck(["demo", sliceId, "--legacy", "--json"])).toBe(true);
   });
 
   test("v1 check accepts passing evidence without mutating status", () => {

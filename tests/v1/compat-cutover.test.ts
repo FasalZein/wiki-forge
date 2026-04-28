@@ -14,21 +14,27 @@ status: ready
 # valid
 `);
 
+const v1OwnedCommands = [
+  ["wiki forge next", "wiki v1 forge next"],
+  ["wiki forge status", "wiki v1 forge status"],
+  ["wiki forge start", "wiki v1 forge start"],
+  ["wiki forge release", "wiki v1 forge release"],
+  ["wiki forge evidence", "wiki v1 forge evidence"],
+  ["wiki forge review record", "wiki v1 forge review record"],
+  ["wiki forge check", "wiki v1 forge check"],
+  ["wiki forge close", "wiki v1 forge close"],
+  ["wiki forge run", "wiki v1 forge run"],
+] as const;
+
 describe("v1 compatibility cutover", () => {
-  test("compatibility report maps old commands to V1 or legacy admin status", () => {
+  test("compatibility report marks implemented lifecycle commands as V1-owned", () => {
     expect(getLegacyCompatibilityReport()).toEqual([
-      {
-        command: "wiki forge next",
-        status: "v1-compatible",
-        replacement: "wiki v1 forge next",
-        reason: "default read-only command routes to V1; use --legacy for old diagnostics",
-      },
-      {
-        command: "wiki forge status",
-        status: "v1-compatible",
-        replacement: "wiki v1 forge status",
-        reason: "default read-only command routes to V1; use --legacy for old diagnostics",
-      },
+      ...v1OwnedCommands.map(([command, replacement]) => ({
+        command,
+        status: "v1-owned" as const,
+        replacement,
+        reason: "V1-owned command; no legacy fallback",
+      })),
       {
         command: "wiki maintain",
         status: "legacy-admin",
@@ -39,11 +45,11 @@ describe("v1 compatibility cutover", () => {
   });
 
   test("single command lookup names replacement or legacy-only status", () => {
-    expect(describeLegacyCommand("wiki forge next")).toEqual({
-      command: "wiki forge next",
-      status: "v1-compatible",
-      replacement: "wiki v1 forge next",
-      reason: "default read-only command routes to V1; use --legacy for old diagnostics",
+    expect(describeLegacyCommand("wiki forge run")).toEqual({
+      command: "wiki forge run",
+      status: "v1-owned",
+      replacement: "wiki v1 forge run",
+      reason: "V1-owned command; no legacy fallback",
     });
     expect(describeLegacyCommand("wiki research file")).toEqual({
       command: "wiki research file",

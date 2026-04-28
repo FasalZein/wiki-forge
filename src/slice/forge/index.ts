@@ -24,9 +24,6 @@ import {
 import { collectForgeReview } from "./docs";
 import { printError, printJson, printLine } from "../../lib/cli-output";
 import { v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus } from "../../v1/cli/commands";
-import { forgeEvidence as legacyForgeEvidence } from "./evidence";
-import { forgeReview as legacyForgeReview } from "./review";
-import { forgeRun as legacyForgeRun } from "./run";
 export { forgeSkip } from "./skip";
 export { forgeAmend } from "./amend";
 
@@ -34,87 +31,27 @@ export { forgeAmend } from "./amend";
 
 
 export async function forgeEvidence(args: string[]) {
-  if (shouldUseV1ForgeEvidence(args)) {
-    await v1ForgeEvidence(args);
-    return;
-  }
-  await legacyForgeEvidence(args);
+  await v1ForgeEvidence(args);
 }
 
 export async function forgeReview(args: string[]) {
-  if (shouldUseV1ForgeReview(args)) {
-    await v1ForgeReview(args);
-    return;
-  }
-  await legacyForgeReview(args);
+  await v1ForgeReview(args);
 }
 
 export async function forgeRun(args: string[]) {
-  if (shouldUseV1ForgeRun(args)) {
-    await v1ForgeRun(args);
-    return;
-  }
-  await legacyForgeRun(args);
+  await v1ForgeRun(args);
 }
 
 export async function forgeStart(args: string[]) {
-  if (shouldUseV1ForgeStart(args)) {
-    await v1ForgeStart(args);
-    return;
-  }
-  const parsed = await parseForgeArgs(args, "start");
-  return startSlice([parsed.project, parsed.sliceId, ...parsed.passthrough]);
+  await v1ForgeStart(args);
 }
 
 export async function forgeCheck(args: string[]) {
-  if (shouldUseV1ForgeCheck(args)) {
-    await v1ForgeCheck(args);
-    return;
-  }
-  const parsed = await parseForgeArgs(args, "check");
-  const workflow = await collectForgeStatus(parsed.project, parsed.sliceId, parsed.repo);
-  const result = await runPipeline({
-    project: parsed.project,
-    sliceId: parsed.sliceId,
-    phase: "close",
-    repo: parsed.repo,
-    base: parsed.base,
-    dryRun: parsed.dryRun,
-    worktree: parsed.worktree,
-    sliceLocal: true,
-  });
-  const review = parsed.dryRun
-    ? null
-    : await collectForgeReview(parsed.project, parsed.sliceId, parsed.repo, parsed.base, parsed.worktree);
-  const outputWorkflow = result.ok ? workflow : applyPipelineFailureRecovery(workflow, result);
-  const overallOk = result.ok && (review?.ok ?? true);
-  if (parsed.json) printJson({ ...outputWorkflow, ok: overallOk, pipeline: result, ...(review ? { review } : {}) });
-  else renderForgePipeline("check", workflow, result, review);
-  if (!result.ok) throw new Error(`forge check failed at ${result.stoppedAt}`);
-  if (review && !review.ok) throw new Error("forge check found slice-local blockers");
+  await v1ForgeCheck(args);
 }
 
 export async function forgeClose(args: string[]) {
-  if (shouldUseV1ForgeClose(args)) {
-    await v1ForgeClose(args);
-    return;
-  }
-  const parsed = await parseForgeArgs(args, "close");
-  const workflow = await collectForgeStatus(parsed.project, parsed.sliceId, parsed.repo);
-  const result = await runPipeline({
-    project: parsed.project,
-    sliceId: parsed.sliceId,
-    phase: "verify",
-    repo: parsed.repo,
-    base: parsed.base,
-    dryRun: parsed.dryRun,
-    worktree: parsed.worktree,
-    sliceLocal: true,
-  });
-  const outputWorkflow = result.ok ? workflow : applyPipelineFailureRecovery(workflow, result);
-  if (parsed.json) printJson({ ...outputWorkflow, ok: result.ok, pipeline: result });
-  else renderForgePipeline("close", workflow, result);
-  if (!result.ok) throw new Error(`forge close failed at ${result.stoppedAt}`);
+  await v1ForgeClose(args);
 }
 
 export async function forgeStatus(args: string[]) {
@@ -164,53 +101,7 @@ export async function forgeOpen(args: string[]) {
 }
 
 export async function forgeRelease(args: string[]) {
-  if (shouldUseV1ForgeRelease(args)) {
-    await v1ForgeRelease(args);
-    return;
-  }
-  const positional = args.filter((a) => !a.startsWith("--"));
-  const project = positional[0];
-  const sliceId = positional[1];
-  requireValue(project, "project");
-  requireValue(sliceId, "slice-id");
-
-  const context = await collectTaskContextForId(project, sliceId);
-  if (!context) throw new Error(`slice not found in backlog: ${sliceId}`);
-
-  const indexPath = projectTaskHubPath(project, sliceId);
-  if (!await exists(indexPath)) throw new Error(`slice index not found: ${sliceId}`);
-  const parsed = safeMatter(relative(VAULT_ROOT, indexPath), await readText(indexPath), { silent: true });
-  if (!parsed) throw new Error(`could not parse slice index: ${sliceId}`);
-
-  const claimedBy = typeof parsed.data.claimed_by === "string" ? parsed.data.claimed_by.trim() : null;
-  if (!claimedBy) {
-    printLine(`no active claim on ${sliceId}`);
-    return;
-  }
-
-  const wasStarted = context.section === "In Progress" || parsed.data.status === "in-progress";
-
-  const data = { ...parsed.data };
-  delete data.claimed_by;
-  delete data.claimed_at;
-  delete data.claim_paths;
-  if (wasStarted) {
-    delete data.started_at;
-    data.status = "todo";
-  }
-  data.updated = nowIso();
-  writeNormalizedPage(indexPath, parsed.content, orderFrontmatter(data, [
-    "title", "type", "spec_kind", "project", "source_paths", "task_id",
-    "depends_on", "parent_prd", "parent_feature", "created_at", "updated", "started_at", "status",
-  ]));
-
-  if (wasStarted) {
-    await moveTaskToSection(project, sliceId, "Todo");
-  }
-
-  appendLogEntry("release-claim", sliceId, { project, details: [`released_from=${claimedBy}`] });
-  printLine(`released claim on ${sliceId} (was owned by ${claimedBy})`);
-  if (wasStarted) printLine(`moved ${sliceId} back to Todo`);
+  await v1ForgeRelease(args);
 }
 
 export async function forgePlan(args: string[]) {
@@ -459,34 +350,33 @@ export async function forgeNext(args: string[]) {
 }
 
 export function shouldUseV1ForgeNext(args: readonly string[]): boolean {
-  if (args.includes("--legacy") || args.includes("--prompt") || args.includes("--prompt-json") || args.includes("--all")) return false;
+  if (args.includes("--prompt") || args.includes("--prompt-json") || args.includes("--all")) return false;
   return args.some((arg) => !arg.startsWith("--"));
 }
 
 export function shouldUseV1ForgeStatus(args: readonly string[]): boolean {
-  if (args.includes("--legacy")) return false;
   const positional = args.filter((arg) => !arg.startsWith("--"));
   return positional.length === 1;
 }
 
 export function shouldUseV1ForgeStart(args: readonly string[]): boolean {
-  return hasProjectAndSlice(args) && !args.includes("--legacy");
+  return hasProjectAndSlice(args);
 }
 
 export function shouldUseV1ForgeRelease(args: readonly string[]): boolean {
-  return hasProjectAndSlice(args) && !args.includes("--legacy");
+  return hasProjectAndSlice(args);
 }
 
 export function shouldUseV1ForgeClose(args: readonly string[]): boolean {
-  return hasProjectAndSlice(args) && !args.includes("--legacy");
+  return hasProjectAndSlice(args);
 }
 
 export function shouldUseV1ForgeCheck(args: readonly string[]): boolean {
-  return hasProjectAndSlice(args) && !args.includes("--legacy");
+  return hasProjectAndSlice(args);
 }
 
 export function shouldUseV1ForgeRun(args: readonly string[]): boolean {
-  return args.filter((arg) => !arg.startsWith("--")).length >= 1 && !args.includes("--legacy");
+  return args.filter((arg) => !arg.startsWith("--")).length >= 1;
 }
 
 function hasProjectAndSlice(args: readonly string[]): boolean {
@@ -494,11 +384,11 @@ function hasProjectAndSlice(args: readonly string[]): boolean {
 }
 
 export function shouldUseV1ForgeEvidence(args: readonly string[]): boolean {
-  return args.filter((arg) => !arg.startsWith("--")).length >= 3 && !args.includes("--legacy");
+  return args.filter((arg) => !arg.startsWith("--")).length >= 3;
 }
 
 export function shouldUseV1ForgeReview(args: readonly string[]): boolean {
   const positional = args.filter((arg) => !arg.startsWith("--"));
-  return positional[0] === "record" && positional.length >= 3 && !args.includes("--legacy");
+  return positional[0] === "record" && positional.length >= 3;
 }
 

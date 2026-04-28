@@ -70,23 +70,23 @@ describe("legacy forge read-only V1 cutover", () => {
     });
   });
 
-  test("legacy escape hatches keep old prompt all and slice-specific paths available", () => {
+  test("implemented read-only commands do not fall back to legacy", () => {
     expect(shouldUseV1ForgeNext(["demo", "--json"])).toBe(true);
-    expect(shouldUseV1ForgeNext(["demo", "--legacy", "--json"])).toBe(false);
+    expect(shouldUseV1ForgeNext(["demo", "--legacy", "--json"])).toBe(true);
     expect(shouldUseV1ForgeNext(["demo", "--prompt-json"])).toBe(false);
     expect(shouldUseV1ForgeNext(["demo", "--all", "--prompt-json"])).toBe(false);
 
     expect(shouldUseV1ForgeStatus(["demo", "--json"])).toBe(true);
     expect(shouldUseV1ForgeStatus(["demo", "DEMO-001", "--json"])).toBe(false);
-    expect(shouldUseV1ForgeStatus(["demo", "--legacy", "--json"])).toBe(false);
+    expect(shouldUseV1ForgeStatus(["demo", "--legacy", "--json"])).toBe(true);
   });
 
   test("compat metadata documents cutover", () => {
     expect(describeLegacyCommand("wiki forge next")).toEqual({
       command: "wiki forge next",
-      status: "v1-compatible",
+      status: "v1-owned",
       replacement: "wiki v1 forge next",
-      reason: "default read-only command routes to V1; use --legacy for old diagnostics",
+      reason: "V1-owned command; no legacy fallback",
     });
   });
 });

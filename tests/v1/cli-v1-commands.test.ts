@@ -85,16 +85,16 @@ status: ready
     });
   });
 
-  test("wiki v1 compat reports V1 compatibility for known legacy commands", () => {
+  test("wiki v1 compat reports V1 ownership for implemented commands", () => {
     const vault = createVaultWithSlice("done");
     const result = runWiki(["v1", "compat", "wiki", "forge", "next", "--json"], { vault });
 
     expect(result.exitCode).toBe(0);
     expect(result.json()).toEqual({
       command: "wiki forge next",
-      status: "v1-compatible",
+      status: "v1-owned",
       replacement: "wiki v1 forge next",
-      reason: "default read-only command routes to V1; use --legacy for old diagnostics",
+      reason: "V1-owned command; no legacy fallback",
     });
   });
 });
