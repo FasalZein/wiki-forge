@@ -12,13 +12,13 @@ const LEGACY_COMPATIBILITY_REPORT: readonly LegacyCompatibilityEntry[] = [
     command: "wiki forge next",
     status: "v1-compatible",
     replacement: "wiki v1 forge next",
-    reason: "same read-only lifecycle projection semantics",
+    reason: "default read-only command routes to V1; use --legacy for old diagnostics",
   },
   {
     command: "wiki forge status",
     status: "v1-compatible",
     replacement: "wiki v1 forge status",
-    reason: "same read-only lifecycle projection semantics",
+    reason: "default read-only command routes to V1; use --legacy for old diagnostics",
   },
   {
     command: "wiki maintain",

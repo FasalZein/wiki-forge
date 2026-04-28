@@ -21,13 +21,13 @@ describe("v1 compatibility cutover", () => {
         command: "wiki forge next",
         status: "v1-compatible",
         replacement: "wiki v1 forge next",
-        reason: "same read-only lifecycle projection semantics",
+        reason: "default read-only command routes to V1; use --legacy for old diagnostics",
       },
       {
         command: "wiki forge status",
         status: "v1-compatible",
         replacement: "wiki v1 forge status",
-        reason: "same read-only lifecycle projection semantics",
+        reason: "default read-only command routes to V1; use --legacy for old diagnostics",
       },
       {
         command: "wiki maintain",
@@ -43,7 +43,7 @@ describe("v1 compatibility cutover", () => {
       command: "wiki forge next",
       status: "v1-compatible",
       replacement: "wiki v1 forge next",
-      reason: "same read-only lifecycle projection semantics",
+      reason: "default read-only command routes to V1; use --legacy for old diagnostics",
     });
     expect(describeLegacyCommand("wiki research file")).toEqual({
       command: "wiki research file",

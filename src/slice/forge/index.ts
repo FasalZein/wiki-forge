@@ -23,6 +23,7 @@ import {
 } from "./output";
 import { collectForgeReview } from "./docs";
 import { printError, printJson, printLine } from "../../lib/cli-output";
+import { v1ForgeNext, v1ForgeStatus } from "../../v1/cli/commands";
 export { forgeRun } from "./run";
 export { forgeSkip } from "./skip";
 export { forgeEvidence } from "./evidence";
@@ -78,6 +79,10 @@ export async function forgeClose(args: string[]) {
 }
 
 export async function forgeStatus(args: string[]) {
+  if (shouldUseV1ForgeStatus(args)) {
+    await v1ForgeStatus(args);
+    return;
+  }
   const parsed = await parseForgeStatusArgs(args);
   const focus = await collectBacklogFocus(parsed.project);
   if (!parsed.sliceId) {
@@ -335,6 +340,10 @@ function parseForgePlanArgs(args: string[]): ForgePlanArgs {
 }
 
 export async function forgeNext(args: string[]) {
+  if (shouldUseV1ForgeNext(args)) {
+    await v1ForgeNext(args);
+    return;
+  }
   const positional = args.filter((a) => !a.startsWith("--"));
   const project = positional[0];
   requireValue(project, "project");
@@ -405,3 +414,15 @@ export async function forgeNext(args: string[]) {
     }
   }
 }
+
+export function shouldUseV1ForgeNext(args: readonly string[]): boolean {
+  if (args.includes("--legacy") || args.includes("--prompt") || args.includes("--prompt-json") || args.includes("--all")) return false;
+  return args.some((arg) => !arg.startsWith("--"));
+}
+
+export function shouldUseV1ForgeStatus(args: readonly string[]): boolean {
+  if (args.includes("--legacy")) return false;
+  const positional = args.filter((arg) => !arg.startsWith("--"));
+  return positional.length === 1;
+}
+
