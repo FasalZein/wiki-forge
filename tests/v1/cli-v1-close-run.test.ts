@@ -16,8 +16,7 @@ function createVaultWithEvidence(evidence: readonly Record<string, unknown>[]) {
   mkdirSync(sliceDir, { recursive: true });
   const frontmatter: Record<string, unknown> = {
     title: `${sliceId} test slice`,
-    type: "spec",
-    spec_kind: "task-hub",
+    type: "forge-slice",
     project: "demo",
     task_id: sliceId,
     status: "in-progress",

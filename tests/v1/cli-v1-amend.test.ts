@@ -107,8 +107,7 @@ function writeClosedV1Slice(vault: string, project: string, sliceId: string, fix
   mkdirSync(sliceDir, { recursive: true });
   writeFileSync(join(sliceDir, "index.md"), matter.stringify(`# ${sliceId}\n`, {
     title: `${sliceId} test slice`,
-    type: "spec",
-    spec_kind: "task-hub",
+    type: "forge-slice",
     project,
     task_id: sliceId,
     status: fixture.status,

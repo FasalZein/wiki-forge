@@ -1,40 +1,50 @@
 import type { CommandHandler } from "../types";
-import { forgeAmend, forgeCheck, forgeClose, forgeEvidence, forgeNext, forgeOpen, forgePlan, forgeRelease, forgeReview, forgeRun, forgeSkip, forgeStart, forgeStatus } from "../slice/forge";
+import {
+  v1ForgeAmend,
+  v1ForgeCheck,
+  v1ForgeClose,
+  v1ForgeEvidence,
+  v1ForgeNext,
+  v1ForgePlan,
+  v1ForgeRelease,
+  v1ForgeReview,
+  v1ForgeRun,
+  v1ForgeStart,
+  v1ForgeStatus,
+} from "../v1/cli/commands";
 
 export const FORGE_COMMANDS: Record<string, CommandHandler> = {
-  "forge:start": (args) => forgeStart(args),
-  "forge:open": (args) => forgeOpen(args),
-  "forge:check": (args) => forgeCheck(args),
-  "forge:close": (args) => forgeClose(args),
-  "forge:run": (args) => forgeRun(args),
-  "forge:skip": (args) => forgeSkip(args),
-  "forge:evidence": (args) => forgeEvidence(args),
-  "forge:review": (args) => forgeReview(args),
-  "forge:status": (args) => forgeStatus(args),
-  "forge:plan": (args) => forgePlan(args),
-  "forge:next": (args) => forgeNext(args),
-  "forge:amend": (args) => forgeAmend(args),
-  "forge:release": (args) => forgeRelease(args),
+  "forge:start": (args) => v1ForgeStart(args),
+  "forge:check": (args) => v1ForgeCheck(args),
+  "forge:close": (args) => v1ForgeClose(args),
+  "forge:run": (args) => v1ForgeRun(args),
+  "forge:evidence": (args) => v1ForgeEvidence(args),
+  "forge:review": (args) => v1ForgeReview(args),
+  "forge:status": (args) => v1ForgeStatus(args),
+  "forge:plan": (args) => v1ForgePlan(args),
+  "forge:next": (args) => v1ForgeNext(args),
+  "forge:amend": (args) => v1ForgeAmend(args),
+  "forge:release": (args) => v1ForgeRelease(args),
 };
+
+const FORGE_SUBCOMMANDS = {
+  start: "forge:start",
+  check: "forge:check",
+  close: "forge:close",
+  run: "forge:run",
+  evidence: "forge:evidence",
+  review: "forge:review",
+  status: "forge:status",
+  plan: "forge:plan",
+  next: "forge:next",
+  amend: "forge:amend",
+  release: "forge:release",
+} as const;
 
 export function resolveForgeCommand(rest: string[]) {
   const [subcommand, ...subArgs] = rest;
   if (!subcommand || subcommand === "help") throw new Error("missing forge subcommand. Run 'wiki help' for usage.");
-  const mapped = {
-    start: "forge:start",
-    open: "forge:open",
-    check: "forge:check",
-    close: "forge:close",
-    run: "forge:run",
-    skip: "forge:skip",
-    evidence: "forge:evidence",
-    review: "forge:review",
-    status: "forge:status",
-    plan: "forge:plan",
-    next: "forge:next",
-    amend: "forge:amend",
-    release: "forge:release",
-  }[subcommand as "start" | "open" | "check" | "close" | "run" | "skip" | "evidence" | "review" | "status" | "plan" | "next" | "amend" | "release"];
+  const mapped = FORGE_SUBCOMMANDS[subcommand as keyof typeof FORGE_SUBCOMMANDS];
   if (!mapped) throw new Error(`unknown forge subcommand: ${subcommand}. Run 'wiki help' for usage.`);
   return { command: mapped, args: subArgs };
 }

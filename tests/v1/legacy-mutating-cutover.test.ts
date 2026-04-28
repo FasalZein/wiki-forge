@@ -16,8 +16,7 @@ function createVault(status: "ready" | "in-progress", evidence = false) {
   mkdirSync(sliceDir, { recursive: true });
   const data: Record<string, unknown> = {
     title: `${sliceId} test slice`,
-    type: "spec",
-    spec_kind: "task-hub",
+    type: "forge-slice",
     project: "demo",
     task_id: sliceId,
     status,

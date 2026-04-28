@@ -207,10 +207,8 @@ function readCommonFields(document: VaultDocument, recordLabel: string): { reado
   else if (pathProject && project !== pathProject) diagnostics.push(projectMismatch(project, pathProject));
   if (!title) diagnostics.push(missingRequiredField("title", recordLabel));
   if (!status) diagnostics.push(invalidFieldType("status", `${recordLabel} status must be draft, ready, in-progress, done, or cancelled`));
-  if (!createdAt) diagnostics.push(missingRequiredField("created_at", recordLabel));
-  if (!updatedAt) diagnostics.push(missingRequiredField("updated", recordLabel));
-  if (diagnostics.length > 0 || !project || !title || !status || !createdAt || !updatedAt) return { diagnostics, record: null };
-  return { diagnostics, record: { path: document.path, title, project, status, createdAt, updatedAt } };
+  if (diagnostics.length > 0 || !project || !title || !status) return { diagnostics, record: null };
+  return { diagnostics, record: { path: document.path, title, project, status, createdAt: createdAt ?? "", updatedAt: updatedAt ?? "" } };
 }
 
 function readString(value: FrontmatterValue | undefined): string | null {
