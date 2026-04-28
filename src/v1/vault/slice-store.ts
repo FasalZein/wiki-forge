@@ -3,13 +3,15 @@ import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { VAULT_ROOT } from "../../constants";
-import type { StartSliceIntent } from "../kernel/intent";
+import type { CloseSliceIntent, StartSliceIntent } from "../kernel/intent";
 import type { KernelResult } from "../kernel/result";
+import { evaluateCloseSliceIntent } from "../forge/close-slice-intent";
 import { evaluateStartSliceIntent } from "../forge/start-slice-intent";
 import type { ForgeProjectState } from "../forge/types";
 import { readProjectSliceDocuments } from "./load-project";
 import { classifyLegacyDocument } from "./legacy-classifier";
 import { parseVaultDocument } from "./frontmatter-codec";
+import { readV1Evidence } from "./evidence-store";
 
 export type V1StartSliceInput = {
   readonly project: string;
@@ -22,6 +24,14 @@ export type V1StartSliceInput = {
 export type V1ReleaseSliceInput = {
   readonly project: string;
   readonly sliceId: string;
+  readonly vaultRoot?: string;
+};
+
+export type V1CloseSliceInput = {
+  readonly project: string;
+  readonly sliceId: string;
+  readonly closedBy: string;
+  readonly now?: string;
   readonly vaultRoot?: string;
 };
 
@@ -69,6 +79,40 @@ export async function releaseV1Slice(input: V1ReleaseSliceInput): Promise<V1Rele
   };
 }
 
+export async function closeV1Slice(input: V1CloseSliceInput): Promise<KernelResult> {
+  const now = input.now ?? new Date().toISOString();
+  const intent: CloseSliceIntent = {
+    kind: "intent",
+    id: `close:${input.project}:${input.sliceId}:${now}`,
+    type: "close-slice",
+    actor: { kind: "agent", id: input.closedBy },
+    context: {
+      project: input.project,
+      sliceId: input.sliceId,
+      requestedAt: now,
+    },
+    payload: {
+      sliceId: input.sliceId,
+      closedBy: input.closedBy,
+    },
+  };
+  const result = evaluateCloseSliceIntent(intent, {
+    project: input.project,
+    sliceId: input.sliceId,
+    evidence: await readV1Evidence(input.project, input.sliceId, input.vaultRoot),
+    reviewPolicy: { required: true },
+  });
+  if (result.status === "accepted") {
+    await updateSliceFrontmatter(input.project, input.sliceId, {
+      status: "done",
+      closed_by: input.closedBy,
+      closed_at: now,
+      v1_closure_evidence: ["tdd", "verification", "review"],
+    }, ["claimed_by", "claimed_at"], input.vaultRoot);
+  }
+  return result;
+}
+
 export async function loadForgeProjectState(project: string, vaultRoot = VAULT_ROOT): Promise<ForgeProjectState> {
   const documents = await readProjectSliceDocuments(project, vaultRoot);
   return {
@@ -89,7 +133,7 @@ export async function loadForgeProjectState(project: string, vaultRoot = VAULT_R
 async function updateSliceFrontmatter(
   project: string,
   sliceId: string,
-  updates: Record<string, string>,
+  updates: Record<string, unknown>,
   removals: readonly string[],
   vaultRoot = VAULT_ROOT,
 ): Promise<void> {
