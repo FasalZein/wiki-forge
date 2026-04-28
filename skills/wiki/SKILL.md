@@ -6,9 +6,9 @@ description: >
 
 # Wiki
 
-Wiki is the knowledge, retrieval, freshness, and verification layer. It owns vault truth: research, bindings, page verification levels, drift/freshness checks, and repair plans.
+Wiki is the second-brain memory layer. It owns durable vault memory: research, notes, decisions, handovers, source bindings, page verification levels, drift/freshness checks, and recall. Wiki remembers; Forge executes lifecycle.
 
-Use it for project Q&A, research filing, source binding, drift repair, checkpoint/gate review, and maintaining vault truth. If the task shifts into implementation, execution, slice ownership, review gates, or tracked delivery work, switch to `/forge`.
+Use it for project Q&A, research filing, source binding, drift repair, checkpoint/gate review, and maintaining vault truth. If the task shifts into implementation, execution, slice ownership, review gates, or tracked delivery work, switch to `/forge`. The CLI and V1 kernel, not this skill text, own lifecycle enforcement.
 
 ## Boundary after the Forge P0 overhaul
 

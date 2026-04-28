@@ -18,6 +18,15 @@ Install modes:
 - `wiki-only`: installs only the `/wiki` second-brain layer
 - `full`: installs `/wiki`, the repo-owned `/forge` workflow stack, and the external `/desloppify` companion
 
+
+## V1 operating rules
+
+Wiki = memory; Forge = lifecycle; Kernel = truth; projections = help. Skills provide guidance, but CLI/kernel invariants enforce lifecycle truth.
+
+For normal slice work, use targeted verification from the slice test plan plus `bun run check`. Run full `bun test` only for the production V1 release gate, not for normal per-slice closeout.
+
+V1 migration is intentionally dry-run first: classify current vault documents, quarantine ambiguous lifecycle records, preserve source files, and write only to explicit V1 target paths during import.
+
 ## Manual Setup
 
 ### 1. Prerequisites

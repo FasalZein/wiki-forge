@@ -11,6 +11,25 @@
 
 ---
 
+## V1 boundary
+
+Wiki is the second-brain memory layer. Wiki manages durable memory artifacts across agents, sessions, and projects: research, notes, decisions, handovers, source bindings, durable context, and recall.
+
+Forge is the SDLC lifecycle layer. Forge owns non-trivial feature implementation: feature → PRD → slice → implementation → TDD → verification → review → close/amend.
+
+Kernel = truth; projections = help. Backlogs, status text, resume packets, handovers, and indexes support humans, but lifecycle decisions come from typed V1 kernel records, results, changesets, rejections, and evidence gates.
+
+Targeted tests = slice proof; full suite = release gate. Normal slices run their targeted test plan plus `bun run check`; full `bun test` is reserved for explicit production V1 release gates.
+
+```bash
+# V1 read-only projection path; legacy commands remain available until cutover.
+wiki v1 forge next <project>
+wiki v1 forge status <project>
+
+# Legacy compatibility inspection.
+wiki v1 compat <legacy-command>
+```
+
 **Not RAG.** The wiki is a compiled artifact that grows over time, not a retrieval layer that re-derives answers from scratch each query. Code is always the source of truth — the wiki is compiled memory that makes code navigable across sessions. The conceptual delivery chain is `wiki research -> /domain-model` (+ `/torpathy` when design tradeoffs remain) `-> /write-a-prd -> /prd-to-slices -> /tdd -> /desloppify`. `wiki forge plan|run|next` is the compact operator surface over that chain, not a different workflow.
 
 ```

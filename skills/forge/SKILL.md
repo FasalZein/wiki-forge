@@ -6,9 +6,9 @@ description: >
 
 # Forge
 
-Forge is the delivery workflow layer for tracked implementation work. It owns workflow state, slice ownership, Git boundaries, verification evidence, review evidence, handover continuity, and close readiness. Wiki remains the knowledge/freshness layer; Forge decides whether implementation may proceed or close.
+Forge is the SDLC lifecycle layer for tracked implementation work. It owns workflow state, slice ownership, Git boundaries, verification evidence, review evidence, handover continuity, and close readiness. Wiki remains the second-brain memory layer; Forge decides whether implementation may proceed or close.
 
-Use this skill when changing runtime/product behavior, continuing a slice, creating follow-up work, handing over active work, or closing verified work. The CLI owns phase ordering and recovery; do not treat this skill body as workflow truth.
+Use this skill when changing runtime/product behavior, continuing a slice, creating follow-up work, handing over active work, or closing verified work. The CLI and V1 kernel own phase ordering, invariants, and close gates. Do not treat this skill body as workflow truth.
 
 ## Commands
 
@@ -23,7 +23,9 @@ Use this skill when changing runtime/product behavior, continuing a slice, creat
 
 Follow the steering packet from `wiki resume`, `wiki forge next`, or `wiki forge status`; it includes phase, skill, iteration contract, subagent policy, quality gates, and review gates.
 
-Normal chain: `wiki research -> /domain-model` (+ `/torpathy` when design pressure is flagged) `-> /write-a-prd -> /prd-to-slices -> /tdd -> /desloppify`.
+Normal chain: `research -> domain-model -> spec -> slices -> ownership -> implementation -> tdd -> verification -> review -> close`, using `wiki research`, `/domain-model`, `/write-a-prd`, `/prd-to-slices`, `wiki forge start/run/status`, `/tdd`, targeted verification, review evidence, and close gates.
+
+Use subagents only after the plan identifies non-overlapping files or artifacts. If ownership is shared or context handoff would be risky, run the work sequentially.
 
 Dogfood non-trivial repo work with real Forge commands: `next`, explicit `status <slice>`, `checkpoint`, evidence/review records, then `wiki forge run <project> <slice> --repo <path>`. If stale active state disagrees with the latest handover target, trust `resume`/`status` steering and fix the lifecycle state rather than doing ad-hoc work.
 
