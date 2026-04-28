@@ -13,6 +13,7 @@ import { statusProject, lintProject, lintSemanticProject, verifyProject, cacheCl
 import { configCommand } from "../config";
 import { schemaCommand } from "../schema";
 import { findProjectArg } from "../git-utils";
+import { v1Compat, v1ForgeNext, v1ForgeStatus } from "../v1/cli/commands";
 
 export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   help: (args) => printHelp(args),
@@ -107,6 +108,9 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "close-prd": (args) => closePrd(args),
   config: (args) => configCommand(args),
   schema: (args) => schemaCommand(args),
+  "v1:forge:next": (args) => v1ForgeNext(args),
+  "v1:forge:status": (args) => v1ForgeStatus(args),
+  "v1:compat": (args) => v1Compat(args),
 };
 
 export function resolveWikiCommand(rawArgs: string[]) {
@@ -149,5 +153,22 @@ export function resolveWikiCommand(rawArgs: string[]) {
     if (!mapped) throw new Error(`unknown protocol subcommand: ${subcommand}. Run 'wiki help' for usage.`);
     return { command: mapped, args: subArgs };
   }
+  if (command === "v1") {
+    return resolveV1Command(rest);
+  }
   return { command, args: rest };
+}
+
+function resolveV1Command(rawArgs: string[]) {
+  const [area, subcommand, ...subArgs] = rawArgs;
+  if (!area || area === "help") throw new Error("missing v1 subcommand. Run 'wiki help' for usage.");
+  if (area === "forge") {
+    if (subcommand === "next") return { command: "v1:forge:next", args: subArgs };
+    if (subcommand === "status") return { command: "v1:forge:status", args: subArgs };
+    throw new Error(`unknown v1 forge subcommand: ${subcommand ?? ""}. Run 'wiki help' for usage.`);
+  }
+  if (area === "compat") {
+    return { command: "v1:compat", args: [subcommand, ...subArgs].filter((arg): arg is string => Boolean(arg)) };
+  }
+  throw new Error(`unknown v1 subcommand: ${area}. Run 'wiki help' for usage.`);
 }
