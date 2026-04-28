@@ -17,6 +17,7 @@ status: ready
 const v1OwnedCommands = [
   ["wiki forge next", "wiki v1 forge next"],
   ["wiki forge status", "wiki v1 forge status"],
+  ["wiki forge plan", "wiki v1 forge plan"],
   ["wiki forge start", "wiki v1 forge start"],
   ["wiki forge release", "wiki v1 forge release"],
   ["wiki forge evidence", "wiki v1 forge evidence"],

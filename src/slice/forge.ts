@@ -17,6 +17,7 @@ export {
   shouldUseV1ForgeClose,
   shouldUseV1ForgeEvidence,
   shouldUseV1ForgeNext,
+  shouldUseV1ForgePlan,
   shouldUseV1ForgeRelease,
   shouldUseV1ForgeReview,
   shouldUseV1ForgeRun,

@@ -40,6 +40,14 @@ export async function v1ForgeRelease(args: string[]): Promise<void> {
   else printLine(`released ${sliceId}`);
 }
 
+export async function v1ForgePlan(args: string[]): Promise<void> {
+  const json = args.includes("--json");
+  const packet = buildPlanningSessionRequiredPacket(args);
+  if (json) printJson(packet);
+  else renderPlanningSessionRequiredPacket(packet);
+  throw Object.assign(new Error("planning session required before PRD and slice creation"), { exitCode: 1 });
+}
+
 export async function v1ForgeAmend(args: string[]): Promise<void> {
   const json = args.includes("--json");
   const options = parseAmendArgs(args);
@@ -181,6 +189,75 @@ function parseReviewVerdict(value: string): "approved" | "needs-changes" | "appr
   const normalized = value.replaceAll("_", "-");
   if (normalized === "approved" || normalized === "needs-changes" || normalized === "approved-with-followups") return normalized;
   throw new Error(`invalid review verdict: ${value}`);
+}
+
+type PlanningSessionRequiredPacket = {
+  readonly status: "blocked";
+  readonly project: string;
+  readonly featureName: string;
+  readonly gate: "planning-session-required";
+  readonly canCreatePrd: false;
+  readonly canCreateSlices: false;
+  readonly requiredSequence: readonly ["torpathy", "domain-model", "grill-prd", "write-prd", "prd-to-slices"];
+  readonly requiredSkills: readonly ["torpathy", "domain-model", "grill-me", "write-a-prd", "prd-to-slices"];
+  readonly supportsMultiplePrds: true;
+  readonly nextQuestion: {
+    readonly id: "plan-scope-boundary";
+    readonly skill: "domain-model";
+    readonly question: string;
+    readonly recommendation: string;
+  };
+  readonly recovery: readonly {
+    readonly command: string;
+    readonly description: string;
+  }[];
+};
+
+function buildPlanningSessionRequiredPacket(args: readonly string[]): PlanningSessionRequiredPacket {
+  const positional = readPositionalArgs(args, ["--agent", "--repo", "--feature", "--prd-name", "--title", "--slices"]);
+  const project = positional[0];
+  requireValue(project, "project");
+  const featureName = positional.slice(1).join(" ").trim() || readFlagValue(args, "--feature") || readFlagValue(args, "--title") || "unnamed feature";
+  return {
+    status: "blocked",
+    project,
+    featureName,
+    gate: "planning-session-required",
+    canCreatePrd: false,
+    canCreateSlices: false,
+    requiredSequence: ["torpathy", "domain-model", "grill-prd", "write-prd", "prd-to-slices"],
+    requiredSkills: ["torpathy", "domain-model", "grill-me", "write-a-prd", "prd-to-slices"],
+    supportsMultiplePrds: true,
+    nextQuestion: {
+      id: "plan-scope-boundary",
+      skill: "domain-model",
+      question: "What precise user-visible outcome should the first PRD under this feature deliver, and what is explicitly out of scope?",
+      recommendation: "Define one narrow PRD outcome first, record the terms/decisions in the domain model, then grill that PRD before creating slices.",
+    },
+    recovery: [
+      {
+        command: `Start a Torpathy + domain-model planning session for ${project}`,
+        description: "Resolve the feature boundary, terminology, and ownership before PRD creation.",
+      },
+      {
+        command: "Run one grill session per PRD candidate",
+        description: "A feature may contain multiple PRDs, but each PRD needs its own challenged scope and acceptance criteria.",
+      },
+      {
+        command: "Create PRD(s), then decompose approved PRD(s) into slices",
+        description: "Do not create implementation slices until the relevant PRD session is complete.",
+      },
+    ],
+  };
+}
+
+function renderPlanningSessionRequiredPacket(packet: PlanningSessionRequiredPacket): void {
+  printLine(`forge plan for ${packet.project}: blocked`);
+  printLine("gate: planning-session-required");
+  printLine(`feature: ${packet.featureName}`);
+  printLine(`next question: ${packet.nextQuestion.question}`);
+  printLine(`recommendation: ${packet.nextQuestion.recommendation}`);
+  printLine(`required sequence: ${packet.requiredSequence.join(" -> ")}`);
 }
 
 function parseAmendArgs(args: readonly string[]) {

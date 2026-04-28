@@ -12,6 +12,7 @@ const V1_OWNED_REASON = "V1-owned command; no legacy fallback";
 const LEGACY_COMPATIBILITY_REPORT: readonly LegacyCompatibilityEntry[] = [
   v1Owned("wiki forge next", "wiki v1 forge next"),
   v1Owned("wiki forge status", "wiki v1 forge status"),
+  v1Owned("wiki forge plan", "wiki v1 forge plan"),
   v1Owned("wiki forge start", "wiki v1 forge start"),
   v1Owned("wiki forge release", "wiki v1 forge release"),
   v1Owned("wiki forge evidence", "wiki v1 forge evidence"),
