@@ -23,10 +23,11 @@ describe("V1 command surface registry", () => {
     expect(getCommandSurfaceEntry("forge")).toMatchObject({ domain: "forge-workflow", v1Handler: "forge:*" });
   });
 
-  test("quarantines legacy workflow commands instead of routing them to legacy", () => {
-    for (const command of ["backlog", "add-task", "move-task", "complete-task", "claim", "start-slice", "verify-slice", "close-slice", "pipeline", "pipeline-reset"]) {
+  test("quarantines legacy workflow commands instead of routing them to legacy", async () => {
+    for (const command of ["backlog", "add-task", "move-task", "complete-task", "claim", "start-slice", "verify-slice", "close-slice", "pipeline", "pipeline-reset", "create-feature", "create-prd", "create-plan", "create-test-plan", "create-issue-slice", "start-feature", "close-feature", "start-prd", "close-prd"]) {
       expect(getCommandSurfaceEntry(command)).toMatchObject({ domain: "legacy-quarantined" });
       expect(() => resolveWikiCommand([command, "demo"])).toThrow("legacy workflow command is quarantined");
+      await expect(WIKI_COMMANDS[command](["demo"])).rejects.toThrow("legacy workflow command is quarantined");
     }
   });
 });

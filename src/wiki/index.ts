@@ -1,14 +1,13 @@
 import type { CommandHandler } from "../types"; // desloppify:ignore *
 import { printHelp } from "../cli-shared";
-import { backlogCommand, addTask, moveTask, completeTask, createFeature, createPrd, createPlan, createTestPlan, dependencyGraph, updateIndex, featureStatusCommand, startFeature, closeFeature, startPrd, closePrd, summaryProject, createLayerPage, lintVault, scaffoldLayer } from "../hierarchy";
+import { dependencyGraph, updateIndex, featureStatusCommand, summaryProject, createLayerPage, lintVault, scaffoldLayer } from "../hierarchy";
 import { dashboardProject, maintainProject, closeoutProject, refreshProject, refreshFromGit, syncProject, discoverProject, ingestDiff, commitCheck, installGitHook, refreshOnMerge, checkpoint, lintRepo, doctorProject, gateProject, driftCheck } from "../maintenance";
 import { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeModule, syncProtocol, auditProtocol, obsidianCommand, setupShell } from "../protocol";
 import { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch, handoffResearch, bridgeResearch, distillResearch, adoptResearch } from "../research";
 import { askProject, fileAnswer, fileResearch } from "../retrieval/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "../retrieval/qmd-commands";
 import { noteProject, exportPrompt, logCommand } from "../session";
-import { claimSlice, startSlice, verifySlice, closeSlice, createIssueSlice, repairHistoricalDoneSlices } from "../slice";
-import { pipelineCommand, pipelineResetCommand } from "../slice/pipeline";
+import { repairHistoricalDoneSlices } from "../slice";
 import { statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, bindSourcePaths, migrateVerification, verifyPage, acknowledgeImpact } from "../verification";
 import { configCommand } from "../config";
 import { schemaCommand } from "../schema";
@@ -19,15 +18,15 @@ import { assertCommandNotQuarantined } from "../v1/cli/command-surface";
 export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   help: (args) => printHelp(args),
   "scaffold-project": (args) => scaffoldProject(args[0]),
-  backlog: (args) => backlogCommand(args),
-  "add-task": (args) => addTask(args),
-  "move-task": (args) => moveTask(args),
-  "complete-task": (args) => completeTask(args),
-  "create-issue-slice": async (args) => { await createIssueSlice(args); },
-  "create-feature": (args) => createFeature(args),
-  "create-prd": (args) => createPrd(args),
-  "create-plan": (args) => createPlan(args),
-  "create-test-plan": (args) => createTestPlan(args),
+  backlog: quarantinedCommand("backlog"),
+  "add-task": quarantinedCommand("add-task"),
+  "move-task": quarantinedCommand("move-task"),
+  "complete-task": quarantinedCommand("complete-task"),
+  "create-issue-slice": quarantinedCommand("create-issue-slice"),
+  "create-feature": quarantinedCommand("create-feature"),
+  "create-prd": quarantinedCommand("create-prd"),
+  "create-plan": quarantinedCommand("create-plan"),
+  "create-test-plan": quarantinedCommand("create-test-plan"),
   "create-module": (args) => createModule(args),
   onboard: (args) => onboardProject(args),
   "onboard-plan": (args) => onboardPlan(args),
@@ -43,12 +42,12 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "protocol:audit": (args) => auditProtocol(args),
   "dependency-graph": (args) => dependencyGraph(args),
   handover: (args) => v1Handover(args),
-  claim: (args) => claimSlice(args),
+  claim: quarantinedCommand("claim"),
   note: (args) => noteProject(args),
   next: (args) => v1ForgeNext(args),
-  "start-slice": (args) => startSlice(args),
-  "verify-slice": (args) => verifySlice(args),
-  "close-slice": (args) => closeSlice(args),
+  "start-slice": quarantinedCommand("start-slice"),
+  "verify-slice": quarantinedCommand("verify-slice"),
+  "close-slice": quarantinedCommand("close-slice"),
   "acknowledge-impact": (args) => acknowledgeImpact(args),
   "export-prompt": (args) => exportPrompt(args),
   resume: (args) => v1Resume(args),
@@ -100,13 +99,13 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "scaffold-layer": (args) => scaffoldLayer(args),
   "create-layer-page": (args) => createLayerPage(args),
   "lint-vault": (args) => lintVault(args),
-  pipeline: (args) => pipelineCommand(args),
-  "pipeline-reset": (args) => pipelineResetCommand(args),
+  pipeline: quarantinedCommand("pipeline"),
+  "pipeline-reset": quarantinedCommand("pipeline-reset"),
   "feature-status": (args) => featureStatusCommand(args),
-  "start-feature": (args) => startFeature(args),
-  "close-feature": (args) => closeFeature(args),
-  "start-prd": (args) => startPrd(args),
-  "close-prd": (args) => closePrd(args),
+  "start-feature": quarantinedCommand("start-feature"),
+  "close-feature": quarantinedCommand("close-feature"),
+  "start-prd": quarantinedCommand("start-prd"),
+  "close-prd": quarantinedCommand("close-prd"),
   config: (args) => configCommand(args),
   schema: (args) => schemaCommand(args),
   "v1:forge:next": (args) => v1ForgeNext(args),
@@ -124,6 +123,10 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "v1:resume": (args) => v1Resume(args),
   "v1:compat": (args) => v1Compat(args),
 };
+
+function quarantinedCommand(command: string): CommandHandler {
+  return async () => { assertCommandNotQuarantined(command); };
+}
 
 export function resolveWikiCommand(rawArgs: string[]) {
   const [rawCommand = "help", ...rest] = rawArgs;
