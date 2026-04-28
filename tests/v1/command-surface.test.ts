@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { WIKI_COMMANDS, resolveWikiCommand } from "../../src/wiki";
-import { getCommandSurfaceEntry, listCommandSurfaceEntries } from "../../src/v1/cli/command-surface";
+import { assertLifecycleMutationAllowed, assertGeneratedProjectionReadAllowed, getCommandSurfaceEntry, listCommandSurfaceEntries } from "../../src/v1/cli/command-surface";
 
 describe("V1 command surface registry", () => {
   test("classifies every top-level command registered in the CLI", () => {
@@ -21,6 +21,16 @@ describe("V1 command surface registry", () => {
   test("classifies Forge workflow commands as V1-owned", () => {
     expect(getCommandSurfaceEntry("next")).toMatchObject({ domain: "forge-workflow", v1Handler: "v1:forge:next", mayMutateLifecycle: false });
     expect(getCommandSurfaceEntry("forge")).toMatchObject({ domain: "forge-workflow", v1Handler: "forge:*" });
+  });
+
+  test("enforces lifecycle mutation and generated projection boundaries", () => {
+    expect(() => assertLifecycleMutationAllowed("handover")).toThrow("cannot mutate Forge lifecycle");
+    expect(() => assertLifecycleMutationAllowed("search")).toThrow("cannot mutate Forge lifecycle");
+    expect(() => assertLifecycleMutationAllowed("status")).toThrow("cannot mutate Forge lifecycle");
+    expect(() => assertLifecycleMutationAllowed("forge")).not.toThrow();
+
+    expect(() => assertGeneratedProjectionReadAllowed("search")).toThrow("cannot read generated projections as authority");
+    expect(() => assertGeneratedProjectionReadAllowed("dashboard")).not.toThrow();
   });
 
   test("quarantines legacy workflow commands instead of routing them to legacy", async () => {

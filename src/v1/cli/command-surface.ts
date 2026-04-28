@@ -44,6 +44,24 @@ export function assertCommandNotQuarantined(command: string): void {
   throw new Error(`legacy workflow command is quarantined: ${command}. Use ${entry.replacement ?? "a V1 command"}.`);
 }
 
+export function assertLifecycleMutationAllowed(command: string): void {
+  const entry = requireCommandSurfaceEntry(command);
+  if (entry.mayMutateLifecycle) return;
+  throw new Error(`command cannot mutate Forge lifecycle: ${command}`);
+}
+
+export function assertGeneratedProjectionReadAllowed(command: string): void {
+  const entry = requireCommandSurfaceEntry(command);
+  if (entry.mayReadGeneratedProjections) return;
+  throw new Error(`command cannot read generated projections as authority: ${command}`);
+}
+
+function requireCommandSurfaceEntry(command: string): CommandSurfaceEntry {
+  const entry = getCommandSurfaceEntry(command);
+  if (!entry) throw new Error(`unclassified command: ${command}`);
+  return entry;
+}
+
 function entry(
   publicCommands: readonly string[],
   domain: CommandSurfaceDomain,
