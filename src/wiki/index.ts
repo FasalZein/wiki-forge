@@ -6,11 +6,10 @@ import { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeMo
 import { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch, handoffResearch, bridgeResearch, distillResearch, adoptResearch } from "../research";
 import { askProject, fileAnswer, fileResearch } from "../retrieval/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "../retrieval/qmd-commands";
-import { noteProject, logCommand } from "../session";
+import { v1Compat, v1ExportPrompt, v1ForgeAmend, v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgePlan, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus, v1Handover, v1Log, v1Note, v1Resume } from "../v1/cli/commands";
 import { lintProject, lintSemanticProject, verifyProject, cacheClear, bindSourcePaths, migrateVerification, verifyPage, acknowledgeImpact } from "../verification";
 import { configCommand } from "../config";
 import { schemaCommand } from "../schema";
-import { v1Compat, v1ExportPrompt, v1ForgeAmend, v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgePlan, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus, v1Handover, v1Resume } from "../v1/cli/commands";
 import { assertCommandNotQuarantined } from "../v1/cli/command-surface";
 
 export const WIKI_COMMANDS: Record<string, CommandHandler> = {
@@ -41,7 +40,7 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "dependency-graph": (args) => dependencyGraph(args),
   handover: (args) => v1Handover(args),
   claim: quarantinedCommand("claim"),
-  note: (args) => noteProject(args),
+  note: (args) => v1Note(args),
   next: (args) => v1ForgeNext(args),
   "start-slice": quarantinedCommand("start-slice"),
   "verify-slice": quarantinedCommand("verify-slice"),
@@ -58,7 +57,7 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   discover: (args) => discoverProject(args),
   "ingest-diff": (args) => ingestDiff(args),
   "update-index": (args) => updateIndex(args),
-  log: (args) => logCommand(args),
+  log: (args) => v1Log(args),
   obsidian: (args) => obsidianCommand(args),
   status: quarantinedCommand("status"),
   lint: (args) => lintProject(args),
@@ -116,6 +115,8 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "v1:handover": (args) => v1Handover(args),
   "v1:resume": (args) => v1Resume(args),
   "v1:export-prompt": (args) => v1ExportPrompt(args),
+  "v1:note": (args) => v1Note(args),
+  "v1:log": (args) => v1Log(args),
   "v1:compat": (args) => v1Compat(args),
 };
 
@@ -168,6 +169,8 @@ export function resolveWikiCommand(rawArgs: string[]) {
   if (command === "resume") return { command: "v1:resume", args: rest };
   if (command === "next") return { command: "v1:forge:next", args: rest };
   if (command === "export-prompt") return { command: "v1:export-prompt", args: rest };
+  if (command === "note") return { command: "v1:note", args: rest };
+  if (command === "log") return { command: "v1:log", args: rest };
   if (command === "v1") {
     return resolveV1Command(rest);
   }
@@ -199,6 +202,12 @@ function resolveV1Command(rawArgs: string[]) {
   }
   if (area === "export-prompt") {
     return { command: "v1:export-prompt", args: [subcommand, ...subArgs].filter((arg): arg is string => Boolean(arg)) };
+  }
+  if (area === "note") {
+    return { command: "v1:note", args: [subcommand, ...subArgs].filter((arg): arg is string => Boolean(arg)) };
+  }
+  if (area === "log") {
+    return { command: "v1:log", args: [subcommand, ...subArgs].filter((arg): arg is string => Boolean(arg)) };
   }
   if (area === "compat") {
     return { command: "v1:compat", args: [subcommand, ...subArgs].filter((arg): arg is string => Boolean(arg)) };

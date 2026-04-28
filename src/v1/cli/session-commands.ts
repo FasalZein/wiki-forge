@@ -3,6 +3,7 @@ import { printJson, printLine } from "../../lib/cli-output";
 import { readLatestV1Handover, writeV1Handover } from "../handover/store";
 import { loadV1ProjectProjection } from "../vault/load-project";
 import { buildV1PromptPacket } from "../prompt/packet";
+import { tailV1MemoryLog, writeV1MemoryLogEntry, writeV1MemoryNote } from "../memory/store";
 
 export async function v1Resume(args: string[]): Promise<void> {
   const json = args.includes("--json");
@@ -44,6 +45,57 @@ export async function v1ExportPrompt(args: string[]): Promise<void> {
   const packet = buildV1PromptPacket({ project, statusTruth, latestHandover });
   if (json) printJson(packet);
   else printLine(packet.prompt);
+}
+
+export async function v1Note(args: string[]): Promise<void> {
+  const json = args.includes("--json");
+  const positional = readPositionalArgs(args, ["--agent", "--slice"]);
+  const project = positional[0];
+  requireValue(project, "project");
+  const message = positional.slice(1).join(" ").trim();
+  requireValue(message || undefined, "message");
+  const record = await writeV1MemoryNote({
+    project,
+    message,
+    agent: readFlagValue(args, "--agent") ?? "agent",
+    ...(readFlagValue(args, "--slice") ? { sliceId: readFlagValue(args, "--slice") } : {}),
+  });
+  if (json) printJson(record);
+  else printLine(`noted for ${project}: ${message}`);
+}
+
+export async function v1Log(args: string[]): Promise<void> {
+  const json = args.includes("--json");
+  const subcommand = args[0] ?? "tail";
+  if (subcommand === "append") {
+    const positional = readPositionalArgs(args.slice(1), ["--details"]);
+    const project = positional[0];
+    const entryKind = positional[1];
+    const title = positional.slice(2).join(" ").trim();
+    requireValue(project, "project");
+    requireValue(entryKind, "kind");
+    requireValue(title || undefined, "title");
+    const record = await writeV1MemoryLogEntry({
+      project,
+      entryKind,
+      title,
+      details: readRepeatedFlagValues(args, "--details"),
+    });
+    if (json) printJson(record);
+    else printLine(`appended log entry for ${project}: ${entryKind} | ${title}`);
+    return;
+  }
+  if (subcommand === "tail") {
+    const positional = readPositionalArgs(args.slice(1), []);
+    const project = positional[0];
+    requireValue(project, "project");
+    const count = Number.parseInt(positional[1] ?? "10", 10);
+    const tail = await tailV1MemoryLog(project, Number.isFinite(count) && count > 0 ? count : 10);
+    if (json) printJson(tail);
+    else for (const entry of tail.entries) printLine(`${entry.createdAt} ${entry.entryKind} | ${entry.title}`);
+    return;
+  }
+  throw new Error(`unknown v1 log subcommand: ${subcommand}`);
 }
 
 export async function v1Handover(args: string[]): Promise<void> {
