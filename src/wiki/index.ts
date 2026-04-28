@@ -6,14 +6,14 @@ import { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeMo
 import { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch, handoffResearch, bridgeResearch, distillResearch, adoptResearch } from "../research";
 import { askProject, fileAnswer, fileResearch } from "../retrieval/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "../retrieval/qmd-commands";
-import { handoverProject, resumeProject, nextProject, noteProject, exportPrompt, logCommand } from "../session";
+import { nextProject, noteProject, exportPrompt, logCommand } from "../session";
 import { claimSlice, startSlice, verifySlice, closeSlice, createIssueSlice, repairHistoricalDoneSlices } from "../slice";
 import { pipelineCommand, pipelineResetCommand } from "../slice/pipeline";
 import { statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, bindSourcePaths, migrateVerification, verifyPage, acknowledgeImpact } from "../verification";
 import { configCommand } from "../config";
 import { schemaCommand } from "../schema";
 import { findProjectArg } from "../git-utils";
-import { v1Compat, v1ForgeAmend, v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgePlan, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus, v1Handover } from "../v1/cli/commands";
+import { v1Compat, v1ForgeAmend, v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgePlan, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus, v1Handover, v1Resume } from "../v1/cli/commands";
 
 export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   help: (args) => printHelp(args),
@@ -50,7 +50,7 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "close-slice": (args) => closeSlice(args),
   "acknowledge-impact": (args) => acknowledgeImpact(args),
   "export-prompt": (args) => exportPrompt(args),
-  resume: (args) => resumeProject(args),
+  resume: (args) => v1Resume(args),
   doctor: (args) => doctorProject(args),
   gate: (args) => gateProject(args),
   maintain: async (args) => {
@@ -120,6 +120,7 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "v1:forge:evidence": (args) => v1ForgeEvidence(args),
   "v1:forge:review": (args) => v1ForgeReview(args),
   "v1:handover": (args) => v1Handover(args),
+  "v1:resume": (args) => v1Resume(args),
   "v1:compat": (args) => v1Compat(args),
 };
 
@@ -164,6 +165,7 @@ export function resolveWikiCommand(rawArgs: string[]) {
     return { command: mapped, args: subArgs };
   }
   if (command === "handover") return { command: "v1:handover", args: rest };
+  if (command === "resume") return { command: "v1:resume", args: rest };
   if (command === "v1") {
     return resolveV1Command(rest);
   }
@@ -186,6 +188,9 @@ function resolveV1Command(rawArgs: string[]) {
     if (subcommand === "evidence") return { command: "v1:forge:evidence", args: subArgs };
     if (subcommand === "review") return { command: "v1:forge:review", args: subArgs };
     throw new Error(`unknown v1 forge subcommand: ${subcommand ?? ""}. Run 'wiki help' for usage.`);
+  }
+  if (area === "resume") {
+    return { command: "v1:resume", args: [subcommand, ...subArgs].filter((arg): arg is string => Boolean(arg)) };
   }
   if (area === "handover") {
     return { command: "v1:handover", args: [subcommand, ...subArgs].filter((arg): arg is string => Boolean(arg)) };

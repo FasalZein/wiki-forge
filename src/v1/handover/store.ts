@@ -1,9 +1,11 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { VAULT_ROOT } from "../../constants";
 import { renderV1HandoverMarkdown } from "./render";
 import type { V1HandoverRecord } from "./schema";
-import { forgeHandoverPath } from "../vault/forge-paths";
+import { forgeHandoverPath, forgeProjectDir } from "../vault/forge-paths";
+import { parseVaultDocument } from "../vault/frontmatter-codec";
+import { decodeV1ForgeRecord } from "../vault/records";
 
 export type WriteV1HandoverInput = {
   readonly project: string;
@@ -25,6 +27,25 @@ export type WriteV1HandoverResult = {
   readonly path: string;
   readonly handover: V1HandoverRecord;
 };
+
+export async function readLatestV1Handover(project: string, vaultRoot = VAULT_ROOT): Promise<V1HandoverRecord | null> {
+  const relativeDir = `${forgeProjectDir(project)}/handovers`;
+  const absoluteDir = join(vaultRoot, relativeDir);
+  let files: string[];
+  try {
+    files = await readdir(absoluteDir);
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return null;
+    throw error;
+  }
+  for (const file of files.filter((candidate) => candidate.endsWith(".md")).sort().reverse()) {
+    const path = `${relativeDir}/${file}`;
+    const markdown = await readFile(join(vaultRoot, path), "utf8");
+    const decoded = decodeV1ForgeRecord(parseVaultDocument(path, markdown));
+    if (decoded.status === "valid" && decoded.record.kind === "handover") return decoded.record;
+  }
+  return null;
+}
 
 export async function writeV1Handover(input: WriteV1HandoverInput): Promise<WriteV1HandoverResult> {
   const path = forgeHandoverPath(input.project, input.sessionId);
