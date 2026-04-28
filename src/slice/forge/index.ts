@@ -23,14 +23,28 @@ import {
 } from "./output";
 import { collectForgeReview } from "./docs";
 import { printError, printJson, printLine } from "../../lib/cli-output";
-import { v1ForgeNext, v1ForgeStatus } from "../../v1/cli/commands";
-export { forgeRun } from "./run";
+import { v1ForgeClose, v1ForgeNext, v1ForgeRelease, v1ForgeRun, v1ForgeStart, v1ForgeStatus } from "../../v1/cli/commands";
+import { forgeRun as legacyForgeRun } from "./run";
 export { forgeSkip } from "./skip";
 export { forgeEvidence } from "./evidence";
 export { forgeReview } from "./review";
 export { forgeAmend } from "./amend";
 
+
+
+export async function forgeRun(args: string[]) {
+  if (shouldUseV1ForgeRun(args)) {
+    await v1ForgeRun(args);
+    return;
+  }
+  await legacyForgeRun(args);
+}
+
 export async function forgeStart(args: string[]) {
+  if (shouldUseV1ForgeStart(args)) {
+    await v1ForgeStart(args);
+    return;
+  }
   const parsed = await parseForgeArgs(args, "start");
   return startSlice([parsed.project, parsed.sliceId, ...parsed.passthrough]);
 }
@@ -60,6 +74,10 @@ export async function forgeCheck(args: string[]) {
 }
 
 export async function forgeClose(args: string[]) {
+  if (shouldUseV1ForgeClose(args)) {
+    await v1ForgeClose(args);
+    return;
+  }
   const parsed = await parseForgeArgs(args, "close");
   const workflow = await collectForgeStatus(parsed.project, parsed.sliceId, parsed.repo);
   const result = await runPipeline({
@@ -125,6 +143,10 @@ export async function forgeOpen(args: string[]) {
 }
 
 export async function forgeRelease(args: string[]) {
+  if (shouldUseV1ForgeRelease(args)) {
+    await v1ForgeRelease(args);
+    return;
+  }
   const positional = args.filter((a) => !a.startsWith("--"));
   const project = positional[0];
   const sliceId = positional[1];
@@ -424,5 +446,25 @@ export function shouldUseV1ForgeStatus(args: readonly string[]): boolean {
   if (args.includes("--legacy")) return false;
   const positional = args.filter((arg) => !arg.startsWith("--"));
   return positional.length === 1;
+}
+
+export function shouldUseV1ForgeStart(args: readonly string[]): boolean {
+  return hasProjectAndSlice(args) && !args.includes("--legacy");
+}
+
+export function shouldUseV1ForgeRelease(args: readonly string[]): boolean {
+  return hasProjectAndSlice(args) && !args.includes("--legacy");
+}
+
+export function shouldUseV1ForgeClose(args: readonly string[]): boolean {
+  return hasProjectAndSlice(args) && !args.includes("--legacy");
+}
+
+export function shouldUseV1ForgeRun(args: readonly string[]): boolean {
+  return hasProjectAndSlice(args) && !args.includes("--legacy");
+}
+
+function hasProjectAndSlice(args: readonly string[]): boolean {
+  return args.filter((arg) => !arg.startsWith("--")).length >= 2;
 }
 

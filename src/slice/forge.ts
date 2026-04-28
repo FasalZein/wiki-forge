@@ -12,6 +12,10 @@ export {
   forgeSkip,
   forgeStart,
   forgeStatus,
+  shouldUseV1ForgeClose,
   shouldUseV1ForgeNext,
+  shouldUseV1ForgeRelease,
+  shouldUseV1ForgeRun,
+  shouldUseV1ForgeStart,
   shouldUseV1ForgeStatus,
 } from "./forge/index";
