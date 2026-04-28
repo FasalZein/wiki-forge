@@ -6,7 +6,7 @@ import { loadV1ProjectProjection, loadV1SliceStatus } from "../vault/load-projec
 import { amendV1Slice, checkV1SliceClose, closeV1Slice, releaseV1Slice, startV1Slice } from "../vault/slice-store";
 import { addPlanningPrd, addPlanningSlice, completePlanningSession, createPlanningArtifacts, evaluatePlanningSessionGate, readPlanningSession, recordPlanningAnswer, type PlanningSession, type PlanningSessionGate, type PlanningSkill } from "../vault/planning-session-store";
 import { recordV1ReviewEvidence, recordV1TddEvidence, recordV1VerificationEvidence } from "../vault/evidence-store";
-import { readLatestV1Handover, writeV1Handover } from "../handover/store";
+export { v1Handover, v1Resume } from "./session-commands";
 
 export async function v1ForgeNext(args: string[]): Promise<void> {
   await renderV1ForgeProjection(args);
@@ -213,61 +213,6 @@ export async function v1ForgeReview(args: string[]): Promise<void> {
   });
   if (json) printJson(record);
   else printLine(`recorded review evidence for ${sliceId}`);
-}
-
-export async function v1Resume(args: string[]): Promise<void> {
-  const json = args.includes("--json");
-  const positional = readPositionalArgs(args, ["--repo", "--base"]);
-  const project = positional[0];
-  requireValue(project, "project");
-  const [statusTruth, latestHandover] = await Promise.all([
-    loadV1ProjectProjection(project),
-    readLatestV1Handover(project),
-  ]);
-  const nextAction = readProjectionNextAction(statusTruth);
-  const payload = {
-    kind: "v1-resume" as const,
-    project,
-    mutatesLifecycle: false,
-    statusTruth,
-    latestHandover,
-    nextAction,
-  };
-  if (json) printJson(payload);
-  else {
-    printLine(`resume ${project}: ${nextAction}`);
-    if (latestHandover) {
-      printLine(`handover: ${latestHandover.path}`);
-      printLine(`prompt: ${latestHandover.copyPastePrompt}`);
-    }
-  }
-}
-
-export async function v1Handover(args: string[]): Promise<void> {
-  const json = args.includes("--json");
-  const positional = readPositionalArgs(args, ["--session", "--agent", "--feature", "--prd", "--slice", "--summary", "--next-action", "--prompt"]);
-  const project = positional[0];
-  requireValue(project, "project");
-  const sessionId = readFlagValue(args, "--session") ?? new Date().toISOString().slice(0, 10);
-  const summary = readFlagValue(args, "--summary");
-  const nextAction = readFlagValue(args, "--next-action");
-  const copyPastePrompt = readFlagValue(args, "--prompt");
-  requireValue(summary, "--summary");
-  requireValue(nextAction, "--next-action");
-  requireValue(copyPastePrompt, "--prompt");
-  const result = await writeV1Handover({
-    project,
-    sessionId,
-    agent: readFlagValue(args, "--agent") ?? "agent",
-    summary,
-    nextAction,
-    copyPastePrompt,
-    relatedFeatures: readRepeatedFlagValues(args, "--feature"),
-    relatedPrds: readRepeatedFlagValues(args, "--prd"),
-    relatedSlices: readRepeatedFlagValues(args, "--slice"),
-  });
-  if (json) printJson(result);
-  else printLine(`wrote ${result.path}`);
 }
 
 export function v1Compat(args: string[]): void {
@@ -499,14 +444,6 @@ function readFlagValue(args: readonly string[], flag: string): string | undefine
   return index >= 0 ? args[index + 1] : undefined;
 }
 
-function readRepeatedFlagValues(args: readonly string[], flag: string): readonly string[] {
-  const values: string[] = [];
-  for (let index = 0; index < args.length; index += 1) {
-    if (args[index] === flag && args[index + 1]) values.push(args[index + 1]);
-  }
-  return values;
-}
-
 async function renderV1ForgeProjection(args: string[]): Promise<void> {
   const json = args.includes("--json");
   const positional = readPositionalArgs(args, ["--repo", "--base", "--agent", "--closed-by"]);
@@ -522,12 +459,6 @@ async function renderV1ForgeProjection(args: string[]): Promise<void> {
   const projection = await loadV1ProjectProjection(project);
   if (json) printLine(renderForgeNextJson(projection));
   else printLine(renderForgeNextText(projection));
-}
-
-function readProjectionNextAction(projection: Awaited<ReturnType<typeof loadV1ProjectProjection>>): string {
-  if (projection.status === "conflict") return "resolve-conflict";
-  if (projection.status === "needs-repair") return "repair-canonical-records";
-  return projection.nextAction;
 }
 
 function renderV1SliceStatusText(status: Awaited<ReturnType<typeof loadV1SliceStatus>>): string {
