@@ -77,7 +77,7 @@ describe("legacy forge read-only V1 cutover", () => {
     expect(shouldUseV1ForgeNext(["demo", "--all", "--prompt-json"])).toBe(false);
 
     expect(shouldUseV1ForgeStatus(["demo", "--json"])).toBe(true);
-    expect(shouldUseV1ForgeStatus(["demo", "DEMO-001", "--json"])).toBe(false);
+    expect(shouldUseV1ForgeStatus(["demo", "DEMO-001", "--json"])).toBe(true);
     expect(shouldUseV1ForgeStatus(["demo", "--legacy", "--json"])).toBe(true);
   });
 

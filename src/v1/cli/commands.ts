@@ -2,7 +2,7 @@ import { printJson, printLine } from "../../lib/cli-output";
 import { requireValue } from "../../cli-shared";
 import { describeLegacyCommand } from "./legacy-compat";
 import { renderForgeNextJson, renderForgeNextText } from "./render-forge-next";
-import { loadV1ProjectProjection } from "../vault/load-project";
+import { loadV1ProjectProjection, loadV1SliceStatus } from "../vault/load-project";
 import { amendV1Slice, checkV1SliceClose, closeV1Slice, releaseV1Slice, startV1Slice } from "../vault/slice-store";
 import { addPlanningPrd, addPlanningSlice, completePlanningSession, createPlanningArtifacts, evaluatePlanningSessionGate, readPlanningSession, recordPlanningAnswer, type PlanningSession, type PlanningSessionGate, type PlanningSkill } from "../vault/planning-session-store";
 import { recordV1ReviewEvidence, recordV1TddEvidence, recordV1VerificationEvidence } from "../vault/evidence-store";
@@ -445,9 +445,27 @@ function readFlagValue(args: readonly string[], flag: string): string | undefine
 
 async function renderV1ForgeProjection(args: string[]): Promise<void> {
   const json = args.includes("--json");
-  const project = args.find((arg) => !arg.startsWith("--"));
+  const positional = readPositionalArgs(args, ["--repo", "--base", "--agent", "--closed-by"]);
+  const project = positional[0];
   requireValue(project, "project");
+  const sliceId = positional[1];
+  if (sliceId) {
+    const status = await loadV1SliceStatus(project, sliceId);
+    if (json) printJson(status);
+    else printLine(renderV1SliceStatusText(status));
+    return;
+  }
   const projection = await loadV1ProjectProjection(project);
   if (json) printLine(renderForgeNextJson(projection));
   else printLine(renderForgeNextText(projection));
+}
+
+function renderV1SliceStatusText(status: Awaited<ReturnType<typeof loadV1SliceStatus>>): string {
+  if (status.status === "missing") return `${status.project}/${status.sliceId}: missing canonical slice hub`;
+  if (status.status === "needs-repair") return `${status.project}/${status.sliceId}: repair canonical slice hub`;
+  return [
+    `${status.project}/${status.sliceId}: ${status.status}`,
+    `lifecycle: ${status.lifecycleStatus}`,
+    `next: ${status.nextAction}`,
+  ].join("\n");
 }

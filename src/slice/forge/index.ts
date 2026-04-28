@@ -360,8 +360,7 @@ export function shouldUseV1ForgeNext(args: readonly string[]): boolean {
 }
 
 export function shouldUseV1ForgeStatus(args: readonly string[]): boolean {
-  const positional = args.filter((arg) => !arg.startsWith("--"));
-  return positional.length === 1;
+  return args.some((arg) => !arg.startsWith("--"));
 }
 
 export function shouldUseV1ForgeStart(args: readonly string[]): boolean {
