@@ -7,11 +7,9 @@ import { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintRes
 import { askProject, fileAnswer, fileResearch } from "../retrieval/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "../retrieval/qmd-commands";
 import { noteProject, exportPrompt, logCommand } from "../session";
-import { repairHistoricalDoneSlices } from "../slice";
 import { statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, bindSourcePaths, migrateVerification, verifyPage, acknowledgeImpact } from "../verification";
 import { configCommand } from "../config";
 import { schemaCommand } from "../schema";
-import { findProjectArg } from "../git-utils";
 import { v1Compat, v1ForgeAmend, v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgePlan, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus, v1Handover, v1Resume } from "../v1/cli/commands";
 import { assertCommandNotQuarantined } from "../v1/cli/command-surface";
 
@@ -53,11 +51,7 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   resume: (args) => v1Resume(args),
   doctor: (args) => doctorProject(args),
   gate: (args) => gateProject(args),
-  maintain: async (args) => {
-    const project = findProjectArg(args);
-    const repair = project ? await repairHistoricalDoneSlices(project) : undefined;
-    await maintainProject(args, repair);
-  },
+  maintain: (args) => maintainProject(args),
   refresh: (args) => refreshProject(args),
   "refresh-from-git": (args) => refreshFromGit(args),
   sync: (args) => syncProject(args),
