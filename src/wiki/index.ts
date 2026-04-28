@@ -13,7 +13,7 @@ import { statusProject, lintProject, lintSemanticProject, verifyProject, cacheCl
 import { configCommand } from "../config";
 import { schemaCommand } from "../schema";
 import { findProjectArg } from "../git-utils";
-import { v1Compat, v1ForgeNext, v1ForgeStatus } from "../v1/cli/commands";
+import { v1Compat, v1ForgeNext, v1ForgeRelease, v1ForgeStart, v1ForgeStatus } from "../v1/cli/commands";
 
 export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   help: (args) => printHelp(args),
@@ -110,6 +110,8 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   schema: (args) => schemaCommand(args),
   "v1:forge:next": (args) => v1ForgeNext(args),
   "v1:forge:status": (args) => v1ForgeStatus(args),
+  "v1:forge:start": (args) => v1ForgeStart(args),
+  "v1:forge:release": (args) => v1ForgeRelease(args),
   "v1:compat": (args) => v1Compat(args),
 };
 
@@ -165,6 +167,8 @@ function resolveV1Command(rawArgs: string[]) {
   if (area === "forge") {
     if (subcommand === "next") return { command: "v1:forge:next", args: subArgs };
     if (subcommand === "status") return { command: "v1:forge:status", args: subArgs };
+    if (subcommand === "start") return { command: "v1:forge:start", args: subArgs };
+    if (subcommand === "release") return { command: "v1:forge:release", args: subArgs };
     throw new Error(`unknown v1 forge subcommand: ${subcommand ?? ""}. Run 'wiki help' for usage.`);
   }
   if (area === "compat") {
