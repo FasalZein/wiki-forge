@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { existsSync } from "node:fs";
+import matter from "gray-matter";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
 import { describeLegacyCommand } from "../../src/v1/cli/legacy-compat";
@@ -16,7 +17,7 @@ describe("V1 forge plan", () => {
     const result = runWiki(["v1", "forge", "plan", "demo", "safer deployment flow", "--json"], { vault });
 
     expect(result.exitCode).toBe(1);
-    expect(result.json()).toEqual({
+    expect(result.json()).toMatchObject({
       status: "blocked",
       project: "demo",
       featureName: "safer deployment flow",
@@ -26,6 +27,8 @@ describe("V1 forge plan", () => {
       requiredSequence: ["torpathy", "domain-model", "grill-prd", "write-prd", "prd-to-slices"],
       requiredSkills: ["torpathy", "domain-model", "grill-me", "write-a-prd", "prd-to-slices"],
       supportsMultiplePrds: true,
+      missing: ["torpathy-answer", "domain-model-answer", "prd-candidate", "prd-grill", "slice-breakdown"],
+      session: null,
       nextQuestion: {
         id: "plan-scope-boundary",
         skill: "domain-model",
@@ -66,6 +69,64 @@ describe("V1 forge plan", () => {
       requiredSkills: ["torpathy", "domain-model", "grill-me", "write-a-prd", "prd-to-slices"],
     });
     expect(existsSync(join(vault, "projects", "demo", "specs", "slices"))).toBe(false);
+  });
+
+  test("persists planning-session answers and blocks completion until every PRD is grilled and sliced", () => {
+    const vault = tempDir("wiki-v1-plan-session-vault");
+    initVault(vault);
+
+    const torpathy = runWiki(["v1", "forge", "plan", "demo", "safer deploy", "--answer", "torpathy-boundary", "--skill", "torpathy", "--response", "Runtime contract owns the gate", "--json"], { vault });
+    expect(torpathy.exitCode).toBe(0);
+    expect(torpathy.json()).toMatchObject({ status: "recorded", session: { status: "draft", answers: [{ skill: "torpathy" }] } });
+
+    expect(runWiki(["v1", "forge", "plan", "demo", "safer deploy", "--answer", "domain-language", "--skill", "domain-model", "--response", "Planning session is canonical lifecycle input", "--json"], { vault }).exitCode).toBe(0);
+    expect(runWiki(["v1", "forge", "plan", "demo", "safer deploy", "--prd", "Deployment safety PRD", "--json"], { vault }).exitCode).toBe(0);
+
+    const incomplete = runWiki(["v1", "forge", "plan", "demo", "safer deploy", "--complete-session", "--json"], { vault });
+    expect(incomplete.exitCode).toBe(1);
+    expect(incomplete.json()).toMatchObject({ status: "blocked", missing: ["prd-grill:Deployment safety PRD", "slice-breakdown:Deployment safety PRD"] });
+
+    expect(runWiki(["v1", "forge", "plan", "demo", "safer deploy", "--answer", "grill-deploy", "--skill", "grill-me", "--prd", "Deployment safety PRD", "--response", "Scope is only the first deployment gate", "--json"], { vault }).exitCode).toBe(0);
+    expect(runWiki(["v1", "forge", "plan", "demo", "safer deploy", "--prd", "Deployment safety PRD", "--slice", "Block unsafe deploy until checks pass", "--json"], { vault }).exitCode).toBe(0);
+
+    const complete = runWiki(["v1", "forge", "plan", "demo", "safer deploy", "--complete-session", "--json"], { vault });
+    expect(complete.exitCode).toBe(0);
+    expect(complete.json()).toMatchObject({ status: "ready-for-artifacts", session: { status: "ready-for-artifacts" } });
+
+    const sessionPath = join(vault, "projects", "demo", "planning-sessions", "safer-deploy.md");
+    const sessionDoc = matter(readFileSync(sessionPath, "utf8"));
+    expect(sessionDoc.data.status).toBe("ready-for-artifacts");
+    expect(sessionDoc.data.answers.map((answer: { skill: string }) => answer.skill)).toEqual(["torpathy", "domain-model", "grill-me"]);
+  });
+
+  test("creates feature PRD and slices only after the planning session is complete", () => {
+    const vault = tempDir("wiki-v1-plan-artifacts-vault");
+    initVault(vault);
+
+    const base = ["v1", "forge", "plan", "demo", "safer deploy"];
+    expect(runWiki([...base, "--answer", "torpathy-boundary", "--skill", "torpathy", "--response", "Runtime contract owns the gate"], { vault }).exitCode).toBe(0);
+    expect(runWiki([...base, "--answer", "domain-language", "--skill", "domain-model", "--response", "Planning session is canonical lifecycle input"], { vault }).exitCode).toBe(0);
+    expect(runWiki([...base, "--prd", "Deployment safety PRD"], { vault }).exitCode).toBe(0);
+    expect(runWiki([...base, "--answer", "grill-deploy", "--skill", "grill-me", "--prd", "Deployment safety PRD", "--response", "Scope is only the first deployment gate"], { vault }).exitCode).toBe(0);
+    expect(runWiki([...base, "--prd", "Deployment safety PRD", "--slice", "Block unsafe deploy until checks pass"], { vault }).exitCode).toBe(0);
+
+    const blockedCreate = runWiki([...base, "--create-artifacts", "--json"], { vault });
+    expect(blockedCreate.exitCode).toBe(1);
+    expect(blockedCreate.stderr.toString()).toContain("planning session is not complete");
+    expect(existsSync(join(vault, "projects", "demo", "specs", "features"))).toBe(false);
+
+    expect(runWiki([...base, "--complete-session"], { vault }).exitCode).toBe(0);
+    const created = runWiki([...base, "--create-artifacts", "--json"], { vault });
+    expect(created.exitCode).toBe(0);
+    expect(created.json()).toMatchObject({
+      status: "created",
+      artifacts: { featureId: "FEAT-001", prds: [{ prdId: "PRD-001", name: "Deployment safety PRD", slices: ["DEMO-001"] }] },
+    });
+
+    expect(existsSync(join(vault, "projects", "demo", "specs", "features", "FEAT-001-safer-deploy.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "demo", "specs", "prds", "PRD-001-deployment-safety-prd.md"))).toBe(true);
+    const sliceHub = matter(readFileSync(join(vault, "projects", "demo", "specs", "slices", "DEMO-001", "index.md"), "utf8"));
+    expect(sliceHub.data).toMatchObject({ task_id: "DEMO-001", parent_prd: "PRD-001", parent_feature: "FEAT-001", planning_session: "safer-deploy", status: "draft" });
   });
 
   test("resolver and compatibility metadata declare V1 ownership", () => {

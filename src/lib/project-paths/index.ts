@@ -11,6 +11,7 @@ export const PROJECT_FREEFORM_DOC_DIRS = [
   "runbooks",
   "verification",
   "legacy",
+  "planning-sessions",
 ] as const;
 
 export const TASK_ID_PATTERN = /^(?:[A-Z0-9]+-)+\d+$/u;
