@@ -19,13 +19,15 @@ import { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeMo
 import { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch, handoffResearch, bridgeResearch, distillResearch, adoptResearch } from "../research";
 import { askProject, fileAnswer, fileResearch } from "../retrieval/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "../retrieval/qmd-commands";
-import { v1Compat, v1ExportPrompt, v1ForgeAmend, v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgePlan, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus, v1Handover, v1Log, v1Note, v1Resume } from "../v1/cli/commands";
+import { forgeAmendCommand, forgeCheckCommand, forgeCloseCommand, forgeEvidenceCommand, forgeNextCommand, forgePlanCommand, forgeReleaseCommand, forgeReviewCommand, forgeRunCommand, forgeStartCommand, forgeStatusCommand } from "../forge/workflow/commands";
+import { exportPromptCommand, handoverCommand, logCommand, noteCommand, resumeCommand } from "./memory/commands";
 import { acknowledgeImpact } from "../verification/acknowledge-impact";
 import { bindSourcePaths, migrateVerification, verifyPage } from "../verification/verification-pages";
 import { cacheClear, lintProject, lintSemanticProject, verifyProject } from "../verification/linting";
 import { configCommand } from "../config";
 import { schemaCommand } from "../schema";
-import { assertCommandNotQuarantined } from "../v1/cli/command-surface";
+import { assertCommandNotQuarantined } from "./runtime/command-surface";
+import { compatibilityCommand } from "./runtime/compat";
 
 export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   help: (args) => printHelp(args),
@@ -53,16 +55,16 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "protocol:sync": (args) => syncProtocol(args),
   "protocol:audit": (args) => auditProtocol(args),
   "dependency-graph": (args) => dependencyGraph(args),
-  handover: (args) => v1Handover(args),
+  handover: (args) => handoverCommand(args),
   claim: quarantinedCommand("claim"),
-  note: (args) => v1Note(args),
-  next: (args) => v1ForgeNext(args),
+  note: (args) => noteCommand(args),
+  next: (args) => forgeNextCommand(args),
   "start-slice": quarantinedCommand("start-slice"),
   "verify-slice": quarantinedCommand("verify-slice"),
   "close-slice": quarantinedCommand("close-slice"),
   "acknowledge-impact": (args) => acknowledgeImpact(args),
-  "export-prompt": (args) => v1ExportPrompt(args),
-  resume: (args) => v1Resume(args),
+  "export-prompt": (args) => exportPromptCommand(args),
+  resume: (args) => resumeCommand(args),
   doctor: (args) => doctorProject(args),
   gate: quarantinedCommand("gate"),
   maintain: (args) => maintainProject(args),
@@ -72,7 +74,7 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   discover: (args) => discoverProject(args),
   "ingest-diff": (args) => ingestDiff(args),
   "update-index": (args) => updateIndex(args),
-  log: (args) => v1Log(args),
+  log: (args) => logCommand(args),
   obsidian: (args) => obsidianCommand(args),
   status: quarantinedCommand("status"),
   lint: (args) => lintProject(args),
@@ -116,23 +118,23 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "close-prd": quarantinedCommand("close-prd"),
   config: (args) => configCommand(args),
   schema: (args) => schemaCommand(args),
-  "v1:forge:next": (args) => v1ForgeNext(args),
-  "v1:forge:status": (args) => v1ForgeStatus(args),
-  "v1:forge:plan": (args) => v1ForgePlan(args),
-  "v1:forge:start": (args) => v1ForgeStart(args),
-  "v1:forge:release": (args) => v1ForgeRelease(args),
-  "v1:forge:amend": (args) => v1ForgeAmend(args),
-  "v1:forge:check": (args) => v1ForgeCheck(args),
-  "v1:forge:close": (args) => v1ForgeClose(args),
-  "v1:forge:run": (args) => v1ForgeRun(args),
-  "v1:forge:evidence": (args) => v1ForgeEvidence(args),
-  "v1:forge:review": (args) => v1ForgeReview(args),
-  "v1:handover": (args) => v1Handover(args),
-  "v1:resume": (args) => v1Resume(args),
-  "v1:export-prompt": (args) => v1ExportPrompt(args),
-  "v1:note": (args) => v1Note(args),
-  "v1:log": (args) => v1Log(args),
-  "v1:compat": (args) => v1Compat(args),
+  "v1:forge:next": (args) => forgeNextCommand(args),
+  "v1:forge:status": (args) => forgeStatusCommand(args),
+  "v1:forge:plan": (args) => forgePlanCommand(args),
+  "v1:forge:start": (args) => forgeStartCommand(args),
+  "v1:forge:release": (args) => forgeReleaseCommand(args),
+  "v1:forge:amend": (args) => forgeAmendCommand(args),
+  "v1:forge:check": (args) => forgeCheckCommand(args),
+  "v1:forge:close": (args) => forgeCloseCommand(args),
+  "v1:forge:run": (args) => forgeRunCommand(args),
+  "v1:forge:evidence": (args) => forgeEvidenceCommand(args),
+  "v1:forge:review": (args) => forgeReviewCommand(args),
+  "v1:handover": (args) => handoverCommand(args),
+  "v1:resume": (args) => resumeCommand(args),
+  "v1:export-prompt": (args) => exportPromptCommand(args),
+  "v1:note": (args) => noteCommand(args),
+  "v1:log": (args) => logCommand(args),
+  "v1:compat": (args) => compatibilityCommand(args),
 };
 
 function quarantinedCommand(command: string): CommandHandler {
