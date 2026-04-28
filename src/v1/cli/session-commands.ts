@@ -2,7 +2,7 @@ import { requireValue } from "../../cli-shared";
 import { printJson, printLine } from "../../lib/cli-output";
 import { readLatestV1Handover, writeV1Handover } from "../handover/store";
 import { loadV1ProjectProjection } from "../vault/load-project";
-import { buildV1PromptPacket } from "../prompt/packet";
+import { buildPromptPacket } from "../../wiki/memory/prompt-packet";
 import { tailMemoryLog, writeMemoryLogEntry, writeMemoryNote } from "../../wiki/memory/store";
 
 export async function v1Resume(args: string[]): Promise<void> {
@@ -42,7 +42,7 @@ export async function v1ExportPrompt(args: string[]): Promise<void> {
     loadV1ProjectProjection(project),
     readLatestV1Handover(project),
   ]);
-  const packet = buildV1PromptPacket({ project, statusTruth, latestHandover });
+  const packet = buildPromptPacket({ project, statusTruth, latestHandover });
   if (json) printJson(packet);
   else printLine(packet.prompt);
 }

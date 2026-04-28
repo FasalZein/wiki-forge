@@ -30,7 +30,7 @@ describe("V1 export prompt", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.json()).toMatchObject({
-      kind: "v1-prompt-packet",
+      kind: "prompt-packet",
       project: "demo",
       nextAction: "start-ready-slice",
       statusTruth: {
