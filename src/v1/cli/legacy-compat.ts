@@ -17,6 +17,7 @@ const LEGACY_COMPATIBILITY_REPORT: readonly LegacyCompatibilityEntry[] = [
   v1Owned("wiki forge evidence", "wiki v1 forge evidence"),
   v1Owned("wiki forge review record", "wiki v1 forge review record"),
   v1Owned("wiki forge check", "wiki v1 forge check"),
+  v1Owned("wiki forge amend", "wiki v1 forge amend"),
   v1Owned("wiki forge close", "wiki v1 forge close"),
   v1Owned("wiki forge run", "wiki v1 forge run"),
   {

@@ -22,6 +22,7 @@ const v1OwnedCommands = [
   ["wiki forge evidence", "wiki v1 forge evidence"],
   ["wiki forge review record", "wiki v1 forge review record"],
   ["wiki forge check", "wiki v1 forge check"],
+  ["wiki forge amend", "wiki v1 forge amend"],
   ["wiki forge close", "wiki v1 forge close"],
   ["wiki forge run", "wiki v1 forge run"],
 ] as const;

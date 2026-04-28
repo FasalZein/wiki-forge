@@ -12,6 +12,7 @@ export {
   forgeSkip,
   forgeStart,
   forgeStatus,
+  shouldUseV1ForgeAmend,
   shouldUseV1ForgeCheck,
   shouldUseV1ForgeClose,
   shouldUseV1ForgeEvidence,

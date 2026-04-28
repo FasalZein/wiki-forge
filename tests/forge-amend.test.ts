@@ -49,7 +49,7 @@ describe("wiki forge amend", () => {
 
     const backlog = JSON.parse(runWiki(["backlog", "amendproj", "--json"], env).stdout.toString());
     expect(backlog.sections.Done.map((item: { id: string }) => item.id)).toContain("AMENDPROJ-001");
-    expect(backlog.sections.Todo.map((item: { id: string }) => item.id)).toContain("AMENDPROJ-002");
+    expect(backlog.sections.Todo.map((item: { id: string }) => item.id)).not.toContain("AMENDPROJ-002");
   });
 
   test("can start the amendment slice after linking it to the closed slice", () => {
@@ -70,12 +70,12 @@ describe("wiki forge amend", () => {
     const amendmentHub = readFileSync(join(vault, "projects", "amendstart", "specs", "slices", "AMENDSTART-002", "index.md"), "utf8");
     expect(amendmentHub).toContain("status: in-progress");
     expect(amendmentHub).toContain("claimed_by: codex");
-    expect(amendmentHub).toContain("claim_paths:\n  - src/payments.ts");
+    expect(amendmentHub).toContain("source_paths:\n  - src/payments.ts");
     const backlog = JSON.parse(runWiki(["backlog", "amendstart", "--json"], env).stdout.toString());
-    expect(backlog.sections["In Progress"].map((item: { id: string }) => item.id)).toContain("AMENDSTART-002");
+    expect(backlog.sections["In Progress"].map((item: { id: string }) => item.id)).not.toContain("AMENDSTART-002");
   });
 
-  test("refuses to amend slices without canonical close evidence", () => {
+  test("refuses to amend slices without V1 lifecycle close evidence", () => {
     const vault = tempDir("wiki-vault-open");
     initVault(vault);
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
@@ -84,7 +84,7 @@ describe("wiki forge amend", () => {
 
     const amend = runWiki(["forge", "amend", "openproj", "OPENPROJ-001", "--reason", "needs followup"], env);
     expect(amend.exitCode).not.toBe(0);
-    expect(amend.stderr.toString()).toContain("slice is not canonically closed");
+    expect(amend.stderr.toString()).toContain("slice is not closed in V1 lifecycle truth");
   });
 });
 

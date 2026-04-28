@@ -23,12 +23,13 @@ import {
 } from "./output";
 import { collectForgeReview } from "./docs";
 import { printError, printJson, printLine } from "../../lib/cli-output";
-import { v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus } from "../../v1/cli/commands";
+import { v1ForgeAmend, v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus } from "../../v1/cli/commands";
 export { forgeSkip } from "./skip";
-export { forgeAmend } from "./amend";
 
 
-
+export async function forgeAmend(args: string[]) {
+  await v1ForgeAmend(args);
+}
 
 export async function forgeEvidence(args: string[]) {
   await v1ForgeEvidence(args);
@@ -372,6 +373,10 @@ export function shouldUseV1ForgeClose(args: readonly string[]): boolean {
 }
 
 export function shouldUseV1ForgeCheck(args: readonly string[]): boolean {
+  return hasProjectAndSlice(args);
+}
+
+export function shouldUseV1ForgeAmend(args: readonly string[]): boolean {
   return hasProjectAndSlice(args);
 }
 

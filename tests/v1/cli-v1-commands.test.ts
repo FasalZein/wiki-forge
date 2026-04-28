@@ -35,6 +35,10 @@ describe("v1 CLI command surface", () => {
       command: "v1:forge:status",
       args: ["demo", "--json"],
     });
+    expect(resolveWikiCommand(["v1", "forge", "amend", "demo", "DEMO-001", "--reason", "bug"])).toEqual({
+      command: "v1:forge:amend",
+      args: ["demo", "DEMO-001", "--reason", "bug"],
+    });
     expect(resolveWikiCommand(["v1", "compat", "wiki", "forge", "next"])).toEqual({
       command: "v1:compat",
       args: ["wiki", "forge", "next"],

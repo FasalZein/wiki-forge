@@ -3,7 +3,7 @@ import { requireValue } from "../../cli-shared";
 import { describeLegacyCommand } from "./legacy-compat";
 import { renderForgeNextJson, renderForgeNextText } from "./render-forge-next";
 import { loadV1ProjectProjection } from "../vault/load-project";
-import { checkV1SliceClose, closeV1Slice, releaseV1Slice, startV1Slice } from "../vault/slice-store";
+import { amendV1Slice, checkV1SliceClose, closeV1Slice, releaseV1Slice, startV1Slice } from "../vault/slice-store";
 import { recordV1ReviewEvidence, recordV1TddEvidence, recordV1VerificationEvidence } from "../vault/evidence-store";
 
 export async function v1ForgeNext(args: string[]): Promise<void> {
@@ -38,6 +38,14 @@ export async function v1ForgeRelease(args: string[]): Promise<void> {
   const result = await releaseV1Slice({ project, sliceId });
   if (json) printJson(result);
   else printLine(`released ${sliceId}`);
+}
+
+export async function v1ForgeAmend(args: string[]): Promise<void> {
+  const json = args.includes("--json");
+  const options = parseAmendArgs(args);
+  const result = await amendV1Slice(options);
+  if (json) printJson(result);
+  else printLine(`created amendment ${result.amendmentSliceId} for ${result.closedSliceId}`);
 }
 
 export async function v1ForgeCheck(args: string[]): Promise<void> {
@@ -173,6 +181,58 @@ function parseReviewVerdict(value: string): "approved" | "needs-changes" | "appr
   const normalized = value.replaceAll("_", "-");
   if (normalized === "approved" || normalized === "needs-changes" || normalized === "approved-with-followups") return normalized;
   throw new Error(`invalid review verdict: ${value}`);
+}
+
+function parseAmendArgs(args: readonly string[]) {
+  const positional: string[] = [];
+  const sourcePaths: string[] = [];
+  let reason: string | undefined;
+  let title: string | undefined;
+  let agent: string | undefined;
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    switch (arg) {
+      case "--reason":
+        reason = args[index + 1];
+        index += 1;
+        break;
+      case "--title":
+        title = args[index + 1];
+        index += 1;
+        break;
+      case "--agent":
+        agent = args[index + 1];
+        index += 1;
+        break;
+      case "--source":
+        while (args[index + 1] && !args[index + 1]?.startsWith("--")) {
+          sourcePaths.push(String(args[index + 1]).replaceAll("\\", "/"));
+          index += 1;
+        }
+        break;
+      case "--json":
+      case "--start":
+      case "--legacy":
+        break;
+      default:
+        if (!arg.startsWith("--")) positional.push(arg);
+        break;
+    }
+  }
+  const project = positional[0];
+  const closedSliceId = positional[1];
+  requireValue(project, "project");
+  requireValue(closedSliceId, "closed-slice-id");
+  requireValue(reason, "--reason");
+  return {
+    project,
+    closedSliceId,
+    reason,
+    ...(title ? { title } : {}),
+    ...(agent ? { agent } : {}),
+    sourcePaths,
+    start: args.includes("--start"),
+  };
 }
 
 function readPositionalArgs(args: readonly string[], valueFlags: readonly string[]): readonly string[] {
