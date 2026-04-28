@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
-import { shouldUseV1ForgeNext, shouldUseV1ForgeStatus } from "../../src/v1/cli/cutover";
+import { shouldUseForgeNext, shouldUseForgeStatus } from "../../src/forge/cutover";
 import { describeLegacyCommand } from "../../src/v1/cli/legacy-compat";
 
 afterEach(() => cleanupTempPaths());
@@ -70,14 +70,14 @@ describe("legacy forge read-only V1 cutover", () => {
   });
 
   test("implemented read-only commands do not fall back to legacy", () => {
-    expect(shouldUseV1ForgeNext(["demo", "--json"])).toBe(true);
-    expect(shouldUseV1ForgeNext(["demo", "--legacy", "--json"])).toBe(true);
-    expect(shouldUseV1ForgeNext(["demo", "--prompt-json"])).toBe(false);
-    expect(shouldUseV1ForgeNext(["demo", "--all", "--prompt-json"])).toBe(false);
+    expect(shouldUseForgeNext(["demo", "--json"])).toBe(true);
+    expect(shouldUseForgeNext(["demo", "--legacy", "--json"])).toBe(true);
+    expect(shouldUseForgeNext(["demo", "--prompt-json"])).toBe(false);
+    expect(shouldUseForgeNext(["demo", "--all", "--prompt-json"])).toBe(false);
 
-    expect(shouldUseV1ForgeStatus(["demo", "--json"])).toBe(true);
-    expect(shouldUseV1ForgeStatus(["demo", "DEMO-001", "--json"])).toBe(true);
-    expect(shouldUseV1ForgeStatus(["demo", "--legacy", "--json"])).toBe(true);
+    expect(shouldUseForgeStatus(["demo", "--json"])).toBe(true);
+    expect(shouldUseForgeStatus(["demo", "DEMO-001", "--json"])).toBe(true);
+    expect(shouldUseForgeStatus(["demo", "--legacy", "--json"])).toBe(true);
   });
 
   test("compat metadata documents cutover", () => {

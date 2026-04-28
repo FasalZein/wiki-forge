@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import matter from "gray-matter";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
-import { shouldUseV1ForgeStatus } from "../../src/v1/cli/cutover";
+import { shouldUseForgeStatus } from "../../src/forge/cutover";
 
 const sliceId = "DEMO-001";
 
@@ -54,8 +54,8 @@ function passingEvidence() {
 
 describe("v1 slice-specific forge status", () => {
   test("default slice-specific status routes to V1 even with --legacy", () => {
-    expect(shouldUseV1ForgeStatus(["demo", sliceId, "--json"])).toBe(true);
-    expect(shouldUseV1ForgeStatus(["demo", sliceId, "--legacy", "--json"])).toBe(true);
+    expect(shouldUseForgeStatus(["demo", sliceId, "--json"])).toBe(true);
+    expect(shouldUseForgeStatus(["demo", sliceId, "--legacy", "--json"])).toBe(true);
   });
 
   test("reports draft slices from canonical V1 truth", () => {

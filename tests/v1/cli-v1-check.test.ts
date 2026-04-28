@@ -4,7 +4,7 @@ import { join } from "node:path";
 import matter from "gray-matter";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
 import { resolveWikiCommand } from "../../src/wiki";
-import { shouldUseV1ForgeCheck } from "../../src/v1/cli/cutover";
+import { shouldUseForgeCheck } from "../../src/forge/cutover";
 
 const sliceId = "DEMO-001";
 
@@ -48,8 +48,8 @@ describe("v1 check command adapter", () => {
       command: "v1:forge:check",
       args: ["demo", sliceId, "--json"],
     });
-    expect(shouldUseV1ForgeCheck(["demo", sliceId, "--json"])).toBe(true);
-    expect(shouldUseV1ForgeCheck(["demo", sliceId, "--legacy", "--json"])).toBe(true);
+    expect(shouldUseForgeCheck(["demo", sliceId, "--json"])).toBe(true);
+    expect(shouldUseForgeCheck(["demo", sliceId, "--legacy", "--json"])).toBe(true);
   });
 
   test("v1 check accepts passing evidence without mutating status", () => {

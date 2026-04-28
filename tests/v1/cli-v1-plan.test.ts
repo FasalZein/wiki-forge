@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
 import { describeLegacyCommand } from "../../src/v1/cli/legacy-compat";
-import { shouldUseV1ForgePlan } from "../../src/v1/cli/cutover";
+import { shouldUseForgePlan } from "../../src/forge/cutover";
 import { resolveWikiCommand } from "../../src/wiki";
 
 afterEach(() => cleanupTempPaths());
@@ -153,7 +153,7 @@ describe("V1 forge plan", () => {
       command: "v1:forge:plan",
       args: ["demo", "feature"],
     });
-    expect(shouldUseV1ForgePlan(["demo", "feature", "--legacy"])).toBe(true);
+    expect(shouldUseForgePlan(["demo", "feature", "--legacy"])).toBe(true);
     expect(describeLegacyCommand("wiki forge plan")).toEqual({
       command: "wiki forge plan",
       status: "v1-owned",

@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import matter from "gray-matter";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
-import { shouldUseV1ForgeEvidence, shouldUseV1ForgeReview } from "../../src/v1/cli/cutover";
+import { shouldUseForgeEvidence, shouldUseForgeReview } from "../../src/forge/cutover";
 
 const sliceId = "DEMO-001";
 
@@ -35,10 +35,10 @@ function evidence(vault: string) {
 
 describe("legacy evidence/review V1 cutover", () => {
   test("implemented evidence/review commands do not fall back to legacy", () => {
-    expect(shouldUseV1ForgeEvidence(["demo", sliceId, "tdd", "--command", "bun test", "--json"])).toBe(true);
-    expect(shouldUseV1ForgeEvidence(["demo", sliceId, "tdd", "--legacy", "--command", "bun test"])).toBe(true);
-    expect(shouldUseV1ForgeReview(["record", "demo", sliceId, "--verdict", "approved", "--reviewer", "reviewer"])).toBe(true);
-    expect(shouldUseV1ForgeReview(["record", "demo", sliceId, "--legacy", "--verdict", "approved", "--reviewer", "reviewer"])).toBe(true);
+    expect(shouldUseForgeEvidence(["demo", sliceId, "tdd", "--command", "bun test", "--json"])).toBe(true);
+    expect(shouldUseForgeEvidence(["demo", sliceId, "tdd", "--legacy", "--command", "bun test"])).toBe(true);
+    expect(shouldUseForgeReview(["record", "demo", sliceId, "--verdict", "approved", "--reviewer", "reviewer"])).toBe(true);
+    expect(shouldUseForgeReview(["record", "demo", sliceId, "--legacy", "--verdict", "approved", "--reviewer", "reviewer"])).toBe(true);
   });
 
   test("default wiki forge evidence tdd routes to V1", () => {

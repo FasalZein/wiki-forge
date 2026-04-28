@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
 import { describeLegacyCommand } from "../../src/v1/cli/legacy-compat";
-import { shouldUseV1ForgeAmend } from "../../src/v1/cli/cutover";
+import { shouldUseForgeAmend } from "../../src/forge/cutover";
 
 afterEach(() => cleanupTempPaths());
 
@@ -86,7 +86,7 @@ describe("V1 forge amend", () => {
   });
 
   test("compatibility marks amend as V1-owned with no legacy fallback", () => {
-    expect(shouldUseV1ForgeAmend(["demo", "DEMO-001", "--legacy", "--reason", "bug"])).toBe(true);
+    expect(shouldUseForgeAmend(["demo", "DEMO-001", "--legacy", "--reason", "bug"])).toBe(true);
     expect(describeLegacyCommand("wiki forge amend")).toEqual({
       command: "wiki forge amend",
       status: "v1-owned",

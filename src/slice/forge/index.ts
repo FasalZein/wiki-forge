@@ -24,7 +24,7 @@ import {
 import { collectForgeReview } from "./docs";
 import { printError, printJson, printLine } from "../../lib/cli-output";
 import { v1ForgeAmend, v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgePlan, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus } from "../../v1/cli/commands";
-import { shouldUseV1ForgeNext, shouldUseV1ForgeStatus } from "../../v1/cli/cutover";
+import { shouldUseForgeNext, shouldUseForgeStatus } from "../../forge/cutover";
 export { forgeSkip } from "./skip";
 
 
@@ -61,7 +61,7 @@ export async function forgeClose(args: string[]) {
 }
 
 export async function forgeStatus(args: string[]) {
-  if (shouldUseV1ForgeStatus(args)) {
+  if (shouldUseForgeStatus(args)) {
     await v1ForgeStatus(args);
     return;
   }
@@ -280,7 +280,7 @@ function parseForgePlanArgs(args: string[]): ForgePlanArgs {
 }
 
 export async function forgeNext(args: string[]) {
-  if (shouldUseV1ForgeNext(args)) {
+  if (shouldUseForgeNext(args)) {
     await v1ForgeNext(args);
     return;
   }
@@ -355,17 +355,4 @@ export async function forgeNext(args: string[]) {
   }
 }
 
-export {
-  shouldUseV1ForgeAmend,
-  shouldUseV1ForgeCheck,
-  shouldUseV1ForgeClose,
-  shouldUseV1ForgeEvidence,
-  shouldUseV1ForgeNext,
-  shouldUseV1ForgePlan,
-  shouldUseV1ForgeRelease,
-  shouldUseV1ForgeReview,
-  shouldUseV1ForgeRun,
-  shouldUseV1ForgeStart,
-  shouldUseV1ForgeStatus,
-} from "../../v1/cli/cutover";
 
