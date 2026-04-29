@@ -88,15 +88,7 @@ Planning & Hierarchy:
   wiki add-task <project> <title...> [--section <name>] [--priority <p>] [--tag <t>] [--json]
   wiki move-task <project> <task-id> --to <section>
   wiki complete-task <project> <task-id>
-  wiki create-feature <project> <name...>
-  wiki create-prd <project> --feature <FEAT-ID> <name...> [--supersedes <PRD-ID>] [--split-from <PRD-ID>]
   wiki feature-status <project> [--json]
-  wiki start-feature <project> <FEAT-ID>
-  wiki close-feature <project> <FEAT-ID> [--force] [--yes-really-force]
-  wiki start-prd <project> <PRD-ID>
-  wiki close-prd <project> <PRD-ID> [--force] [--yes-really-force]
-  wiki create-plan <project> <name...>
-  wiki create-test-plan <project> <name...>
   wiki dependency-graph <project> [--write] [--json]
   wiki update-index <project>|--all [--write] [--json]
   wiki summary <project> [--repo <path>] [--json]

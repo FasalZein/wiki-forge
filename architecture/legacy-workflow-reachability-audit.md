@@ -44,8 +44,8 @@ These legacy behaviors should be deleted or kept only as admin/read helpers. The
 - `src/slice/lifecycle/**` start/close commands.
 - `src/slice/coordination/**` claim commands.
 - `src/hierarchy/backlog/commands.ts` mutation commands.
-- `src/hierarchy/lifecycle/start-*.ts` and `close-*.ts` lifecycle commands.
-- `src/hierarchy/planning/**` legacy PRD/plan/slice creation commands.
+- `src/hierarchy/lifecycle/start-*.ts` and `close-*.ts` lifecycle commands. ✅ command adapters deleted
+- `src/hierarchy/planning/**` legacy PRD/plan/slice creation commands. ✅ public facade reduced to parser helpers; internal legacy creators remain only for legacy slice/forge deletion work
 - `src/session/continuation/next.ts`, `handover`, `resume` command adapters once top-level routes no longer need them.
 
 ### Admin/read-model surfaces to keep temporarily

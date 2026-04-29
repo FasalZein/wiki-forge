@@ -327,14 +327,10 @@ describe("WIKI-FORGE-113 hierarchy-commands split + curated domain barrels", () 
   const hierarchyRoot = join(srcRoot, "hierarchy");
   const hierarchyVerbFiles = [
     "feature-status.ts",
-    "start-feature.ts",
-    "close-feature.ts",
-    "start-prd.ts",
-    "close-prd.ts",
     "lifecycle.ts",
   ] as const;
 
-  test("src/hierarchy/ has verb files for the lifecycle split", () => {
+  test("src/hierarchy/ keeps only read/status lifecycle support files", () => {
     for (const file of hierarchyVerbFiles) {
       const path = join(hierarchyRoot, file);
       expect(existsSync(path), `expected src/hierarchy/${file}`).toBe(true);
@@ -342,7 +338,7 @@ describe("WIKI-FORGE-113 hierarchy-commands split + curated domain barrels", () 
     }
   });
 
-  test("new hierarchy lifecycle files stay under 250 LOC", () => {
+  test("hierarchy lifecycle support files stay under 250 LOC", () => {
     for (const file of hierarchyVerbFiles) {
       const path = join(hierarchyRoot, file);
       const lines = readFileSync(path, "utf8").split("\n").length;

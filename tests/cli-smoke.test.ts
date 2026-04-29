@@ -788,8 +788,9 @@ describe("wiki CLI smoke", () => {
     expect(output).toContain("wiki protocol sync <project> [--repo <path>] [--json]");
     expect(output).toContain("wiki protocol audit <project> [--repo <path>] [--json]");
     expect(output).toContain("wiki install-git-hook <project> [--repo <path>] [--hook <name>] [--force] [--json]");
-    expect(output).toContain("wiki close-feature <project> <FEAT-ID> [--force] [--yes-really-force]");
-    expect(output).toContain("wiki close-prd <project> <PRD-ID> [--force] [--yes-really-force]");
+    expect(output).not.toContain("wiki close-feature <project> <FEAT-ID> [--force] [--yes-really-force]");
+    expect(output).not.toContain("wiki close-prd <project> <PRD-ID> [--force] [--yes-really-force]");
+    expect(output).toContain("wiki forge plan <project> <feature-name> [--repo <path>]");
     expect(output).toContain("wiki close-slice <project> <slice-id> [--repo <path>] [--base <rev>] [--worktree] [--force] [--yes-really-force] [--json]");
     expect(output).toContain("wiki refresh-on-merge <project> [--repo <path>] [--base <rev>] [--json] [--verbose]");
     expect(output).toContain("wiki ask <project> [--expand] [--verbose] [-n <num>] <question...>");
