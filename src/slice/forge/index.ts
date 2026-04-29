@@ -1,29 +1,16 @@
-import { relative } from "node:path"; // desloppify:ignore *
-import { VAULT_ROOT } from "../../constants";
-import { nowIso, orderFrontmatter, requireValue, safeMatter, writeNormalizedPage } from "../../cli-shared";
+import { requireValue } from "../../cli-shared";
 import { readFlagValue } from "../../lib/cli-utils";
-import { exists, readText } from "../../lib/fs";
 import { renderSteeringPacket } from "../../protocol/steering/index";
-import type { ForgeWorkflowLedger } from "../../protocol/status/index";
-import { projectTaskHubPath } from "../../lib/structure";
-import { collectBacklogFocus, collectTaskContextForId } from "../../hierarchy";
-// Legacy-only dependency while this module is being removed feature-by-feature.
-// eslint-disable-next-line boundaries/dependencies
-import { moveTaskToSection } from "../../hierarchy/backlog/io";
-import { createFeatureReturningId, createPrdReturningId } from "../../hierarchy/planning/index";
-import { appendLogEntry } from "../../lib/log";
+import { collectBacklogFocus } from "../../hierarchy";
 import { collectForgeStatus, compactForgeStatusForJson, resolveTargetWorkflowSteering, resolveWorkflowSteering } from "../../protocol";
-import { createIssueSliceCore } from "../docs/scaffold";
-import { startSliceCore } from "../lifecycle/start";
-import { autoFillSliceDocs, buildSlicePromptData, forgeNextAll, renderSlicePrompt } from "./planning";
-import { parseForgeArgs, parseForgeStatusArgs } from "./args";
+import { buildSlicePromptData, forgeNextAll, renderSlicePrompt } from "./planning";
+import { parseForgeStatusArgs } from "./args";
 import {
   applyResolvedSteering,
   renderForgeStatus,
   renderForgeStatusWithoutSlice,
 } from "./output";
-import { collectForgeReview } from "./docs";
-import { printError, printJson, printLine } from "../../lib/cli-output";
+import { printJson, printLine } from "../../lib/cli-output";
 import { v1ForgeAmend, v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgePlan, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus } from "../../v1/cli/commands";
 import { shouldUseForgeNext, shouldUseForgeStatus } from "../../forge/cutover";
 export { forgeSkip } from "./skip";
@@ -109,165 +96,6 @@ export async function forgeOpen(args: string[]) {
 
 export async function forgeRelease(args: string[]) {
   await v1ForgeRelease(args);
-}
-
-async function legacyForgePlan(args: string[]) {
-  const parsed = parseForgePlanArgs(args);
-  let createdFeatureId: string | undefined;
-  let createdPrdId: string | undefined;
-  const createdSliceIds: string[] = [];
-  let lastStep = "parse";
-  try {
-    lastStep = "create-feature";
-    const featureId = parsed.featureId ?? await (async () => {
-      requireValue(parsed.featureName, "feature-name (positional) or --feature FEAT-xxx");
-      const { specId } = await createFeatureReturningId(parsed.project, parsed.featureName!);
-      printLine(`created feature ${specId}`);
-      createdFeatureId = specId;
-      return specId;
-    })();
-    if (!createdFeatureId) createdFeatureId = featureId;
-    const prdName = parsed.prdName ?? parsed.featureName;
-    requireValue(prdName, "prd-name (--prd-name) or feature-name positional");
-    lastStep = "create-prd";
-    const { specId: prdId } = await createPrdReturningId(parsed.project, prdName!, featureId);
-    printLine(`created prd ${prdId}`);
-    createdPrdId = prdId;
-
-    if (parsed.slices.length > 0) {
-      // Multi-slice path
-      for (let i = 0; i < parsed.slices.length; i += 1) {
-        const sliceTitle = parsed.slices[i];
-        lastStep = `create-slice-${i + 1}`;
-        const sliceArgs = [
-          parsed.project,
-          sliceTitle,
-          "--prd", prdId,
-          ...(parsed.agent ? ["--assignee", parsed.agent] : []),
-        ];
-        const slice = await createIssueSliceCore(sliceArgs);
-        if (!slice) throw new Error(`createIssueSlice did not return a result for slice ${i + 1}`);
-        printLine(`created slice ${slice.taskId}`);
-        createdSliceIds.push(slice.taskId);
-
-        if (i > 0) {
-          const previousSliceId = createdSliceIds[i - 1];
-          await patchSliceDependsOn(parsed.project, slice.taskId, previousSliceId);
-        }
-
-        if (i === 0) {
-          lastStep = "start-slice";
-          await startSliceCore(parsed.project, slice.taskId, parsed.agent ?? "agent", parsed.repo);
-        }
-
-        lastStep = `autofill-docs-${i + 1}`;
-        await autoFillSliceDocs(parsed.project, slice.taskId, prdId);
-      }
-      const [startedId, ...pendingIds] = createdSliceIds;
-      const pendingSummary = pendingIds.length ? `; pending: ${pendingIds.join(", ")}` : "";
-      printLine(`started ${startedId}${pendingSummary}`);
-    } else {
-      // Single-slice path (original behavior)
-      lastStep = "create-slice";
-      const sliceTitle = parsed.title ?? prdName!;
-      const sliceArgs = [
-        parsed.project,
-        sliceTitle,
-        "--prd", prdId,
-        ...(parsed.agent ? ["--assignee", parsed.agent] : []),
-      ];
-      const slice = await createIssueSliceCore(sliceArgs);
-      if (!slice) throw new Error("createIssueSlice did not return a result");
-      printLine(`created slice ${slice.taskId}`);
-      createdSliceIds.push(slice.taskId);
-      lastStep = "start-slice";
-      await startSliceCore(parsed.project, slice.taskId, parsed.agent ?? "agent", parsed.repo);
-      lastStep = "autofill-docs";
-      await autoFillSliceDocs(parsed.project, slice.taskId, prdId);
-    }
-  } catch (error) {
-    const artifacts: string[] = [];
-    if (createdFeatureId) artifacts.push(`  feature: ${createdFeatureId}`);
-    if (createdPrdId) artifacts.push(`  prd: ${createdPrdId}`);
-    for (const sliceId of createdSliceIds) artifacts.push(`  slice: ${sliceId}`);
-    if (artifacts.length) {
-      printError(`forge plan failed at ${lastStep}. Already created:\n${artifacts.join("\n")}`);
-      if (createdSliceIds.length) printError(`Use: wiki forge start ${parsed.project} ${createdSliceIds[0]} to retry from start-slice`);
-    }
-    throw error;
-  }
-}
-
-async function patchSliceDependsOn(project: string, sliceId: string, dependsOnSliceId: string): Promise<void> {
-  const indexPath = projectTaskHubPath(project, sliceId);
-  const raw = await readText(indexPath);
-  const parsed = safeMatter(relative(VAULT_ROOT, indexPath), raw, { silent: true });
-  if (!parsed) return;
-  const updatedData = orderFrontmatter(
-    { ...parsed.data, depends_on: [dependsOnSliceId], updated: nowIso() },
-    ["title", "type", "spec_kind", "project", "source_paths", "assignee", "task_id", "depends_on", "parent_prd", "parent_feature", "created_at", "updated", "status"],
-  );
-  writeNormalizedPage(indexPath, parsed.content, updatedData);
-}
-
-type ForgePlanArgs = {
-  project: string;
-  featureName: string | undefined;
-  featureId: string | undefined;
-  prdName: string | undefined;
-  title: string | undefined;
-  slices: string[];
-  agent: string | undefined;
-  repo: string | undefined;
-};
-
-function parseForgePlanArgs(args: string[]): ForgePlanArgs {
-  const project = args[0];
-  requireValue(project, "project");
-  let featureId: string | undefined;
-  let prdName: string | undefined;
-  let title: string | undefined;
-  let slices: string[] = [];
-  let agent: string | undefined;
-  let repo: string | undefined;
-  const nameParts: string[] = [];
-  for (let index = 1; index < args.length; index += 1) {
-    const arg = args[index];
-    switch (arg) {
-      case "--feature":
-        featureId = args[index + 1];
-        index += 1;
-        break;
-      case "--prd-name":
-        prdName = args[index + 1];
-        index += 1;
-        break;
-      case "--title":
-        title = args[index + 1];
-        index += 1;
-        break;
-      case "--slices": {
-        const raw = args[index + 1] ?? "";
-        slices = raw.split(",").map((s) => s.trim()).filter(Boolean);
-        index += 1;
-        break;
-      }
-      case "--agent":
-        agent = args[index + 1];
-        index += 1;
-        break;
-      case "--repo":
-        repo = args[index + 1];
-        index += 1;
-        break;
-      default:
-        if (!arg.startsWith("--")) nameParts.push(arg);
-        break;
-    }
-  }
-  const featureName = nameParts.join(" ").trim() || undefined;
-  if (!featureId && !featureName) throw new Error("feature-name (positional) or --feature FEAT-xxx is required");
-  return { project, featureName, featureId, prdName, title, slices, agent, repo };
 }
 
 export async function forgeNext(args: string[]) {

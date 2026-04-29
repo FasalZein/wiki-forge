@@ -39,7 +39,7 @@ These legacy behaviors should be deleted or kept only as admin/read helpers. The
 
 ### Delete candidates after reachability tests pass
 
-- `src/slice/forge/**` command handlers and legacy orchestration. ⏳ remains for pipeline/legacy forge deletion
+- `src/slice/forge/**` command handlers and legacy orchestration. ⏳ compatibility wrapper remains; dead legacy plan mutators deleted
 - `src/slice/pipeline/**` runtime pipeline state machine. ✅ deleted
 - `src/slice/lifecycle/**` start/close commands. ✅ legacy close command deleted; start command adapter removed, core remains temporarily for legacy forge/pipeline deletion
 - `src/slice/coordination/**` claim commands. ✅ deleted
@@ -50,7 +50,7 @@ These legacy behaviors should be deleted or kept only as admin/read helpers. The
 
 ### Admin/read-model surfaces to keep temporarily
 
-These still support dashboard, checkpoint, protocol status, or freshness tools. They are allowed only as non-authoritative views.
+These still support dashboard, checkpoint, protocol status, or freshness tools. They are allowed only as non-authoritative views. Admin/view commands must not claim lifecycle authority and must not be advertised as replacements for Forge lifecycle commands.
 
 - `src/hierarchy/backlog/collect.ts`
 - `src/hierarchy/backlog/io.ts` readers/parsers only
@@ -58,6 +58,8 @@ These still support dashboard, checkpoint, protocol status, or freshness tools. 
 - `src/hierarchy/projection/**`
 - `src/maintenance/**` admin/freshness collectors
 - `src/protocol/status/**` read-only status/steering helpers
+
+Guardrail: `tests/v1/admin-view-read-models.test.ts` verifies admin/view command registry entries are non-mutating, removed lifecycle commands stay out of full help, and the remaining legacy Forge compatibility module no longer carries dead plan mutators.
 
 ## Current blockers to deletion
 

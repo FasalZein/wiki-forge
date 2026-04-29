@@ -62,8 +62,6 @@ Internal / Repair:
   wiki maintain <project> [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json] [--verbose]
   wiki sync <project> [--repo <path>] [--report-only] [--write] [--json]
   wiki checkpoint <project> [--repo <path>] [--base <rev>] [--json]
-  wiki closeout <project> [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json] [--verbose]
-  wiki gate <project> [--repo <path>] [--base <rev>] [--worktree] [--structural-refactor] [--json]
   wiki doctor <project> [--repo <path>] [--base <rev>] [--json]
   wiki dashboard <project> [--repo <path>] [--base <rev>] [--json]
   wiki refresh <project> [--repo <path>] [--json]
@@ -75,17 +73,8 @@ Internal / Repair:
   wiki refresh-on-merge <project> [--repo <path>] [--base <rev>] [--json] [--verbose]
   wiki lint-repo <project> [--repo <path>] [--json]
   wiki config --effective|init|validate|explain [path] [--repo <path>] [--json]
-  wiki start-slice <project> <slice-id> [--agent <name>] [--repo <path>] [--json]
-  wiki verify-slice <project> <slice-id> [--repo <path>] [--json]
-  wiki close-slice <project> <slice-id> [--repo <path>] [--base <rev>] [--worktree] [--force] [--yes-really-force] [--json]
-  wiki claim <project> <slice-id> [--agent <name>] [--repo <path>] [--json]
-  wiki create-issue-slice <project> <title...> [--section <name>] [--priority <p>] [--tag <t>] [--prd <PRD-ID>] [--assignee <agent>] [--source <path...>] [--json]
 
 Planning & Hierarchy:
-  wiki backlog <project> [--assignee <agent>] [--json]
-  wiki add-task <project> <title...> [--section <name>] [--priority <p>] [--tag <t>] [--json]
-  wiki move-task <project> <task-id> --to <section>
-  wiki complete-task <project> <task-id>
   wiki feature-status <project> [--json]
   wiki dependency-graph <project> [--write] [--json]
   wiki update-index <project>|--all [--write] [--json]
