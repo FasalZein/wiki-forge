@@ -1,11 +1,20 @@
 import { describe, expect, test } from "bun:test";
 import { hasPassedTargetedVerification, hasPassedTddEvidence } from "../../src/forge/lifecycle/verification-gate";
 import { evaluateReviewGate } from "../../src/forge/lifecycle/review-gate";
-import type { ForgeEvidenceRecord } from "../../src/forge/lifecycle/evidence";
+import type { ForgeEvidenceRecord, TddEvidenceRecord } from "../../src/forge/lifecycle/evidence";
 
-const tddEvidence: ForgeEvidenceRecord = {
+const redTddEvidence: TddEvidenceRecord = {
   kind: "tdd",
+  phase: "red",
   command: "bun test tests/forge-kernel/forge-close-gates.test.ts",
+  testPaths: ["tests/forge-kernel/forge-close-gates.test.ts"],
+  result: "failed",
+  recordedAt: "2026-04-28T04:31:00.000Z",
+};
+
+const greenTddEvidence: TddEvidenceRecord = {
+  ...redTddEvidence,
+  phase: "green",
   result: "passed",
   recordedAt: "2026-04-28T04:32:00.000Z",
 };
@@ -19,9 +28,18 @@ const targetedVerification: ForgeEvidenceRecord = {
 };
 
 describe("forge evidence gates", () => {
-  test("TDD evidence is modeled separately from generated status text", () => {
-    expect(hasPassedTddEvidence([tddEvidence])).toBe(true);
-    expect(hasPassedTddEvidence([{ ...tddEvidence, result: "failed" }])).toBe(false);
+  test("TDD evidence requires an explicit red to green sequence", () => {
+    const legacyCoarseTdd: ForgeEvidenceRecord = {
+      kind: "tdd",
+      command: greenTddEvidence.command,
+      result: "passed",
+      recordedAt: "2026-04-28T04:32:00.000Z",
+    };
+
+    expect(hasPassedTddEvidence([legacyCoarseTdd])).toBe(false);
+    expect(hasPassedTddEvidence([greenTddEvidence])).toBe(false);
+    expect(hasPassedTddEvidence([redTddEvidence])).toBe(false);
+    expect(hasPassedTddEvidence([redTddEvidence, greenTddEvidence])).toBe(true);
   });
 
   test("targeted verification evidence is required; full-suite evidence alone is not the slice close gate", () => {

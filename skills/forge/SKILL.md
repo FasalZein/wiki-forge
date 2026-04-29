@@ -16,7 +16,8 @@ Use this skill when changing runtime/product behavior, continuing a slice, creat
 - Pick/inspect: `wiki forge next <project> --repo <path>`, `wiki forge status <project> [slice] --repo <path> --json`.
 - Freshness/repair: `wiki checkpoint <project> --repo <path> --base <rev>`, `wiki maintain <project> --repo <path> --base <rev>`.
 - Plan/run: `wiki forge plan <project> <feature-name> --repo <path>`, `wiki forge run <project> [slice-id] --repo <path>`.
-- Evidence/review: `wiki forge evidence <project> <slice> <tdd|verify> ...`, `wiki forge review record <project> <slice> --verdict <approved|needs_changes|approved_with_followups> --reviewer <name>`.
+- TDD evidence: `wiki forge tdd status <project> <slice> --json`, then `wiki forge tdd red <project> <slice> --test <path> --command "<failing command>" --note "<why this fails>"`, then `wiki forge tdd green <project> <slice> --test <same path> --command "<same command>" --note "<what now passes>"`.
+- Verification/review: `wiki forge evidence <project> <slice> verify --command "<targeted command>"`, `wiki forge review record <project> <slice> --verdict <approved|needs_changes|approved_with_followups> --reviewer <name>`.
 - Follow-up: `wiki forge amend <project> <closed-slice-id> --reason <text> [--start] [--repo <path>]`.
 
 ## Contract
@@ -29,7 +30,7 @@ Use subagents only after the plan identifies non-overlapping files or artifacts.
 
 Dogfood non-trivial repo work with real Forge commands: `next`, explicit `status <slice>`, `checkpoint`, evidence/review records, then `wiki forge run <project> <slice> --repo <path>`. If stale active state disagrees with the latest handover target, trust `resume`/`status` steering and fix the lifecycle state rather than doing ad-hoc work.
 
-`tdd`, targeted verification, required review, and close are not skippable. Research, domain-model, PRD/spec, and slices can be skipped only when the Forge status/rejection packet accepts an explicit audited reason; do not invent a manual bypass.
+`tdd`, targeted verification, required review, and close are not skippable. TDD is explicit record-only evidence: red must be a failed test command, green must be a later passed record using the exact same command and at least one same `--test` path. Do not infer or fake TDD just because `bun test` passes. Research, domain-model, PRD/spec, and slices can be skipped only when the Forge status/rejection packet accepts an explicit audited reason; do not invent a manual bypass.
 
 When verification, review, check, or close fails, do not assume a generic rerun is correct. Use `wiki forge status <project> <slice> --json` as workflow truth, `wiki checkpoint` as freshness truth, and `wiki maintain` as the repair path. Use `wiki resume` for context only, not as proof that freshness or repair work is complete.
 

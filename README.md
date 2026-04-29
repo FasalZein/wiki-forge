@@ -19,6 +19,8 @@ Forge is the SDLC lifecycle layer. Forge owns non-trivial feature implementation
 
 Kernel = truth; projections = help. Backlogs, status text, resume packets, handovers, and indexes support humans, but lifecycle decisions come from typed Forge kernel records, results, changesets, rejections, and evidence gates.
 
+Explicit TDD = workflow proof. Forge does not infer TDD from a passing suite: record a failed red step, then a later green step with the exact same command and at least one same test path.
+
 Targeted tests = slice proof; full suite = release gate. Normal slices run their targeted test plan plus `bun run check`; full `bun test` is reserved for explicit production release gates.
 
 ```bash
@@ -26,6 +28,14 @@ wiki forge next <project>
 wiki forge status <project>
 wiki forge plan <project> <feature-name> --repo <path>
 wiki forge run <project> [slice-id] --repo <path>
+```
+
+TDD evidence is intentionally explicit and low-friction:
+
+```bash
+wiki forge tdd status <project> <slice-id> --json
+wiki forge tdd red <project> <slice-id> --test tests/foo.test.ts --command "bun test tests/foo.test.ts" --note "expected failure before implementation"
+wiki forge tdd green <project> <slice-id> --test tests/foo.test.ts --command "bun test tests/foo.test.ts" --note "same command now passes"
 ```
 
 **Not RAG.** The wiki is a compiled artifact that grows over time, not a retrieval layer that re-derives answers from scratch each query. Code is always the source of truth — the wiki is compiled memory that makes code navigable across sessions. The conceptual delivery chain is `wiki research -> /domain-model` (+ `/torpathy` when design tradeoffs remain) `-> /write-a-prd -> /prd-to-slices -> /tdd -> /desloppify`. `wiki forge plan|run|next` is the compact operator surface over that chain, not a different workflow.
@@ -173,6 +183,8 @@ Internal / repair (debugging only):
 
 ```bash
 wiki forge status my-app MY-APP-001 --repo ~/Dev/my-app
+wiki forge tdd red my-app MY-APP-001 --test tests/foo.test.ts --command "bun test tests/foo.test.ts"
+wiki forge tdd green my-app MY-APP-001 --test tests/foo.test.ts --command "bun test tests/foo.test.ts"
 wiki forge evidence my-app MY-APP-001 verify --command "bun test ..."
 wiki forge review record my-app MY-APP-001 --verdict approved --reviewer <name>
 wiki resume my-app --repo ~/Dev/my-app --base main

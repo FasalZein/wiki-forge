@@ -4,7 +4,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { VAULT_ROOT } from "../../constants";
 import { forgeSlicePath } from "./forge-paths";
-import type { ReviewEvidenceRecord, TddEvidenceRecord, ForgeEvidenceRecord, VerificationEvidenceRecord } from "../lifecycle/evidence";
+import type { LegacyTddEvidenceRecord, ReviewEvidenceRecord, TddEvidenceRecord, ForgeEvidenceRecord, VerificationEvidenceRecord } from "../lifecycle/evidence";
 
 export type RecordTddEvidenceInput = {
   readonly project: string;
@@ -13,6 +13,12 @@ export type RecordTddEvidenceInput = {
   readonly result: "passed" | "failed";
   readonly recordedAt?: string;
   readonly vaultRoot?: string;
+};
+
+export type RecordStrictTddEvidenceInput = RecordTddEvidenceInput & {
+  readonly phase: "red" | "green";
+  readonly testPaths: readonly string[];
+  readonly note?: string;
 };
 
 export type RecordVerificationEvidenceInput = RecordTddEvidenceInput & {
@@ -28,11 +34,25 @@ export type RecordReviewEvidenceInput = {
   readonly vaultRoot?: string;
 };
 
-export async function recordForgeTddEvidence(input: RecordTddEvidenceInput): Promise<TddEvidenceRecord> {
-  const record: TddEvidenceRecord = {
+export async function recordForgeTddEvidence(input: RecordTddEvidenceInput): Promise<LegacyTddEvidenceRecord> {
+  const record: LegacyTddEvidenceRecord = {
     kind: "tdd",
     command: input.command,
     result: input.result,
+    recordedAt: input.recordedAt ?? new Date().toISOString(),
+  };
+  await appendForgeEvidence(input.project, input.sliceId, record, input.vaultRoot);
+  return record;
+}
+
+export async function recordForgeStrictTddEvidence(input: RecordStrictTddEvidenceInput): Promise<TddEvidenceRecord> {
+  const record: TddEvidenceRecord = {
+    kind: "tdd",
+    phase: input.phase,
+    command: input.command,
+    testPaths: input.testPaths.map((path) => path.replaceAll("\\", "/")),
+    result: input.result,
+    ...(input.note ? { note: input.note } : {}),
     recordedAt: input.recordedAt ?? new Date().toISOString(),
   };
   await appendForgeEvidence(input.project, input.sliceId, record, input.vaultRoot);

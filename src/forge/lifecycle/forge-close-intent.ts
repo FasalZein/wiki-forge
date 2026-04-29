@@ -5,7 +5,8 @@ import { acceptKernelIntent, rejectKernelIntent, type KernelResult } from "../ke
 import type { AmendmentSliceDraft, ForgeEvidenceRecord } from "./evidence";
 import type { ReviewPolicy } from "./phase-gates";
 import { evaluateReviewGate } from "./review-gate";
-import { hasPassedTargetedVerification, hasPassedTddEvidence } from "./verification-gate";
+import { hasPassedTargetedVerification } from "./verification-gate";
+import { evaluateTddGate } from "./tdd-gate";
 import { sliceHubPath } from "./active-slice-invariant";
 
 export type CloseSliceState = {
@@ -24,15 +25,16 @@ export type CreateAmendmentSliceDraftInput = {
 };
 
 export function evaluateCloseSliceIntent(intent: CloseSliceIntent, state: CloseSliceState): KernelResult {
-  if (!hasPassedTddEvidence(state.evidence)) {
+  const tddGate = evaluateTddGate(state.evidence, { project: state.project, sliceId: state.sliceId });
+  if (tddGate.status !== "passed") {
     return rejectKernelIntent(intent, createKernelRejection({
       code: "MissingTddEvidence",
-      reason: "The slice cannot close until passing TDD evidence is recorded.",
+      reason: tddGate.status === "invalid-sequence" ? tddGate.reason : "The slice cannot close until explicit red/green TDD evidence is recorded.",
       invariant: "required-evidence-before-close",
       affected: affectedSlice(state.project, state.sliceId),
       recovery: [{
-        command: `wiki forge evidence ${state.project} ${state.sliceId} tdd --red <red> --green <green> --command <cmd>`,
-        description: "Record red/green TDD evidence for the slice.",
+        command: tddGate.recovery.command,
+        description: tddGate.recovery.description,
         safeToRetry: true,
       }],
       metadata: closeMetadata(state),

@@ -30,7 +30,8 @@ function createVaultWithEvidence(evidence: readonly Record<string, unknown>[]) {
 
 function passingEvidence() {
   return [
-    { kind: "tdd", command: "bun test tests/forge-kernel/x.test.ts", result: "passed", recordedAt: "2026-04-28T06:00:00.000Z" },
+    { kind: "tdd", phase: "red", command: "bun test tests/forge-kernel/x.test.ts", testPaths: ["tests/forge-kernel/x.test.ts"], result: "failed", recordedAt: "2026-04-28T05:59:00.000Z" },
+    { kind: "tdd", phase: "green", command: "bun test tests/forge-kernel/x.test.ts", testPaths: ["tests/forge-kernel/x.test.ts"], result: "passed", recordedAt: "2026-04-28T06:00:00.000Z" },
     { kind: "verification", verificationType: "targeted", command: "bun run check", result: "passed", recordedAt: "2026-04-28T06:00:01.000Z" },
     { kind: "review", reviewer: "reviewer", verdict: "approved", recordedAt: "2026-04-28T06:00:02.000Z" },
   ];
@@ -79,7 +80,7 @@ describe("forge close/run command adapters", () => {
     expect(data.closed_at).toBeString();
     expect(data.claimed_by).toBeUndefined();
     expect(data.claimed_at).toBeUndefined();
-    expect(data.forge_evidence).toHaveLength(3);
+    expect(data.forge_evidence).toHaveLength(4);
     expect(data.forge_closure_evidence).toEqual(["tdd", "verification", "review"]);
   });
 

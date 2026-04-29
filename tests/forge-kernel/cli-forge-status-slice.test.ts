@@ -46,7 +46,8 @@ function createVaultWithSlice(options: SliceFixtureOptions) {
 
 function passingEvidence() {
   return [
-    { kind: "tdd", command: "bun test tests/forge-kernel/status.test.ts", result: "passed", recordedAt: "2026-04-28T06:00:00.000Z" },
+    { kind: "tdd", phase: "red", command: "bun test tests/forge-kernel/status.test.ts", testPaths: ["tests/forge-kernel/status.test.ts"], result: "failed", recordedAt: "2026-04-28T05:59:00.000Z" },
+    { kind: "tdd", phase: "green", command: "bun test tests/forge-kernel/status.test.ts", testPaths: ["tests/forge-kernel/status.test.ts"], result: "passed", recordedAt: "2026-04-28T06:00:00.000Z" },
     { kind: "verification", verificationType: "targeted", command: "bun run check", result: "passed", recordedAt: "2026-04-28T06:00:01.000Z" },
     { kind: "review", reviewer: "reviewer", verdict: "approved", recordedAt: "2026-04-28T06:00:02.000Z" },
   ];

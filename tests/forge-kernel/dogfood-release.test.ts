@@ -41,7 +41,8 @@ describe("forge dogfood release gate", () => {
     expect(statusActive).toMatchObject({ status: "active", activeSliceId: "FIX-001" });
 
     const evidence: readonly ForgeEvidenceRecord[] = [
-      { kind: "tdd", command: "bun test tests/forge-kernel/dogfood-release.test.ts", result: "passed", recordedAt: "2026-04-28T04:44:00.000Z" },
+      { kind: "tdd", phase: "red", command: "bun test tests/forge-kernel/dogfood-release.test.ts", testPaths: ["tests/forge-kernel/dogfood-release.test.ts"], result: "failed", recordedAt: "2026-04-28T04:43:00.000Z" },
+      { kind: "tdd", phase: "green", command: "bun test tests/forge-kernel/dogfood-release.test.ts", testPaths: ["tests/forge-kernel/dogfood-release.test.ts"], result: "passed", recordedAt: "2026-04-28T04:44:00.000Z" },
       { kind: "verification", verificationType: "targeted", command: "bun run check", result: "passed", recordedAt: "2026-04-28T04:44:01.000Z" },
       { kind: "review", reviewer: "reviewer", verdict: "approved", recordedAt: "2026-04-28T04:44:02.000Z" },
     ];

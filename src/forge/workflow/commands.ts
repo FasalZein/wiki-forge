@@ -4,7 +4,8 @@ import { renderForgeNextJson, renderForgeNextText } from "./render-next";
 import { loadForgeProjectProjection, loadForgeSliceStatus } from "../vault/load-project";
 import { amendForgeSlice, checkForgeSliceClose, closeForgeSlice, releaseForgeSlice, startForgeSlice } from "../vault/slice-store";
 import { addPlanningPrd, addPlanningSlice, completePlanningSession, createPlanningArtifacts, evaluatePlanningSessionGate, readPlanningSession, recordPlanningAnswer, type PlanningSession, type PlanningSessionGate, type PlanningSkill } from "../vault/planning-session-store";
-import { recordForgeReviewEvidence, recordForgeTddEvidence, recordForgeVerificationEvidence } from "../vault/evidence-store";
+import { readForgeEvidence, recordForgeReviewEvidence, recordForgeStrictTddEvidence, recordForgeTddEvidence, recordForgeVerificationEvidence } from "../vault/evidence-store";
+import { evaluateTddGate } from "../lifecycle/tdd-gate";
 export { exportPromptCommand, handoverCommand, logCommand, noteCommand, resumeCommand } from "../../wiki/memory/session-commands";
 
 export async function forgeNextCommand(args: string[]): Promise<void> {
@@ -168,6 +169,40 @@ export async function forgeRunCommand(args: string[]): Promise<void> {
   if (projection.status === "conflict" || projection.status === "needs-repair") throw Object.assign(new Error(`cannot run ${project}: ${projection.status}`), { exitCode: 1 });
 }
 
+export async function forgeTddCommand(args: string[]): Promise<void> {
+  const json = args.includes("--json");
+  const positional = readPositionalArgs(args, ["--test", "--command", "--note"]);
+  const parsed = parseTddArgs(positional);
+  const { action, project, sliceId } = parsed;
+  requireValue(project, "project");
+  requireValue(sliceId, "slice-id");
+
+  if (action === "status") {
+    const gate = evaluateTddGate(await readForgeEvidence(project, sliceId), { project, sliceId });
+    if (json) printJson(gate);
+    else printLine(renderTddGateText(sliceId, gate));
+    if (gate.status !== "passed") throw Object.assign(new Error(`TDD gate ${gate.status}`), { exitCode: 1 });
+    return;
+  }
+
+  if (action !== "red" && action !== "green") throw new Error(`unknown forge tdd subcommand: ${action}`);
+  const command = readFlagValue(args, "--command");
+  requireValue(command, "--command");
+  const testPaths = readRepeatedFlagValues(args, "--test");
+  if (testPaths.length === 0) throw new Error("missing --test");
+  const record = await recordForgeStrictTddEvidence({
+    project,
+    sliceId,
+    phase: action,
+    command,
+    testPaths,
+    result: action === "red" ? "failed" : "passed",
+    note: readFlagValue(args, "--note"),
+  });
+  if (json) printJson(record);
+  else printLine(`recorded TDD ${action} evidence for ${sliceId}`);
+}
+
 export async function forgeEvidenceCommand(args: string[]): Promise<void> {
   const json = args.includes("--json");
   const positional = args.filter((arg) => !arg.startsWith("--"));
@@ -212,6 +247,13 @@ export async function forgeReviewCommand(args: string[]): Promise<void> {
   });
   if (json) printJson(record);
   else printLine(`recorded review evidence for ${sliceId}`);
+}
+
+function parseTddArgs(positional: readonly string[]) {
+  if (positional[0] === "status" || positional[0] === "red" || positional[0] === "green") {
+    return { action: positional[0], project: positional[1], sliceId: positional[2] };
+  }
+  return { action: positional[2] ?? "status", project: positional[0], sliceId: positional[1] };
 }
 
 function parseEvidenceResult(value: string): "passed" | "failed" {
@@ -428,6 +470,24 @@ function readPositionalArgs(args: readonly string[], valueFlags: readonly string
 function readFlagValue(args: readonly string[], flag: string): string | undefined {
   const index = args.indexOf(flag);
   return index >= 0 ? args[index + 1] : undefined;
+}
+
+function readRepeatedFlagValues(args: readonly string[], flag: string): readonly string[] {
+  const values: string[] = [];
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] !== flag) continue;
+    const value = args[index + 1];
+    if (!value || value.startsWith("--")) throw new Error(`missing ${flag}`);
+    values.push(value.replaceAll("\\", "/"));
+    index += 1;
+  }
+  return values;
+}
+
+function renderTddGateText(sliceId: string, gate: ReturnType<typeof evaluateTddGate>): string {
+  if (gate.status === "passed") return `${sliceId}: TDD gate passed`;
+  if (gate.status === "invalid-sequence") return `${sliceId}: TDD gate blocked: ${gate.reason}\nnext: ${gate.recovery.command}`;
+  return `${sliceId}: TDD gate ${gate.status}\nnext: ${gate.recovery.command}`;
 }
 
 async function renderForgeProjection(args: string[]): Promise<void> {

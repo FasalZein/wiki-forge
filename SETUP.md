@@ -23,7 +23,9 @@ Install modes:
 
 Wiki = memory; Forge = lifecycle; Kernel = truth; projections = help. Skills provide guidance, but CLI/kernel invariants enforce lifecycle truth.
 
-For normal slice work, use targeted verification from the slice test plan plus `bun run check`. Run full `bun test` only for the production Forge release gate, not for normal per-slice closeout.
+For normal slice work, record TDD explicitly before closeout: `wiki forge tdd red ...` captures the failed test command, then `wiki forge tdd green ...` captures the later passing run with the exact same command and at least one same `--test` path. Forge does not silently infer TDD from passing tests.
+
+Use targeted verification from the slice test plan plus `bun run check`. Run full `bun test` only for the production Forge release gate, not for normal per-slice closeout.
 
 Forge migration is intentionally dry-run first: classify current vault documents, quarantine ambiguous lifecycle records, preserve source files, and write only to explicit Forge target paths during import.
 

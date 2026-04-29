@@ -1,5 +1,6 @@
 import { evaluateReviewGate } from "../lifecycle/review-gate";
-import { hasPassedTargetedVerification, hasPassedTddEvidence } from "../lifecycle/verification-gate";
+import { hasPassedTargetedVerification } from "../lifecycle/verification-gate";
+import { evaluateTddGate } from "../lifecycle/tdd-gate";
 import type { ForgeEvidenceRecord } from "../lifecycle/evidence";
 import type { KernelRejection } from "../kernel/rejection";
 import type { LegacyClassification } from "../vault/legacy-classifier";
@@ -147,15 +148,22 @@ export function collectLegacyDiagnostics(classifications: readonly LegacyClassif
 }
 
 function summarizeEvidence(evidence: readonly ForgeEvidenceRecord[]): SliceEvidenceSummary {
-  const tdd = evidence.findLast((record): record is Extract<ForgeEvidenceRecord, { readonly kind: "tdd" }> => record.kind === "tdd");
+  const tddGate = evaluateTddGate(evidence);
   const targetedVerification = evidence.findLast((record): record is Extract<ForgeEvidenceRecord, { readonly kind: "verification" }> => record.kind === "verification" && record.verificationType === "targeted");
   const review = evidence.findLast((record): record is Extract<ForgeEvidenceRecord, { readonly kind: "review" }> => record.kind === "review");
+  const tdd = summarizeTddGate(tddGate.status);
   return {
-    tdd: tdd?.result ?? "missing",
+    tdd,
     targetedVerification: targetedVerification?.result ?? "missing",
     review: review?.verdict ?? "missing",
     records: evidence,
   };
+}
+
+function summarizeTddGate(status: ReturnType<typeof evaluateTddGate>["status"]): SliceEvidenceSummary["tdd"] {
+  if (status === "passed") return "passed";
+  if (status === "invalid-sequence") return "failed";
+  return "missing";
 }
 
 function resolveCloseGate(lifecycleStatus: ForgeRecordStatus, evidence: readonly ForgeEvidenceRecord[]): SliceCloseGate {
@@ -165,7 +173,9 @@ function resolveCloseGate(lifecycleStatus: ForgeRecordStatus, evidence: readonly
   }
 
   const missing: string[] = [];
-  if (!hasPassedTddEvidence(evidence)) missing.push("tdd");
+  const tddGate = evaluateTddGate(evidence);
+  if (tddGate.status === "invalid-sequence") return { status: "blocked", missing: ["tdd"], blockedBy: tddGate.reason };
+  if (tddGate.status !== "passed") missing.push("tdd");
   if (!hasPassedTargetedVerification(evidence)) missing.push("targeted-verification");
   const reviewGate = evaluateReviewGate(evidence, { required: true });
   if (reviewGate.status === "missing") missing.push("review");

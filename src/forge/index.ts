@@ -11,6 +11,7 @@ import {
   forgeRunCommand,
   forgeStartCommand,
   forgeStatusCommand,
+  forgeTddCommand,
 } from "./workflow/commands";
 
 export const FORGE_COMMANDS: Record<string, CommandHandler> = {
@@ -20,6 +21,7 @@ export const FORGE_COMMANDS: Record<string, CommandHandler> = {
   "forge:run": (args) => forgeRunCommand(args),
   "forge:evidence": (args) => forgeEvidenceCommand(args),
   "forge:review": (args) => forgeReviewCommand(args),
+  "forge:tdd": (args) => forgeTddCommand(args),
   "forge:status": (args) => forgeStatusCommand(args),
   "forge:plan": (args) => forgePlanCommand(args),
   "forge:next": (args) => forgeNextCommand(args),
@@ -34,6 +36,7 @@ const FORGE_SUBCOMMANDS = {
   run: "forge:run",
   evidence: "forge:evidence",
   review: "forge:review",
+  tdd: "forge:tdd",
   status: "forge:status",
   plan: "forge:plan",
   next: "forge:next",

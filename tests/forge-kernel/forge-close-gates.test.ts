@@ -22,12 +22,25 @@ const closeIntent: CloseSliceIntent = {
   },
 };
 
-const passedTdd: ForgeEvidenceRecord = {
+const redTdd: ForgeEvidenceRecord = {
   kind: "tdd",
+  phase: "red",
   command: "bun test tests/forge-kernel/evidence-gates.test.ts tests/forge-kernel/forge-close-gates.test.ts",
-  result: "passed",
+  testPaths: ["tests/forge-kernel/evidence-gates.test.ts"],
+  result: "failed",
   recordedAt: "2026-04-28T04:33:01.000Z",
 };
+
+const greenTdd: ForgeEvidenceRecord = {
+  kind: "tdd",
+  phase: "green",
+  command: "bun test tests/forge-kernel/evidence-gates.test.ts tests/forge-kernel/forge-close-gates.test.ts",
+  testPaths: ["tests/forge-kernel/evidence-gates.test.ts"],
+  result: "passed",
+  recordedAt: "2026-04-28T04:33:01.500Z",
+};
+
+const passedTdd: readonly ForgeEvidenceRecord[] = [redTdd, greenTdd];
 
 const passedVerification: ForgeEvidenceRecord = {
   kind: "verification",
@@ -56,14 +69,14 @@ describe("forge close evidence gates", () => {
     expect(result.status).toBe("rejected");
     if (result.status !== "rejected") throw new Error("expected rejection");
     expect(result.rejection.code).toBe("MissingTddEvidence");
-    expect(result.rejection.recovery[0]?.command).toContain("wiki forge evidence wiki-forge WIKI-FORGE-218 tdd");
+    expect(result.rejection.recovery[0]?.command).toBe("wiki forge tdd red wiki-forge WIKI-FORGE-218 --test <path> --command \"<failing test command>\"");
   });
 
   test("close rejects missing targeted verification evidence", () => {
     const result = evaluateCloseSliceIntent(closeIntent, {
       project: "wiki-forge",
       sliceId: "WIKI-FORGE-218",
-      evidence: [passedTdd, approvedReview],
+      evidence: [...passedTdd, approvedReview],
       reviewPolicy: { required: true },
     });
 
@@ -77,7 +90,7 @@ describe("forge close evidence gates", () => {
     const result = evaluateCloseSliceIntent(closeIntent, {
       project: "wiki-forge",
       sliceId: "WIKI-FORGE-218",
-      evidence: [passedTdd, passedVerification],
+      evidence: [...passedTdd, passedVerification],
       reviewPolicy: { required: true },
     });
 
@@ -91,7 +104,7 @@ describe("forge close evidence gates", () => {
     const result = evaluateCloseSliceIntent(closeIntent, {
       project: "wiki-forge",
       sliceId: "WIKI-FORGE-218",
-      evidence: [passedTdd, passedVerification, approvedReview],
+      evidence: [...passedTdd, passedVerification, approvedReview],
       reviewPolicy: { required: true },
     });
 
