@@ -1,4 +1,4 @@
-import type { PlanningPrdCandidate, PlanningSession } from "./planning-session-store";
+import type { PlanningPrdCandidate, PlanningSession } from "./planning-types";
 
 export function renderFeatureBody(session: PlanningSession): string {
   return [
