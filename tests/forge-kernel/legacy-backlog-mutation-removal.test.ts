@@ -4,8 +4,8 @@ import { join } from "node:path";
 import { repoRoot } from "../_helpers/wiki-subprocess";
 
 const REMOVED_FILES = [
-  "src/hierarchy/backlog/commands.ts",
-  "src/hierarchy/backlog-commands.ts",
+  "src/wiki/project-views/backlog/commands.ts",
+  "src/wiki/project-views/backlog-commands.ts",
 ];
 
 const FORBIDDEN_BACKLOG_MUTATORS = [
@@ -22,8 +22,8 @@ describe("legacy backlog mutation removal", () => {
 
   test("backlog public facades expose readers, not mutation commands", () => {
     const facadeFiles = [
-      readFileSync(join(repoRoot, "src", "hierarchy", "backlog.ts"), "utf8"),
-      readFileSync(join(repoRoot, "src", "hierarchy", "backlog", "index.ts"), "utf8"),
+      readFileSync(join(repoRoot, "src", "wiki", "project-views", "backlog.ts"), "utf8"),
+      readFileSync(join(repoRoot, "src", "wiki", "project-views", "backlog", "index.ts"), "utf8"),
     ];
 
     for (const source of facadeFiles) {

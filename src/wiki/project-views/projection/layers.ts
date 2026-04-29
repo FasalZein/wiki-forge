@@ -1,10 +1,10 @@
 import { readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { VAULT_ROOT } from "../../constants";
-import { mkdirIfMissing, nowIso, orderFrontmatter, requireValue, writeNormalizedPage } from "../../cli-shared";
+import { VAULT_ROOT } from "../../../constants";
+import { mkdirIfMissing, nowIso, orderFrontmatter, requireValue, writeNormalizedPage } from "../../../cli-shared";
 import { slugify } from "../planning";
-import { exists, readText } from "../../lib/fs";
-import { printJson, printLine } from "../../lib/cli-output";
+import { exists, readText } from "../../../lib/fs";
+import { printJson, printLine } from "../../../lib/cli-output";
 
 const CORE_TOP_LEVEL_DIRS = ["projects", "research", "raw", "wiki", "ideas", "templates", "journal", "specs"] as const;
 const CORE_ROOT_FILES = ["AGENTS.md", "index.md", "log.md"] as const;
@@ -30,7 +30,7 @@ const LAYERS: Record<string, LayerDefinition> = {
         title: "Books",
         type: "layer-index",
         layer: "books",
-        source_paths: ["src/hierarchy/layers.ts"],
+        source_paths: ["src/wiki/project-views/layers.ts"],
         updated: nowIso(),
         status: "current",
         verification_level: "code-verified",

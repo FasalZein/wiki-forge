@@ -40,7 +40,7 @@ export async function readinessReviewProject(args: string[]) {
         : `- index refresh: ${indexRefresh.written.length} file(s) rewritten`);
     }
   }
-  if (!result.ok) throw new Error(`closeout failed for ${options.project}`);
+  if (!result.ok) throw new Error(`readiness review failed for ${options.project}`);
 }
 
 export async function collectReadinessReview(project: string, base: string, explicitRepo?: string, snapshot?: ProjectSnapshot, lintingSnapshot?: LintingSnapshot, options: RefreshOptions & { sliceLocal?: boolean; sliceId?: string } = {}) {
@@ -129,7 +129,7 @@ export async function collectReadinessReview(project: string, base: string, expl
     ownership,
     workflowValidation: { ok: blockers.length === 0 },
     review: reviewGate ? {
-      status: reviewGate.status === "passed" ? "pass" : reviewGate.status === "blocked" ? "blocked" : reviewGate.status,
+      status: reviewAttestationStatus(reviewGate.status),
       summary: reviewGate.status === "not-required" ? "Review is not required" : `Review gate ${reviewGate.status}: ${reviewGate.approvals}/${reviewGate.requiredApprovals} approval(s)`,
     } : null,
   });
@@ -219,14 +219,20 @@ function pushScopedStalePageFindings(
   if (projectCount > 0) findings.push({ scope: "project", severity: "warning", message: `${projectCount} impacted project page(s) are stale or otherwise drifted` });
 }
 
+function reviewAttestationStatus(status: Awaited<ReturnType<typeof collectReviewGateStatus>>["status"]): "pass" | "blocked" | "pending" {
+  if (status === "passed" || status === "not-required") return "pass";
+  if (status === "blocked") return "blocked";
+  return "pending";
+}
+
 export function renderReadinessReview(result: Awaited<ReturnType<typeof collectReadinessReview>>, verbose: boolean) {
   const hasWork = result.staleImpactedPages.length > 0 || result.nextSteps.length > 0;
   const statusLabel = !result.ok
     ? "FAIL (blockers found)"
     : hasWork
       ? "REVIEW PASS — manual steps remaining"
-      : "PASS — ready to close";
-  printLine(`closeout for ${result.project}: ${statusLabel}`);
+      : "PASS — ready for Forge close";
+  printLine(`readiness review for ${result.project}: ${statusLabel}`);
   printLine(`- repo: ${result.repo}`);
   printLine(`- base: ${result.base}`);
   printLine(`- changed files: ${result.refreshFromGit.changedFiles.length}`);

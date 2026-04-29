@@ -1,5 +1,5 @@
 import { formatMaintenanceActionLabel } from "../shared";
-import { collectBacklog } from "../../hierarchy";
+import { collectBacklog } from "../../wiki/project-views";
 import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "../../verification";
 import type { LintingSnapshot } from "../../verification";
 import { parseProjectRepoBaseArgs } from "../../git-utils";

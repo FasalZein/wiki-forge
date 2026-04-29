@@ -4,7 +4,7 @@ import type { GitTruth } from "../src/forge/core/git-truth";
 import { collectSliceOwnershipMap } from "../src/forge/core/ownership-map";
 
 function gitTruth(overrides: Partial<GitTruth> = {}): GitTruth {
-  const changedFiles = overrides.changedFiles ?? [];
+  const changedFiles = overrides.changedFiles ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK -- test helper defaults to a clean worktree
   return {
     repo: "/repo",
     clean: changedFiles.length === 0,

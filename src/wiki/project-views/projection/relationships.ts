@@ -1,9 +1,9 @@
 import { join, relative } from "node:path";
-import { VAULT_ROOT } from "../../constants";
-import { createdAt, projectRoot, safeMatter } from "../../cli-shared";
-import { readText } from "../../lib/fs";
-import { classifyProjectDocPath, toVaultWikilinkPath } from "../../lib/structure";
-import { walkMarkdown } from "../../lib/vault";
+import { VAULT_ROOT } from "../../../constants";
+import { createdAt, projectRoot, safeMatter } from "../../../cli-shared";
+import { readText } from "../../../lib/fs";
+import { classifyProjectDocPath, toVaultWikilinkPath } from "../../../lib/structure";
+import { walkMarkdown } from "../../../lib/vault";
 
 export type SpecIndexGroup = "features" | "prds" | "plans" | "task-hubs";
 export type ProjectPageRow = {

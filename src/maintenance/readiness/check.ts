@@ -177,7 +177,7 @@ function buildTestMatcherDetails(testHealth: TestHealthDiagnosticInput, files: s
   const details = [
     `Changed tests considered: ${testHealth.changedTestFiles.length ? testHealth.changedTestFiles.join(", ") : "none"}`,
   ];
-  const matches = testHealth.codeTestMatches ?? [];
+  const matches = testHealth.codeTestMatches ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK -- optional matcher diagnostics are legitimately absent
   for (const file of files) {
     const match = matches.find((entry) => entry.file === file);
     if (!match) continue;

@@ -9,7 +9,7 @@ import {
   collectStaleIndexTargets,
   writeNavigationIndex,
   collectBacklogFocus,
-} from "../../hierarchy";
+} from "../../wiki/project-views";
 import {
   loadProjectSnapshot,
   projectSnapshotToLintingSnapshot,

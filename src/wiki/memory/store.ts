@@ -100,13 +100,14 @@ export async function writeMemoryLogEntry(input: {
 export async function tailMemoryLog(project: string, count: number): Promise<MemoryLogTail> {
   const logDir = join(VAULT_ROOT, "projects", project, "memory", "log");
   if (!(await exists(logDir))) return { kind: "wiki-memory-log-tail", project, entries: [] };
-  const entries = await Promise.all(
-    readdirSync(logDir)
-      .filter((name) => name.endsWith(".md"))
-      .sort()
-      .slice(-count)
-      .map(async (name) => parseLogEntry(project, join(logDir, name), join("projects", project, "memory", "log", name))),
-  );
+  const names = readdirSync(logDir)
+    .filter((name) => name.endsWith(".md"))
+    .sort()
+    .slice(-count);
+  const entries: MemoryLogTailEntry[] = [];
+  for (const name of names) {
+    entries.push(await parseLogEntry(project, join(logDir, name), join("projects", project, "memory", "log", name)));
+  }
   return { kind: "wiki-memory-log-tail", project, entries };
 }
 

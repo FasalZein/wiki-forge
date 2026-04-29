@@ -1,12 +1,12 @@
-import { printJson, printLine } from "../../lib/cli-output"; // desloppify:ignore *
+import { printJson, printLine } from "../../../lib/cli-output"; // desloppify:ignore *
 
 import { dirname, join, relative } from "node:path";
-import { VAULT_ROOT } from "../../constants";
-import { mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../../cli-shared";
-import { exists, listDirs, readText, writeText } from "../../lib/fs";
-import { projectSpecsDir, projectSpecsIndexPath, projectSpecViewIndexPath, workspaceIndexPath, workspaceProjectsDashboardPath } from "../../lib/structure";
+import { VAULT_ROOT } from "../../../constants";
+import { mkdirIfMissing, projectRoot, requireValue, safeMatter } from "../../../cli-shared";
+import { exists, listDirs, readText } from "../../../lib/fs";
+import { projectSpecsDir, projectSpecsIndexPath, projectSpecViewIndexPath, workspaceIndexPath, workspaceProjectsDashboardPath } from "../../../lib/structure";
 import { collectBacklogFocus } from "../backlog/collect";
-import { collectStatusRow, loadLintingSnapshot } from "../../verification";
+import { collectStatusRow, loadLintingSnapshot } from "../../../verification";
 import {
   buildProjectPageIndex,
   collectProjectPageRows,
@@ -19,6 +19,7 @@ import {
   type SpecIndexGroup,
 } from "./relationships";
 import { linkLine, relatedPlanningLines, renderLinks, rewriteRowSections } from "./markdown";
+import { writeIndexTarget } from "./index-writer";
 
 type IndexTarget = { path: string; content: string };
 type SectionEntry = { line: string; sortKey: string; specGroup: SpecIndexGroup | null };
@@ -482,60 +483,4 @@ function sortRows(rows: ProjectPageRow[]) {
 
 function sortSectionEntries(lines: SectionEntry[], group: SpecIndexGroup) {
   return lines.filter((entry) => entry.specGroup === group).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-}
-
-async function writeIndexTarget(absolutePath: string, content: string) {
-  const relPath = relative(VAULT_ROOT, absolutePath).replaceAll("\\", "/");
-  if (!await exists(absolutePath)) {
-    const generated = generatedIndexFrontmatter(relPath);
-    if (!generated) return writeText(absolutePath, content);
-    return writeNormalizedPage(absolutePath, content, generated);
-  }
-  const raw = await readText(absolutePath);
-  const parsed = safeMatter(relative(VAULT_ROOT, absolutePath), raw, { silent: true });
-  if (!parsed) {
-    const generated = generatedIndexFrontmatter(relPath);
-    if (!generated) return writeText(absolutePath, content);
-    return writeNormalizedPage(absolutePath, content, generated);
-  }
-  const generated = generatedIndexFrontmatter(relPath) ?? {}; // desloppify:ignore EMPTY_OBJECT_FALLBACK
-  const generatedSources = Array.isArray(generated.source_paths) ? generated.source_paths : [];
-  const parsedSources = Array.isArray(parsed.data.source_paths) ? parsed.data.source_paths : [];
-  const data = orderFrontmatter({
-    ...generated,
-    ...parsed.data,
-    source_paths: [...new Set([...generatedSources, ...parsedSources])],
-    updated: nowIso(),
-  }, ["title", "type", "project", "source_paths", "created_at", "updated", "status", "verification_level"]);
-  writeNormalizedPage(absolutePath, content, data);
-}
-
-function generatedIndexFrontmatter(relPath: string) {
-  const match = relPath.match(/^projects\/([^/]+)\/specs(?:\/(features|prds|slices|archive))?\/index\.md$/u);
-  if (!match) return null;
-  const [, project, family] = match;
-  const title = family === "features"
-    ? `${project} Features`
-    : family === "prds"
-      ? `${project} PRDs`
-      : family === "slices"
-        ? `${project} Slices`
-        : family === "archive"
-          ? `${project} Archive`
-          : `${project} Index`;
-  return orderFrontmatter({
-    title,
-    type: "index",
-    project,
-    source_paths: [
-      "src/hierarchy/index-log.ts",
-      "src/hierarchy/index-log-relationships.ts",
-      "src/hierarchy/index-log-markdown.ts",
-      "src/lib/structure.ts",
-      "src/hierarchy/backlog.ts",
-    ],
-    updated: nowIso(),
-    status: "current",
-    verification_level: "code-verified",
-  }, ["title", "type", "project", "source_paths", "updated", "status", "verification_level"]);
 }

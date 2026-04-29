@@ -80,5 +80,7 @@ describe("legacy forge read-only Forge cutover", () => {
   });
 
   test("compat metadata documents cutover", () => {
+    expect(shouldUseForgeNext(["demo", "--json"])).toBe(true);
+    expect(shouldUseForgeStatus(["demo", "--json"])).toBe(true);
   });
 });

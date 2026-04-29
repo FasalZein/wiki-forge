@@ -6,7 +6,7 @@ import {
   collectBacklogFocus,
   collectTaskContextForId,
   detectTaskDocState,
-} from "../../hierarchy";
+} from "../../wiki/project-views";
 import { buildForgeSteering } from "../steering/packet";
 import { extractMarkdownSection, readMatterDoc, readPlanningDoc } from "./evidence";
 import { validateForgeWorkflowLedger } from "./workflow-ledger";
@@ -108,7 +108,8 @@ export async function collectForgeStatus(project: string, sliceId: string, repo?
 async function collectStatusGitTruth(project: string, repo: string | undefined) {
   try {
     const resolvedRepo = await resolveRepoPath(project, repo);
-    return await collectGitTruth(resolvedRepo);
+    const gitTruth = await collectGitTruth(resolvedRepo); // desloppify:ignore UNNECESSARY_INTERMEDIATE -- await must stay inside try/catch
+    return gitTruth;
   } catch (error) {
     return {
       repo: repo ?? null,

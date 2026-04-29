@@ -39,8 +39,8 @@ export type ClosureAttestationInput = {
 };
 
 export function collectClosureAttestation(input: ClosureAttestationInput): ClosureAttestation {
-  const findings = input.findings ?? [];
-  const staleImpactedPages = input.staleImpactedPages ?? [];
+  const findings = input.findings ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK -- closure attestation accepts omitted optional evidence lists
+  const staleImpactedPages = input.staleImpactedPages ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK -- no stale pages is the default when freshness evidence is absent
   const hardFreshnessFindings = findings.filter((finding) => isHardFinding(finding) && finding.message.includes("stale"));
   const softFreshnessFindings = findings.filter((finding) => !isHardFinding(finding) && finding.message.includes("stale"));
   const wikiFreshness = hardFreshnessFindings.length > 0
@@ -55,7 +55,7 @@ export function collectClosureAttestation(input: ClosureAttestationInput): Closu
       : check("blocked", "Git worktree", `Git worktree is dirty: ${formatGitTruthSummary(input.gitTruth)}`, input.gitTruth.changedFiles)
     : check("not-required", "Git worktree", "Git truth was not collected");
 
-  const unownedFiles = input.ownership?.entries.filter((entry) => entry.kind === "unowned").map((entry) => entry.file) ?? [];
+  const unownedFiles = input.ownership?.entries.filter((entry) => entry.kind === "unowned").map((entry) => entry.file) ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK -- no ownership map means no unowned-file list
   const ownership = input.ownership
     ? unownedFiles.length > 0
       ? check("blocked", "Ownership", `${unownedFiles.length} changed file(s) are unowned`, unownedFiles)

@@ -26,7 +26,7 @@ export async function drainBoundedTextStream(
   const tailChars = Math.min(Math.max(0, options.tailChars ?? DEFAULT_TAIL_CHARS), maxChars);
   const headChars = Math.max(0, maxChars - tailChars);
   const truncationLabel = options.truncationLabel ?? "output truncated";
-  const needles = [...new Set((options.needles ?? []).filter(Boolean))];
+  const needles = [...new Set((options.needles ?? []).filter(Boolean))]; // desloppify:ignore EMPTY_ARRAY_FALLBACK -- missing needles means no match tracking
   const matchedNeedles = new Set<string>();
   const maxNeedleChars = needles.reduce((longest, needle) => Math.max(longest, needle.length), 0);
   let needleCarry = "";

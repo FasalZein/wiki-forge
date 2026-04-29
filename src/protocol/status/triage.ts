@@ -1,4 +1,4 @@
-import type { BacklogTaskContext } from "../../hierarchy";
+import type { BacklogTaskContext } from "../../wiki/project-views";
 import { classifyWorkflowSteeringTriage } from "../steering/triage";
 import { type ForgePhase } from "./workflow-ledger";
 import { type ForgeTriage } from "../steering/triage-types";

@@ -15,7 +15,7 @@ import {
 } from "./workflow-ledger";
 import { extractMarkdownSection, readMatterDoc, type MatterDoc } from "./evidence";
 import { applyDerivedLedger } from "./detect";
-import type { BacklogTaskContext } from "../../hierarchy";
+import type { BacklogTaskContext } from "../../wiki/project-views";
 
 type TaskDocState = BacklogTaskContext["planStatus"];
 

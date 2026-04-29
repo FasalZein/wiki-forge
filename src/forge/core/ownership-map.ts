@@ -47,8 +47,8 @@ export function collectSliceOwnershipMap(input: {
   closedSliceAmendments?: ClosedSliceAmendmentClaim[];
 }): SliceOwnershipMap {
   const activeSliceId = input.activeSliceId ?? null;
-  const activeClaimPaths = normalizeClaimPaths(input.activeClaimPaths ?? []);
-  const closedSliceAmendments = (input.closedSliceAmendments ?? [])
+  const activeClaimPaths = normalizeClaimPaths(input.activeClaimPaths ?? []); // desloppify:ignore EMPTY_ARRAY_FALLBACK -- absent active claims means no claimed paths
+  const closedSliceAmendments = (input.closedSliceAmendments ?? []) // desloppify:ignore EMPTY_ARRAY_FALLBACK -- amendments are optional ownership context
     .map((amendment) => ({ sliceId: amendment.sliceId, claimPaths: normalizeClaimPaths(amendment.claimPaths) }))
     .filter((amendment) => amendment.sliceId && amendment.claimPaths.length > 0);
   const entries = [...new Set(input.changedFiles.map(normalizeRelPath).filter(Boolean))]

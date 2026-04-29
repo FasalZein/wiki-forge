@@ -1,5 +1,5 @@
 import { TEST_VERIFIED_LEVEL } from "../../constants";
-import type { BacklogFocus, BacklogTaskContext } from "../../hierarchy";
+import type { BacklogFocus, BacklogTaskContext } from "../../wiki/project-views";
 import { type ForgePhase } from "../status/workflow-ledger";
 import { phaseRecommendation } from "./phase-commands";
 import { type ForgeTriage } from "./triage-types";

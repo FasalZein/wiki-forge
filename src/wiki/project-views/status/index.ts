@@ -1,12 +1,12 @@
 import { relative } from "node:path";
-import { VAULT_ROOT } from "../../constants";
-import { requireValue, safeMatter } from "../../cli-shared";
-import { readText } from "../../lib/fs";
-import { walkMarkdown } from "../../lib/vault";
-import { readVerificationLevel } from "../../lib/verification";
-import { projectFeaturesDir, projectPrdsDir, projectSlicesDir } from "../../lib/structure";
+import { VAULT_ROOT } from "../../../constants";
+import { requireValue, safeMatter } from "../../../cli-shared";
+import { readText } from "../../../lib/fs";
+import { walkMarkdown } from "../../../lib/vault";
+import { readVerificationLevel } from "../../../lib/verification";
+import { projectFeaturesDir, projectPrdsDir, projectSlicesDir } from "../../../lib/structure";
 import { computeStatus, type HierarchyStatus, type SliceState } from "./compute";
-import { printJson, printLine } from "../../lib/cli-output";
+import { printJson, printLine } from "../../../lib/cli-output";
 
 export type FeatureStatusRow = {
   featureId: string;

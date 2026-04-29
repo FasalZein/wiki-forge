@@ -103,7 +103,12 @@ export function reviewGateStatus(data: Record<string, unknown>, project: string,
 function readRequiredApprovals(value: unknown): number {
   if (!value || typeof value !== "object") return 0;
   const raw = (value as Record<string, unknown>).required_approvals;
-  const numberValue = typeof raw === "number" ? raw : typeof raw === "string" ? Number.parseInt(raw, 10) : 0;
+  let numberValue = 0;
+  if (typeof raw === "number") {
+    numberValue = raw;
+  } else if (typeof raw === "string") {
+    numberValue = Number.parseInt(raw, 10);
+  }
   return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : 0;
 }
 

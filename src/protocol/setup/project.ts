@@ -19,7 +19,7 @@ import {
   normalizeModuleFrontmatter,
   normalizeTableSpacing,
 } from "../../module-format";
-import { writeProjectIndex } from "../../hierarchy";
+import { writeProjectIndex } from "../../wiki/project-views";
 import { syncProtocolForProject } from "./index";
 import { printLine } from "../../lib/cli-output";
 

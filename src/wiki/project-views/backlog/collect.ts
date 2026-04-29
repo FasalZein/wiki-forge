@@ -1,13 +1,13 @@
-import { exists, readText } from "../../lib/fs";
-import { safeMatter } from "../../cli-shared";
-import { projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath, toVaultMarkdownPath } from "../../lib/structure";
-import { agentNamesEqual, readProjectAgents } from "../../lib/agents";
-import { hasSliceDocScaffoldPlaceholders } from "../../lib/slices/placeholders";
+import { exists, readText } from "../../../lib/fs";
+import { safeMatter } from "../../../cli-shared";
+import { projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath, toVaultMarkdownPath } from "../../../lib/structure";
+import { agentNamesEqual, readProjectAgents } from "../../../lib/agents";
+import { hasSliceDocScaffoldPlaceholders } from "../../../lib/slices/placeholders";
 import { backlogPathFor, readNormalizedText, parseBacklog } from "./io";
 import type { BacklogItem } from "./io";
 import { relative } from "node:path";
-import { VAULT_ROOT } from "../../constants";
-import { readSliceSummary } from "../../wiki/slices";
+import { VAULT_ROOT } from "../../../constants";
+import { readSliceSummary } from "../../slices";
 
 export type TaskDocState = "missing" | "incomplete" | "ready";
 export type BacklogTaskContext = {

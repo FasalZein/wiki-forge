@@ -46,9 +46,10 @@ describe("admin/view read-model surface", () => {
     const entries = listCommandSurfaceEntries();
     for (const command of ADMIN_VIEW_COMMANDS) {
       const entry = entries.find((candidate) => candidate.publicCommands.includes(command));
-      expect(entry, command).toBeDefined();
-      expect(entry?.domain, command).toBe("admin-view");
-      expect(entry?.mayMutateLifecycle, command).toBe(false);
+      expect(entry ? { domain: entry.domain, mayMutateLifecycle: entry.mayMutateLifecycle } : null, command).toEqual({
+        domain: "admin-view",
+        mayMutateLifecycle: false,
+      });
     }
   });
 

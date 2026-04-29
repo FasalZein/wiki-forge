@@ -1,7 +1,7 @@
 import { join, relative } from "node:path";
-import { VAULT_ROOT } from "../../constants";
-import { assertExists, projectRoot } from "../../cli-shared";
-import { readText } from "../../lib/fs";
+import { VAULT_ROOT } from "../../../constants";
+import { assertExists, projectRoot } from "../../../cli-shared";
+import { readText } from "../../../lib/fs";
 
 export type BacklogItem = { raw: string; id: string; title: string };
 type ParsedBacklog = { intro: string[]; sections: Record<string, BacklogItem[]>; extras: Record<string, string[]>; order: string[] };

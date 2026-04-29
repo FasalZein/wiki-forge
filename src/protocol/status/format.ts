@@ -1,4 +1,4 @@
-import type { BacklogTaskContext } from "../../hierarchy";
+import type { BacklogTaskContext } from "../../wiki/project-views";
 import { normalizeForgeLedger, type ForgeWorkflowLedger, type ForgeWorkflowValidation } from "./workflow-ledger";
 
 type CompactableForgeStatus = {

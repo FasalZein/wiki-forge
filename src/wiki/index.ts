@@ -1,10 +1,10 @@
 import type { CommandHandler } from "../types"; // desloppify:ignore *
 import { printHelp } from "../cli-shared";
-import { dependencyGraph } from "../hierarchy/dependency-graph";
-import { featureStatusCommand } from "../hierarchy/feature-status";
-import { updateIndex } from "../hierarchy/index-log";
-import { createLayerPage, lintVault, scaffoldLayer } from "../hierarchy/layers";
-import { summaryProject } from "../hierarchy/summary";
+import { dependencyGraph } from "./project-views/dependency-graph";
+import { featureStatusCommand } from "./project-views/feature-status";
+import { updateIndex } from "./project-views/index-log";
+import { createLayerPage, lintVault, scaffoldLayer } from "./project-views/layers";
+import { summaryProject } from "./project-views/summary";
 import { checkpoint } from "../maintenance/checkpoint";
 import { commitCheck, installGitHook } from "../maintenance/commit-check";
 import { dashboardProject } from "../maintenance/dashboard";

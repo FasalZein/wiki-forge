@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import * as hierarchy from "../../src/hierarchy";
+import * as hierarchy from "../../src/wiki/project-views";
 import { repoRoot } from "../_helpers/wiki-subprocess";
 
 describe("legacy public barrels", () => {

@@ -294,14 +294,27 @@ async function nextNumericId(vaultRoot: string, project: string, kind: "feature"
 }
 
 async function currentMaxNumber(vaultRoot: string, project: string, kind: "feature" | "prd" | "slice"): Promise<number> {
-  const dir = absoluteVaultPath(vaultRoot, `${forgeProjectDir(project)}/${kind === "feature" ? "features" : kind === "prd" ? "prds" : "slices"}`);
+  const dir = absoluteVaultPath(vaultRoot, `${forgeProjectDir(project)}/${planningDirectoryName(kind)}`);
   if (!existsSync(dir)) return 0;
   const entries = await readdir(dir, { withFileTypes: true });
-  const pattern = kind === "feature" ? /^FEAT-(\d+)/u : kind === "prd" ? /^PRD-(\d+)/u : new RegExp(`^${project.replace(/[^a-zA-Z0-9]+/gu, "-").replace(/^-+|-+$/gu, "").toUpperCase()}-(\\d+)`, "u");
+  const pattern = planningIdPattern(project, kind);
   return entries.reduce((max, entry) => {
     const match = entry.name.match(pattern);
     return match ? Math.max(max, Number.parseInt(match[1] ?? "0", 10)) : max;
   }, 0);
+}
+
+function planningDirectoryName(kind: "feature" | "prd" | "slice"): "features" | "prds" | "slices" {
+  if (kind === "feature") return "features";
+  if (kind === "prd") return "prds";
+  return "slices";
+}
+
+function planningIdPattern(project: string, kind: "feature" | "prd" | "slice"): RegExp {
+  if (kind === "feature") return /^FEAT-(\d+)/u;
+  if (kind === "prd") return /^PRD-(\d+)/u;
+  const projectPrefix = project.replace(/[^a-zA-Z0-9]+/gu, "-").replace(/^-+|-+$/gu, "").toUpperCase();
+  return new RegExp(`^${projectPrefix}-(\\d+)`, "u");
 }
 
 function planningSessionPath(vaultRoot: string, project: string, featureName: string): string {

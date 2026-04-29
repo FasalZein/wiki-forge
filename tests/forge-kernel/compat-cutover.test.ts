@@ -25,9 +25,9 @@ describe("compatibility cutover", () => {
   });
 
   test("stable commands remain the public surface", () => {
-    expect(WIKI_COMMANDS.next).toBeDefined();
-    expect(WIKI_COMMANDS.resume).toBeDefined();
-    expect(WIKI_COMMANDS.handover).toBeDefined();
+    expect(typeof WIKI_COMMANDS.next).toBe("function");
+    expect(typeof WIKI_COMMANDS.resume).toBe("function");
+    expect(typeof WIKI_COMMANDS.handover).toBe("function");
   });
 
   test("legacy specs documents are refused instead of imported by runtime compatibility", () => {

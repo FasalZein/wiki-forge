@@ -4,14 +4,14 @@ import { join } from "node:path";
 import { repoRoot } from "../_helpers/wiki-subprocess";
 
 const REMOVED_FILES = [
-  "src/hierarchy/start-feature.ts",
-  "src/hierarchy/close-feature.ts",
-  "src/hierarchy/start-prd.ts",
-  "src/hierarchy/close-prd.ts",
-  "src/hierarchy/lifecycle/start-feature.ts",
-  "src/hierarchy/lifecycle/close-feature.ts",
-  "src/hierarchy/lifecycle/start-prd.ts",
-  "src/hierarchy/lifecycle/close-prd.ts",
+  "src/wiki/project-views/start-feature.ts",
+  "src/wiki/project-views/close-feature.ts",
+  "src/wiki/project-views/start-prd.ts",
+  "src/wiki/project-views/close-prd.ts",
+  "src/wiki/project-views/lifecycle/start-feature.ts",
+  "src/wiki/project-views/lifecycle/close-feature.ts",
+  "src/wiki/project-views/lifecycle/start-prd.ts",
+  "src/wiki/project-views/lifecycle/close-prd.ts",
 ];
 
 const FORBIDDEN_EXPORTS = [
@@ -33,7 +33,7 @@ describe("legacy feature/PRD planning lifecycle removal", () => {
   });
 
   test("planning facade exposes parsers/helpers only, not spec mutators", () => {
-    const source = readFileSync(join(repoRoot, "src", "hierarchy", "planning.ts"), "utf8");
+    const source = readFileSync(join(repoRoot, "src", "wiki", "project-views", "planning.ts"), "utf8");
     for (const name of FORBIDDEN_EXPORTS) expect(source).not.toContain(name);
     expect(source).toContain("parsePrdArgs");
     expect(source).toContain("parseProjectAndName");

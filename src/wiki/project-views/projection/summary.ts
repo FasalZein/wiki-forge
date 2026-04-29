@@ -1,12 +1,12 @@
 import { relative } from "node:path";
-import { VAULT_ROOT } from "../../constants";
-import { projectRoot, requireValue, safeMatter } from "../../cli-shared";
-import { readText } from "../../lib/fs";
-import { collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "../../verification";
-import { collectDriftSummary } from "../../maintenance/drift/index";
+import { VAULT_ROOT } from "../../../constants";
+import { projectRoot, requireValue, safeMatter } from "../../../cli-shared";
+import { readText } from "../../../lib/fs";
+import { collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "../../../verification";
+import { collectDriftSummary } from "../../../maintenance/drift/index";
 import { collectBacklog, collectBacklogFocus } from "../backlog";
-import { resolveDefaultBase } from "../../git-utils";
-import { printJson, printLine } from "../../lib/cli-output";
+import { resolveDefaultBase } from "../../../git-utils";
+import { printJson, printLine } from "../../../lib/cli-output";
 
 export async function summaryProject(args: string[]) {
   const project = args.find((arg) => !arg.startsWith("--"));

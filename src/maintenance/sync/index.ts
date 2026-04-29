@@ -7,7 +7,7 @@ import { END_MARKER, PROTOCOL_FILES, START_MARKER, renderProtocolSurface, type P
 import { resolveStateContract } from "../../lib/state-contract";
 import { resolveRepoPath } from "../../lib/verification";
 import { parseEntryUpdated } from "../../git-utils";
-import { collectStaleIndexTargets, writeNamedNavigationTargets } from "../../hierarchy";
+import { collectStaleIndexTargets, writeNamedNavigationTargets } from "../../wiki/project-views";
 import { collectRefreshFromWorktree, loadProjectSnapshot } from "../shared";
 import { printJson, printLine } from "../../lib/cli-output";
 

@@ -25,7 +25,7 @@ function detectDuplicateResources(
   const ownersByResource = new Map<string, string[]>();
   for (const grant of grants) {
     for (const resource of grant[key]) {
-      const owners = ownersByResource.get(resource) ?? [];
+      const owners = ownersByResource.get(resource) ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK -- first owner initializes the accumulator bucket
       owners.push(grant.agentId);
       ownersByResource.set(resource, owners);
     }

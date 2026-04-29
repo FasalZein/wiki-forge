@@ -95,7 +95,7 @@ function getLeaf(config: ResolvedConfig, key: string): ConfigLeaf<unknown> | und
   if (key === "workflow.phaseSkills.slices") return config.workflow.phaseSkills.slices;
   if (key === "workflow.phaseSkills.tdd") return config.workflow.phaseSkills.tdd;
   if (key === "workflow.phaseSkills.verify") return config.workflow.phaseSkills.verify;
-  return undefined;
+  return;
 }
 
 const DEFAULT_CONFIG_FILE = `{

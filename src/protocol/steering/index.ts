@@ -1,4 +1,4 @@
-import type { BacklogFocus, BacklogTaskContext } from "../../hierarchy";
+import type { BacklogFocus, BacklogTaskContext } from "../../wiki/project-views";
 import { collectForgeStatus } from "../status";
 import {
   classifyWorkflowSteeringTriage,

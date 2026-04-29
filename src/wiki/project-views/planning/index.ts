@@ -1,5 +1,5 @@
-import { requireValue } from "../../cli-shared";
-import { slugify as slugifyValue } from "../../lib/slug";
+import { requireValue } from "../../../cli-shared";
+import { slugify as slugifyValue } from "../../../lib/slug";
 
 export function parsePrdArgs(args: string[]) {
   const project = args[0];
