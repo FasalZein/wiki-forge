@@ -7,20 +7,20 @@ export type LegacyCompatibilityEntry = {
   readonly reason: string;
 };
 
-const V1_OWNED_REASON = "V1-owned command; no legacy fallback";
+const FORGE_OWNED_REASON = "Forge-owned command; no legacy fallback";
 
 const LEGACY_COMPATIBILITY_REPORT: readonly LegacyCompatibilityEntry[] = [
-  v1Owned("wiki forge next", "wiki v1 forge next"),
-  v1Owned("wiki forge status", "wiki v1 forge status"),
-  v1Owned("wiki forge plan", "wiki v1 forge plan"),
-  v1Owned("wiki forge start", "wiki v1 forge start"),
-  v1Owned("wiki forge release", "wiki v1 forge release"),
-  v1Owned("wiki forge evidence", "wiki v1 forge evidence"),
-  v1Owned("wiki forge review record", "wiki v1 forge review record"),
-  v1Owned("wiki forge check", "wiki v1 forge check"),
-  v1Owned("wiki forge amend", "wiki v1 forge amend"),
-  v1Owned("wiki forge close", "wiki v1 forge close"),
-  v1Owned("wiki forge run", "wiki v1 forge run"),
+  v1Owned("wiki forge next", "wiki forge next"),
+  v1Owned("wiki forge status", "wiki forge status"),
+  v1Owned("wiki forge plan", "wiki forge plan"),
+  v1Owned("wiki forge start", "wiki forge start"),
+  v1Owned("wiki forge release", "wiki forge release"),
+  v1Owned("wiki forge evidence", "wiki forge evidence"),
+  v1Owned("wiki forge review record", "wiki forge review record"),
+  v1Owned("wiki forge check", "wiki forge check"),
+  v1Owned("wiki forge amend", "wiki forge amend"),
+  v1Owned("wiki forge close", "wiki forge close"),
+  v1Owned("wiki forge run", "wiki forge run"),
   {
     command: "wiki maintain",
     status: "legacy-admin",
@@ -47,6 +47,6 @@ function v1Owned(command: string, replacement: string): LegacyCompatibilityEntry
     command,
     status: "v1-owned",
     replacement,
-    reason: V1_OWNED_REASON,
+    reason: FORGE_OWNED_REASON,
   };
 }

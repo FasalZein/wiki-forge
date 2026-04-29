@@ -157,8 +157,8 @@ describe("V1 forge plan", () => {
     expect(describeLegacyCommand("wiki forge plan")).toEqual({
       command: "wiki forge plan",
       status: "v1-owned",
-      replacement: "wiki v1 forge plan",
-      reason: "V1-owned command; no legacy fallback",
+      replacement: "wiki forge plan",
+      reason: "Forge-owned command; no legacy fallback",
     });
   });
 });

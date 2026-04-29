@@ -15,17 +15,17 @@ status: ready
 `);
 
 const v1OwnedCommands = [
-  ["wiki forge next", "wiki v1 forge next"],
-  ["wiki forge status", "wiki v1 forge status"],
-  ["wiki forge plan", "wiki v1 forge plan"],
-  ["wiki forge start", "wiki v1 forge start"],
-  ["wiki forge release", "wiki v1 forge release"],
-  ["wiki forge evidence", "wiki v1 forge evidence"],
-  ["wiki forge review record", "wiki v1 forge review record"],
-  ["wiki forge check", "wiki v1 forge check"],
-  ["wiki forge amend", "wiki v1 forge amend"],
-  ["wiki forge close", "wiki v1 forge close"],
-  ["wiki forge run", "wiki v1 forge run"],
+  ["wiki forge next", "wiki forge next"],
+  ["wiki forge status", "wiki forge status"],
+  ["wiki forge plan", "wiki forge plan"],
+  ["wiki forge start", "wiki forge start"],
+  ["wiki forge release", "wiki forge release"],
+  ["wiki forge evidence", "wiki forge evidence"],
+  ["wiki forge review record", "wiki forge review record"],
+  ["wiki forge check", "wiki forge check"],
+  ["wiki forge amend", "wiki forge amend"],
+  ["wiki forge close", "wiki forge close"],
+  ["wiki forge run", "wiki forge run"],
 ] as const;
 
 describe("v1 compatibility cutover", () => {
@@ -35,7 +35,7 @@ describe("v1 compatibility cutover", () => {
         command,
         status: "v1-owned" as const,
         replacement,
-        reason: "V1-owned command; no legacy fallback",
+        reason: "Forge-owned command; no legacy fallback",
       })),
       {
         command: "wiki maintain",
@@ -50,8 +50,8 @@ describe("v1 compatibility cutover", () => {
     expect(describeLegacyCommand("wiki forge run")).toEqual({
       command: "wiki forge run",
       status: "v1-owned",
-      replacement: "wiki v1 forge run",
-      reason: "V1-owned command; no legacy fallback",
+      replacement: "wiki forge run",
+      reason: "Forge-owned command; no legacy fallback",
     });
     expect(describeLegacyCommand("wiki research file")).toEqual({
       command: "wiki research file",

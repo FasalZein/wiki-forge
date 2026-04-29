@@ -84,8 +84,8 @@ describe("legacy forge read-only V1 cutover", () => {
     expect(describeLegacyCommand("wiki forge next")).toEqual({
       command: "wiki forge next",
       status: "v1-owned",
-      replacement: "wiki v1 forge next",
-      reason: "V1-owned command; no legacy fallback",
+      replacement: "wiki forge next",
+      reason: "Forge-owned command; no legacy fallback",
     });
   });
 });

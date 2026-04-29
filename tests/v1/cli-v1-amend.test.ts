@@ -90,8 +90,8 @@ describe("V1 forge amend", () => {
     expect(describeLegacyCommand("wiki forge amend")).toEqual({
       command: "wiki forge amend",
       status: "v1-owned",
-      replacement: "wiki v1 forge amend",
-      reason: "V1-owned command; no legacy fallback",
+      replacement: "wiki forge amend",
+      reason: "Forge-owned command; no legacy fallback",
     });
   });
 });

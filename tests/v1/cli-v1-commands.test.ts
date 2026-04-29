@@ -77,7 +77,7 @@ status: ready
     });
   });
 
-  test("wiki v1 forge next renders parseable JSON from the vault", () => {
+  test("wiki forge next renders parseable JSON from the vault", () => {
     const vault = createVaultWithSlice("ready");
     const result = runWiki(["v1", "forge", "next", "demo", "--json"], { vault });
 
@@ -99,8 +99,8 @@ status: ready
     expect(result.json()).toEqual({
       command: "wiki forge next",
       status: "v1-owned",
-      replacement: "wiki v1 forge next",
-      reason: "V1-owned command; no legacy fallback",
+      replacement: "wiki forge next",
+      reason: "Forge-owned command; no legacy fallback",
     });
   });
 });

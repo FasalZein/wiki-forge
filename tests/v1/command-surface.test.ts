@@ -14,12 +14,12 @@ describe("command surface registry", () => {
     expect(getCommandSurfaceEntry("search")).toMatchObject({ domain: "wiki-memory", mayMutateLifecycle: false });
     expect(getCommandSurfaceEntry("query")).toMatchObject({ domain: "wiki-memory", mayMutateLifecycle: false });
     expect(getCommandSurfaceEntry("ask")).toMatchObject({ domain: "wiki-memory", mayMutateLifecycle: false });
-    expect(getCommandSurfaceEntry("handover")).toMatchObject({ domain: "wiki-memory", handler: "v1:handover", mayMutateLifecycle: false });
-    expect(getCommandSurfaceEntry("resume")).toMatchObject({ domain: "wiki-memory", handler: "v1:resume", mayMutateLifecycle: false });
+    expect(getCommandSurfaceEntry("handover")).toMatchObject({ domain: "wiki-memory", handler: "handover", mayMutateLifecycle: false });
+    expect(getCommandSurfaceEntry("resume")).toMatchObject({ domain: "wiki-memory", handler: "resume", mayMutateLifecycle: false });
   });
 
   test("classifies Forge workflow commands as Forge-owned", () => {
-    expect(getCommandSurfaceEntry("next")).toMatchObject({ domain: "forge-workflow", handler: "v1:forge:next", mayMutateLifecycle: false });
+    expect(getCommandSurfaceEntry("next")).toMatchObject({ domain: "forge-workflow", handler: "forge:next", mayMutateLifecycle: false });
     expect(getCommandSurfaceEntry("forge")).toMatchObject({ domain: "forge-workflow", handler: "forge:*" });
   });
 

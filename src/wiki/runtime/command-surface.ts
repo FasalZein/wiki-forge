@@ -14,12 +14,12 @@ const COMMAND_SURFACE = [
   entry(["help"], "admin-view", "Help renders command documentation."),
   entry(["scaffold-project", "onboard", "onboard-plan", "create-module", "normalize-module", "protocol", "protocol:sync", "protocol:audit", "obsidian", "setup-shell", "config", "schema"], "admin-view", "Setup/configuration commands; not workflow authority."),
   entry(["search", "query", "ask", "file-answer", "research", "research:scaffold", "research:status", "research:ingest", "research:file", "research:lint", "research:audit", "research:handoff", "research:bridge", "research:distill", "research:adopt", "source", "source:ingest", "qmd-status", "qmd-update", "qmd-embed", "qmd-setup"], "wiki-memory", "Wiki memory and retrieval commands."),
-  entry(["handover"], "wiki-memory", "Typed handover memory object.", { handler: "v1:handover" }),
-  entry(["resume"], "wiki-memory", "Typed resume packet from handover memory and Forge status truth.", { handler: "v1:resume" }),
-  entry(["note", "log"], "wiki-memory", "Typed project memory entries that do not mutate Forge lifecycle.", { handler: "v1:memory" }),
-  entry(["export-prompt"], "wiki-memory", "Prompt packet rendered from handover memory and Forge status truth.", { handler: "v1:export-prompt" }),
+  entry(["handover"], "wiki-memory", "Typed handover memory object.", { handler: "handover" }),
+  entry(["resume"], "wiki-memory", "Typed resume packet from handover memory and Forge status truth.", { handler: "resume" }),
+  entry(["note", "log"], "wiki-memory", "Typed project memory entries that do not mutate Forge lifecycle.", { handler: "memory" }),
+  entry(["export-prompt"], "wiki-memory", "Prompt packet rendered from handover memory and Forge status truth.", { handler: "export-prompt" }),
   entry(["forge"], "forge-workflow", "Forge workflow namespace mounted under Wiki.", { handler: "forge:*", mayMutateLifecycle: true }),
-  entry(["next"], "forge-workflow", "Top-level alias for Forge next action.", { handler: "v1:forge:next", mayMutateLifecycle: false }),
+  entry(["next"], "forge-workflow", "Top-level alias for Forge next action.", { handler: "forge:next", mayMutateLifecycle: false }),
   entry(["v1", "v1:forge:next", "v1:forge:status", "v1:forge:plan", "v1:forge:start", "v1:forge:release", "v1:forge:amend", "v1:forge:check", "v1:forge:close", "v1:forge:run", "v1:forge:evidence", "v1:forge:review", "v1:handover", "v1:resume", "v1:export-prompt", "v1:note", "v1:log", "v1:compat"], "admin-view", "Temporary compatibility command namespace."),
   entry(["dashboard", "dependency-graph", "summary", "update-index", "feature-status", "scaffold-layer", "create-layer-page", "lint-vault"], "admin-view", "Generated views or hierarchy admin; never lifecycle authority.", { mayReadGeneratedProjections: true }),
   entry(["checkpoint", "maintain", "refresh", "refresh-from-git", "sync", "discover", "ingest-diff", "commit-check", "install-git-hook", "refresh-on-merge", "lint-repo", "doctor", "lint", "lint-semantic", "verify", "bind", "drift-check", "verify-page", "migrate-verification", "cache-clear", "acknowledge-impact"], "admin-view", "Wiki maintenance/freshness/verification admin; must not be treated as Forge lifecycle authority."),
@@ -47,7 +47,7 @@ export function assertCommandNotQuarantined(command: string): void {
     throw new Error(`legacy workflow command is quarantined: ${command}. Use ${entry.replacement ?? "a Forge command"}.`);
   }
   if (entry?.domain === "ambiguous-disabled") {
-    throw new Error(`ambiguous command is disabled: ${command}. Use ${entry.replacement ?? "an explicit V1 command"}.`);
+    throw new Error(`ambiguous command is disabled: ${command}. Use ${entry.replacement ?? "an explicit Forge command"}.`);
   }
 }
 
