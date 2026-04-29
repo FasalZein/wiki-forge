@@ -1,7 +1,7 @@
 import { printJson, printLine } from "../../lib/cli-output";
 import { requireValue } from "../../cli-shared";
 import { describeLegacyCommand } from "./legacy-compat";
-import { renderForgeNextJson, renderForgeNextText } from "./render-forge-next";
+import { renderForgeNextJson, renderForgeNextText } from "../../forge/workflow/render-next";
 import { loadV1ProjectProjection, loadV1SliceStatus } from "../vault/load-project";
 import { amendV1Slice, checkV1SliceClose, closeV1Slice, releaseV1Slice, startV1Slice } from "../vault/slice-store";
 import { addPlanningPrd, addPlanningSlice, completePlanningSession, createPlanningArtifacts, evaluatePlanningSessionGate, readPlanningSession, recordPlanningAnswer, type PlanningSession, type PlanningSessionGate, type PlanningSkill } from "../vault/planning-session-store";
