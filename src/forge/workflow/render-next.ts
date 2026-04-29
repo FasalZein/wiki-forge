@@ -1,5 +1,5 @@
 import type { ForgeNextProjection } from "./status-projection";
-import { renderKernelRejectionText } from "../../v1/cli/render-rejection";
+import { renderKernelRejectionText } from "./render-rejection";
 
 export function renderForgeNextText(projection: ForgeNextProjection): string {
   switch (projection.status) {
