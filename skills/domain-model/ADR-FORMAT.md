@@ -1,6 +1,6 @@
 # ADR / Decision Log Format
 
-For wiki-forge-managed projects, the canonical default is an appended entry in `projects/<project>/decisions.md`. Treat "ADR" as a decision-record content shape, not as a required repo path.
+For wiki-managed projects, the canonical default is an appended entry in `projects/<project>/decisions.md`. Treat "ADR" as a decision-record content shape, not as a required repo path.
 
 Default wiki-native shape:
 

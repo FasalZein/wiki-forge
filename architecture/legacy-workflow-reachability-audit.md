@@ -39,7 +39,7 @@ These legacy behaviors should be deleted or kept only as admin/read helpers. The
 
 ### Delete candidates after reachability tests pass
 
-- `src/slice/forge/**` command handlers and legacy orchestration. ✅ public runtime now routes through stable `wiki forge ...`; public `wiki v1 ...` compatibility namespace deleted
+- `src/slice/forge/**` command handlers and legacy orchestration. ✅ public runtime now routes through stable `wiki forge ...`; public `wiki forge ...` compatibility namespace deleted
 - `src/slice/pipeline/**` runtime pipeline state machine. ✅ deleted
 - `src/slice/lifecycle/**` start/close commands. ✅ legacy close command deleted; start command adapter removed, core remains temporarily for legacy forge/pipeline deletion
 - `src/slice/coordination/**` claim commands. ✅ deleted
@@ -59,7 +59,7 @@ These still support dashboard, checkpoint, protocol status, or freshness tools. 
 - `src/maintenance/**` admin/freshness collectors
 - `src/protocol/status/**` read-only status/steering helpers
 
-Guardrail: `tests/v1/admin-view-read-models.test.ts` verifies admin/view command registry entries are non-mutating, removed lifecycle commands stay out of full help, and the remaining legacy Forge compatibility module no longer carries dead plan mutators.
+Guardrail: `tests/forge-kernel/admin-view-read-models.test.ts` verifies admin/view command registry entries are non-mutating, removed lifecycle commands stay out of full help, and the remaining legacy Forge compatibility module no longer carries dead plan mutators.
 
 ## Current blockers to deletion
 
@@ -92,7 +92,7 @@ Guardrail: `tests/v1/admin-view-read-models.test.ts` verifies admin/view command
    - slice lifecycle mutation
    - pipeline runner
 5. Keep read-model/admin helpers until dashboard/checkpoint/protocol status are either ported or explicitly accepted as non-authoritative.
-6. Final promotion: remove `wiki v1 ...` aliases and compatibility re-exports.
+6. Final promotion: remove `wiki forge ...` aliases and compatibility re-exports.
 
 ## Answer to “have we covered everything?”
 

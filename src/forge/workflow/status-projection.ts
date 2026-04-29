@@ -1,15 +1,15 @@
-import { evaluateReviewGate } from "../../v1/forge/review-gate";
-import { hasPassedTargetedVerification, hasPassedTddEvidence } from "../../v1/forge/verification-gate";
-import type { V1EvidenceRecord } from "../../v1/forge/evidence";
-import type { KernelRejection } from "../../v1/kernel/rejection";
-import type { LegacyClassification } from "../../v1/vault/legacy-classifier";
-import type { SliceRecord, V1Diagnostic, V1RecordStatus } from "../../v1/vault/document";
+import { evaluateReviewGate } from "../lifecycle/review-gate";
+import { hasPassedTargetedVerification, hasPassedTddEvidence } from "../lifecycle/verification-gate";
+import type { ForgeEvidenceRecord } from "../lifecycle/evidence";
+import type { KernelRejection } from "../kernel/rejection";
+import type { LegacyClassification } from "../vault/legacy-classifier";
+import type { SliceRecord, ForgeDiagnostic, ForgeRecordStatus } from "../vault/document";
 
 export type SliceProjectionRecord = {
   readonly project: string;
   readonly taskId: string;
   readonly title: string;
-  readonly status: V1RecordStatus;
+  readonly status: ForgeRecordStatus;
 };
 
 export type ForgeNextProjection =
@@ -57,7 +57,7 @@ export type SliceEvidenceSummary = {
   readonly tdd: "passed" | "failed" | "missing";
   readonly targetedVerification: "passed" | "failed" | "missing";
   readonly review: "approved" | "approved-with-followups" | "needs-changes" | "missing";
-  readonly records: readonly V1EvidenceRecord[];
+  readonly records: readonly ForgeEvidenceRecord[];
 };
 
 export type SliceCloseGate =
@@ -81,14 +81,14 @@ export type SliceStatusProjection =
     readonly project: string;
     readonly sliceId: string;
     readonly source: "canonical-records";
-    readonly diagnostics: readonly V1Diagnostic[];
+    readonly diagnostics: readonly ForgeDiagnostic[];
   }
   | {
     readonly status: CanonicalSliceStatus;
     readonly project: string;
     readonly sliceId: string;
     readonly title: string;
-    readonly lifecycleStatus: V1RecordStatus;
+    readonly lifecycleStatus: ForgeRecordStatus;
     readonly parentPrd: string | null;
     readonly parentFeature: string | null;
     readonly sourcePaths: readonly string[];
@@ -112,7 +112,7 @@ export type SliceStatusInput = {
     readonly closedBy: string | null;
     readonly closedAt: string | null;
   };
-  readonly evidence: readonly V1EvidenceRecord[];
+  readonly evidence: readonly ForgeEvidenceRecord[];
 };
 
 export function projectSliceToStatus(input: SliceStatusInput): SliceStatusProjection {
@@ -146,10 +146,10 @@ export function collectLegacyDiagnostics(classifications: readonly LegacyClassif
   });
 }
 
-function summarizeEvidence(evidence: readonly V1EvidenceRecord[]): SliceEvidenceSummary {
-  const tdd = evidence.findLast((record): record is Extract<V1EvidenceRecord, { readonly kind: "tdd" }> => record.kind === "tdd");
-  const targetedVerification = evidence.findLast((record): record is Extract<V1EvidenceRecord, { readonly kind: "verification" }> => record.kind === "verification" && record.verificationType === "targeted");
-  const review = evidence.findLast((record): record is Extract<V1EvidenceRecord, { readonly kind: "review" }> => record.kind === "review");
+function summarizeEvidence(evidence: readonly ForgeEvidenceRecord[]): SliceEvidenceSummary {
+  const tdd = evidence.findLast((record): record is Extract<ForgeEvidenceRecord, { readonly kind: "tdd" }> => record.kind === "tdd");
+  const targetedVerification = evidence.findLast((record): record is Extract<ForgeEvidenceRecord, { readonly kind: "verification" }> => record.kind === "verification" && record.verificationType === "targeted");
+  const review = evidence.findLast((record): record is Extract<ForgeEvidenceRecord, { readonly kind: "review" }> => record.kind === "review");
   return {
     tdd: tdd?.result ?? "missing",
     targetedVerification: targetedVerification?.result ?? "missing",
@@ -158,7 +158,7 @@ function summarizeEvidence(evidence: readonly V1EvidenceRecord[]): SliceEvidence
   };
 }
 
-function resolveCloseGate(lifecycleStatus: V1RecordStatus, evidence: readonly V1EvidenceRecord[]): SliceCloseGate {
+function resolveCloseGate(lifecycleStatus: ForgeRecordStatus, evidence: readonly ForgeEvidenceRecord[]): SliceCloseGate {
   if (lifecycleStatus === "done") return { status: "closed" };
   if (lifecycleStatus === "draft" || lifecycleStatus === "ready" || lifecycleStatus === "cancelled") {
     return { status: "not-ready", reason: `slice lifecycle status is ${lifecycleStatus}` };
@@ -174,14 +174,14 @@ function resolveCloseGate(lifecycleStatus: V1RecordStatus, evidence: readonly V1
   return { status: "ready", missing: [] };
 }
 
-function resolveSliceStatus(lifecycleStatus: V1RecordStatus, closeGate: SliceCloseGate): CanonicalSliceStatus {
+function resolveSliceStatus(lifecycleStatus: ForgeRecordStatus, closeGate: SliceCloseGate): CanonicalSliceStatus {
   if (lifecycleStatus === "draft" || lifecycleStatus === "ready" || lifecycleStatus === "done" || lifecycleStatus === "cancelled") return lifecycleStatus;
   if (closeGate.status === "ready") return "close-ready";
   if (closeGate.status === "blocked" && closeGate.blockedBy) return "rejected";
   return "missing-gates";
 }
 
-function resolveNextAction(lifecycleStatus: V1RecordStatus, closeGate: SliceCloseGate): Extract<SliceStatusProjection, { readonly title: string }>["nextAction"] {
+function resolveNextAction(lifecycleStatus: ForgeRecordStatus, closeGate: SliceCloseGate): Extract<SliceStatusProjection, { readonly title: string }>["nextAction"] {
   if (lifecycleStatus === "draft") return "finish-planning-or-release";
   if (lifecycleStatus === "ready") return "start-slice";
   if (lifecycleStatus === "done" || lifecycleStatus === "cancelled") return "none";
@@ -195,4 +195,3 @@ function resolveNextAction(lifecycleStatus: V1RecordStatus, closeGate: SliceClos
   return "none";
 }
 
-export type { SliceCloseGate as V1SliceCloseGate, SliceEvidenceSummary as V1SliceEvidenceSummary, SliceProjectionRecord as V1SliceProjectionRecord, SliceStatusInput as V1SliceStatusInput, SliceStatusProjection as V1SliceStatusProjection };

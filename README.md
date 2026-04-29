@@ -562,7 +562,7 @@ wiki qmd-status          # index health
 Use an isolated index to avoid polluting your main state:
 
 ```bash
-QMD_INDEX_NAME=wiki-forge-bench bun src/index.ts qmd-setup
+QMD_INDEX_NAME=wiki-bench bun src/index.ts qmd-setup
 bun run bench:qmd
 # bench:qmd uses scripts/qmd-cli.ts so Bun loads Homebrew SQLite before qmd CLI startup
 ```

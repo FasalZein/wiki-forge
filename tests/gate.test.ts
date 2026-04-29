@@ -160,7 +160,7 @@ describe("gate typecheck", () => {
 });
 
 describe("gate test_exemptions", () => {
-  function setupExemptionRepo(files: Array<{ path: string; v1: string; v2: string }>) {
+  function setupExemptionRepo(files: Array<{ path: string; forge: string; v2: string }>) {
     const vault = tempDir("wiki-vault");
     const repo = tempDir("wiki-repo-exempt");
     mkdirSync(join(vault, "projects"), { recursive: true });
@@ -169,7 +169,7 @@ describe("gate test_exemptions", () => {
     mkdirSync(join(repo, "tests"), { recursive: true });
     for (const f of files) {
       mkdirSync(join(repo, f.path.split("/").slice(0, -1).join("/")), { recursive: true });
-      writeFileSync(join(repo, f.path), f.v1, "utf8");
+      writeFileSync(join(repo, f.path), f.forge, "utf8");
     }
     writeFileSync(join(repo, "tests", "unrelated.test.ts"), "import { test, expect } from 'bun:test'\ntest('unrelated', () => expect(1).toBe(1))\n", "utf8");
     runGit(repo, ["init", "-q"]);
@@ -183,8 +183,8 @@ describe("gate test_exemptions", () => {
 
   test("exact-path exemption removes file from blockers while non-exempted file remains", () => {
     const { vault, repo } = setupExemptionRepo([
-      { path: "src/types.ts", v1: "export type Foo = string;\n", v2: "export type Foo = number;\n" },
-      { path: "src/payments.ts", v1: "export const total = 1\n", v2: "export const total = 2\n" },
+      { path: "src/types.ts", forge: "export type Foo = string;\n", v2: "export type Foo = number;\n" },
+      { path: "src/payments.ts", forge: "export const total = 1\n", v2: "export const total = 2\n" },
     ]);
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
     expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
@@ -204,8 +204,8 @@ describe("gate test_exemptions", () => {
 
   test("glob pattern exemption (*.d.ts) removes matching files from blockers", () => {
     const { vault, repo } = setupExemptionRepo([
-      { path: "src/api.d.ts", v1: "export declare const x: string;\n", v2: "export declare const x: number;\n" },
-      { path: "src/payments.ts", v1: "export const total = 1\n", v2: "export const total = 2\n" },
+      { path: "src/api.d.ts", forge: "export declare const x: string;\n", v2: "export declare const x: number;\n" },
+      { path: "src/payments.ts", forge: "export const total = 1\n", v2: "export const total = 2\n" },
     ]);
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
     expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);

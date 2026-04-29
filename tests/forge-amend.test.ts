@@ -75,7 +75,7 @@ describe("wiki forge amend", () => {
     expect(backlog.sections["In Progress"].map((item: { id: string }) => item.id)).not.toContain("AMENDSTART-002");
   });
 
-  test("refuses to amend slices without V1 lifecycle close evidence", () => {
+  test("refuses to amend slices without Forge lifecycle close evidence", () => {
     const vault = tempDir("wiki-vault-open");
     initVault(vault);
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
@@ -84,7 +84,7 @@ describe("wiki forge amend", () => {
 
     const amend = runWiki(["forge", "amend", "openproj", "OPENPROJ-001", "--reason", "needs followup"], env);
     expect(amend.exitCode).not.toBe(0);
-    expect(amend.stderr.toString()).toContain("slice is not closed in V1 lifecycle truth");
+    expect(amend.stderr.toString()).toContain("slice is not closed in Forge lifecycle truth");
   });
 });
 

@@ -45,14 +45,14 @@ describe("cache", () => {
   });
 
   test("readCache returns null for missing cache entry", async () => {
-    const result = await readCache("test-ns-nonexistent", "nonexistent-key", "v1", "fp1");
+    const result = await readCache("test-ns-nonexistent", "nonexistent-key", "forge", "fp1");
     expect(result).toBeNull();
   });
 
   test("writeCache then readCache round-trips a value", async () => {
     const ns = `_test_roundtrip_${Date.now()}`;
     const key = "test-key";
-    const version = "v1";
+    const version = "forge";
     const fp = "fp-test";
     const value = { data: [1, 2, 3] };
 
@@ -64,7 +64,7 @@ describe("cache", () => {
   test("readCache returns null when version mismatches", async () => {
     const ns = `_test_version_${Date.now()}`;
     const key = "test-key";
-    await writeCache(ns, key, "v1", "fp1", { x: 1 });
+    await writeCache(ns, key, "forge", "fp1", { x: 1 });
     const result = await readCache(ns, key, "v2", "fp1");
     expect(result).toBeNull();
   });
@@ -72,8 +72,8 @@ describe("cache", () => {
   test("readCache returns null when fingerprint mismatches", async () => {
     const ns = `_test_fp_${Date.now()}`;
     const key = "test-key";
-    await writeCache(ns, key, "v1", "fp1", { x: 1 });
-    const result = await readCache(ns, key, "v1", "fp2");
+    await writeCache(ns, key, "forge", "fp1", { x: 1 });
+    const result = await readCache(ns, key, "forge", "fp2");
     expect(result).toBeNull();
   });
 
@@ -86,7 +86,7 @@ describe("cache", () => {
 
     const script = `
       const { readCache } = await import("./src/lib/cache");
-      const result = await readCache("broken", "bad-key", "v1", "fp1");
+      const result = await readCache("broken", "bad-key", "forge", "fp1");
       console.log(JSON.stringify(result));
     `;
     const proc = Bun.spawnSync(["bun", "-e", script], {

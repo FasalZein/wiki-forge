@@ -3,7 +3,7 @@ name: domain-model
 description: Stress-test a plan against the existing domain model, sharpen terminology, and record decisions/context in the project's canonical knowledge surfaces as they crystallise. Use when user wants to challenge a plan against the project's language and documented decisions.
 ---
 
-For wiki-forge-managed projects, the domain-model phase is wiki-native:
+For wiki-managed projects, the domain-model phase is wiki-native:
 
 - Canonical decisions belong in the wiki vault, usually `projects/<project>/decisions.md`, not repo-local `docs/adr/`.
 - Canonical glossary/context artifacts also belong in the wiki layer, for example `projects/<project>/architecture/domain-language.md`, not repo-root `CONTEXT.md`.
@@ -47,7 +47,7 @@ During codebase exploration, also look for existing documentation:
 
 ### Canonical lookup order
 
-For wiki-forge-managed projects, read the canonical surfaces in this order:
+For wiki-managed projects, read the canonical surfaces in this order:
 
 1. `projects/<project>/architecture/domain-language.md`
 2. `projects/<project>/decisions.md`
@@ -85,7 +85,7 @@ If a `CONTEXT-MAP.md` exists at the root, the repo has multiple contexts. The ma
 
 Create files lazily — only when you have something to write. If no `CONTEXT.md` exists, create one when the first term is resolved. If no `docs/adr/` exists, create it when the first ADR is needed.
 
-For wiki-forge-managed projects, translate those outputs into the wiki's canonical surfaces instead of creating repo files. Repo-local markdown is a fallback only for projects that explicitly keep context artifacts in-repo.
+For wiki-managed projects, translate those outputs into the wiki's canonical surfaces instead of creating repo files. Repo-local markdown is a fallback only for projects that explicitly keep context artifacts in-repo.
 
 ## During the session
 
@@ -107,7 +107,7 @@ When the user states how something works, check whether the code agrees. If you 
 
 ### Update context/glossary inline
 
-When a term is resolved, update the canonical context/glossary surface right there. Don't batch these up — capture them as they happen. Use the format in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md). For wiki-forge-managed projects, that means a wiki page such as `projects/<project>/architecture/domain-language.md`.
+When a term is resolved, update the canonical context/glossary surface right there. Don't batch these up — capture them as they happen. Use the format in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md). For wiki-managed projects, that means a wiki page such as `projects/<project>/architecture/domain-language.md`.
 
 ### Offer decisions sparingly
 
@@ -117,7 +117,7 @@ Only offer to create an ADR when all three are true:
 2. **Surprising without context** — a future reader will wonder "why did they do it this way?"
 3. **The result of a real trade-off** — there were genuine alternatives and you picked one for specific reasons
 
-If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md). For wiki-forge-managed projects, record the decision in the wiki's decision surface instead of creating `docs/adr/`.
+If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md). For wiki-managed projects, record the decision in the wiki's decision surface instead of creating `docs/adr/`.
 
 ## Local skill maintenance
 

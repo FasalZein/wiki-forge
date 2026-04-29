@@ -160,7 +160,7 @@ describe("qmd index selection", () => {
   });
 
   test("uses a named sqlite path for non-default indexes", () => {
-    expect(resolveQmdIndexPath("wiki-forge-bench")).toEndWith("/.cache/qmd/wiki-forge-bench.sqlite");
+    expect(resolveQmdIndexPath("wiki-bench")).toEndWith("/.cache/qmd/wiki-bench.sqlite");
   });
 });
 

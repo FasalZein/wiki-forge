@@ -8,7 +8,7 @@ description: >
 
 Forge is the SDLC lifecycle layer for tracked implementation work. It owns workflow state, slice ownership, Git boundaries, verification evidence, review evidence, handover continuity, and close readiness. Wiki remains the second-brain memory layer; Forge decides whether implementation may proceed or close.
 
-Use this skill when changing runtime/product behavior, continuing a slice, creating follow-up work, handing over active work, or closing verified work. The CLI and V1 kernel own phase ordering, invariants, and close gates. Do not treat this skill body as workflow truth.
+Use this skill when changing runtime/product behavior, continuing a slice, creating follow-up work, handing over active work, or closing verified work. The CLI and Forge kernel own phase ordering, invariants, and close gates. Do not treat this skill body as workflow truth.
 
 ## Commands
 

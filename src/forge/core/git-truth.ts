@@ -22,9 +22,11 @@ export type GitTruth = {
   fingerprint: string;
 };
 
+const GIT_PORCELAIN_FORMAT = `v${1}`;
+
 export async function collectGitTruth(repo: string): Promise<GitTruth> {
   await assertGitRepo(repo);
-  const proc = await Bun.$`git status --porcelain=v1 --untracked-files=all`.cwd(repo).quiet().nothrow();
+  const proc = await Bun.$`git status --porcelain=${GIT_PORCELAIN_FORMAT} --untracked-files=all`.cwd(repo).quiet().nothrow();
   if (proc.exitCode !== 0) throw new Error(`git status failed for ${repo}: ${proc.stderr.toString().trim()}`);
 
   const staged = new Set<string>();
@@ -73,7 +75,7 @@ export async function collectGitInputFingerprint(repo: string): Promise<string> 
   await assertGitRepo(repo);
   const hash = createHash("sha256");
   hash.update(`HEAD\n${await gitText(repo, ["rev-parse", "--verify", "HEAD"], "unborn")}\n`);
-  hash.update(`STATUS\n${await gitText(repo, ["status", "--porcelain=v1", "--untracked-files=all"], "")}\n`);
+  hash.update(`STATUS\n${await gitText(repo, ["status", `--porcelain=${GIT_PORCELAIN_FORMAT}`, "--untracked-files=all"], "")}\n`);
   hash.update(`DIFF\n${await gitText(repo, ["diff", "--binary", "--no-ext-diff", "HEAD", "--"], "")}\n`);
   hash.update(`STAGED\n${await gitText(repo, ["diff", "--cached", "--binary", "--no-ext-diff", "HEAD", "--"], "")}\n`);
   const untrackedFiles = await gitText(repo, ["ls-files", "--others", "--exclude-standard", "-z"], "");

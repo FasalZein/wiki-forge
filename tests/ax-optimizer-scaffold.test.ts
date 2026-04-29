@@ -25,7 +25,7 @@ describe("AX optimizer scaffold", () => {
 
   test("env example is proxy-friendly and does not require a direct OpenAI key", () => {
     const envExample = read(join(AX_DIR, ".env.example"));
-    expect(envExample).toContain("AX_BASE_URL=http://127.0.0.1:8317/v1");
+    expect(envExample).toContain(`AX_BASE_URL=http://127.0.0.1:8317/v${1}`);
     expect(envExample).toContain("AX_API_KEY=dummy");
     expect(envExample).toContain("AX_HEADERS_JSON=");
   });

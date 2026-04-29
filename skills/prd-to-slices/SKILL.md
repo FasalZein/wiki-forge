@@ -10,7 +10,7 @@ description: >
 
 Break a PRD into independently-grabbable vertical slices. Each slice is a thin vertical cut through all layers end-to-end, not a horizontal layer ticket.
 
-This skill is a decomposition aid. In wiki-forge-managed projects, the canonical command that creates or resumes feature/PRD/slice artifacts is:
+This skill is a decomposition aid. In wiki-managed projects, the canonical command that creates or resumes feature/PRD/slice artifacts is:
 
 ```bash
 wiki forge plan <project> <feature-name> --repo <path>

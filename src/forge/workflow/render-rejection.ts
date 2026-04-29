@@ -1,4 +1,4 @@
-import type { KernelRejection } from "../../v1/kernel/rejection";
+import type { KernelRejection } from "../kernel/rejection";
 
 export function renderKernelRejectionText(rejection: KernelRejection): string {
   const nextRecovery = rejection.recovery[0]?.command;

@@ -11,46 +11,46 @@ import {
   renderForgeStatusWithoutSlice,
 } from "./output";
 import { printJson, printLine } from "../../lib/cli-output";
-import { v1ForgeAmend, v1ForgeCheck, v1ForgeClose, v1ForgeEvidence, v1ForgeNext, v1ForgePlan, v1ForgeRelease, v1ForgeReview, v1ForgeRun, v1ForgeStart, v1ForgeStatus } from "../../v1/cli/commands";
+import { forgeAmendCommand, forgeCheckCommand, forgeCloseCommand, forgeEvidenceCommand, forgeNextCommand, forgePlanCommand, forgeReleaseCommand, forgeReviewCommand, forgeRunCommand, forgeStartCommand, forgeStatusCommand } from "../../forge/workflow/commands";
 import { shouldUseForgeNext, shouldUseForgeStatus } from "../../forge/cutover";
 export { forgeSkip } from "./skip";
 
 
 export async function forgeAmend(args: string[]) {
-  await v1ForgeAmend(args);
+  await forgeAmendCommand(args);
 }
 
 export async function forgePlan(args: string[]) {
-  await v1ForgePlan(args);
+  await forgePlanCommand(args);
 }
 
 export async function forgeEvidence(args: string[]) {
-  await v1ForgeEvidence(args);
+  await forgeEvidenceCommand(args);
 }
 
 export async function forgeReview(args: string[]) {
-  await v1ForgeReview(args);
+  await forgeReviewCommand(args);
 }
 
 export async function forgeRun(args: string[]) {
-  await v1ForgeRun(args);
+  await forgeRunCommand(args);
 }
 
 export async function forgeStart(args: string[]) {
-  await v1ForgeStart(args);
+  await forgeStartCommand(args);
 }
 
 export async function forgeCheck(args: string[]) {
-  await v1ForgeCheck(args);
+  await forgeCheckCommand(args);
 }
 
 export async function forgeClose(args: string[]) {
-  await v1ForgeClose(args);
+  await forgeCloseCommand(args);
 }
 
 export async function forgeStatus(args: string[]) {
   if (shouldUseForgeStatus(args)) {
-    await v1ForgeStatus(args);
+    await forgeStatusCommand(args);
     return;
   }
   const parsed = await parseForgeStatusArgs(args);
@@ -95,12 +95,12 @@ export async function forgeOpen(args: string[]) {
 }
 
 export async function forgeRelease(args: string[]) {
-  await v1ForgeRelease(args);
+  await forgeReleaseCommand(args);
 }
 
 export async function forgeNext(args: string[]) {
   if (shouldUseForgeNext(args)) {
-    await v1ForgeNext(args);
+    await forgeNextCommand(args);
     return;
   }
   const positional = args.filter((a) => !a.startsWith("--"));

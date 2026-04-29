@@ -7,7 +7,7 @@ description: >
 
 # Write a PRD
 
-Create the product/spec content that Forge planning needs. In wiki-forge-managed projects, `wiki forge plan` owns feature/PRD/slice artifact creation and continuation.
+Create the product/spec content that Forge planning needs. In wiki-managed projects, `wiki forge plan` owns feature/PRD/slice artifact creation and continuation.
 
 Do not use removed legacy commands such as `wiki create-feature`, `wiki create-prd`, `wiki create-plan`, or `wiki create-test-plan`.
 

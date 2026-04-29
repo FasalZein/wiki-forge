@@ -1,6 +1,6 @@
 # Domain Language / CONTEXT Format
 
-For wiki-forge-managed projects, treat this as a content shape, not a required repo file path. The canonical glossary/context artifact should live in the wiki, for example `projects/<project>/architecture/domain-language.md`, unless the project explicitly keeps `CONTEXT.md` in the repo.
+For wiki-managed projects, treat this as a content shape, not a required repo file path. The canonical glossary/context artifact should live in the wiki, for example `projects/<project>/architecture/domain-language.md`, unless the project explicitly keeps `CONTEXT.md` in the repo.
 
 Wiki-native default:
 
@@ -56,7 +56,7 @@ _Avoid_: Client, buyer, account
 
 ## Single vs multi-context repos
 
-**Single context (most repos):** One context surface. For wiki-forge-managed projects this is usually `projects/<project>/architecture/domain-language.md`; for repo-local fallback it is `CONTEXT.md` at the repo root.
+**Single context (most repos):** One context surface. For wiki-managed projects this is usually `projects/<project>/architecture/domain-language.md`; for repo-local fallback it is `CONTEXT.md` at the repo root.
 
 **Multiple contexts:** A `CONTEXT-MAP.md` at the repo root lists the contexts, where they live, and how they relate to each other:
 

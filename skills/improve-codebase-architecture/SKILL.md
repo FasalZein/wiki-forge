@@ -37,7 +37,7 @@ Principles:
 - **One adapter = hypothetical seam. Two adapters = real seam.** Don't introduce a seam unless something actually varies across it.
 - **Replace tests, don't layer them.** Old tests on shallow modules should disappear once boundary tests exist at the deepened module's interface.
 
-See [DEEPENING.md](DEEPENING.md) for dependency categories and testing strategy. See [INTERFACE-DESIGN.md](INTERFACE-DESIGN.md) for the parallel design pattern. See [REFERENCE.md](REFERENCE.md) for wiki-forge-specific review templates and external issue pointers.
+See [DEEPENING.md](DEEPENING.md) for dependency categories and testing strategy. See [INTERFACE-DESIGN.md](INTERFACE-DESIGN.md) for the parallel design pattern. See [REFERENCE.md](REFERENCE.md) for wiki-specific review templates and external issue pointers.
 
 ## When to run
 
@@ -49,7 +49,7 @@ See [DEEPENING.md](DEEPENING.md) for dependency categories and testing strategy.
 
 - Project is onboarded into the wiki: `wiki scaffold-project <project>` has run, `_summary.md` has `repo:` set, and modules/features/PRDs/slices exist in the usual layout.
 - `/research`, `/domain-model`, `/write-a-prd`, `/prd-to-slices`, `/tdd`, `/wiki`, and `/forge` are available — we chain them for accepted refactors.
-- For wiki-forge-managed projects, prefer wiki-native domain language (`projects/<project>/architecture/domain-language.md` and `projects/<project>/decisions.md`) over repo-root `CONTEXT.md` / `docs/adr/`. If a non-wiki project has `CONTEXT.md` or ADRs, read them too.
+- For wiki-managed projects, prefer wiki-native domain language (`projects/<project>/architecture/domain-language.md` and `projects/<project>/decisions.md`) over repo-root `CONTEXT.md` / `docs/adr/`. If a non-wiki project has `CONTEXT.md` or ADRs, read them too.
 
 ## Process
 
