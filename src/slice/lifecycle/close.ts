@@ -10,10 +10,12 @@ import {
   collectTaskContextForId,
   computeEntityStatus,
   lifecycleClose,
-  moveTaskToSection,
   rewriteBacklogRowMarker,
   writeProjectIndex,
 } from "../../hierarchy";
+// Legacy-only dependency while this module is being removed feature-by-feature.
+// eslint-disable-next-line boundaries/dependencies
+import { moveTaskToSection } from "../../hierarchy/backlog/io";
 import { resolveDefaultBase } from "../../git-utils";
 import { collectCloseout, collectGate, compactDoctorForJson, isTestFile } from "../../maintenance";
 import { applyVerificationLevel } from "../../verification";

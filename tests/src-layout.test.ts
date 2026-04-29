@@ -23,7 +23,6 @@ const MOVED_FILE_TARGETS: ReadonlyArray<readonly [string, string]> = [
   ["acknowledge-impact.ts", "verification"],
   ["answers.ts", "retrieval"],
   ["backlog-collect.ts", "hierarchy"],
-  ["backlog-commands.ts", "hierarchy"],
   ["backlog-io.ts", "hierarchy"],
   ["backlog.ts", "hierarchy"],
   ["coordination.ts", "slice"],

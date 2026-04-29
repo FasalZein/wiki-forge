@@ -6,7 +6,13 @@ import { exists, readText } from "../../lib/fs";
 import { renderSteeringPacket } from "../../protocol/steering/index";
 import type { ForgeWorkflowLedger } from "../../protocol/status/index";
 import { projectTaskHubPath } from "../../lib/structure";
-import { collectBacklogFocus, collectTaskContextForId, createFeatureReturningId, createPrdReturningId, moveTaskToSection } from "../../hierarchy";
+import { collectBacklogFocus, collectTaskContextForId } from "../../hierarchy";
+// Legacy-only dependency while this module is being removed feature-by-feature.
+// eslint-disable-next-line boundaries/dependencies
+import { moveTaskToSection } from "../../hierarchy/backlog/io";
+// Legacy-only dependency while this module is being removed feature-by-feature.
+// eslint-disable-next-line boundaries/dependencies
+import { createFeatureReturningId, createPrdReturningId } from "../../hierarchy/planning";
 import { appendLogEntry } from "../../lib/log";
 import { collectForgeStatus, compactForgeStatusForJson, resolveTargetWorkflowSteering, resolveWorkflowSteering } from "../../protocol";
 import { createIssueSlice } from "../docs/scaffold";

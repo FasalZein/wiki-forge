@@ -5,7 +5,10 @@ import { readText } from "../../lib/fs";
 import { appendLogEntry } from "../../lib/log";
 import { summarizePlan } from "../../lib/slices/plan-summary";
 import { projectTaskHubPath } from "../../lib/structure";
-import { collectTaskContextForId, lifecycleOpen, moveTaskToSection } from "../../hierarchy";
+import { collectTaskContextForId, lifecycleOpen } from "../../hierarchy";
+// Legacy-only dependency while this module is being removed feature-by-feature.
+// eslint-disable-next-line boundaries/dependencies
+import { moveTaskToSection } from "../../hierarchy/backlog/io";
 import { hasCanonicalSliceCompletionEvidence, readSliceHub, readSlicePlan, readSliceSourcePaths } from "../docs";
 import { ClaimConflict, collectClaimResult, collectDependencyStatuses, defaultAgentName, formatClaimConflictError, writeClaimMetadata } from "../shared";
 import { printJson, printLine } from "../../lib/cli-output";
