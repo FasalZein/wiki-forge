@@ -17,11 +17,11 @@ function createVaultWithReadySlice() {
 }
 
 describe("Forge top-level next", () => {
-  test("top-level next routes to Forge next instead of legacy session next", () => {
+  test("top-level next routes to Forge next instead of removed session next", () => {
     expect(resolveWikiCommand(["next", "demo"]).command).toBe("next");
   });
 
-  test("returns Forge projection and ignores legacy backlog projection", () => {
+  test("returns Forge projection and ignores old backlog projection", () => {
     const vault = createVaultWithReadySlice();
     const result = runWiki(["next", "demo", "--json"], { vault });
 

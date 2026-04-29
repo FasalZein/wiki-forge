@@ -27,7 +27,7 @@ const FORBIDDEN_EXPORTS = [
   "closePrd",
 ];
 
-describe("legacy feature/PRD planning lifecycle removal", () => {
+describe("removed feature/PRD planning lifecycle guard", () => {
   test("deletes legacy feature and PRD lifecycle command adapters", () => {
     for (const file of REMOVED_FILES) expect(existsSync(join(repoRoot, file))).toBe(false);
   });

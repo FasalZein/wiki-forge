@@ -53,7 +53,7 @@ function passingEvidence() {
 }
 
 describe("forge slice-specific forge status", () => {
-  test("default slice-specific status routes to Forge even with --legacy", () => {
+  test("slice-specific status routes to Forge even with --legacy", () => {
     expect(shouldUseForgeStatus(["demo", sliceId, "--json"])).toBe(true);
     expect(shouldUseForgeStatus(["demo", sliceId, "--legacy", "--json"])).toBe(true);
   });
@@ -128,7 +128,7 @@ describe("forge slice-specific forge status", () => {
     });
   });
 
-  test("reports done slices and ignores hostile legacy projections", () => {
+  test("reports done slices and ignores hostile old projections", () => {
     const vault = createVaultWithSlice({ status: "done", evidence: passingEvidence(), includeHostileLegacyProjection: true });
     const result = runWiki(["forge", "status", "demo", sliceId, "--json"], { vault });
 

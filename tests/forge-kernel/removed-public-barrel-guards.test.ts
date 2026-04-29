@@ -4,7 +4,7 @@ import { join } from "node:path";
 import * as hierarchy from "../../src/wiki/project-views";
 import { repoRoot } from "../_helpers/wiki-subprocess";
 
-describe("legacy public barrels", () => {
+describe("removed public barrels", () => {
   test("session legacy barrel is deleted", () => {
     expect(existsSync(join(repoRoot, "src", "session"))).toBe(false);
   });

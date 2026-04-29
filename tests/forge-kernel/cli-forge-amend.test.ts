@@ -8,7 +8,7 @@ import { shouldUseForgeAmend } from "../../src/forge/cutover";
 afterEach(() => cleanupTempPaths());
 
 describe("Forge amend", () => {
-  test("legacy forge amend routes to Forge and ignores legacy backlog closure state", () => {
+  test("removed amend flag routes to Forge and ignores old backlog closure state", () => {
     const vault = tempDir("wiki-amend-vault");
     initVault(vault);
     writeClosedForgeSlice(vault, "demo", "DEMO-001", {
@@ -50,7 +50,7 @@ describe("Forge amend", () => {
     expect(readFileSync(join(vault, "projects", "demo", "forge", "slices", "DEMO-002", "test-plan.md"), "utf8")).toContain("Add regression coverage");
   });
 
-  test("can start a Forge amendment without moving a legacy backlog row", () => {
+  test("can start a Forge amendment without moving an old backlog row", () => {
     const vault = tempDir("wiki-amend-start-vault");
     initVault(vault);
     writeClosedForgeSlice(vault, "demo", "DEMO-001", {

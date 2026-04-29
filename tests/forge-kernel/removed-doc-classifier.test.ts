@@ -30,7 +30,7 @@ status: in-progress
 # WIKI-FORGE-213
 `;
 
-describe("forge legacy document classifier", () => {
+describe("forge old document classifier", () => {
   test("generated index/backlog projection is excluded from canonical lifecycle truth", () => {
     const document = parseVaultDocument("projects/wiki-forge/backlog.md", projectionMarkdown);
     const classification = classifyLegacyDocument(document);
@@ -59,7 +59,7 @@ describe("forge legacy document classifier", () => {
     });
   });
 
-  test("legacy specs slice documents are quarantined under Forge", () => {
+  test("old specs slice documents are quarantined under Forge", () => {
     const document = parseVaultDocument("projects/wiki-forge/specs/slices/WIKI-FORGE-213/index.md", validSliceMarkdown);
     const classification = classifyLegacyDocument(document);
 

@@ -13,7 +13,7 @@ function createVault() {
 }
 
 describe("Forge typed handover command", () => {
-  test("top-level handover routes to Forge typed handover instead of legacy session handover", () => {
+  test("top-level handover routes to Forge typed handover instead of removed session handover", () => {
     expect(resolveWikiCommand(["handover", "demo"]).command).toBe("handover");
   });
 

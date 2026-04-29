@@ -60,7 +60,7 @@ describe("forge active slice invariant", () => {
     expect(result.rejection.affected.records.map((record) => record.id)).toEqual(["WIKI-FORGE-213", "WIKI-FORGE-214"]);
   });
 
-  test("legacy state with two active slices rejects with MultipleActiveSlices", () => {
+  test("invalid imported state with two active slices rejects with MultipleActiveSlices", () => {
     const result = evaluateStartSliceIntent(startIntent, projectState(["WIKI-FORGE-211", "WIKI-FORGE-213"]));
 
     expect(result.status).toBe("rejected");

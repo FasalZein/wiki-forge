@@ -44,7 +44,7 @@ const approvedReview: ForgeEvidenceRecord = {
   recordedAt: "2026-04-28T04:33:03.000Z",
 };
 
-describe("forge close slice evidence gates", () => {
+describe("forge close evidence gates", () => {
   test("close rejects missing TDD evidence", () => {
     const result = evaluateCloseSliceIntent(closeIntent, {
       project: "wiki-forge",

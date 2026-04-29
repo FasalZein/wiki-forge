@@ -19,7 +19,7 @@ const REMOVED_PATHS = [
   "src/slice/start.ts",
 ];
 
-describe("legacy slice lifecycle removal", () => {
+describe("removed slice lifecycle guard", () => {
   test("deletes legacy slice runtime paths", () => {
     for (const path of REMOVED_PATHS) expect(existsSync(join(repoRoot, path))).toBe(false);
   });

@@ -25,7 +25,7 @@ const REPLACED_LEGACY_COMMANDS = new Map([
   ["close-prd", "wiki forge plan"],
 ]);
 
-describe("legacy workflow coverage audit", () => {
+describe("removed workflow coverage audit", () => {
   test("documents the legacy workflow surfaces covered by Forge", () => {
     const audit = readFileSync(join(repoRoot, "architecture", "legacy-workflow-reachability-audit.md"), "utf8");
 

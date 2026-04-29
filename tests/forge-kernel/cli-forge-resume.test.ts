@@ -21,7 +21,7 @@ function createVault() {
 }
 
 describe("Forge resume", () => {
-  test("top-level resume routes to Forge resume instead of legacy session resume", () => {
+  test("top-level resume routes to Forge resume instead of removed session resume", () => {
     expect(resolveWikiCommand(["resume", "demo"]).command).toBe("resume");
   });
 

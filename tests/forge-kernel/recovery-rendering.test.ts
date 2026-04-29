@@ -25,7 +25,7 @@ describe("forge recovery rendering", () => {
     expect(parsed.recovery[0].command).toBe("wiki forge release wiki-forge WIKI-FORGE-216, WIKI-FORGE-217 --reason \"release before starting <next-slice>\"");
   });
 
-  test("repairable and quarantined legacy docs render diagnostics, not guessed next actions", () => {
+  test("repairable and quarantined old docs render diagnostics, not guessed next actions", () => {
     const repairable = classifyLegacyDocument(parseVaultDocument(
       "projects/wiki-forge/forge/slices/WIKI-FORGE-217/index.md",
       `---\ntitle: WIKI-FORGE-217\ntype: forge-slice\nproject: wiki-forge\nstatus: ready\n---\n# missing task id\n`,

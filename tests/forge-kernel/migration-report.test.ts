@@ -31,7 +31,7 @@ project: wiki-forge
 `);
 
 describe("forge migration report", () => {
-  test("migration dry-run quarantines legacy specs records under the no-fallback Forge model", () => {
+  test("migration dry-run quarantines old specs records under the no-fallback Forge model", () => {
     const report = buildMigrationReport({
       project: "wiki-forge",
       documents: [validSlice, repairableSlice, quarantinedNote],
@@ -74,7 +74,7 @@ describe("forge migration report", () => {
     });
   });
 
-  test("legacy specs documents classify as quarantined under Forge", () => {
+  test("old specs documents classify as quarantined under Forge", () => {
     const classification = classifyLegacyDocument(validSlice);
     const report = buildMigrationReport({ project: "wiki-forge", documents: [validSlice] });
 

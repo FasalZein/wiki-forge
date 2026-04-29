@@ -23,7 +23,7 @@ status: ${status}
   return vault;
 }
 
-describe("legacy forge read-only Forge cutover", () => {
+describe("removed read-only Forge cutover", () => {
   test("wiki forge next defaults to Forge projection JSON", () => {
     const vault = createVaultWithSlice("ready");
     const legacyDefault = runWiki(["forge", "next", "demo", "--json"], { vault });

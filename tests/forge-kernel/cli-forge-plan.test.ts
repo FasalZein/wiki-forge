@@ -54,8 +54,8 @@ describe("Forge plan", () => {
     expect(existsSync(join(vault, "projects", "demo", "forge", "slices"))).toBe(false);
   });
 
-  test("default legacy forge plan routes to the same Forge gate and ignores --legacy", () => {
-    const vault = tempDir("wiki-plan-legacy-vault");
+  test("removed plan flag routes to the same Forge gate and ignores --legacy", () => {
+    const vault = tempDir("wiki-plan-removed-vault");
     initVault(vault);
 
     const result = runWiki(["forge", "plan", "demo", "new onboarding", "--legacy", "--json"], { vault });

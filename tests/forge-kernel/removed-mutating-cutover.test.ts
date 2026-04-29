@@ -41,7 +41,7 @@ function sliceData(vault: string) {
   return matter(raw).data;
 }
 
-describe("legacy mutating forge Forge cutover", () => {
+describe("removed mutating Forge cutover", () => {
   test("implemented mutating commands do not fall back to legacy", () => {
     expect(shouldUseForgeStart(["demo", sliceId, "--json"])).toBe(true);
     expect(shouldUseForgeStart(["demo", sliceId, "--legacy", "--json"])).toBe(true);

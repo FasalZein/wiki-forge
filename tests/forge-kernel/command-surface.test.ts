@@ -40,7 +40,7 @@ describe("command surface registry", () => {
     expect(() => assertGeneratedProjectionReadAllowed("dashboard")).not.toThrow();
   });
 
-  test("removed legacy workflow commands are absent, not quarantined", () => {
+  test("removed workflow commands are absent, not quarantined", () => {
     for (const command of REMOVED_COMMANDS) {
       expect(getCommandSurfaceEntry(command)).toBeUndefined();
       expect(WIKI_COMMANDS[command]).toBeUndefined();

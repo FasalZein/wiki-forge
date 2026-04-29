@@ -33,7 +33,7 @@ function evidence(vault: string) {
   return matter(raw).data.forge_evidence;
 }
 
-describe("legacy evidence/review Forge cutover", () => {
+describe("removed evidence/review Forge cutover", () => {
   test("implemented evidence/review commands do not fall back to legacy", () => {
     expect(shouldUseForgeEvidence(["demo", sliceId, "tdd", "--command", "bun test", "--json"])).toBe(true);
     expect(shouldUseForgeEvidence(["demo", sliceId, "tdd", "--legacy", "--command", "bun test"])).toBe(true);

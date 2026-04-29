@@ -30,7 +30,7 @@ describe("compatibility cutover", () => {
     expect(typeof WIKI_COMMANDS.handover).toBe("function");
   });
 
-  test("legacy specs documents are refused instead of imported by runtime compatibility", () => {
+  test("old specs documents are refused instead of imported by runtime compatibility", () => {
     const plan = planProjectImport({
       project: "wiki-forge",
       targetRoot: "projects/wiki-forge/forge",

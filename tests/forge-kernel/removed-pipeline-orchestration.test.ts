@@ -22,7 +22,7 @@ const FORBIDDEN_HELP = [
   "wiki pipeline-reset <project>",
 ];
 
-describe("legacy pipeline orchestration removal", () => {
+describe("removed pipeline orchestration guard", () => {
   test("deletes legacy pipeline orchestration files", () => {
     for (const file of REMOVED_FILES) expect(existsSync(join(repoRoot, file))).toBe(false);
   });

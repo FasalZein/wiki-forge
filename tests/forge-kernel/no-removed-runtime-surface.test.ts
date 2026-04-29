@@ -23,19 +23,19 @@ const REMOVED_COMMANDS = [
   "start-feature", "close-feature", "start-prd", "close-prd", "status", "gate", "closeout",
 ];
 
-describe("no legacy runtime surface", () => {
-  test("legacy runtime paths are deleted from main", () => {
+describe("no removed runtime surface", () => {
+  test("removed runtime paths are deleted from main", () => {
     for (const path of REMOVED_PATHS) expect(existsSync(join(repoRoot, path))).toBe(false);
   });
 
-  test("legacy commands are absent from runtime registry", () => {
+  test("removed commands are absent from runtime registry", () => {
     for (const command of REMOVED_COMMANDS) {
       expect(WIKI_COMMANDS[command]).toBeUndefined();
       expect(getCommandSurfaceEntry(command)).toBeUndefined();
     }
   });
 
-  test("stable runtime does not import deleted legacy modules", () => {
+  test("stable runtime does not import deleted runtime modules", () => {
     const offenders = sourceFiles(["src/wiki", "src/forge", "src/maintenance", "src/protocol", "src/index.ts"]).flatMap((file) => {
       const source = readFileSync(join(repoRoot, file), "utf8");
       const forbidden = ["../slice/forge", "../../slice/forge", "../slice/lifecycle", "../../slice/lifecycle", "../session", "../../session"];

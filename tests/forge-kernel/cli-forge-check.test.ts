@@ -75,7 +75,7 @@ describe("forge check command adapter", () => {
     expect(sliceData(vault).closed_at).toBeUndefined();
   });
 
-  test("default legacy forge check routes to Forge for simple project/slice path", () => {
+  test("removed check flag routes to Forge for simple project/slice path", () => {
     const vault = createVault(passingEvidence());
     const result = runWiki(["forge", "check", "demo", sliceId, "--json"], { vault });
 

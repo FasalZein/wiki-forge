@@ -15,7 +15,7 @@ const FORBIDDEN_BACKLOG_MUTATORS = [
   "completeTask",
 ];
 
-describe("legacy backlog mutation removal", () => {
+describe("removed backlog mutation guard", () => {
   test("deletes legacy backlog command entrypoints", () => {
     for (const file of REMOVED_FILES) expect(existsSync(join(repoRoot, file))).toBe(false);
   });

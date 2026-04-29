@@ -49,7 +49,7 @@ describe("forge records", () => {
     expect(records.map((record) => record.status === "valid" ? record.record.kind : null)).toEqual(["feature", "prd", "slice", "evidence", "handover"]);
   });
 
-  test("quarantines legacy specs slice paths instead of decoding them", () => {
+  test("quarantines old specs slice paths instead of decoding them", () => {
     const decoded = decodeForgeRecord(parseVaultDocument("projects/wiki-forge/specs/slices/WIKI-FORGE-001/index.md", `---\ntitle: Slice\nproject: wiki-forge\ntype: forge-slice\ntask_id: WIKI-FORGE-001\nstatus: in-progress\n---\n# Slice\n`));
 
     expect(decoded).toEqual({
