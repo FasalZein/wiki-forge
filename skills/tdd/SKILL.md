@@ -24,13 +24,14 @@ For behavior-preserving refactors, first capture current externally visible beha
 6. Refactor only while green.
 7. Repeat until the slice acceptance criteria are covered.
 8. Run the verification commands from the test plan.
-9. Return to `wiki forge run <project> <slice> --repo <path>` for verify, desloppify, review, closeout, and gate.
+9. Record TDD and targeted verification evidence, then return to `wiki forge run <project> <slice> --repo <path>` for check/review/close orchestration.
 
 ## Commands
 
 - Inspect workflow: `wiki forge status <project> <slice> --repo <path>`
-- Run slice verification: `wiki verify-slice <project> <slice> --repo <path>`
+- Record targeted verification: `wiki forge evidence <project> <slice> verify --command "<targeted command>" --repo <path>`
 - Continue/close tracked work: `wiki forge run <project> <slice> --repo <path>`
+- Do not use removed legacy commands such as `wiki verify-slice`, `wiki close-slice`, `wiki pipeline`, or `wiki gate`.
 - Full command details: `wiki help` or `wiki help --all`
 
 ## Rules

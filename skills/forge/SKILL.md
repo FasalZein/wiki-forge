@@ -23,15 +23,17 @@ Use this skill when changing runtime/product behavior, continuing a slice, creat
 
 Follow the steering packet from `wiki resume`, `wiki forge next`, or `wiki forge status`; it includes phase, skill, iteration contract, subagent policy, quality gates, and review gates.
 
-Normal chain: `research -> domain-model -> spec -> slices -> ownership -> implementation -> tdd -> verification -> review -> close`, using `wiki research`, `/domain-model`, `/write-a-prd`, `/prd-to-slices`, `wiki forge start/run/status`, `/tdd`, targeted verification, review evidence, and close gates.
+Normal chain: `research -> domain-model -> spec -> slices -> ownership -> implementation -> tdd -> verification -> review -> close`, using `wiki research`, `/domain-model`, `wiki forge plan`, `wiki forge start/run/status`, `/tdd`, targeted verification evidence, review evidence, and close gates. `/write-a-prd` and `/prd-to-slices` may help shape the content, but `wiki forge plan` is the command that creates or resumes Forge-owned planning artifacts.
 
 Use subagents only after the plan identifies non-overlapping files or artifacts. If ownership is shared or context handoff would be risky, run the work sequentially.
 
 Dogfood non-trivial repo work with real Forge commands: `next`, explicit `status <slice>`, `checkpoint`, evidence/review records, then `wiki forge run <project> <slice> --repo <path>`. If stale active state disagrees with the latest handover target, trust `resume`/`status` steering and fix the lifecycle state rather than doing ad-hoc work.
 
-`tdd` and `verify` are not skippable. Research, domain-model, PRD, and slices may be skipped only with an audited `wiki forge skip` reason.
+`tdd`, targeted verification, required review, and close are not skippable. Research, domain-model, PRD/spec, and slices can be skipped only when the Forge status/rejection packet accepts an explicit audited reason; do not invent a manual bypass.
 
-When verify or closeout fails, do not assume a generic rerun is correct. Use `wiki forge status <project> <slice> --json` as workflow truth, `wiki checkpoint` as freshness truth, and `wiki maintain` as the repair path. Use `wiki resume` for context only, not as proof that freshness or repair work is complete.
+When verification, review, check, or close fails, do not assume a generic rerun is correct. Use `wiki forge status <project> <slice> --json` as workflow truth, `wiki checkpoint` as freshness truth, and `wiki maintain` as the repair path. Use `wiki resume` for context only, not as proof that freshness or repair work is complete.
+
+Removed legacy commands are not part of the workflow surface: do not use `wiki create-issue-slice`, `wiki start-slice`, `wiki verify-slice`, `wiki close-slice`, `wiki claim`, `wiki pipeline`, `wiki backlog`, `wiki gate`, or `wiki closeout` for tracked implementation. Their surviving behavior is either quarantined or read-only admin/view support.
 
 If evidence or implementation context has drifted, use `wiki research bridge` before continuing delivery work. For full details, run `wiki help` or `wiki help --all`.
 

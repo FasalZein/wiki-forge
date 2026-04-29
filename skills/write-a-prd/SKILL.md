@@ -1,130 +1,132 @@
 ---
 name: write-a-prd
 description: >
-  Create a PRD through user interview, codebase exploration, and module design, then file it in the wiki vault.
+  Create a PRD/spec through user interview, codebase exploration, and module design, then feed it into Forge planning.
   Use when user wants to write a PRD, create a product requirements document, or plan a new feature.
 ---
 
 # Write a PRD
 
-Create a PRD in the wiki vault under `projects/<project>/specs/prds/`. Skip steps when context already covers them.
+Create the product/spec content that Forge planning needs. In wiki-forge-managed projects, `wiki forge plan` owns feature/PRD/slice artifact creation and continuation.
+
+Do not use removed legacy commands such as `wiki create-feature`, `wiki create-prd`, `wiki create-plan`, or `wiki create-test-plan`.
 
 ## Prerequisites
 
-1. A feature must exist — every PRD requires `--feature <FEAT-ID>`. Create one with `wiki create-feature <project> <name>` if needed.
-2. Research should be filed — the PRD links to it in Prior Research. File with `wiki research file <topic> [--project <project>] <title>` after using `/research`.
-3. If domain-modeling was needed, consume its wiki-native outputs before drafting:
+1. Research should be filed when the problem space is not already understood. File it with `wiki research file <topic> [--project <project>] <title>` after using `/research`.
+2. If domain modeling was needed, consume its wiki-native outputs before drafting:
    - `projects/<project>/decisions.md`
    - `projects/<project>/architecture/domain-language.md`
+3. Start or resume the Forge planning session with:
 
-If no feature exists, create one first. If no research exists, route to `/research` before proceeding.
+```bash
+wiki forge plan <project> <feature-name> --repo <path>
+```
+
+If no research exists and the feature depends on outside knowledge, route to `/research` first. If terminology or architecture boundaries are unclear, route to `/domain-model` before finalizing the PRD/spec content.
 
 ## Process
 
 ### 1. Gather problem context
 
 Ask the user for a detailed description of:
-- The problem they want to solve and who is affected
-- Constraints, deadlines, or dependencies
-- Any solution ideas or prior art
 
-If a domain-model pass already happened, read the decision log and domain-language page first so the PRD reuses established terms and trade-offs instead of regenerating them from scratch.
+- the problem they want to solve and who is affected
+- constraints, deadlines, or dependencies
+- solution ideas or prior art
+- what should explicitly remain out of scope
+
+If a domain-model pass already happened, read the decision log and domain-language page first so the PRD reuses established terms and trade-offs.
 
 ### 2. Explore the codebase
 
-Read relevant source code to verify assertions and understand what exists. Don't write a PRD from memory — code is the source of truth. Focus on:
-- Existing modules that will be modified
-- Interfaces that constrain the design
-- Test patterns already in place
-- Related features or prior work
+Read relevant source code to verify assertions and understand what exists. Do not write a PRD from memory. Focus on:
+
+- existing modules that will be modified
+- interfaces that constrain the design
+- test patterns already in place
+- related features or prior work
 
 ### 3. Interview the user
 
-Interview relentlessly about every aspect of the plan until you reach shared understanding. Walk each branch of the design tree, resolving dependencies one by one.
+Interview relentlessly until there is shared understanding. Walk each branch of the design tree, resolving dependencies one by one.
 
 For each question, provide your recommended answer. Ask one at a time. If a question can be answered by reading code, read the code instead.
 
-Key areas to resolve:
-- Scope boundaries (what's in, what's out)
-- User stories and acceptance criteria
-- Module boundaries and interfaces
-- Testing strategy
-- Migration or rollout concerns
+Resolve:
 
-### 4. Sketch modules
+- scope boundaries
+- user stories and acceptance criteria
+- module boundaries and interfaces
+- testing strategy
+- migration or rollout concerns
+- HITL decisions that would block autonomous slices
 
-Identify the major modules to build or modify. Actively look for deep modules — ones that encapsulate complex functionality behind a simple, testable interface.
+### 4. Draft the PRD/spec content
 
-Check with the user:
-- Do these modules match expectations?
-- Which modules need tests?
-- Are there reusable abstractions to extract?
-
-### 5. Create the PRD
-
-```bash
-wiki create-prd <project> --feature <FEAT-ID> <name>
-```
-
-This scaffolds `projects/<project>/specs/prds/PRD-<nnn>-<slug>.md` with frontmatter and canonical sections.
-
-### 6. Fill every section
-
-The scaffold has these sections — fill all of them from interview and codebase exploration:
+Produce content for the Forge planning session with these sections:
 
 | Section | What to write |
-|---------|--------------|
+| --- | --- |
 | **Problem** | The problem from the user's perspective. Why this matters now. |
-| **Goals** | Specific, measurable outcomes. What success looks like. |
-| **Non-Goals** | Explicitly out of scope. Prevents scope creep during slicing. |
-| **Users / Actors** | Who interacts — humans, agents, services, CI. |
-| **User Stories** | Extensive numbered list: `As a <actor>, I want <feature>, so that <benefit>`. Cover all aspects. |
-| **Acceptance Criteria** | Checkboxes defining done. These become the basis for slice test plans. |
-| **Prior Research** | Wikilinks to filed research: `[[research/<topic>/<slug>]]`. For project-scoped research, prefer `[[research/<project>/<slug>]]`. At least one link required. |
-| **Open Questions** | Unresolved decisions. Address before slicing. `/domain-model` resolves terminology, decision, and ambiguity questions before PRD authoring and records the settled outputs in `projects/<project>/decisions.md` plus `projects/<project>/architecture/domain-language.md`. |
+| **Goals** | Specific, measurable outcomes. |
+| **Non-Goals** | Explicitly out of scope. |
+| **Users / Actors** | Humans, agents, services, CI, or other actors. |
+| **User Stories** | Numbered stories: `As a <actor>, I want <feature>, so that <benefit>`. |
+| **Acceptance Criteria** | Checkboxes defining done; these drive slice test plans. |
+| **Prior Research** | Wikilinks to filed research, usually `[[research/<topic>/<slug>]]` or `[[research/<project>/<slug>]]`. |
+| **Open Questions** | Unresolved decisions that must be answered or explicitly blocked. |
+| **Implementation Decisions** | Architecture choices, module designs, schema changes, API contracts. Describe modules/interfaces, not brittle code snippets. |
+| **Testing Decisions** | Which modules get tests, test style, and prior test patterns to follow. |
 
-Additionally, add these sections below Open Questions if implementation decisions were made:
+### 5. Feed the content into Forge planning
 
-**Implementation Decisions** — Architecture choices, module designs, schema changes, API contracts. Describe at the module/interface level. Do NOT include file paths or code snippets — they rot.
-
-**Testing Decisions** — Which modules get tests, test approach (integration-first, boundary mocks), prior art in the codebase.
-
-### 7. Update navigation and verify
+Use the prompt from:
 
 ```bash
-wiki update-index <project> --write
-wiki lint <project>
-wiki lint-semantic <project>
+wiki forge plan <project> <feature-name> --repo <path>
 ```
+
+Answer the planning packet's questions with the PRD/spec content. Continue until Forge reports the planning session is complete enough to create or update feature, PRD/spec, and slice records.
+
+Do not hand-write generated Forge artifacts unless the planning packet explicitly instructs you to edit a draft document. Kernel/CLI truth wins over skill text.
+
+### 6. Verify readiness for slicing
+
+Before handing off to `/prd-to-slices`, confirm:
+
+- the problem and non-goals are clear
+- every acceptance criterion can map to one or more vertical slices
+- unresolved HITL questions are recorded
+- research/domain decisions are linked or cited
+- `wiki forge status <project> [slice-id] --repo <path>` does not ask for missing PRD/spec evidence you claim is complete
 
 ## Execution Modes
 
-### Non-trivial (full forge pipeline)
+### Non-trivial full Forge pipeline
 
-PRD writing sits after `/domain-model` and before `/prd-to-slices`. See forge SKILL.md for the full pipeline.
+PRD/spec writing sits after `/domain-model` and before `/prd-to-slices`. See `skills/forge/SKILL.md` for the full chain.
 
-The PRD captures all decisions from research and domain modeling. Every claim in the PRD should trace to filed research or the wiki-native domain outputs consumed above.
+### Small scope
 
-### Small scope (standalone)
+For focused changes that still need a PRD/spec but do not need full research:
 
-For focused changes that still need a PRD but don't need full research:
-- Skip `/research` if the problem space is well understood
-- Still create the feature and PRD in the vault
-- Still link to any existing research
-- Follow with `/prd-to-slices` for decomposition
+- skip `/research` only if the problem space is already understood
+- still link any existing research or decisions
+- use `wiki forge plan` to keep artifacts and lifecycle state Forge-owned
+- follow with `/prd-to-slices` for decomposition
 
 ## What NOT to do
 
-- Do not submit PRDs as GitHub issues. PRDs live in the wiki vault.
-- Do not hand-write PRD files. Use `wiki create-prd` for correct frontmatter and structure.
-- Do not skip `--feature`. Every PRD must be parented to a feature.
-- Do not skip Prior Research. File research first, link it in the PRD. For project-scoped research, use `wiki research file <project> --project <project> <title>`.
-- Do not include file paths or code snippets — they rot. Describe modules and interfaces.
-- Do not create PRDs for trivial changes. Bug fixes under ~50 lines skip straight to `/tdd`.
+- Do not submit PRDs as GitHub issues. PRDs/specs live in the wiki/Forge memory layer.
+- Do not use legacy PRD commands (`wiki create-feature`, `wiki create-prd`, `wiki create-plan`, `wiki create-test-plan`).
+- Do not skip prior research when claims depend on outside facts.
+- Do not include brittle file-path-heavy implementation dumps. Describe modules and interfaces.
+- Do not create PRDs for trivial changes. Tiny bug fixes may go straight to `/tdd` when Forge does not require planning.
 
-## What Happens Next
+## What happens next
 
-After `wiki create-prd` succeeds and `wiki update-index <project> --write` refreshes navigation, hand off to `/prd-to-slices` to decompose the PRD into vertical slices. Do NOT begin implementation from just a PRD — slices gate the TDD loop and the wiki closeout. Skipping straight to code bypasses the hard gate that "no production code change is complete without a slice with tests."
+After the PRD/spec content is accepted by Forge planning, hand off to `/prd-to-slices` to decompose it into vertical slices. Do not begin implementation from just PRD prose; slices and test plans gate the TDD loop.
 
 ## Local skill maintenance
 

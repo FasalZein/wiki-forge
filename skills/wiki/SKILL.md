@@ -16,7 +16,7 @@ Use it for project Q&A, research filing, source binding, drift repair, checkpoin
 - Forge answers: what slice is active, what phase is next, who owns changed files, whether Git/verification/review/ledger evidence permits close, and how to amend closed work.
 - `wiki checkpoint` is freshness/Git truth; it must not be treated as workflow completion.
 - `wiki forge status` is workflow truth; it must not be treated as freshness repair.
-- `wiki closeout` / `wiki gate` surface closure attestation, but tracked implementation should normally close through `wiki forge run`.
+- Top-level `wiki closeout`, `wiki gate`, and old lifecycle commands are not workflow commands. Tracked implementation closes through `wiki forge run` or explicit `wiki forge check` / `wiki forge close`.
 
 ## Commands
 
@@ -31,7 +31,7 @@ Use it for project Q&A, research filing, source binding, drift repair, checkpoin
 - File research: `wiki research file <topic> --project <project> <title>`
 - Handoff research: `wiki research handoff <research-page> <project-truth-page>`
 - Bridge research: `wiki research bridge <research-page> --project <project> --slice <slice-id>`
-- Closeout/gate review: `wiki closeout <project> --repo <path> --base <rev>`, `wiki gate <project> --repo <path> --base <rev>`
+- Workflow status from Forge: `wiki forge status <project> [slice-id] --repo <path>`
 
 If the installed `wiki` binary is unavailable while working inside this repository, use `bun src/index.ts ...` from the repo root as the equivalent CLI entrypoint.
 
@@ -43,4 +43,5 @@ If the installed `wiki` binary is unavailable while working inside this reposito
 - Do not hand-edit freshness metadata or generated pages when a `wiki` command owns that surface.
 - If git activity may have changed repo truth, use `wiki checkpoint`, `wiki maintain`, or `wiki refresh-from-git` instead of manually patching derived wiki state.
 - Keep wiki focused on knowledge-state operations. Use `/forge` for implementation planning, execution, amendment slices, review gates, and tracked SDLC workflow.
+- Do not use or advertise removed legacy lifecycle commands (`wiki backlog`, `wiki add-task`, `wiki create-issue-slice`, `wiki claim`, `wiki start-slice`, `wiki verify-slice`, `wiki close-slice`, `wiki pipeline`, `wiki gate`, `wiki closeout`). The command registry quarantines them; use the `wiki forge ...` surface instead.
 - After editing repo skill files such as `skills/*/SKILL.md`: run `bun run sync:local`, optionally `bun run sync:local -- --audit`, then restart the agent session.
