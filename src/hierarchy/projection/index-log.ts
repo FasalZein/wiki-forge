@@ -4,7 +4,7 @@ import { dirname, join, relative } from "node:path";
 import { VAULT_ROOT } from "../../constants";
 import { mkdirIfMissing, nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../../cli-shared";
 import { exists, listDirs, readText, writeText } from "../../lib/fs";
-import { projectSpecsIndexPath, projectSpecViewIndexPath, workspaceIndexPath, workspaceProjectsDashboardPath } from "../../lib/structure";
+import { projectSpecsDir, projectSpecsIndexPath, projectSpecViewIndexPath, workspaceIndexPath, workspaceProjectsDashboardPath } from "../../lib/structure";
 import { collectBacklogFocus } from "../backlog/collect";
 import { collectStatusRow, loadLintingSnapshot } from "../../verification";
 import {
@@ -157,14 +157,19 @@ async function buildProjectIndexTargets(project: string): Promise<IndexTarget[]>
   const pageRows = await collectProjectPageRows(project);
   const pageIndex = buildProjectPageIndex(pageRows);
   const taskHubSections = await collectTaskHubSections(project, pageRows);
-  return [
+  const targets = [
     ...buildPlanningDerivedTargets(pageIndex),
-    buildProjectOverviewIndexTarget(project, pageRows),
-    buildSpecFamilyIndexTarget(project, pageRows, taskHubSections, "features"),
-    buildSpecFamilyIndexTarget(project, pageRows, taskHubSections, "prds"),
-    buildSpecFamilyIndexTarget(project, pageRows, taskHubSections, "slices"),
-    buildSpecFamilyIndexTarget(project, pageRows, taskHubSections, "archive"),
   ];
+  if (await exists(projectSpecsDir(project))) {
+    targets.push(buildProjectOverviewIndexTarget(project, pageRows));
+    targets.push(
+      buildSpecFamilyIndexTarget(project, pageRows, taskHubSections, "features"),
+      buildSpecFamilyIndexTarget(project, pageRows, taskHubSections, "prds"),
+      buildSpecFamilyIndexTarget(project, pageRows, taskHubSections, "slices"),
+      buildSpecFamilyIndexTarget(project, pageRows, taskHubSections, "archive"),
+    );
+  }
+  return targets;
 }
 
 async function listWorkspaceProjects() {
