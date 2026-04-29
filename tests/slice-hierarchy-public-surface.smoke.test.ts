@@ -3,11 +3,7 @@ import * as hierarchy from "../src/hierarchy";
 import * as slice from "../src/slice";
 
 const expectedHierarchyExports = [
-  "addTask",
   "appendTaskToBacklog",
-  "backlogCommand",
-  "closeFeature",
-  "closePrd",
   "collectBacklog",
   "collectBacklogFocus",
   "collectBacklogView",
@@ -16,29 +12,21 @@ const expectedHierarchyExports = [
   "collectLifecycleDriftActions",
   "collectStaleIndexTargets",
   "collectTaskContextForId",
-  "completeTask",
   "computeEntityStatus",
-  "createFeature",
   "createFeatureReturningId",
   "createLayerPage",
-  "createPlan",
-  "createPrd",
   "createPrdReturningId",
-  "createTestPlan",
   "dependencyGraph",
   "detectTaskDocState",
   "featureStatusCommand",
   "lifecycleClose",
   "lifecycleOpen",
   "lintVault",
-  "moveTask",
   "moveTaskToSection",
   "parseTaskArgs",
   "rewriteBacklogRowMarker",
   "scaffoldLayer",
   "slugify",
-  "startFeature",
-  "startPrd",
   "summaryProject",
   "updateIndex",
   "writeNamedNavigationTargets",
@@ -47,27 +35,21 @@ const expectedHierarchyExports = [
 ].sort();
 
 const expectedSliceExports = [
-  "claimSlice",
-  "closeSlice",
-  "createIssueSlice",
   "detectDomainModelRefs",
   "detectPrdRefs",
   "detectResearchRefs",
   "detectSlicesPhase",
   "detectTddEvidence",
   "detectVerifyPhase",
-  "repairHistoricalDoneSlices",
-  "startSlice",
   "tailLogFromPath",
-  "verifySlice",
 ].sort();
 
 describe("slice and hierarchy public surfaces", () => {
-  test("hierarchy only exposes the shared workflow boundary", () => {
+  test("hierarchy only exposes read/support APIs", () => {
     expect(Object.keys(hierarchy).sort()).toEqual(expectedHierarchyExports);
   });
 
-  test("slice only exposes command-facing and evidence-reader APIs", () => {
+  test("slice only exposes evidence-reader APIs", () => {
     expect(Object.keys(slice).sort()).toEqual(expectedSliceExports);
   });
 });

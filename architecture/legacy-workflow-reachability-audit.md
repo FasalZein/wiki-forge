@@ -61,13 +61,12 @@ These still support dashboard, checkpoint, protocol status, or freshness tools. 
 
 ## Current blockers to deletion
 
-1. Legacy barrels still re-export command handlers:
-   - `src/slice/forge.ts`
+1. Legacy command handlers still exist in implementation files, but root public barrels no longer export quarantined workflow commands:
    - `src/slice/index.ts`
    - `src/hierarchy/index.ts`
    - `src/session/index.ts`
 
-2. Some admin/protocol/session modules still import legacy readers:
+2. Some maintenance/protocol/session modules still import legacy readers:
    - `src/session/handover/index.ts`
    - `src/session/resume/index.ts`
    - `src/maintenance/**`
@@ -83,7 +82,7 @@ These still support dashboard, checkpoint, protocol status, or freshness tools. 
 ## Recommended deletion order
 
 1. Add static guard that no normal runtime command imports legacy command barrels.
-2. Remove/reduce legacy public barrels so command handlers are not importable by accident.
+2. Remove/reduce legacy public barrels so command handlers are not importable by accident. ✅
 3. Split legacy read helpers from legacy mutators.
 4. Delete mutators first:
    - backlog mutation

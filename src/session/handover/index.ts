@@ -5,9 +5,6 @@ import { resolveWorkflowSteering } from "../../protocol";
 import { collectSessionActivity, resolveSessionId } from "../shared";
 import { collectBacklog } from "../../hierarchy";
 import { collectMaintenancePlan } from "../../maintenance";
-import { closeSlice } from "../../slice";
-import { readVerificationLevel } from "../../lib/verification";
-import { readSliceTestPlan } from "../../slice/docs";
 import { readSlicePipelineProgress } from "../../slice/pipeline/index";
 import {
   buildAccomplishments,
@@ -44,56 +41,8 @@ export async function handoverProject(args: string[]) {
     collectSessionActivity(options.project, resolveSessionId()),
   ]);
 
-  // Auto-close the active slice if it is already test-verified
+  // Legacy handover no longer auto-mutates slice lifecycle. Forge close owns closure.
   let autoCloseAttempt: AutoCloseAttempt = null;
-  const activeTask = maintain.focus.activeTask;
-  if (activeTask) {
-    let testPlanLevel: string | null = null;
-    try {
-      const testPlan = await readSliceTestPlan(options.project, activeTask.id);
-      testPlanLevel = readVerificationLevel(testPlan.data);
-    } catch (err) {
-      const reason = err instanceof Error ? err.message : String(err);
-      process.stderr.write(`handover: could not read test-plan for ${activeTask.id}: ${reason}\n`);
-    }
-    if (testPlanLevel === "test-verified") {
-      const closeArgs = [
-        options.project,
-        activeTask.id,
-        "--repo", maintain.repo,
-        "--base", options.base,
-        "--slice-local",
-      ];
-      // Suppress closeSlice's own stdout so it doesn't corrupt --json output.
-      // Hook both console.log and process.stdout.write — closeSlice uses the
-      // former today, but anything it delegates to could use the latter.
-      const origLog = console.log;
-      const origWrite = process.stdout.write.bind(process.stdout);
-      const restore = () => {
-        console.log = origLog;
-        process.stdout.write = origWrite;
-      };
-      try {
-        console.log = function suppressConsoleLogDuringAutoClose() {
-          return;
-        };
-        process.stdout.write = (() => true) as typeof process.stdout.write;
-        await closeSlice(closeArgs);
-        restore();
-        process.stderr.write(`auto-closed ${activeTask.id}\n`);
-        autoCloseAttempt = { sliceId: activeTask.id, attempted: true, closed: true };
-        // Refresh maintain and backlog so the handover reflects the new state
-        [maintain, backlog] = await Promise.all([
-          collectMaintenancePlan(options.project, options.base, options.repo),
-          collectBacklog(options.project),
-        ]);
-      } catch (err) {
-        restore();
-        const reason = err instanceof Error ? err.message : String(err);
-        autoCloseAttempt = { sliceId: activeTask.id, attempted: true, closed: false, reason };
-      }
-    }
-  }
 
   const dirty = await collectDirtyRepoStatus(maintain.repo);
   const [recentCommits, commitsSinceBase] = await Promise.all([
@@ -174,13 +123,6 @@ export async function handoverProject(args: string[]) {
   printLine("--- session context ---");
   printLine(`- repo: ${result.repo}`);
   printLine(`- base: ${result.base}`);
-  if (autoCloseAttempt?.attempted) {
-    if (autoCloseAttempt.closed) {
-      printLine(`- auto-close: ${autoCloseAttempt.sliceId} closed`);
-    } else {
-      printLine(`- auto-close: ${autoCloseAttempt.sliceId} skipped (${autoCloseAttempt.reason})`);
-    }
-  }
   if (result.focus.activeTask) printLine(`- active: ${result.focus.activeTask.id} ${result.focus.activeTask.title}`);
   else if (result.focus.recommendedTask) printLine(`- next: ${result.focus.recommendedTask.id} ${result.focus.recommendedTask.title}`);
   printLine(`- backlog: ${Object.entries(result.backlog).filter(([, n]) => (n as number) > 0).map(([k, n]) => `${k}=${n}`).join(" ")}`);
