@@ -1,4 +1,4 @@
-import type { ForgeNextProjection } from "../../v1/forge/status-projection";
+import type { ForgeNextProjection } from "../../forge/workflow/status-projection";
 import type { HandoverRecord } from "./handover-types";
 
 export type PromptPacket = {
