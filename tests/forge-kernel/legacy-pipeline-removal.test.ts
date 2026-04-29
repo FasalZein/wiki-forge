@@ -14,6 +14,7 @@ const REMOVED_FILES = [
   "src/slice/pipeline/plan.ts",
   "src/slice/pipeline/progress.ts",
   "src/slice/pipeline/runner.ts",
+  "src/slice/forge/output.ts",
 ];
 
 const FORBIDDEN_HELP = [
@@ -30,12 +31,5 @@ describe("legacy pipeline orchestration removal", () => {
     const help = readFileSync(join(repoRoot, "src", "cli-shared.ts"), "utf8");
     for (const text of FORBIDDEN_HELP) expect(help).not.toContain(text);
     expect(help).toContain("wiki forge run");
-  });
-
-  test("legacy forge output no longer renders pipeline recovery", () => {
-    const output = readFileSync(join(repoRoot, "src", "slice", "forge", "output.ts"), "utf8");
-    expect(output).not.toContain("PipelineResult");
-    expect(output).not.toContain("renderForgePipeline");
-    expect(output).not.toContain("applyPipelineFailureRecovery");
   });
 });

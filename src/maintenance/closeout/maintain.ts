@@ -6,9 +6,6 @@ import type { LintingSnapshot } from "../../verification";
 import { parseProjectRepoBaseArgs } from "../../git-utils";
 import { printJson, printLine } from "../../lib/cli-output";
 import {
-  collectHierarchyStatusActions,
-  collectLifecycleDriftActions,
-  collectCancelledSyncActions,
   collectStaleIndexTargets,
   writeNavigationIndex,
   collectBacklogFocus,
@@ -99,8 +96,8 @@ export async function maintainProject(args: string[], repair?: MaintainRepairInp
       printLine(`  5. wiki verify-page ${options.project} <page...> <level>`);
       printLine(`  6. wiki lint ${options.project} && wiki lint-semantic ${options.project}`);
       printLine(worktree
-        ? `  7. wiki gate ${options.project} --repo ${result.repo} --worktree`
-        : `  7. wiki gate ${options.project} --repo ${result.repo} --base ${options.base}`);
+        ? `  7. wiki forge check ${options.project} --repo ${result.repo} --worktree`
+        : `  7. wiki forge check ${options.project} --repo ${result.repo} --base ${options.base}`);
     }
   }
 }
@@ -154,14 +151,11 @@ export async function collectMaintenancePlan(project: string, base: string, expl
       ? await collectRefreshFromWorktree(project, explicitRepo, projectSnapshot)
       : await collectRefreshFromGit(project, base, explicitRepo, projectSnapshot)
   );
-  const [discover, lint, semanticLint, focus, hierarchyActions, lifecycleDriftActions, cancelledSyncActions] = await Promise.all([
+  const [discover, lint, semanticLint, focus] = await Promise.all([
     collectDiscoverSummary(project, explicitRepo, projectSnapshot),
     collectLintResult(project, lintingState),
     collectSemanticLintResult(project, lintingState),
     collectBacklogFocus(project),
-    collectHierarchyStatusActions(project),
-    collectLifecycleDriftActions(project),
-    collectCancelledSyncActions(project),
   ]);
   const actions: MaintenanceAction[] = [];
   if (focus.activeTask) actions.push({ kind: "active-task", scope: "slice", message: `${focus.activeTask.id} ${focus.activeTask.title} (plan=${focus.activeTask.planStatus}, test-plan=${focus.activeTask.testPlanStatus})` });
@@ -184,26 +178,5 @@ export async function collectMaintenancePlan(project: string, base: string, expl
   for (const action of cascadeRefreshActions) {
     if (action._apply) await action._apply();
   }
-  // Apply cancel-sync actions (Behavior B, PRD-057): rewrite backlog row marker to [-]
-  // for slices that are cancelled in the hub but still have an open row.
-  for (const action of cancelledSyncActions) {
-    if (action._apply) await action._apply();
-  }
-  // Apply R2/R3 lifecycle drift actions first (they may affect computed_status for R1).
-  // R4 escalations (no _apply) surface as operator actions.
-  const anyLifecycleApplied = lifecycleDriftActions.some((a) => !!a._apply);
-  for (const action of lifecycleDriftActions) {
-    if (action._apply) {
-      action._apply();
-    } else {
-      // R4 escalations have no _apply — include in actions for operator visibility
-      actions.push({ kind: action.kind, scope: action.scope, message: action.message });
-    }
-  }
-  // Re-collect R1 (hierarchy status) AFTER R2/R3 applied so closures use fresh frontmatter.
-  // Only re-collect when R2/R3 actually ran (to avoid a redundant vault walk in the common case).
-  const freshHierarchyActions = anyLifecycleApplied ? await collectHierarchyStatusActions(project) : hierarchyActions;
-  // Apply R1 (write computed_status); exclude applied from actions
-  for (const action of freshHierarchyActions) action._apply?.();
   return { project, repo: refreshFromGit.repo, base: options.worktree ? "WORKTREE" : base, focus, refreshFromGit, discover, lint, semanticLint, actions };
 }

@@ -13,7 +13,7 @@ export type ForgeTriageKind =
   | PrePhaseTriageKind
   | "fill-docs"
   | "completed"
-  | "close-slice"
+  | "forge-close"
   | "open-slice"
   | "continue-active-slice"
   | "start-next-slice"
@@ -30,7 +30,7 @@ export type ForgeTriage = {
 const PRE_PHASE_TRIAGE_KIND_SET = new Set<string>(PRE_PHASE_TRIAGE_KINDS);
 const FORGE_RUN_TRIAGE_KIND_SET = new Set<ForgeTriageKind>([
   "resume-failed-forge",
-  "close-slice",
+  "forge-close",
   "open-slice",
   "continue-active-slice",
   "start-next-slice",

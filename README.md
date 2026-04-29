@@ -108,21 +108,19 @@ wiki refresh-from-git my-app --base main                   # map git changes -> 
 wiki drift-check my-app --show-unbound                     # find stale + unbound pages
 wiki ingest-diff my-app --base main                        # auto-append change digests
 wiki verify-page my-app modules/auth/spec code-verified    # promote verification level
-wiki closeout my-app --repo ~/Dev/my-app --base main       # compact refresh/drift/lint/gate review
 wiki bind my-app modules/auth/spec src/auth/               # replace source_paths
 wiki bind my-app modules/auth/spec --mode merge src/new.ts # append normalized unique source_paths
 ```
 
 ### Quality Gates
 
-Every closeout runs through lint, semantic lint, and a pass/fail gate.
+Quality checks run through lint, semantic lint, checkpoint/maintain, and Forge check/close gates.
 
 ```bash
 wiki lint my-app                                           # structural: frontmatter, wikilinks, headings
 wiki lint-semantic my-app                                  # semantic: orphans, dead-ends, placeholders
 wiki doctor my-app                                         # health score (0-100) + prioritized actions
-wiki gate my-app --repo ~/Dev/my-app --base main           # pass/fail — blocks on missing tests
-wiki gate my-app --repo ~/Dev/my-app --base main --structural-refactor  # allow zero-behavior-change refactors with parity checks
+wiki forge check my-app <slice-id> --repo ~/Dev/my-app --base main    # workflow evidence/readiness check
 ```
 
 ### Retrieval and Search
@@ -169,15 +167,14 @@ wiki forge next my-app
 ```
 
 Agent rule: use `wiki forge plan|run|next` by default.
-Drop to `forge status`, `checkpoint`, `maintain`, `verify-slice`, `closeout`, or `gate` only for diagnosis, repair, or close-path debugging.
+Drop to `wiki forge status`, `wiki checkpoint`, or `wiki maintain` only for diagnosis, repair, or close-path debugging.
 
 Internal / repair (debugging only):
 
 ```bash
-wiki create-feature my-app "user onboarding"
-wiki create-prd my-app --feature FEAT-001 "email signup"
-wiki create-issue-slice my-app "email verification" --prd PRD-001 --assignee Codex --source src/auth.ts
-wiki backlog my-app --assignee Codex
+wiki forge status my-app MY-APP-001 --repo ~/Dev/my-app
+wiki forge evidence my-app MY-APP-001 verify --command "bun test ..."
+wiki forge review record my-app MY-APP-001 --verdict approved --reviewer <name>
 wiki resume my-app --repo ~/Dev/my-app --base main
 wiki export-prompt my-app MY-APP-001 --agent pi
 ```
@@ -194,8 +191,6 @@ Practical debugging rule:
 - if `checkpoint` is clean, do not treat noisy `resume` stale context as a current blocker
 - if a generated page like `projects/<project>/_summary.md` is stale, prefer `wiki sync` / `wiki maintain` before manual edits
 
-`create-plan` and `create-test-plan` stay visible under `specs/index.md` as planning docs.
-
 Use `depends_on` in slice frontmatter to block a slice until prerequisite slices move to `Done`:
 
 ```yaml
@@ -207,7 +202,6 @@ depends_on:
 
 ```bash
 wiki handover my-app --repo ~/Dev/my-app --base main      # backlog + git + dirty state handoff
-wiki claim my-app MY-APP-001 --agent worker-1             # detect overlapping source_paths before claiming
 wiki note my-app "left off at parser" --slice MY-APP-001 # durable agent-to-agent note in log.md
 ```
 
@@ -266,12 +260,12 @@ Compact map:
 | Area | Main commands |
 |------|---------------|
 | Protocol | `wiki protocol sync`, `wiki protocol audit` |
-| Planning | `wiki create-feature`, `wiki create-prd`, `wiki create-issue-slice`, `wiki backlog`, `wiki next` |
-| Hierarchy | `wiki feature-status`, `wiki start-feature`, `wiki close-feature`, `wiki start-prd`, `wiki close-prd` |
-| Lifecycle | Agent: `wiki forge plan/run/next` · Human: `wiki forge start/check/close/status/release` · Internal: `wiki start-slice`, `wiki verify-slice`, `wiki close-slice` |
+| Planning | `wiki forge plan`, `wiki forge next`, `wiki forge status` |
+| Hierarchy/admin views | `wiki feature-status`, `wiki update-index`, `wiki dependency-graph` |
+| Lifecycle | `wiki forge plan/run/next/start/check/close/status/release/evidence/review` |
 | Active work checks | `wiki checkpoint`, `wiki lint-repo`, `wiki commit-check` |
-| Closeout | `wiki verify-page`, `wiki closeout`, `wiki gate` |
-| Handoff | `wiki export-prompt`, `wiki resume`, `wiki handover`, `wiki note`, `wiki claim` |
+| Verification | `wiki verify-page`, `wiki forge evidence`, `wiki forge check`, `wiki forge close` |
+| Handoff | `wiki export-prompt`, `wiki resume`, `wiki handover`, `wiki note` |
 | Maintenance / retrieval | `wiki maintain`, `wiki refresh-from-git`, `wiki drift-check`, `wiki ask`, `wiki query`, `wiki search` |
 
 ### The Three Layers
@@ -294,27 +288,24 @@ scaffold  ->  inferred  ->  code-verified  ->  runtime-verified  ->  test-verifi
 
 When source code changes after verification, `drift-check` demotes the page to `stale`. Stale pages get flagged, not trusted.
 
-### Mandatory Closeout Sequence
+### Mandatory Close Sequence
 
-Every workflow — feature, bug fix, slicing, maintenance — ends with the same sequence:
+Tracked implementation closes through Forge evidence and close gates:
 
 ```bash
-# 1. Update impacted wiki pages from code (manual step)
-
-# 2. Re-verify updated pages
-wiki verify-page <project> <page> code-verified
-
-# 3. Run the compact closeout wrapper
-wiki closeout <project> --repo <path> --base <rev>
+wiki forge evidence <project> <slice> tdd --red <red> --green <green> --command <cmd>
+wiki forge evidence <project> <slice> verify --command <cmd>
+wiki forge review record <project> <slice> --verdict approved --reviewer <name>
+wiki forge run <project> <slice> --repo <path>
 ```
 
-No step is optional. Agents cannot declare done until `gate` exits 0.
+Wiki freshness remains a separate maintenance concern handled by `wiki checkpoint`, `wiki maintain`, and `wiki verify-page`.
 
 ### Trigger Phrases
 
 These phrases route to the closeout sequence above:
 
-- "wiki refresh" / "wiki closeout"
+- "wiki refresh" / "wiki maintain"
 - "update project wiki"
 - "refresh project docs from code"
 - "close out this slice"
@@ -336,20 +327,13 @@ These phrases route to the closeout sequence above:
     decisions.md                      # decision log
     learnings.md                      # lessons learned
     modules/<mod>/spec.md             # module documentation
-    specs/
-      index.md                        # generated spec index
-      features/
-        index.md
-        FEAT-<nnn>-<slug>.md          # canonical feature hubs
-      prds/
-        index.md
-        PRD-<nnn>-<slug>.md           # project-level PRDs scoped to a feature
-      slices/
-        index.md
-        <TASK-ID>/
-          index.md                    # task hub
-          plan.md                     # implementation plan
-          test-plan.md                # test plan
+    forge/
+      sessions/                       # planning-session state
+      features/                       # Forge feature records
+      prds/                           # Forge PRD/spec records
+      slices/<TASK-ID>/               # slice hub + plan + test-plan
+      evidence/                       # typed TDD/verification/review evidence
+      handovers/                      # typed handover memory
   research/                           # research artifacts
   raw/                                # ingested raw sources
   wiki/syntheses/                     # filed answer briefs
@@ -368,15 +352,14 @@ These phrases route to the closeout sequence above:
 - `runbooks/` — operational procedures, incident handling, and recurring manual workflows.
 - `verification/` — coverage, test strategy, runtime checks, and closeout evidence.
 - `legacy/` — old docs kept as source material, not canonical truth.
-- `specs/features/` — product/planning scopes.
-- `specs/prds/` — numbered requirement docs under one parent feature.
-- `specs/slices/` — execution slices under an optional parent PRD.
+- `forge/features/` — product/planning scopes.
+- `forge/prds/` — numbered requirement docs under one parent feature.
+- `forge/slices/` — execution slices under an optional parent PRD.
 
 Propagation rule:
 - planning lineage (`feature -> PRD -> slice`) comes from metadata (`feature_id`, `prd_id`, `parent_feature`, `parent_prd`)
-- `create-issue-slice --prd <PRD-ID>` also auto-binds the new slice hub/plan/test-plan to the parent PRD's `source_paths` when they already exist, unless `--source <path...>` overrides them explicitly
+- `wiki forge plan` creates or updates Forge-owned feature, PRD, slice, and test-plan records.
 - module/freeform-zone linkage comes from `source_paths` overlap
-- standalone `create-plan` / `create-test-plan` docs stay listed under `specs/index.md`
 - `wiki update-index <project> --write` regenerates those derived sections across spec pages, modules, and freeform project zones
 
 ---
@@ -430,12 +413,12 @@ npx skills@latest add FasalZein/wiki-forge/skills/write-a-prd -g
 | **research** | `/research` | Investigates external evidence and produces research artifacts that can be filed into the wiki | When a feature, refactor, or architecture decision needs outside evidence |
 | **wiki** | `/wiki` | Knowledge-layer operations: research, retrieval, maintenance, drift, verification, gates | When no non-trivial product behavior is being planned or changed |
 | **forge** | `/forge` | Software-development workflow over `wiki research -> /domain-model -> /write-a-prd -> /prd-to-slices -> /tdd -> /desloppify` | Non-trivial implementation work, new features, cross-module changes, or existing slice continuation |
-| **prd-to-slices** | `/prd-to-slices` | Breaks a PRD into tracked vertical slices in the wiki backlog | After writing a PRD, before implementation |
-| **write-a-prd** | `/write-a-prd` | Wiki-vault-native PRD authoring via `wiki create-prd` | When you need formal project intent |
+| **prd-to-slices** | `/prd-to-slices` | Breaks a PRD/spec into Forge-planned vertical slices | After writing a PRD/spec, before implementation |
+| **write-a-prd** | `/write-a-prd` | Drafts PRD/spec content for `wiki forge plan` | When you need formal project intent |
 | **domain-model** | `/domain-model` | Sharpens terms, records decisions in the wiki, and surfaces ambiguities before PRD authoring | Before writing a PRD |
 | **tdd** | `/tdd` | Red-green-refactor with vertical slices — no code without tests, ever | During implementation |
 | **improve-codebase-architecture** | `/improve-codebase-architecture` | Finds deeper-module and boundary-refactor candidates and turns them into tracked follow-up work | At cadence boundaries or after shipping a batch |
-| **desloppify** | `/desloppify` | Scans for AI-introduced anti-patterns, triages, fixes, verifies | Final quality gate after wiki closeout |
+| **desloppify** | `/desloppify` | Scans for AI-introduced anti-patterns, triages, fixes, verifies | Final quality gate after Forge close |
 | **grill-me** | `/grill-me` | Optional interview-style stress test for a plan when you explicitly want adversarial questioning | Compatibility path outside the main forge happy path |
 
 ### When to Use What
@@ -461,7 +444,7 @@ The real question is which layer the task belongs to.
 Use **`/wiki`** for:
 - research filing, audit, and status
 - retrieval and project Q&A
-- refresh, drift, verify, lint, gate, and closeout
+- refresh, drift, verify, lint, checkpoint, and maintain
 - wiki formatting, vault cleanup, onboarding, and navigation
 - research-only work that does not yet commit to implementation
 
@@ -494,19 +477,17 @@ wiki research file my-app "topic title"
 /domain-model
 
 # 3. Create the parent feature + PRD
-wiki create-feature my-app "feature name"
-wiki create-prd my-app --feature FEAT-001 "prd name"
+wiki forge plan my-app "feature name" --repo ~/Dev/my-app
 
 # 4. Break into slices
-wiki create-issue-slice my-app "slice name" --prd PRD-001
+wiki forge plan my-app "feature name" --repo ~/Dev/my-app
 
 # 5. Implement (TDD)
 # write tests first, then implement, then refactor — no exceptions
 
-# 6. Close out (mandatory sequence)
-# update impacted pages
-wiki verify-page my-app <page> code-verified
-wiki closeout my-app --repo ~/Dev/my-app --base main
+# 6. Close through Forge
+wiki forge evidence my-app <slice-id> verify --command "bun test ..."
+wiki forge run my-app <slice-id> --repo ~/Dev/my-app
 
 # 7. Quality gate (final step)
 desloppify scan .        # detect AI-introduced anti-patterns
@@ -521,7 +502,7 @@ desloppify score .       # verify no regression
 - **Code is the source of truth.** Wiki pages compile from code, never the other way around.
 - **No wiki-style docs in project repos.** Architecture docs, module specs, research — all go to the vault. Allowed repo markdown: `README.md`, `CHANGELOG.md`, `AGENTS.md`, `CLAUDE.md`, `SETUP.md`, and `skills/*/SKILL.md`.
 - **Verification prevents drift.** Every page has a verification level. `drift-check` demotes stale pages when source code changes.
-- **No code without tests.** TDD is non-negotiable — `wiki gate` hard-blocks on missing tests for changed files.
+- **No code without tests.** TDD is non-negotiable — Forge evidence/check/close gates require test proof before completion.
 - **Desloppify is the final gate.** Every workflow ends with a desloppify scan to catch AI-introduced anti-patterns before declaring done.
 
 ---

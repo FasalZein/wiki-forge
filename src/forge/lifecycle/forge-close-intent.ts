@@ -46,8 +46,8 @@ export function evaluateCloseSliceIntent(intent: CloseSliceIntent, state: CloseS
       invariant: "required-evidence-before-close",
       affected: affectedSlice(state.project, state.sliceId),
       recovery: [{
-        command: `wiki verify-slice ${state.project} ${state.sliceId} --repo .`,
-        description: "Run the slice test plan and record targeted verification evidence.",
+        command: `wiki forge evidence ${state.project} ${state.sliceId} verify --command <cmd> --repo .`,
+        description: "Record targeted verification evidence from the slice test plan.",
         safeToRetry: true,
       }],
       metadata: closeMetadata(state),
@@ -89,7 +89,7 @@ function buildCloseChangeSet(intent: CloseSliceIntent, state: CloseSliceState): 
   const path = sliceHubPath(state.project, state.sliceId);
   return {
     kind: "accepted-changeset",
-    id: `close-slice:${state.project}:${state.sliceId}`,
+    id: `forge-close:${state.project}:${state.sliceId}`,
     intentId: intent.id,
     createdAt: intent.context.requestedAt,
     authority: {

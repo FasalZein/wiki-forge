@@ -1,10 +1,7 @@
 export {
-  detectDomainModelRefs,
-  detectPrdRefs,
-  detectResearchRefs,
-  detectSlicesPhase,
-  detectTddEvidence,
-  detectVerifyPhase,
-  tailLogFromPath,
-  type DetectionFinding,
-} from "./forge-evidence-readers";
+  classifySliceLocalPageScope,
+  collectSliceLocalContext,
+  fileMatchesSliceClaims,
+  isHistoricalDoneSlicePage,
+  readSliceSummary,
+} from "./docs";

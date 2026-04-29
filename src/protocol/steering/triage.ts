@@ -66,7 +66,7 @@ export function classifyWorkflowSteeringTriage(context: WorkflowSteeringTriageCo
   if (targetTaskId) {
     if (context.verificationLevel !== TEST_VERIFIED_LEVEL) {
       return {
-        kind: "close-slice",
+        kind: "forge-close",
         reason: `verification level is ${context.verificationLevel ?? "missing"}`,
         command: `wiki forge run ${context.project} ${targetTaskId} --repo ${context.repo}${context.base ? ` --base ${context.base}` : ""}`,
       };
@@ -74,7 +74,7 @@ export function classifyWorkflowSteeringTriage(context: WorkflowSteeringTriageCo
 
     if (context.activeTask?.id === targetTaskId) {
       return {
-        kind: "close-slice",
+        kind: "forge-close",
         reason: `slice is ${TEST_VERIFIED_LEVEL}; close it`,
         command: `wiki forge run ${context.project} ${targetTaskId} --repo ${context.repo}${context.base ? ` --base ${context.base}` : ""}`,
       };

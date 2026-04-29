@@ -26,26 +26,15 @@ import { bindSourcePaths, migrateVerification, verifyPage } from "../verificatio
 import { cacheClear, lintProject, lintSemanticProject, verifyProject } from "../verification/linting";
 import { configCommand } from "../config";
 import { schemaCommand } from "../schema";
-import { assertCommandNotQuarantined } from "./runtime/command-surface";
 
 export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   help: (args) => printHelp(args),
   "scaffold-project": (args) => scaffoldProject(args[0]),
-  backlog: quarantinedCommand("backlog"),
-  "add-task": quarantinedCommand("add-task"),
-  "move-task": quarantinedCommand("move-task"),
-  "complete-task": quarantinedCommand("complete-task"),
-  "create-issue-slice": quarantinedCommand("create-issue-slice"),
-  "create-feature": quarantinedCommand("create-feature"),
-  "create-prd": quarantinedCommand("create-prd"),
-  "create-plan": quarantinedCommand("create-plan"),
-  "create-test-plan": quarantinedCommand("create-test-plan"),
   "create-module": (args) => createModule(args),
   onboard: (args) => onboardProject(args),
   "onboard-plan": (args) => onboardPlan(args),
   "normalize-module": (args) => normalizeModule(args),
   dashboard: (args) => dashboardProject(args),
-  closeout: quarantinedCommand("closeout"),
   "commit-check": (args) => commitCheck(args),
   "install-git-hook": (args) => installGitHook(args),
   "refresh-on-merge": (args) => refreshOnMerge(args),
@@ -55,17 +44,12 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "protocol:audit": (args) => auditProtocol(args),
   "dependency-graph": (args) => dependencyGraph(args),
   handover: (args) => handoverCommand(args),
-  claim: quarantinedCommand("claim"),
   note: (args) => noteCommand(args),
   next: (args) => forgeNextCommand(args),
-  "start-slice": quarantinedCommand("start-slice"),
-  "verify-slice": quarantinedCommand("verify-slice"),
-  "close-slice": quarantinedCommand("close-slice"),
   "acknowledge-impact": (args) => acknowledgeImpact(args),
   "export-prompt": (args) => exportPromptCommand(args),
   resume: (args) => resumeCommand(args),
   doctor: (args) => doctorProject(args),
-  gate: quarantinedCommand("gate"),
   maintain: (args) => maintainProject(args),
   refresh: (args) => refreshProject(args),
   "refresh-from-git": (args) => refreshFromGit(args),
@@ -75,7 +59,6 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "update-index": (args) => updateIndex(args),
   log: (args) => logCommand(args),
   obsidian: (args) => obsidianCommand(args),
-  status: quarantinedCommand("status"),
   lint: (args) => lintProject(args),
   "lint-semantic": (args) => lintSemanticProject(args),
   verify: (args) => verifyProject(args),
@@ -108,20 +91,10 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "scaffold-layer": (args) => scaffoldLayer(args),
   "create-layer-page": (args) => createLayerPage(args),
   "lint-vault": (args) => lintVault(args),
-  pipeline: quarantinedCommand("pipeline"),
-  "pipeline-reset": quarantinedCommand("pipeline-reset"),
   "feature-status": (args) => featureStatusCommand(args),
-  "start-feature": quarantinedCommand("start-feature"),
-  "close-feature": quarantinedCommand("close-feature"),
-  "start-prd": quarantinedCommand("start-prd"),
-  "close-prd": quarantinedCommand("close-prd"),
   config: (args) => configCommand(args),
   schema: (args) => schemaCommand(args),
 };
-
-function quarantinedCommand(command: string): CommandHandler {
-  return async () => { assertCommandNotQuarantined(command); };
-}
 
 export function resolveWikiCommand(rawArgs: string[]) {
   const [rawCommand = "help", ...rest] = rawArgs;
@@ -163,7 +136,6 @@ export function resolveWikiCommand(rawArgs: string[]) {
     if (!mapped) throw new Error(`unknown protocol subcommand: ${subcommand}. Run 'wiki help' for usage.`);
     return { command: mapped, args: subArgs };
   }
-  assertCommandNotQuarantined(command);
   if (command === "handover") return { command: "handover", args: rest };
   if (command === "resume") return { command: "resume", args: rest };
   if (command === "next") return { command: "next", args: rest };

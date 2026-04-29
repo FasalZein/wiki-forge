@@ -28,13 +28,13 @@ const MAX_BYTES = 512 * 1024;
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_FALLBACK_WINDOW_MS = 4 * 60 * 60 * 1000;
 
-const SLICE_COMMANDS = new Set(["claim", "start-slice", "verify-slice", "close-slice", "forge:start", "forge:open", "forge:check", "forge:close", "forge:status"]);
+const SLICE_COMMANDS = new Set(["forge:start", "forge:release", "forge:check", "forge:close", "forge:status", "forge:run"]);
 
 const NO_PROJECT_COMMANDS = new Set([
   "help", "cache-clear", "log", "obsidian", "setup-shell", "lint-vault",
   "search", "query", "qmd-status", "qmd-update", "qmd-embed", "qmd-setup",
   "scaffold-layer", "create-layer-page", "migrate-verification", "bind",
-  "drift-check", "verify-page", "update-index", "pipeline",
+  "drift-check", "verify-page", "update-index",
   "research:scaffold", "research:status", "research:ingest", "research:lint", "research:audit",
   "source:ingest",
 ]);

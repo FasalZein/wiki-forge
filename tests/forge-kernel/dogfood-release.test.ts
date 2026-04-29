@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import type { CloseSliceIntent } from "../../src/forge/kernel/intent";
-import { evaluateCloseSliceIntent } from "../../src/forge/lifecycle/close-slice-intent";
+import { evaluateCloseSliceIntent } from "../../src/forge/lifecycle/forge-close-intent";
 import { evaluateForgeNext } from "../../src/forge/lifecycle/next-intent";
 import type { ForgeEvidenceRecord } from "../../src/forge/lifecycle/evidence";
 
@@ -48,7 +48,7 @@ describe("forge dogfood release gate", () => {
     const closeIntent: CloseSliceIntent = {
       kind: "intent",
       id: "intent-close-fixture",
-      type: "close-slice",
+      type: "forge-close",
       actor: { kind: "agent", id: "codex" },
       context: { project: "fixture", sliceId: "FIX-001", requestedAt: "2026-04-28T04:44:03.000Z" },
       payload: { sliceId: "FIX-001", closedBy: "codex" },

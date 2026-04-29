@@ -6,8 +6,8 @@ import { VAULT_ROOT } from "../../constants";
 import { nowIso, orderFrontmatter, writeNormalizedPage } from "../../cli-shared";
 import type { CloseSliceIntent, StartSliceIntent } from "../kernel/intent";
 import type { KernelResult } from "../kernel/result";
-import { evaluateCloseSliceIntent } from "../lifecycle/close-slice-intent";
-import { evaluateStartSliceIntent } from "../lifecycle/start-slice-intent";
+import { evaluateCloseSliceIntent } from "../lifecycle/forge-close-intent";
+import { evaluateStartSliceIntent } from "../lifecycle/forge-start-intent";
 import { evaluateReviewGate } from "../lifecycle/review-gate";
 import { hasPassedTargetedVerification, hasPassedTddEvidence } from "../lifecycle/verification-gate";
 import type { ForgeProjectState } from "../lifecycle/types";
@@ -78,7 +78,7 @@ export async function startForgeSlice(input: StartSliceInput): Promise<KernelRes
   const intent: StartSliceIntent = {
     kind: "intent",
     id: `start:${input.project}:${input.sliceId}:${now}`,
-    type: "start-slice",
+    type: "forge-start",
     actor: { kind: "agent", id: input.agent },
     context: {
       project: input.project,
@@ -115,7 +115,7 @@ export async function checkForgeSliceClose(input: CloseSliceInput): Promise<Kern
   const intent: CloseSliceIntent = {
     kind: "intent",
     id: `close:${input.project}:${input.sliceId}:${now}`,
-    type: "close-slice",
+    type: "forge-close",
     actor: { kind: "agent", id: input.closedBy },
     context: {
       project: input.project,

@@ -33,7 +33,7 @@ Dogfood non-trivial repo work with real Forge commands: `next`, explicit `status
 
 When verification, review, check, or close fails, do not assume a generic rerun is correct. Use `wiki forge status <project> <slice> --json` as workflow truth, `wiki checkpoint` as freshness truth, and `wiki maintain` as the repair path. Use `wiki resume` for context only, not as proof that freshness or repair work is complete.
 
-Removed legacy commands are not part of the workflow surface: do not use `wiki create-issue-slice`, `wiki start-slice`, `wiki verify-slice`, `wiki close-slice`, `wiki claim`, `wiki pipeline`, `wiki backlog`, `wiki gate`, or `wiki closeout` for tracked implementation. Their surviving behavior is either quarantined or read-only admin/view support.
+Removed legacy commands are not part of the workflow surface. Use `wiki forge ...` for tracked implementation; old backlog, slice lifecycle, pipeline, gate, and closeout commands are absent from the runtime.
 
 If evidence or implementation context has drifted, use `wiki research bridge` before continuing delivery work. For full details, run `wiki help` or `wiki help --all`.
 

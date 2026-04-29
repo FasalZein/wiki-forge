@@ -94,7 +94,7 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
         message: `${doctor.counts.missingTests} changed code file(s) have no matching changed tests`,
         files: testHealth.codeFilesWithoutChangedTests,
         details: buildTestMatcherDetails(testHealth, testHealth.codeFilesWithoutChangedTests),
-        repair: [`Add or update tests for the listed changed code files, then rerun wiki gate ${project} --repo ${repo} ${options.worktree ? "--worktree" : `--base ${base}`}.`],
+        repair: [`Add or update tests for the listed changed code files, then rerun wiki forge check ${project} --repo ${repo} ${options.worktree ? "--worktree" : `--base ${base}`}.`],
       });
     }
   }

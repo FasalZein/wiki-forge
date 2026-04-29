@@ -18,12 +18,12 @@ export const LIFECYCLE_PHASES = [
 export type LifecyclePhase = (typeof LIFECYCLE_PHASES)[number];
 
 export const KERNEL_INTENT_TYPES = [
-  "start-slice",
+  "forge-start",
   "complete-phase",
   "record-evidence",
-  "verify-slice",
+  "forge-verify",
   "request-review",
-  "close-slice",
+  "forge-close",
   "amend-slice",
   "generate-projection",
   "classify-legacy-document",
@@ -57,7 +57,7 @@ type KernelIntentBase<TType extends KernelIntentType, TPayload extends KernelInt
 
 export type KernelIntentPayload = { readonly [key: string]: KernelJsonValue };
 
-export type StartSliceIntent = KernelIntentBase<"start-slice", {
+export type StartSliceIntent = KernelIntentBase<"forge-start", {
   readonly sliceId: string;
   readonly agent: string;
   readonly takeoverReason?: string;
@@ -75,7 +75,7 @@ export type RecordEvidenceIntent = KernelIntentBase<"record-evidence", {
   readonly evidenceRef: string;
 }>;
 
-export type VerifySliceIntent = KernelIntentBase<"verify-slice", {
+export type VerifySliceIntent = KernelIntentBase<"forge-verify", {
   readonly sliceId: string;
   readonly commands: readonly string[];
 }>;
@@ -85,7 +85,7 @@ export type RequestReviewIntent = KernelIntentBase<"request-review", {
   readonly reviewer: string;
 }>;
 
-export type CloseSliceIntent = KernelIntentBase<"close-slice", {
+export type CloseSliceIntent = KernelIntentBase<"forge-close", {
   readonly sliceId: string;
   readonly closedBy: string;
 }>;

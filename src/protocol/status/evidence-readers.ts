@@ -236,7 +236,7 @@ export async function detectVerifyPhase(project: string, sliceId: string, vaultR
   const logPath = join(vaultRoot, "log.md");
   const logEntries = await tailLogFromPath(logPath, 200);
   const hasRecentVerify = logEntries.some((entry) => {
-    if (!entry.includes(`verify-slice | ${sliceId}`)) return false;
+    if (!entry.includes(`forge-verify | ${sliceId}`)) return false;
     const dateMatch = entry.match(/^## \[(\d{4}-\d{2}-\d{2})\]/u);
     if (!dateMatch) return false;
     return new Date(dateMatch[1]) >= cutoffDate;
@@ -254,7 +254,7 @@ export async function detectVerifyPhase(project: string, sliceId: string, vaultR
   }
 
   if (commands.length === 0) {
-    commands.push(`wiki verify-slice ${project} ${sliceId}`);
+    commands.push(`wiki forge evidence ${project} ${sliceId} verify --command <cmd>`);
   }
 
   return commands;

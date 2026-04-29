@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { printError } from "./lib/cli-output";
-import { appendActivity, extractProject, extractTarget, resolveAgent, resolveSessionId } from "./session/shared";
+import { appendActivity, extractProject, extractTarget, resolveAgent, resolveSessionId } from "./wiki/runtime/activity";
 import { WIKI_COMMANDS, resolveWikiCommand } from "./wiki";
 import { FORGE_COMMANDS, resolveForgeCommand } from "./forge";
 

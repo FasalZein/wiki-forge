@@ -1,4 +1,4 @@
-export type CommandSurfaceDomain = "wiki-memory" | "forge-workflow" | "admin-view" | "migration" | "legacy-quarantined" | "ambiguous-disabled";
+export type CommandSurfaceDomain = "wiki-memory" | "forge-workflow" | "admin-view" | "migration";
 
 export type CommandSurfaceEntry = {
   readonly publicCommands: readonly string[];
@@ -6,7 +6,6 @@ export type CommandSurfaceEntry = {
   readonly mayMutateLifecycle: boolean;
   readonly mayReadGeneratedProjections: boolean;
   readonly handler?: string;
-  readonly replacement?: string;
   readonly reason: string;
 };
 
@@ -22,14 +21,6 @@ const COMMAND_SURFACE = [
   entry(["next"], "forge-workflow", "Top-level alias for Forge next action.", { handler: "forge:next", mayMutateLifecycle: false }),
   entry(["dashboard", "dependency-graph", "summary", "update-index", "feature-status", "scaffold-layer", "create-layer-page", "lint-vault"], "admin-view", "Generated views or hierarchy admin; never lifecycle authority.", { mayReadGeneratedProjections: true }),
   entry(["checkpoint", "maintain", "refresh", "refresh-from-git", "sync", "discover", "ingest-diff", "commit-check", "install-git-hook", "refresh-on-merge", "lint-repo", "doctor", "lint", "lint-semantic", "verify", "bind", "drift-check", "verify-page", "migrate-verification", "cache-clear", "acknowledge-impact"], "admin-view", "Wiki maintenance/freshness/verification admin; must not be treated as Forge lifecycle authority."),
-  entry(["status"], "ambiguous-disabled", "Top-level status is ambiguous. Use `wiki forge status` for workflow truth or `wiki checkpoint` for memory freshness.", { replacement: "wiki forge status" }),
-  entry(["gate", "closeout"], "ambiguous-disabled", "Top-level gate/closeout duplicate Forge close/check language. Use explicit Forge commands.", { replacement: "wiki forge check" }),
-  entry(["create-feature", "create-prd", "create-plan", "create-test-plan", "create-issue-slice", "start-feature", "close-feature", "start-prd", "close-prd"], "legacy-quarantined", "Legacy planning/lifecycle command; Forge planning owns artifact creation.", { replacement: "wiki forge plan" }),
-  entry(["backlog", "add-task", "move-task", "complete-task"], "legacy-quarantined", "Legacy backlog command; Forge status/next/close own lifecycle.", { replacement: "wiki forge status" }),
-  entry(["claim", "start-slice"], "legacy-quarantined", "Legacy slice claim command; Forge start owns the invariant.", { replacement: "wiki forge start" }),
-  entry(["verify-slice"], "legacy-quarantined", "Legacy slice verification command; Forge evidence/check own verification.", { replacement: "wiki forge evidence" }),
-  entry(["close-slice"], "legacy-quarantined", "Legacy slice close command; Forge close owns closure.", { replacement: "wiki forge close" }),
-  entry(["pipeline", "pipeline-reset"], "legacy-quarantined", "Legacy pipeline command; Forge run/status/evidence own orchestration.", { replacement: "wiki forge run" }),
 ] as const satisfies readonly CommandSurfaceEntry[];
 
 export function listCommandSurfaceEntries(): readonly CommandSurfaceEntry[] {
@@ -38,16 +29,6 @@ export function listCommandSurfaceEntries(): readonly CommandSurfaceEntry[] {
 
 export function getCommandSurfaceEntry(command: string): CommandSurfaceEntry | undefined {
   return COMMAND_SURFACE.find((entry) => entry.publicCommands.includes(command));
-}
-
-export function assertCommandNotQuarantined(command: string): void {
-  const entry = getCommandSurfaceEntry(command);
-  if (entry?.domain === "legacy-quarantined") {
-    throw new Error(`legacy workflow command is quarantined: ${command}. Use ${entry.replacement ?? "a Forge command"}.`);
-  }
-  if (entry?.domain === "ambiguous-disabled") {
-    throw new Error(`ambiguous command is disabled: ${command}. Use ${entry.replacement ?? "an explicit Forge command"}.`);
-  }
 }
 
 export function assertLifecycleMutationAllowed(command: string): void {
@@ -81,6 +62,5 @@ function entry(
     mayMutateLifecycle: options.mayMutateLifecycle ?? domain === "forge-workflow",
     mayReadGeneratedProjections: options.mayReadGeneratedProjections ?? false,
     ...(options.handler ? { handler: options.handler } : {}),
-    ...(options.replacement ? { replacement: options.replacement } : {}),
   };
 }

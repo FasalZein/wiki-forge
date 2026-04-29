@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import type { StartSliceIntent } from "../../src/forge/kernel/intent";
-import { evaluateStartSliceIntent } from "../../src/forge/lifecycle/start-slice-intent";
+import { evaluateStartSliceIntent } from "../../src/forge/lifecycle/forge-start-intent";
 import type { ForgeProjectState } from "../../src/forge/lifecycle/types";
 
 const startIntent: StartSliceIntent = {
   kind: "intent",
   id: "intent-start-214",
-  type: "start-slice",
+  type: "forge-start",
   actor: {
     kind: "agent",
     id: "codex",

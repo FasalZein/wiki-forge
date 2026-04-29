@@ -16,7 +16,7 @@ This skill is a decomposition aid. In wiki-managed projects, the canonical comma
 wiki forge plan <project> <feature-name> --repo <path>
 ```
 
-Do not use removed legacy lifecycle commands such as `wiki create-issue-slice`, `wiki start-slice`, `wiki close-slice`, `wiki claim`, or `wiki pipeline`.
+Do not use removed legacy lifecycle commands. Forge planning and `wiki forge ...` commands own the runtime surface.
 
 ## Process
 
@@ -111,18 +111,7 @@ Then resume with `/tdd` and close through `wiki forge run`.
 
 ### 8. Hierarchy and read models
 
-Old hierarchy commands are not lifecycle authority. Do not use:
-
-```text
-wiki start-slice
-wiki close-slice
-wiki claim
-wiki verify-slice
-wiki create-issue-slice
-wiki backlog/add-task/move-task/complete-task
-```
-
-Use:
+Old hierarchy commands are not lifecycle authority and are absent from the runtime surface. Use:
 
 ```bash
 wiki forge status <project> [slice-id] --repo <path>

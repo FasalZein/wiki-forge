@@ -101,7 +101,7 @@ describe("forge slice-specific forge status", () => {
     expect(result.json()).toMatchObject({
       status: "close-ready",
       closeGate: { status: "ready", missing: [] },
-      nextAction: "close-slice",
+      nextAction: "forge-close",
       evidence: {
         tdd: "passed",
         targetedVerification: "passed",

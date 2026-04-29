@@ -10,14 +10,14 @@ describe("skill manuals after legacy cutover", () => {
     expect(forge).toContain("wiki forge run");
     expect(forge).toContain("research -> domain-model -> spec -> slices -> ownership -> implementation -> tdd -> verification -> review -> close");
     expect(forge).toContain("Removed legacy commands are not part of the workflow surface");
-    expect(forge).toContain("do not use `wiki create-issue-slice`");
+    expect(forge).toContain("absent from the runtime");
   });
 
-  test("Wiki skill treats old lifecycle commands as quarantined, not active tools", () => {
+  test("Wiki skill treats old lifecycle commands as removed, not active tools", () => {
     const wiki = skill("wiki");
     expect(wiki).toContain("Wiki remembers; Forge executes lifecycle.");
     expect(wiki).toContain("Tracked implementation closes through `wiki forge run`");
-    expect(wiki).toContain("Do not use or advertise removed legacy lifecycle commands");
+    expect(wiki).toContain("absent from the runtime");
     expect(wiki).not.toContain("Closeout/gate review: `wiki closeout");
   });
 
@@ -25,16 +25,16 @@ describe("skill manuals after legacy cutover", () => {
     const prd = skill("write-a-prd");
     const slices = skill("prd-to-slices");
     expect(prd).toContain("`wiki forge plan` owns feature/PRD/slice artifact creation");
-    expect(prd).toContain("Do not use legacy PRD commands");
+    expect(prd).toContain("Do not use removed legacy PRD commands");
     expect(slices).toContain("wiki forge plan <project> <feature-name> --repo <path>");
-    expect(slices).toContain("Do not use removed legacy lifecycle commands");
+    expect(slices).toContain("absent from the runtime surface");
     expect(slices).not.toContain("wiki create-issue-slice <project> <title>");
   });
 
-  test("TDD skill records evidence through Forge instead of legacy verify-slice", () => {
+  test("TDD skill records evidence through Forge instead of legacy forge-verify", () => {
     const tdd = skill("tdd");
     expect(tdd).toContain("wiki forge evidence <project> <slice> verify");
     expect(tdd).toContain("Do not use removed legacy commands");
-    expect(tdd).not.toContain("Run slice verification: `wiki verify-slice");
+    expect(tdd).not.toContain("Run slice verification: `wiki forge evidence");
   });
 });

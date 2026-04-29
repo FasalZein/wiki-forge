@@ -59,8 +59,8 @@ describe("admin/view read-model surface", () => {
     expect(helpSource).toContain("wiki checkpoint");
   });
 
-  test("legacy forge compatibility module no longer carries dead plan mutators", () => {
-    const source = readFileSync(join(repoRoot, "src", "slice", "forge", "index.ts"), "utf8");
+  test("stable Forge workflow module does not carry dead legacy plan mutators", () => {
+    const source = readFileSync(join(repoRoot, "src", "forge", "workflow", "commands.ts"), "utf8");
     expect(source).not.toContain("legacyForgePlan");
     expect(source).not.toContain("createFeatureReturningId");
     expect(source).not.toContain("createPrdReturningId");

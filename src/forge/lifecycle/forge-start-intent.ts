@@ -18,7 +18,7 @@ function buildStartSliceChangeSet(intent: StartSliceIntent, state: ForgeProjectS
   const slicePath = sliceHubPath(state.project, intent.payload.sliceId);
   return {
     kind: "accepted-changeset",
-    id: `start-slice:${state.project}:${intent.payload.sliceId}`,
+    id: `forge-start:${state.project}:${intent.payload.sliceId}`,
     intentId: intent.id,
     createdAt: intent.context.requestedAt,
     authority: {

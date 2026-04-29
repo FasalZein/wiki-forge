@@ -5,7 +5,7 @@ import type { ForgeEvidenceRecord } from "../../src/forge/lifecycle/evidence";
 
 const tddEvidence: ForgeEvidenceRecord = {
   kind: "tdd",
-  command: "bun test tests/forge-kernel/close-slice-gates.test.ts",
+  command: "bun test tests/forge-kernel/forge-close-gates.test.ts",
   result: "passed",
   recordedAt: "2026-04-28T04:32:00.000Z",
 };

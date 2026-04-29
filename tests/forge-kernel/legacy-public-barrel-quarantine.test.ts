@@ -1,51 +1,27 @@
 import { describe, expect, test } from "bun:test";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import * as hierarchy from "../../src/hierarchy";
-import * as session from "../../src/session";
 import * as slice from "../../src/slice";
-
-const FORBIDDEN_HIERARCHY_EXPORTS = [
-  "addTask",
-  "backlogCommand",
-  "closeFeature",
-  "closePrd",
-  "completeTask",
-  "createFeature",
-  "createPlan",
-  "createPrd",
-  "createTestPlan",
-  "moveTask",
-  "startFeature",
-  "startPrd",
-];
-
-const FORBIDDEN_SLICE_EXPORTS = [
-  "claimSlice",
-  "closeSlice",
-  "createIssueSlice",
-  "repairHistoricalDoneSlices",
-  "startSlice",
-  "verifySlice",
-];
-
-const FORBIDDEN_SESSION_EXPORTS = [
-  "exportPrompt",
-  "handoverProject",
-  "logCommand",
-  "nextProject",
-  "noteProject",
-  "resumeProject",
-];
+import { repoRoot } from "../_helpers/wiki-subprocess";
 
 describe("legacy public barrels", () => {
-  test("do not export quarantined hierarchy workflow commands", () => {
-    for (const name of FORBIDDEN_HIERARCHY_EXPORTS) expect(hierarchy).not.toHaveProperty(name);
+  test("session legacy barrel is deleted", () => {
+    expect(existsSync(join(repoRoot, "src", "session"))).toBe(false);
   });
 
-  test("do not export quarantined slice workflow commands", () => {
-    for (const name of FORBIDDEN_SLICE_EXPORTS) expect(slice).not.toHaveProperty(name);
+  test("hierarchy barrel exposes read/admin helpers, not legacy mutators", () => {
+    expect("collectBacklog" in hierarchy).toBe(true);
+    expect("createFeature" in hierarchy).toBe(false);
+    expect("createPrd" in hierarchy).toBe(false);
+    expect("appendTaskToBacklog" in hierarchy).toBe(false);
+    expect("moveTaskToSection" in hierarchy).toBe(false);
   });
 
-  test("do not export legacy session command adapters", () => {
-    for (const name of FORBIDDEN_SESSION_EXPORTS) expect(session).not.toHaveProperty(name);
+  test("slice barrel exposes read helpers, not lifecycle adapters", () => {
+    expect("readSliceSummary" in slice).toBe(true);
+    expect("forgeRun" in slice).toBe(false);
+    expect("startSlice" in slice).toBe(false);
+    expect("createIssueSlice" in slice).toBe(false);
   });
 });

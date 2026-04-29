@@ -89,7 +89,7 @@ export async function readSliceCompletedAt(project: string, taskId: string) {
 export function hasCanonicalSliceCompletionEvidence(data: Record<string, unknown>) {
   return data.status === "done"
     && readTimestampValue(data.completed_at) !== null
-    && data.last_forge_step === "close-slice"
+    && data.last_forge_step === "forge-close"
     && data.last_forge_state === "passed"
     && data.last_forge_ok === true;
 }

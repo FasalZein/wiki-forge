@@ -12,7 +12,7 @@ import {
 const intent: KernelIntent = {
   kind: "intent",
   id: "intent-start-212",
-  type: "start-slice",
+  type: "forge-start",
   actor: {
     kind: "agent",
     id: "codex",

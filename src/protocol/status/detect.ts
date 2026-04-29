@@ -9,7 +9,7 @@
  * - "Within the slice's lifetime" for domain-model detection uses the slice hub's
  *   `created_at` field (falling back to `started_at`) as the lower bound and
  *   the current time as the upper bound.
- * - "Recent" for verify-slice log detection: STALE_UNVERIFIED_DAYS (30 days)
+ * - "Recent" for forge-verify log detection: STALE_UNVERIFIED_DAYS (30 days)
  *   from constants.ts — the same window used for page staleness.
  * - Ambiguity (multiple valid candidates for a single-candidate rule) escalates
  *   to a warning finding rather than auto-picking. Currently only the `prd`
@@ -197,7 +197,7 @@ async function _derive(project: string, sliceId: string, vaultRoot: string): Pro
   // -------------------------------------------------------------------
   // Phase: verify
   // Rule: Slice frontmatter verification_level is present (non-empty)
-  // AND a recent wiki verify-slice log entry references this slice.
+  // AND a recent wiki forge evidence log entry references this slice.
   // "Recent" = within STALE_UNVERIFIED_DAYS days.
   // -------------------------------------------------------------------
   const verificationCommands = await detectVerifyPhase(project, sliceId, vaultRoot);

@@ -1,4 +1,4 @@
-import { createAmendmentSliceDraft } from "../../../forge/lifecycle/close-slice-intent";
+import { createAmendmentSliceDraft } from "../../../forge/lifecycle/forge-close-intent";
 import type { AmendmentSliceDraft } from "../../../forge/lifecycle/evidence";
 
 export type AmendProjection = {

@@ -1,5 +1,4 @@
 import { parseProjectRepoBaseArgs } from "../../git-utils";
-import { collectHierarchyStatusActions, collectLifecycleDriftActions, collectCancelledSyncActions } from "../../hierarchy";
 import { classifyDiagnosticFindings, formatDiagnosticFindingLines, isHardDiagnostic, groupDiagnosticFindings, type DiagnosticFinding, type DiagnosticScope, type MaintenanceAction } from "../shared";
 import { readFlagValue } from "../../lib/cli-utils";
 import { collectLintResult, collectSemanticLintResult } from "../../verification";
@@ -50,13 +49,10 @@ export async function collectCloseout(project: string, base: string, explicitRep
   const refreshFromGit = options.worktree
     ? await collectRefreshFromWorktree(project, explicitRepo, projectSnapshot)
     : await collectRefreshFromGit(project, base, explicitRepo, projectSnapshot);
-  const [drift, lint, semanticLint, initialHierarchyActions, initialLifecycleDriftActions, cancelledSyncActions] = await Promise.all([
+  const [drift, lint, semanticLint] = await Promise.all([
     collectDriftSummary(project, explicitRepo, lintingState),
     collectLintResult(project, lintingState),
     collectSemanticLintResult(project, lintingState),
-    collectHierarchyStatusActions(project),
-    collectLifecycleDriftActions(project),
-    collectCancelledSyncActions(project),
   ]);
   // Apply cascade-refresh actions (Behavior A, PRD-057): stamp updated: + verified_against:
   // for pages whose source_paths all still hash to their verified_against sha.
@@ -66,24 +62,6 @@ export async function collectCloseout(project: string, base: string, explicitRep
     : [];
   for (const action of cascadeRefreshActions) {
     if (action._apply) await action._apply();
-  }
-  // Apply cancel-sync actions (Behavior B, PRD-057): rewrite backlog row marker to [-]
-  // for slices that are cancelled in the hub but still have an open row.
-  for (const action of cancelledSyncActions) {
-    if (action._apply) await action._apply();
-  }
-  // Apply-then-collect ordering (PRD-055):
-  let hierarchyActions = initialHierarchyActions;
-  let lifecycleDriftActions = initialLifecycleDriftActions;
-  const anyLifecycleApplied = initialLifecycleDriftActions.some((a) => !!a._apply);
-  if (anyLifecycleApplied || initialHierarchyActions.some((a) => !!a._apply)) {
-    for (const action of initialLifecycleDriftActions) action._apply?.();
-    const freshHierarchyActions = anyLifecycleApplied ? await collectHierarchyStatusActions(project) : initialHierarchyActions;
-    for (const action of freshHierarchyActions) action._apply?.();
-    [hierarchyActions, lifecycleDriftActions] = await Promise.all([
-      collectHierarchyStatusActions(project),
-      collectLifecycleDriftActions(project),
-    ]);
   }
   const impacted = new Set(refreshFromGit.impactedPages.map((page) => page.page));
   const sliceLocalContext = options.sliceLocal && options.sliceId
@@ -138,8 +116,6 @@ export async function collectCloseout(project: string, base: string, explicitRep
   const outsideActiveHierarchyFiles = options.worktree && "outsideActiveHierarchyFiles" in refreshFromGit ? (refreshFromGit as { outsideActiveHierarchyFiles: string[] }).outsideActiveHierarchyFiles : [];
   if (suppressedPages.length > 0) findings.push({ scope: "history", severity: "warning", message: `${suppressedPages.length} non-actionable planning page(s) suppressed from stale check` });
   if (outsideActiveHierarchyFiles.length > 0) findings.push({ scope: "history", severity: "warning", message: `${outsideActiveHierarchyFiles.length} changed code file(s) belong to non-actionable planning pages outside the active slice hierarchy` });
-  for (const action of hierarchyActions) findings.push({ scope: "parent", severity: "warning", message: action.message });
-  for (const action of lifecycleDriftActions) findings.push({ scope: "parent", severity: "warning", message: action.message });
   const classifiedFindings = classifyDiagnosticFindings(findings);
   const blockers = classifiedFindings.filter(isHardDiagnostic).map((finding) => finding.message);
   const warnings = classifiedFindings.filter((finding) => !isHardDiagnostic(finding)).map((finding) => finding.message);
@@ -163,8 +139,8 @@ export async function collectCloseout(project: string, base: string, explicitRep
     nextSteps.push(`wiki verify-page ${project} <page...> <level>`);
     nextSteps.push(
       options.worktree
-        ? `re-run wiki closeout ${project} --repo ${refreshFromGit.repo} --worktree`
-        : `re-run wiki closeout ${project} --repo ${refreshFromGit.repo} --base ${base}`,
+        ? `re-run wiki forge check ${project} --repo ${refreshFromGit.repo} --worktree`
+        : `re-run wiki forge check ${project} --repo ${refreshFromGit.repo} --base ${base}`,
     );
   }
   return {

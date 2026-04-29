@@ -21,7 +21,7 @@ const DEFAULT_SKILL_CHAIN: readonly SkillChainEntry[] = [
   { phase: "ownership", skill: "wiki forge start", required: true },
   { phase: "implementation", skill: "/forge", required: true },
   { phase: "tdd", skill: "/tdd", required: true },
-  { phase: "verification", skill: "wiki verify-slice", required: true },
+  { phase: "verification", skill: "wiki forge evidence <project> <slice> verify", required: true },
   { phase: "review", skill: "reviewer subagents", required: true },
   { phase: "close", skill: "wiki forge run", required: true },
   { phase: "amend", skill: "wiki forge amend", required: false },

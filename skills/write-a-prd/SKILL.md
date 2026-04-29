@@ -9,7 +9,7 @@ description: >
 
 Create the product/spec content that Forge planning needs. In wiki-managed projects, `wiki forge plan` owns feature/PRD/slice artifact creation and continuation.
 
-Do not use removed legacy commands such as `wiki create-feature`, `wiki create-prd`, `wiki create-plan`, or `wiki create-test-plan`.
+Do not use removed legacy PRD commands. Forge planning owns feature, PRD/spec, and slice artifact creation.
 
 ## Prerequisites
 
@@ -119,7 +119,7 @@ For focused changes that still need a PRD/spec but do not need full research:
 ## What NOT to do
 
 - Do not submit PRDs as GitHub issues. PRDs/specs live in the wiki/Forge memory layer.
-- Do not use legacy PRD commands (`wiki create-feature`, `wiki create-prd`, `wiki create-plan`, `wiki create-test-plan`).
+- Do not use removed legacy PRD commands; use `wiki forge plan`.
 - Do not skip prior research when claims depend on outside facts.
 - Do not include brittle file-path-heavy implementation dumps. Describe modules and interfaces.
 - Do not create PRDs for trivial changes. Tiny bug fixes may go straight to `/tdd` when Forge does not require planning.

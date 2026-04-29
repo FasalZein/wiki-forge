@@ -98,7 +98,7 @@ export type SliceStatusProjection =
     readonly closedAt: string | null;
     readonly evidence: SliceEvidenceSummary;
     readonly closeGate: SliceCloseGate;
-    readonly nextAction: "finish-planning-or-release" | "start-slice" | "record-tdd-evidence" | "record-targeted-verification" | "record-review-evidence" | "address-review-feedback" | "close-slice" | "none";
+    readonly nextAction: "finish-planning-or-release" | "forge-start" | "record-tdd-evidence" | "record-targeted-verification" | "record-review-evidence" | "address-review-feedback" | "forge-close" | "none";
     readonly source: "canonical-records";
   };
 
@@ -183,9 +183,9 @@ function resolveSliceStatus(lifecycleStatus: ForgeRecordStatus, closeGate: Slice
 
 function resolveNextAction(lifecycleStatus: ForgeRecordStatus, closeGate: SliceCloseGate): Extract<SliceStatusProjection, { readonly title: string }>["nextAction"] {
   if (lifecycleStatus === "draft") return "finish-planning-or-release";
-  if (lifecycleStatus === "ready") return "start-slice";
+  if (lifecycleStatus === "ready") return "forge-start";
   if (lifecycleStatus === "done" || lifecycleStatus === "cancelled") return "none";
-  if (closeGate.status === "ready") return "close-slice";
+  if (closeGate.status === "ready") return "forge-close";
   if (closeGate.status === "blocked" && closeGate.blockedBy) return "address-review-feedback";
   if (closeGate.status === "blocked") {
     if (closeGate.missing.includes("tdd")) return "record-tdd-evidence";

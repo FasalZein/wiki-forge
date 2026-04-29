@@ -5,6 +5,5 @@ export {
   collectBacklogView,
   collectTaskContextForId,
   detectTaskDocState,
-  rewriteBacklogRowMarker,
 } from "./backlog/index";
 export type { BacklogFocus, BacklogTaskContext, TaskDocState } from "./backlog/index";

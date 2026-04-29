@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import type { CloseSliceIntent } from "../../src/forge/kernel/intent";
-import { createAmendmentSliceDraft, evaluateCloseSliceIntent } from "../../src/forge/lifecycle/close-slice-intent";
+import { createAmendmentSliceDraft, evaluateCloseSliceIntent } from "../../src/forge/lifecycle/forge-close-intent";
 import type { ForgeEvidenceRecord } from "../../src/forge/lifecycle/evidence";
 
 const closeIntent: CloseSliceIntent = {
   kind: "intent",
   id: "intent-close-218",
-  type: "close-slice",
+  type: "forge-close",
   actor: {
     kind: "agent",
     id: "codex",
@@ -24,7 +24,7 @@ const closeIntent: CloseSliceIntent = {
 
 const passedTdd: ForgeEvidenceRecord = {
   kind: "tdd",
-  command: "bun test tests/forge-kernel/evidence-gates.test.ts tests/forge-kernel/close-slice-gates.test.ts",
+  command: "bun test tests/forge-kernel/evidence-gates.test.ts tests/forge-kernel/forge-close-gates.test.ts",
   result: "passed",
   recordedAt: "2026-04-28T04:33:01.000Z",
 };
@@ -70,7 +70,7 @@ describe("forge close slice evidence gates", () => {
     expect(result.status).toBe("rejected");
     if (result.status !== "rejected") throw new Error("expected rejection");
     expect(result.rejection.code).toBe("MissingVerificationEvidence");
-    expect(result.rejection.recovery[0]?.command).toBe("wiki verify-slice wiki-forge WIKI-FORGE-218 --repo .");
+    expect(result.rejection.recovery[0]?.command).toBe("wiki forge evidence wiki-forge WIKI-FORGE-218 verify --command <cmd> --repo .");
   });
 
   test("close rejects missing required review evidence", () => {

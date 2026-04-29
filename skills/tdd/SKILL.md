@@ -31,7 +31,7 @@ For behavior-preserving refactors, first capture current externally visible beha
 - Inspect workflow: `wiki forge status <project> <slice> --repo <path>`
 - Record targeted verification: `wiki forge evidence <project> <slice> verify --command "<targeted command>" --repo <path>`
 - Continue/close tracked work: `wiki forge run <project> <slice> --repo <path>`
-- Do not use removed legacy commands such as `wiki verify-slice`, `wiki close-slice`, `wiki pipeline`, or `wiki gate`.
+- Do not use removed legacy commands. Record verification with `wiki forge evidence`, then continue with `wiki forge run`.
 - Full command details: `wiki help` or `wiki help --all`
 
 ## Rules
