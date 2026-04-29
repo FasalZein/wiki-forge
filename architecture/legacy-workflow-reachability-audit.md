@@ -39,10 +39,10 @@ These legacy behaviors should be deleted or kept only as admin/read helpers. The
 
 ### Delete candidates after reachability tests pass
 
-- `src/slice/forge/**` command handlers and legacy orchestration.
+- `src/slice/forge/**` command handlers and legacy orchestration. ⏳ remains for pipeline/legacy forge deletion
 - `src/slice/pipeline/**` runtime pipeline state machine.
-- `src/slice/lifecycle/**` start/close commands.
-- `src/slice/coordination/**` claim commands.
+- `src/slice/lifecycle/**` start/close commands. ✅ legacy close command deleted; start command adapter removed, core remains temporarily for legacy forge/pipeline deletion
+- `src/slice/coordination/**` claim commands. ✅ deleted
 - `src/hierarchy/backlog/commands.ts` mutation commands.
 - `src/hierarchy/lifecycle/start-*.ts` and `close-*.ts` lifecycle commands. ✅ command adapters deleted
 - `src/hierarchy/planning/**` legacy PRD/plan/slice creation commands. ✅ public facade reduced to parser helpers; internal legacy creators remain only for legacy slice/forge deletion work

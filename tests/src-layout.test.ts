@@ -25,7 +25,6 @@ const MOVED_FILE_TARGETS: ReadonlyArray<readonly [string, string]> = [
   ["backlog-collect.ts", "hierarchy"],
   ["backlog-io.ts", "hierarchy"],
   ["backlog.ts", "hierarchy"],
-  ["coordination.ts", "slice"],
   ["dependency-graph.ts", "hierarchy"],
   ["index-log-markdown.ts", "hierarchy"],
   ["index-log-relationships.ts", "hierarchy"],
@@ -41,8 +40,6 @@ const MOVED_FILE_TARGETS: ReadonlyArray<readonly [string, string]> = [
   ["qmd-commands.ts", "retrieval"],
   ["repo-scan.ts", "protocol"],
   ["setup.ts", "protocol"],
-  ["slice-repair.ts", "slice"],
-  ["slice-scaffold.ts", "slice"],
   ["summary.ts", "hierarchy"],
   ["verification-pages.ts", "verification"],
   ["verification-shared.ts", "verification"],
@@ -178,9 +175,9 @@ describe("WIKI-FORGE-108 leaf-file moves into domain folders", () => {
 
 describe("WIKI-FORGE-109 slice-lifecycle split into verb files", () => {
   const sliceRoot = join(srcRoot, "slice");
-  const verbFiles = ["start.ts", "verify.ts", "close.ts", "claim.ts"] as const;
+  const verbFiles = ["start.ts"] as const;
 
-  test("src/slice/ has start, verify, close, claim files", () => {
+  test("src/slice/ keeps only stable lifecycle shims", () => {
     for (const file of verbFiles) {
       const path = join(sliceRoot, file);
       expect(existsSync(path), `expected src/slice/${file}`).toBe(true);
@@ -479,13 +476,7 @@ describe("PRD-079 slice subdomain pack-out", () => {
   const sliceSubdomains = ["verification", "lifecycle", "coordination", "forge", "repair", "docs", "pipeline", "shared"] as const;
   const sliceEntryShims = [
     ["_shared.ts", "./shared/index"],
-    ["claim.ts", "./coordination/claim"],
-    ["coordination.ts", "./coordination/index"],
     ["start.ts", "./lifecycle/start"],
-    ["close.ts", "./lifecycle/close"],
-    ["verify.ts", "./verification/index"],
-    ["slice-repair.ts", "./repair/index"],
-    ["slice-scaffold.ts", "./docs/scaffold"],
     ["forge.ts", "./forge/index"],
     ["forge-run.ts", "./forge/run"],
     ["forge-args.ts", "./forge/args"],

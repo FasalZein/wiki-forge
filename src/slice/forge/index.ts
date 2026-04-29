@@ -13,8 +13,8 @@ import { moveTaskToSection } from "../../hierarchy/backlog/io";
 import { createFeatureReturningId, createPrdReturningId } from "../../hierarchy/planning/index";
 import { appendLogEntry } from "../../lib/log";
 import { collectForgeStatus, compactForgeStatusForJson, resolveTargetWorkflowSteering, resolveWorkflowSteering } from "../../protocol";
-import { createIssueSlice } from "../docs/scaffold";
-import { startSlice } from "../lifecycle/start";
+import { createIssueSliceCore } from "../docs/scaffold";
+import { startSliceCore } from "../lifecycle/start";
 import { runPipeline } from "../pipeline";
 import { autoFillSliceDocs, buildSlicePromptData, forgeNextAll, renderSlicePrompt } from "./planning";
 import { parseForgeArgs, parseForgeStatusArgs } from "./args";
@@ -148,7 +148,7 @@ async function legacyForgePlan(args: string[]) {
           "--prd", prdId,
           ...(parsed.agent ? ["--assignee", parsed.agent] : []),
         ];
-        const slice = await createIssueSlice(sliceArgs);
+        const slice = await createIssueSliceCore(sliceArgs);
         if (!slice) throw new Error(`createIssueSlice did not return a result for slice ${i + 1}`);
         printLine(`created slice ${slice.taskId}`);
         createdSliceIds.push(slice.taskId);
@@ -160,12 +160,7 @@ async function legacyForgePlan(args: string[]) {
 
         if (i === 0) {
           lastStep = "start-slice";
-          await startSlice([
-            parsed.project,
-            slice.taskId,
-            ...(parsed.agent ? ["--agent", parsed.agent] : []),
-            ...(parsed.repo ? ["--repo", parsed.repo] : []),
-          ]);
+          await startSliceCore(parsed.project, slice.taskId, parsed.agent ?? "agent", parsed.repo);
         }
 
         lastStep = `autofill-docs-${i + 1}`;
@@ -184,17 +179,12 @@ async function legacyForgePlan(args: string[]) {
         "--prd", prdId,
         ...(parsed.agent ? ["--assignee", parsed.agent] : []),
       ];
-      const slice = await createIssueSlice(sliceArgs);
+      const slice = await createIssueSliceCore(sliceArgs);
       if (!slice) throw new Error("createIssueSlice did not return a result");
       printLine(`created slice ${slice.taskId}`);
       createdSliceIds.push(slice.taskId);
       lastStep = "start-slice";
-      await startSlice([
-        parsed.project,
-        slice.taskId,
-        ...(parsed.agent ? ["--agent", parsed.agent] : []),
-        ...(parsed.repo ? ["--repo", parsed.repo] : []),
-      ]);
+      await startSliceCore(parsed.project, slice.taskId, parsed.agent ?? "agent", parsed.repo);
       lastStep = "autofill-docs";
       await autoFillSliceDocs(parsed.project, slice.taskId, prdId);
     }

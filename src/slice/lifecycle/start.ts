@@ -1,6 +1,6 @@
 import { relative } from "node:path";
 import { VAULT_ROOT } from "../../constants";
-import { assertExists, fail, nowIso, orderFrontmatter, requireValue, safeMatter, writeNormalizedPage } from "../../cli-shared";
+import { assertExists, nowIso, orderFrontmatter, safeMatter, writeNormalizedPage } from "../../cli-shared";
 import { readText } from "../../lib/fs";
 import { appendLogEntry } from "../../lib/log";
 import { summarizePlan } from "../../lib/slices/plan-summary";
@@ -11,7 +11,6 @@ import { collectTaskContextForId, lifecycleOpen } from "../../hierarchy";
 import { moveTaskToSection } from "../../hierarchy/backlog/io";
 import { hasCanonicalSliceCompletionEvidence, readSliceHub, readSlicePlan, readSliceSourcePaths } from "../docs";
 import { ClaimConflict, collectClaimResult, collectDependencyStatuses, defaultAgentName, formatClaimConflictError, writeClaimMetadata } from "../shared";
-import { printJson, printLine } from "../../lib/cli-output";
 
 export type StartSliceResult = {
   ok: boolean;
@@ -145,128 +144,6 @@ export async function startSliceCore(
     _autoStartedPrd: autoStartedPrd,
     _autoStartedFeature: autoStartedFeature,
   };
-}
-
-export async function startSlice(args: string[]) {
-  const project = args[0];
-  const sliceId = args[1];
-  requireValue(project, "project");
-  requireValue(sliceId, "slice-id");
-  const json = args.includes("--json");
-  let agent = defaultAgentName();
-  let repo: string | undefined;
-  for (let index = 2; index < args.length; index += 1) {
-    const arg = args[index];
-    switch (arg) {
-      case "--agent":
-        agent = args[index + 1] || agent;
-        index += 1;
-        break;
-      case "--repo":
-        repo = args[index + 1] || undefined;
-        index += 1;
-        break;
-      case "--json":
-        break;
-    }
-  }
-
-  const coreResult = await startSliceCore(project, sliceId, agent, repo);
-
-  if (!coreResult.ok) {
-    switch (coreResult.status) {
-      case "missing": {
-        if (json) printJson({ project, sliceId, status: "missing", agent });
-        fail(coreResult.error ?? `slice not found: ${sliceId}`, 3);
-        break;
-      }
-      case "done": {
-        fail(coreResult.error ?? `${sliceId} is already done`, 1);
-        break;
-      }
-      case "blocked": {
-        if (json) {
-          const jsonResult = {
-            sliceId: coreResult.sliceId,
-            status: coreResult.status,
-            agent: coreResult.agent,
-            startedAt: coreResult.startedAt,
-            dependencies: coreResult.dependencies,
-            claimedPaths: coreResult.sourcePaths,
-            planSummary: coreResult.planSummary,
-            conflicts: coreResult.conflicts,
-          };
-          printJson(jsonResult);
-        }
-        fail(coreResult.error ?? `${sliceId} is blocked`, 1);
-        break;
-      }
-      case "conflict": {
-        if (json) {
-          const jsonResult = {
-            sliceId: coreResult.sliceId,
-            status: coreResult.status,
-            agent: coreResult.agent,
-            startedAt: coreResult.startedAt,
-            dependencies: coreResult.dependencies,
-            claimedPaths: coreResult.sourcePaths,
-            planSummary: coreResult.planSummary,
-            conflicts: coreResult.conflicts,
-          };
-          printJson(jsonResult);
-        }
-        fail(coreResult.error ?? `claim conflict for ${sliceId}`, 2);
-        break;
-      }
-    }
-    return;
-  }
-
-  // Emit stderr auto-start messages (side effects that must not be in core)
-  if (coreResult._autoStartedPrd) {
-    process.stderr.write(`auto-started prd ${coreResult._autoStartedPrd}\n`);
-  }
-  if (coreResult._autoStartedFeature) {
-    process.stderr.write(`auto-started feature ${coreResult._autoStartedFeature}\n`);
-  }
-
-  const successJsonResult = {
-    sliceId: coreResult.sliceId,
-    status: coreResult.status,
-    agent: coreResult.agent,
-    startedAt: coreResult.startedAt,
-    dependencies: coreResult.dependencies,
-    claimedPaths: coreResult.sourcePaths,
-    planSummary: coreResult.planSummary,
-    conflicts: coreResult.conflicts,
-  };
-
-  if (json) {
-    printJson(successJsonResult);
-    return;
-  }
-
-  const dependencies = coreResult.dependencies ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
-  const sourcePaths = coreResult.sourcePaths ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK
-  let dependencySummary: string;
-  if (dependencies.length) {
-    dependencySummary = dependencies.map((dependency) => {
-      const done = dependency.status === "done";
-      const statusLabel = done ? "✓" : `(${dependency.status})`;
-      return `${dependency.id} ${statusLabel}`;
-    }).join(", ");
-  } else {
-    dependencySummary = "none";
-  }
-  printLine(`Started ${sliceId} (assignee: ${agent})`);
-  printLine(`Dependencies: ${dependencySummary}`);
-  if (sourcePaths.length) {
-    printLine(`Claim registered: ${sourcePaths.join(", ")}`);
-  } else {
-    printLine(`Claim: no source_paths bound — bind with: wiki bind ${project} specs/slices/${sliceId}/index.md <source-file>`);
-  }
-  printLine("---");
-  printLine(coreResult.planSummary);
 }
 
 async function markSliceStarted(project: string, sliceId: string, startedAt: string) {

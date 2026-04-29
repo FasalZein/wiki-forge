@@ -7,7 +7,7 @@ import { appendLogEntry } from "../../lib/log";
 import { isCanonicalPrdId, projectPrdsDir, projectTaskDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath, toVaultWikilinkPath } from "../../lib/structure";
 import { assertKnownAgent } from "../../lib/agents";
 import { writeProjectIndex, appendTaskToBacklog, parseTaskArgs } from "../../hierarchy";
-import { printError, printJson, printLine } from "../../lib/cli-output";
+import { printError } from "../../lib/cli-output";
 
 type PrdRecord = { prdId: string; title: string; parentFeature?: string; linkPath: string; sourcePaths: string[] };
 type SliceSpecKind = "task-hub" | "plan" | "test-plan";
@@ -75,19 +75,6 @@ export async function createIssueSliceCore(args: string[]): Promise<CreateIssueS
     planPath: relative(VAULT_ROOT, slicePaths.planPath),
     testPlanPath: relative(VAULT_ROOT, slicePaths.testPlanPath),
   };
-}
-
-export async function createIssueSlice(args: string[]) {
-  const result = await createIssueSliceCore(args);
-  if (args.includes("--json")) printJson(result);
-  else {
-    printLine(`created issue slice ${result.taskId}`);
-    printLine(`- backlog: ${result.backlogPath}`);
-    printLine(`- index: ${result.indexPath}`);
-    printLine(`- plan: ${result.planPath}`);
-    printLine(`- test-plan: ${result.testPlanPath}`);
-  }
-  return result;
 }
 
 async function createSlicePaths(project: string, taskId: string): Promise<SlicePaths> {
