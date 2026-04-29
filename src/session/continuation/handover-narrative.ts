@@ -1,4 +1,3 @@
-import { type PipelineProgressEntry } from "../../slice/pipeline/index";
 import type { ForgeSteeringPacket } from "../../protocol/steering/index";
 
 export type AutoCloseAttempt =
@@ -18,7 +17,7 @@ export type HandoverPromptContext = {
   recentNotes: string[];
   recentCommits: string[];
   commitsSinceBase: string[];
-  pipelineProgress: PipelineProgressEntry[] | null;
+  pipelineProgress: Array<{ step: string; ok: boolean; durationMs?: number; error?: string }> | null;
   autoCloseAttempt: AutoCloseAttempt;
 };
 

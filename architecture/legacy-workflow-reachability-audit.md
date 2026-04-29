@@ -29,7 +29,7 @@ Do **not** port legacy one-to-one. Focus on reachability, deletion, and keeping 
 These legacy behaviors should be deleted or kept only as admin/read helpers. They should not become Forge truth again.
 
 - Generated `backlog.md` as workflow state.
-- Pipeline progress as lifecycle authority.
+- Pipeline progress as lifecycle authority. ✅ deleted
 - Specs-backed slice lifecycle under `projects/<project>/specs/**`.
 - Hidden repair from maintenance commands.
 - Ambiguous top-level `status`, `gate`, `closeout`.
@@ -40,7 +40,7 @@ These legacy behaviors should be deleted or kept only as admin/read helpers. The
 ### Delete candidates after reachability tests pass
 
 - `src/slice/forge/**` command handlers and legacy orchestration. ⏳ remains for pipeline/legacy forge deletion
-- `src/slice/pipeline/**` runtime pipeline state machine.
+- `src/slice/pipeline/**` runtime pipeline state machine. ✅ deleted
 - `src/slice/lifecycle/**` start/close commands. ✅ legacy close command deleted; start command adapter removed, core remains temporarily for legacy forge/pipeline deletion
 - `src/slice/coordination/**` claim commands. ✅ deleted
 - `src/hierarchy/backlog/commands.ts` mutation commands.

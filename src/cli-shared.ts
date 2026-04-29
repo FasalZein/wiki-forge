@@ -80,8 +80,6 @@ Internal / Repair:
   wiki close-slice <project> <slice-id> [--repo <path>] [--base <rev>] [--worktree] [--force] [--yes-really-force] [--json]
   wiki claim <project> <slice-id> [--agent <name>] [--repo <path>] [--json]
   wiki create-issue-slice <project> <title...> [--section <name>] [--priority <p>] [--tag <t>] [--prd <PRD-ID>] [--assignee <agent>] [--source <path...>] [--json]
-  wiki pipeline <project> <slice-id> --phase <close|verify> [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
-  wiki pipeline-reset <project> <slice-id> [--step <step-id>]
 
 Planning & Hierarchy:
   wiki backlog <project> [--assignee <agent>] [--json]

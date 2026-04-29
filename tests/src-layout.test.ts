@@ -33,7 +33,6 @@ const MOVED_FILE_TARGETS: ReadonlyArray<readonly [string, string]> = [
   ["linting.ts", "verification"],
   ["note.ts", "session"],
   ["obsidian.ts", "protocol"],
-  ["pipeline.ts", "slice"],
   ["planning.ts", "hierarchy"],
   ["project-setup.ts", "protocol"],
   ["protocol.ts", "protocol"],
@@ -478,15 +477,11 @@ describe("PRD-079 slice subdomain pack-out", () => {
     ["_shared.ts", "./shared/index"],
     ["start.ts", "./lifecycle/start"],
     ["forge.ts", "./forge/index"],
-    ["forge-run.ts", "./forge/run"],
     ["forge-args.ts", "./forge/args"],
     ["forge-docs.ts", "./forge/docs"],
     ["forge-evidence-readers.ts", "./forge/evidence-readers"],
     ["forge-output.ts", "./forge/output"],
     ["forge-planning.ts", "./forge/planning"],
-    ["pipeline.ts", "./pipeline/index"],
-    ["pipeline-plan.ts", "./pipeline/plan"],
-    ["pipeline-runner.ts", "./pipeline/runner"],
   ] as const;
 
   test("src/slice/ exposes the accepted subdomain folders", () => {

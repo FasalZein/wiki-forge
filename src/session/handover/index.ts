@@ -5,7 +5,6 @@ import { resolveWorkflowSteering } from "../../protocol";
 import { collectSessionActivity, resolveSessionId } from "../shared";
 import { collectBacklog } from "../../hierarchy";
 import { collectMaintenancePlan } from "../../maintenance";
-import { readSlicePipelineProgress } from "../../slice/pipeline/index";
 import {
   buildAccomplishments,
   buildBlockers,
@@ -54,9 +53,7 @@ export async function handoverProject(args: string[]) {
     base: options.base,
     focus: maintain.focus,
   });
-  const pipelineProgress = maintain.focus.activeTask
-    ? await readSlicePipelineProgress(options.project, maintain.focus.activeTask.id)
-    : null;
+  const pipelineProgress = null;
   const recentEvents = await projectLogEntries(options.project);
   const recentNotes = recentEvents.filter((e) => e.includes("] note |"));
   const lifecycleEvents = recentEvents.filter((e) => !e.includes("] note |"));

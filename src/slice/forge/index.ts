@@ -15,13 +15,10 @@ import { appendLogEntry } from "../../lib/log";
 import { collectForgeStatus, compactForgeStatusForJson, resolveTargetWorkflowSteering, resolveWorkflowSteering } from "../../protocol";
 import { createIssueSliceCore } from "../docs/scaffold";
 import { startSliceCore } from "../lifecycle/start";
-import { runPipeline } from "../pipeline";
 import { autoFillSliceDocs, buildSlicePromptData, forgeNextAll, renderSlicePrompt } from "./planning";
 import { parseForgeArgs, parseForgeStatusArgs } from "./args";
 import {
-  applyPipelineFailureRecovery,
   applyResolvedSteering,
-  renderForgePipeline,
   renderForgeStatus,
   renderForgeStatusWithoutSlice,
 } from "./output";

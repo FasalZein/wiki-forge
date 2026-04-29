@@ -9,7 +9,6 @@ import { collectSessionActivity, resolveSessionId } from "../shared";
 import { assertGitRepo, resolveRepoPath } from "../../lib/verification";
 import { collectCheckpoint, collectMaintenancePlan, collapseActions } from "../../maintenance";
 import { resolveTargetWorkflowSteering, resolveWorkflowSteering } from "../../protocol";
-import { readSliceHandoff } from "../../slice/pipeline/index";
 import {
   collectDirtyRepoStatus,
   collectRecentCommits,
@@ -45,7 +44,7 @@ export async function resumeProject(args: string[]) {
     collectSessionActivity(options.project, resolveSessionId()),
     findLatestHandover(options.project),
   ]);
-  const handoff = maintain.focus.activeTask ? await readSliceHandoff(options.project, maintain.focus.activeTask.id) : null;
+  const handoff = null;
 
   let handoverMeta: {
     harness: string | null;
@@ -93,8 +92,7 @@ export async function resumeProject(args: string[]) {
   }
 
   const handoverTargetSlice = handoverMeta?.targetSlice ?? null;
-  const handoverTargetHandoff = handoverTargetSlice ? await readSliceHandoff(options.project, handoverTargetSlice) : null;
-  const effectiveHandoff = handoverTargetHandoff ?? handoff;
+  const effectiveHandoff = handoff;
   const steeringResolution = handoverTargetSlice
     ? await resolveTargetWorkflowSteering(options.project, {
       repo,
@@ -120,12 +118,8 @@ export async function resumeProject(args: string[]) {
 
   const actions = maintain.actions.slice(0, 8);
   const actionSummary = collapseActions(maintain.actions).slice(0, 6);
-  const handoverIso = handoverMeta?.created_at ?? null;
-  const handoffIso = effectiveHandoff?.lastForgeRun ?? null;
-  const handoverStale = Boolean(
-    handoverIso && handoffIso && new Date(handoffIso).getTime() > new Date(handoverIso).getTime(),
-  );
-  const noHandoverButBreadcrumb = !handoverMeta && Boolean(handoff);
+  const handoverStale = false;
+  const noHandoverButBreadcrumb = false;
   const payload = {
     project: options.project,
     repo,
@@ -146,7 +140,6 @@ export async function resumeProject(args: string[]) {
     ...(workflowNextPhase !== null ? { workflowNextPhase } : {}),
     triage: steeringResolution.triage,
     steering: steeringResolution.steering,
-    ...(effectiveHandoff ? { lastForgeRun: effectiveHandoff } : {}),
     ...(handoverMeta ? { lastHandover: { path: relative(VAULT_ROOT, latestHandoverPath!), ...handoverMeta } } : {}),
   };
   if (json) {
@@ -165,27 +158,11 @@ export async function resumeProject(args: string[]) {
     printLine(`⚠  handover target ${handoverTargetSlice} overrides backlog active ${maintain.focus.activeTask?.id ?? "none"}`);
     printLine("");
   }
-  if (noHandoverButBreadcrumb) {
-    printLine(`⚠  no handover file — resuming from pipeline breadcrumb (previous session ended without wiki handover)`);
-    printLine("");
-  } else if (handoverStale) {
-    printLine(`⚠  handover is stale: pipeline ran at ${handoffIso} after handover at ${handoverIso}`);
-    printLine(`   previous session likely ended mid-work; treat breadcrumb as source of truth`);
-    printLine("");
-  }
   printLine(`resume for ${options.project}:`);
   if (payload.activeTask) printLine(`- active: ${payload.activeTask.id} ${payload.activeTask.title}`);
   else if (payload.nextTask) printLine(`- next: ${payload.nextTask.id} ${payload.nextTask.title}`);
   if (payload.workflowNextPhase !== undefined) {
     printLine(`- workflow next phase: ${payload.workflowNextPhase ?? "complete"}`);
-  }
-  if (effectiveHandoff) {
-    const forgeState = effectiveHandoff.lastForgeState === "running"
-      ? "INCOMPLETE"
-      : effectiveHandoff.lastForgeOk
-        ? "PASS"
-        : "FAIL";
-    printLine(`- last forge run: ${forgeState} at ${effectiveHandoff.lastForgeStep} (${effectiveHandoff.lastForgeRun})`);
   }
   printLine(`- dirty: modified=${dirty.modifiedFiles.length} staged=${dirty.stagedFiles.length} untracked=${dirty.untrackedFiles.length}`);
   if (handoverMeta) {
