@@ -7,7 +7,7 @@ import { backlogPathFor, readNormalizedText, parseBacklog } from "./io";
 import type { BacklogItem } from "./io";
 import { relative } from "node:path";
 import { VAULT_ROOT } from "../../constants";
-import { readSliceSummary } from "../../slice/docs";
+import { readSliceSummary } from "../../wiki/slices";
 
 export type TaskDocState = "missing" | "incomplete" | "ready";
 export type BacklogTaskContext = {

@@ -1,5 +1,5 @@
 export { maintainProject, collectMaintenancePlan, collapseActions } from "./maintain";
-export { closeoutProject, collectCloseout } from "./closeout";
+export { readinessReviewProject, collectReadinessReview } from "./readiness/review";
 export { refreshProject, refreshFromGit, refreshOnMerge } from "./refresh";
 export { syncProject } from "./sync";
 export { discoverProject, ingestDiff } from "./discover";
@@ -7,7 +7,7 @@ export { dashboardProject } from "./dashboard";
 export { checkpoint, collectCheckpoint } from "./checkpoint";
 export { commitCheck, installGitHook } from "./commit-check";
 export { doctorProject, compactDoctorForJson } from "./doctor";
-export { gateProject, collectGate } from "./gate";
+export { readinessCheckProject, collectReadinessCheck } from "./readiness/check";
 export { lintRepo } from "./lint-repo";
 export { driftCheck } from "./drift";
 export { isTestFile } from "./test-health";

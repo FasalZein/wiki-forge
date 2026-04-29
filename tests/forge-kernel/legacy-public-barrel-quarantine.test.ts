@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import * as hierarchy from "../../src/hierarchy";
-import * as slice from "../../src/slice";
 import { repoRoot } from "../_helpers/wiki-subprocess";
 
 describe("legacy public barrels", () => {
@@ -18,10 +17,7 @@ describe("legacy public barrels", () => {
     expect("moveTaskToSection" in hierarchy).toBe(false);
   });
 
-  test("slice barrel exposes read helpers, not lifecycle adapters", () => {
-    expect("readSliceSummary" in slice).toBe(true);
-    expect("forgeRun" in slice).toBe(false);
-    expect("startSlice" in slice).toBe(false);
-    expect("createIssueSlice" in slice).toBe(false);
+  test("slice legacy barrel is deleted", () => {
+    expect(existsSync(join(repoRoot, "src", "slice"))).toBe(false);
   });
 });

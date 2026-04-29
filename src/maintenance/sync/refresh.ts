@@ -4,7 +4,7 @@ import { collectLintResult, loadLintingSnapshot } from "../../verification";
 import { parseProjectRepoBaseArgs, findProjectArg } from "../../git-utils";
 import { collectDriftSummary } from "../drift";
 import { collectRefreshFromGit } from "../shared";
-import { collectGate } from "../closeout/gate";
+import { collectReadinessCheck } from "../readiness/check";
 import { printJson, printLine } from "../../lib/cli-output";
 
 export async function refreshProject(args: string[]) {
@@ -87,7 +87,7 @@ async function collectRefreshOnMerge(project: string, base: string, explicitRepo
   const refresh = await collectRefreshFromGit(project, base, explicitRepo);
   const lintingSnapshot = await loadLintingSnapshot(project);
   const drift = await collectDriftSummary(project, explicitRepo, lintingSnapshot);
-  const gate = await collectGate(project, base, explicitRepo);
+  const gate = await collectReadinessCheck(project, base, explicitRepo);
   const impacted = new Set(refresh.impactedPages.map((page) => page.page));
   const staleImpactedPages = drift.results.filter((row) => impacted.has(row.wikiPage) && row.status !== "fresh");
   return { project, repo: refresh.repo, base, ok: gate.ok && staleImpactedPages.length === 0, changedFiles: refresh.changedFiles, impactedPages: refresh.impactedPages, staleImpactedPages, uncoveredFiles: refresh.uncoveredFiles, gate };

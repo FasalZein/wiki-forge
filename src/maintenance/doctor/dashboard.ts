@@ -3,7 +3,7 @@ import { tailLog } from "../../lib/log";
 import { loadLintingSnapshot, collectStatusRow, collectVerifySummary } from "../../verification";
 import { collectDriftSummary } from "../drift";
 import { loadProjectSnapshot } from "../shared";
-import { collectMaintenancePlan } from "../closeout/maintain";
+import { collectMaintenancePlan } from "../readiness/plan";
 import { printJson } from "../../lib/cli-output";
 
 export async function dashboardProject(args: string[]) {

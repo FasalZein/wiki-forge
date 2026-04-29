@@ -5,10 +5,9 @@ import { join } from "node:path";
 
 const expectedExports = [
   "checkpoint",
-  "closeoutProject",
   "collectCheckpoint",
-  "collectCloseout",
-  "collectGate",
+  "collectReadinessCheck",
+  "collectReadinessReview",
   "collectMaintenancePlan",
   "collapseActions",
   "commitCheck",
@@ -17,7 +16,7 @@ const expectedExports = [
   "discoverProject",
   "doctorProject",
   "driftCheck",
-  "gateProject",
+  "readinessCheckProject",
   "ingestDiff",
   "installGitHook",
   "isTestFile",
@@ -25,6 +24,7 @@ const expectedExports = [
   "maintainProject",
   "refreshFromGit",
   "refreshOnMerge",
+  "readinessReviewProject",
   "refreshProject",
   "syncProject",
 ].sort();

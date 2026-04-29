@@ -7,11 +7,11 @@ import { resolveRepoPath, assertGitRepo } from "../../lib/verification";
 import { parseProjectRepoBaseArgs, resolveBaseRevision } from "../../git-utils";
 import { isTestFile } from "../health";
 import { collectDoctor, compactDoctorForJson } from "../doctor";
-import { collectCloseout } from "./index";
-import { collectSliceLocalContext, fileMatchesSliceClaims, readSliceHub } from "../../slice/docs";
+import { collectReadinessReview } from "./review";
+import { collectSliceLocalContext, fileMatchesSliceClaims, readSliceHub } from "../../wiki/slices";
 import { collectSliceOwnershipMap } from "../../forge/core/ownership-map";
 
-export async function gateProject(args: string[]) {
+export async function readinessCheckProject(args: string[]) {
   const { project, repo, base, baseFallbackNote } = await parseProjectRepoBaseArgs(args, {
     fallbackToHeadIfUnresolvable: true,
     fallbackLabel: "gate",
@@ -22,7 +22,7 @@ export async function gateProject(args: string[]) {
   const sliceLocal = args.includes("--slice-local");
   const sliceId = readFlagValue(args, "--slice-id");
   if (baseFallbackNote) printError(baseFallbackNote);
-  const result = await collectGate(project, base, repo, { structuralRefactor, worktree, sliceLocal, sliceId });
+  const result = await collectReadinessCheck(project, base, repo, { structuralRefactor, worktree, sliceLocal, sliceId });
   if (json) {
     printJson({ ...result, doctor: compactDoctorForJson(result.doctor) });
   } else {
@@ -49,8 +49,8 @@ export async function gateProject(args: string[]) {
   if (!result.ok) throw new Error(`gate failed for ${project}`);
 }
 
-export async function collectGate(project: string, base: string, explicitRepo?: string, options: { structuralRefactor?: boolean; worktree?: boolean; precomputedCloseout?: Awaited<ReturnType<typeof collectCloseout>>; sliceLocal?: boolean; sliceId?: string } = {}) {
-  const doctor = await collectDoctor(project, base, explicitRepo, { worktree: options.worktree, precomputedRefreshFromGit: options.precomputedCloseout?.refreshFromGit });
+export async function collectReadinessCheck(project: string, base: string, explicitRepo?: string, options: { structuralRefactor?: boolean; worktree?: boolean; precomputedReview?: Awaited<ReturnType<typeof collectReadinessReview>>; sliceLocal?: boolean; sliceId?: string } = {}) {
+  const doctor = await collectDoctor(project, base, explicitRepo, { worktree: options.worktree, precomputedRefreshFromGit: options.precomputedReview?.refreshFromGit });
   const repo = await resolveRepoPath(project, explicitRepo);
   await assertGitRepo(repo);
   const findings: DiagnosticFinding[] = [];
@@ -98,17 +98,17 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
       });
     }
   }
-  let closeout;
-  if (options.precomputedCloseout) {
-    closeout = options.precomputedCloseout;
+  let review;
+  if (options.precomputedReview) {
+    review = options.precomputedReview;
   } else if (options.worktree) {
-    closeout = await collectCloseout(project, base, explicitRepo, undefined, undefined, { worktree: true, sliceLocal: options.sliceLocal, sliceId: options.sliceId });
+    review = await collectReadinessReview(project, base, explicitRepo, undefined, undefined, { worktree: true, sliceLocal: options.sliceLocal, sliceId: options.sliceId });
   } else {
-    closeout = null;
+    review = null;
   }
-  if (closeout?.staleImpactedPages.length && !options.sliceLocal) findings.push({ scope: "slice", severity: "blocker", message: `${closeout.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted` });
-  if (closeout && options.sliceLocal) {
-    for (const finding of closeout.findings.filter((finding) => finding.scope !== "slice" || finding.severity !== "blocker")) {
+  if (review?.staleImpactedPages.length && !options.sliceLocal) findings.push({ scope: "slice", severity: "blocker", message: `${review.staleImpactedPages.length} impacted page(s) are stale or otherwise drifted` });
+  if (review && options.sliceLocal) {
+    for (const finding of review.findings.filter((finding) => finding.scope !== "slice" || finding.severity !== "blocker")) {
       findings.push(finding);
     }
   }
@@ -163,7 +163,7 @@ export async function collectGate(project: string, base: string, explicitRepo?: 
       repoDocs: doctor.counts.repoDocs,
     },
     doctor,
-    ...(closeout ? { closeout } : {}),
+    ...(review ? { review } : {}),
     ...(structuralRefactor ? { structuralRefactor } : {}),
   };
 }

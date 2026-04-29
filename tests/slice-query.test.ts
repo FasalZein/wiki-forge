@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { isHistoricalDoneSlicePage } from "../src/slice/docs";
+import { isHistoricalDoneSlicePage } from "../src/wiki/slices";
 
 describe("slice-query", () => {
   test("returns true for a done slice page under specs/slices/", () => {

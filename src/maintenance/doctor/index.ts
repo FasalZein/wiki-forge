@@ -3,7 +3,7 @@ import { collectBacklog } from "../../hierarchy";
 import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "../../verification";
 import type { LintingSnapshot } from "../../verification";
 import { parseProjectRepoBaseArgs } from "../../git-utils";
-import { readSliceSummary } from "../../slice/docs";
+import { readSliceSummary } from "../../wiki/slices";
 import { printError, printJson, printLine } from "../../lib/cli-output";
 import {
   loadProjectSnapshot,
@@ -12,7 +12,7 @@ import {
   type ProjectSnapshot,
 } from "../shared";
 import { collectDriftSummary } from "../drift";
-import { collectMaintenancePlan } from "../closeout/maintain";
+import { collectMaintenancePlan } from "../readiness/plan";
 
 export async function doctorProject(args: string[]) {
   const { project, repo, base, baseFallbackNote } = await parseProjectRepoBaseArgs(args, {

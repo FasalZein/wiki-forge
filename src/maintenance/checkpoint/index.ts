@@ -6,7 +6,7 @@ import { parseProjectRepoArgs, bindingMatchesFile, gitChangedFiles } from "../..
 import { readFlagValue } from "../../lib/cli-utils";
 import { collectGitTruth, formatGitTruthSummary } from "../../forge/core/git-truth";
 import { parseUpdatedDate } from "../../lib/verification";
-import { classifySliceLocalPageScope, collectSliceLocalContext, readSliceSourcePaths } from "../../slice/docs";
+import { classifySliceLocalPageScope, collectSliceLocalContext, readSliceSourcePaths } from "../../wiki/slices";
 import { classifyFreshnessChurn } from "../freshness-classifier";
 import { loadProjectSnapshot } from "../shared";
 import { printJson, printLine } from "../../lib/cli-output";

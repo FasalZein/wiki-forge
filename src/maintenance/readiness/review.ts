@@ -3,7 +3,7 @@ import { classifyDiagnosticFindings, formatDiagnosticFindingLines, isHardDiagnos
 import { readFlagValue } from "../../lib/cli-utils";
 import { collectLintResult, collectSemanticLintResult } from "../../verification";
 import type { LintingSnapshot } from "../../verification";
-import { classifySliceLocalPageScope, collectSliceLocalContext, fileMatchesSliceClaims } from "../../slice/docs";
+import { classifySliceLocalPageScope, collectSliceLocalContext, fileMatchesSliceClaims } from "../../wiki/slices";
 import { collectSliceOwnershipMap, type SliceOwnershipMap } from "../../forge/core/ownership-map";
 import { collectGitTruth } from "../../forge/core/git-truth";
 import { collectClosureAttestation } from "../../forge/core/closure-attestation";
@@ -19,9 +19,9 @@ import {
   type WorktreeImpactedPage,
 } from "../shared";
 import { collectDriftSummary } from "../drift";
-import { autoRefreshIndex } from "./maintain";
+import { autoRefreshIndex } from "./plan";
 
-export async function closeoutProject(args: string[]) {
+export async function readinessReviewProject(args: string[]) {
   const options = await parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
   const verbose = args.includes("--verbose");
@@ -30,10 +30,10 @@ export async function closeoutProject(args: string[]) {
   const sliceLocal = args.includes("--slice-local");
   const sliceId = readFlagValue(args, "--slice-id");
   const indexRefresh = await autoRefreshIndex(options.project, { dryRun });
-  const result = await collectCloseout(options.project, options.base, options.repo, undefined, undefined, { worktree, sliceLocal, sliceId });
-  if (json) printJson({ ...compactCloseoutForJson(result), indexRefresh });
+  const result = await collectReadinessReview(options.project, options.base, options.repo, undefined, undefined, { worktree, sliceLocal, sliceId });
+  if (json) printJson({ ...compactReadinessReviewForJson(result), indexRefresh });
   else {
-    renderCloseout(result, verbose);
+    renderReadinessReview(result, verbose);
     if (indexRefresh.stale.length) {
       printLine(dryRun
         ? `- index refresh: ${indexRefresh.stale.length} stale (dry-run; skipped)`
@@ -43,7 +43,7 @@ export async function closeoutProject(args: string[]) {
   if (!result.ok) throw new Error(`closeout failed for ${options.project}`);
 }
 
-export async function collectCloseout(project: string, base: string, explicitRepo?: string, snapshot?: ProjectSnapshot, lintingSnapshot?: LintingSnapshot, options: RefreshOptions & { sliceLocal?: boolean; sliceId?: string } = {}) {
+export async function collectReadinessReview(project: string, base: string, explicitRepo?: string, snapshot?: ProjectSnapshot, lintingSnapshot?: LintingSnapshot, options: RefreshOptions & { sliceLocal?: boolean; sliceId?: string } = {}) {
   const projectSnapshot = snapshot ?? await loadProjectSnapshot(project, explicitRepo, { includeRepoInventory: true });
   const lintingState = lintingSnapshot ?? projectSnapshotToLintingSnapshot(projectSnapshot);
   const refreshFromGit = options.worktree
@@ -164,7 +164,7 @@ export async function collectCloseout(project: string, base: string, explicitRep
   };
 }
 
-export function compactCloseoutForJson(result: Awaited<ReturnType<typeof collectCloseout>>) {
+export function compactReadinessReviewForJson(result: Awaited<ReturnType<typeof collectReadinessReview>>) {
   const MAX_DRIFT_ROWS = 30;
   const driftedRows = result.drift.results.filter((row) => row.status !== "fresh");
   const truncatedDrift = driftedRows.length > MAX_DRIFT_ROWS;
@@ -219,7 +219,7 @@ function pushScopedStalePageFindings(
   if (projectCount > 0) findings.push({ scope: "project", severity: "warning", message: `${projectCount} impacted project page(s) are stale or otherwise drifted` });
 }
 
-export function renderCloseout(result: Awaited<ReturnType<typeof collectCloseout>>, verbose: boolean) {
+export function renderReadinessReview(result: Awaited<ReturnType<typeof collectReadinessReview>>, verbose: boolean) {
   const hasWork = result.staleImpactedPages.length > 0 || result.nextSteps.length > 0;
   const statusLabel = !result.ok
     ? "FAIL (blockers found)"

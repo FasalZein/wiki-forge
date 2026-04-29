@@ -12,7 +12,7 @@ import { collectChangedTestHealth, isCodeFile } from "../health";
 import type { LintingSnapshot } from "../../verification";
 import type { MaintenanceAction } from "./diagnostics";
 import { createCascadeRefreshAction, filesChangedSinceVerification, verifiedCommitExists } from "./cascade-refresh";
-import { isHistoricalDoneSlicePage } from "../../slice/docs";
+import { isHistoricalDoneSlicePage } from "../../wiki/slices";
 
 export type ProjectSnapshot = {
   project: string;
