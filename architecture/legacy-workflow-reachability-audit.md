@@ -39,7 +39,7 @@ These legacy behaviors should be deleted or kept only as admin/read helpers. The
 
 ### Delete candidates after reachability tests pass
 
-- `src/slice/forge/**` command handlers and legacy orchestration. ⏳ compatibility wrapper remains; dead legacy plan mutators deleted
+- `src/slice/forge/**` command handlers and legacy orchestration. ✅ public runtime now routes through stable `wiki forge ...`; public `wiki v1 ...` compatibility namespace deleted
 - `src/slice/pipeline/**` runtime pipeline state machine. ✅ deleted
 - `src/slice/lifecycle/**` start/close commands. ✅ legacy close command deleted; start command adapter removed, core remains temporarily for legacy forge/pipeline deletion
 - `src/slice/coordination/**` claim commands. ✅ deleted

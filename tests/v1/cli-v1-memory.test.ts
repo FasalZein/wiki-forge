@@ -14,10 +14,8 @@ function createVault() {
 
 describe("V1 Wiki memory note/log commands", () => {
   test("top-level note and log route to V1 typed memory", () => {
-    expect(resolveWikiCommand(["note", "demo", "remember", "this"]).command).toBe("v1:note");
-    expect(resolveWikiCommand(["v1", "note", "demo", "remember", "this"]).command).toBe("v1:note");
-    expect(resolveWikiCommand(["log", "append", "demo", "decision", "Keep it simple"]).command).toBe("v1:log");
-    expect(resolveWikiCommand(["v1", "log", "append", "demo", "decision", "Keep it simple"]).command).toBe("v1:log");
+    expect(resolveWikiCommand(["note", "demo", "remember", "this"]).command).toBe("note");
+    expect(resolveWikiCommand(["log", "append", "demo", "decision", "Keep it simple"]).command).toBe("log");
   });
 
   test("note writes a typed project memory record without lifecycle fields", () => {

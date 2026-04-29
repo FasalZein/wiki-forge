@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
+import { resolveForgeCommand } from "../../src/forge";
 import { resolveWikiCommand } from "../../src/wiki";
 import { projectDocumentsToForgeNext } from "../../src/v1/vault/load-project";
 
@@ -24,35 +25,16 @@ status: ${status}
   return vault;
 }
 
-describe("v1 CLI command surface", () => {
-  test("resolver maps wiki v1 forge and compat commands without changing legacy forge routing", () => {
-    expect(resolveWikiCommand(["v1", "forge", "next", "demo"])).toEqual({
-      command: "v1:forge:next",
-      args: ["demo"],
-    });
-    expect(resolveWikiCommand(["v1", "forge", "status", "demo", "--json"])).toEqual({
-      command: "v1:forge:status",
-      args: ["demo", "--json"],
-    });
-    expect(resolveWikiCommand(["v1", "forge", "plan", "demo", "feature"])).toEqual({
-      command: "v1:forge:plan",
-      args: ["demo", "feature"],
-    });
-    expect(resolveWikiCommand(["v1", "forge", "amend", "demo", "DEMO-001", "--reason", "bug"])).toEqual({
-      command: "v1:forge:amend",
-      args: ["demo", "DEMO-001", "--reason", "bug"],
-    });
-    expect(resolveWikiCommand(["v1", "compat", "wiki", "forge", "next"])).toEqual({
-      command: "v1:compat",
-      args: ["wiki", "forge", "next"],
-    });
-    expect(resolveWikiCommand(["forge", "next", "demo"])).toEqual({
-      command: "forge",
-      args: ["next", "demo"],
-    });
+describe("stable CLI command surface", () => {
+  test("resolver maps stable forge and wiki commands without public v1 aliases", () => {
+    expect(resolveForgeCommand(["next", "demo"])).toEqual({ command: "forge:next", args: ["demo"] });
+    expect(resolveForgeCommand(["status", "demo", "--json"])).toEqual({ command: "forge:status", args: ["demo", "--json"] });
+    expect(resolveForgeCommand(["plan", "demo", "feature"])).toEqual({ command: "forge:plan", args: ["demo", "feature"] });
+    expect(resolveForgeCommand(["amend", "demo", "DEMO-001", "--reason", "bug"])).toEqual({ command: "forge:amend", args: ["demo", "DEMO-001", "--reason", "bug"] });
+    expect(resolveWikiCommand(["v1", "forge", "next", "demo"])).toEqual({ command: "v1", args: ["forge", "next", "demo"] });
   });
 
-  test("project documents adapt to V1 forge next projection", () => {
+  test("project documents adapt to Forge next projection", () => {
     const projection = projectDocumentsToForgeNext("demo", [
       {
         path: "projects/demo/forge/slices/DEMO-001/index.md",
@@ -79,7 +61,7 @@ status: ready
 
   test("wiki forge next renders parseable JSON from the vault", () => {
     const vault = createVaultWithSlice("ready");
-    const result = runWiki(["v1", "forge", "next", "demo", "--json"], { vault });
+    const result = runWiki(["forge", "next", "demo", "--json"], { vault });
 
     expect(result.exitCode).toBe(0);
     expect(result.json()).toEqual({
@@ -91,16 +73,11 @@ status: ready
     });
   });
 
-  test("wiki v1 compat reports V1 ownership for implemented commands", () => {
+  test("public v1 compatibility namespace is removed", () => {
     const vault = createVaultWithSlice("done");
     const result = runWiki(["v1", "compat", "wiki", "forge", "next", "--json"], { vault });
 
-    expect(result.exitCode).toBe(0);
-    expect(result.json()).toEqual({
-      command: "wiki forge next",
-      status: "v1-owned",
-      replacement: "wiki forge next",
-      reason: "Forge-owned command; no legacy fallback",
-    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr.toString()).toContain("Unknown command: v1");
   });
 });

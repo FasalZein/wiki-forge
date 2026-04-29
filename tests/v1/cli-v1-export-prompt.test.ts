@@ -20,8 +20,7 @@ function createVault() {
 
 describe("V1 export prompt", () => {
   test("top-level export-prompt routes to V1 prompt packet", () => {
-    expect(resolveWikiCommand(["export-prompt", "demo"]).command).toBe("v1:export-prompt");
-    expect(resolveWikiCommand(["v1", "export-prompt", "demo"]).command).toBe("v1:export-prompt");
+    expect(resolveWikiCommand(["export-prompt", "demo"]).command).toBe("export-prompt");
   });
 
   test("renders a copy/paste prompt packet from V1 handover and Forge status", () => {

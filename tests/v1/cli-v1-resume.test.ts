@@ -22,8 +22,7 @@ function createVault() {
 
 describe("V1 resume", () => {
   test("top-level resume routes to V1 resume instead of legacy session resume", () => {
-    expect(resolveWikiCommand(["resume", "demo"]).command).toBe("v1:resume");
-    expect(resolveWikiCommand(["v1", "resume", "demo"]).command).toBe("v1:resume");
+    expect(resolveWikiCommand(["resume", "demo"]).command).toBe("resume");
   });
 
   test("returns latest typed handover and forge status without repo/base requirements", () => {

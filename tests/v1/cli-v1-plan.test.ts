@@ -3,9 +3,8 @@ import matter from "gray-matter";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
-import { describeLegacyCommand } from "../../src/v1/cli/legacy-compat";
 import { shouldUseForgePlan } from "../../src/forge/cutover";
-import { resolveWikiCommand } from "../../src/wiki";
+import { resolveForgeCommand } from "../../src/forge";
 
 afterEach(() => cleanupTempPaths());
 
@@ -14,7 +13,7 @@ describe("V1 forge plan", () => {
     const vault = tempDir("wiki-v1-plan-vault");
     initVault(vault);
 
-    const result = runWiki(["v1", "forge", "plan", "demo", "safer deployment flow", "--json"], { vault });
+    const result = runWiki(["forge", "plan", "demo", "safer deployment flow", "--json"], { vault });
 
     expect(result.exitCode).toBe(1);
     expect(result.json()).toMatchObject({
@@ -75,21 +74,21 @@ describe("V1 forge plan", () => {
     const vault = tempDir("wiki-v1-plan-session-vault");
     initVault(vault);
 
-    const torpathy = runWiki(["v1", "forge", "plan", "demo", "safer deploy", "--answer", "torpathy-boundary", "--skill", "torpathy", "--response", "Runtime contract owns the gate", "--json"], { vault });
+    const torpathy = runWiki(["forge", "plan", "demo", "safer deploy", "--answer", "torpathy-boundary", "--skill", "torpathy", "--response", "Runtime contract owns the gate", "--json"], { vault });
     expect(torpathy.exitCode).toBe(0);
     expect(torpathy.json()).toMatchObject({ status: "recorded", session: { status: "draft", answers: [{ skill: "torpathy" }] } });
 
-    expect(runWiki(["v1", "forge", "plan", "demo", "safer deploy", "--answer", "domain-language", "--skill", "domain-model", "--response", "Planning session is canonical lifecycle input", "--json"], { vault }).exitCode).toBe(0);
-    expect(runWiki(["v1", "forge", "plan", "demo", "safer deploy", "--prd", "Deployment safety PRD", "--json"], { vault }).exitCode).toBe(0);
+    expect(runWiki(["forge", "plan", "demo", "safer deploy", "--answer", "domain-language", "--skill", "domain-model", "--response", "Planning session is canonical lifecycle input", "--json"], { vault }).exitCode).toBe(0);
+    expect(runWiki(["forge", "plan", "demo", "safer deploy", "--prd", "Deployment safety PRD", "--json"], { vault }).exitCode).toBe(0);
 
-    const incomplete = runWiki(["v1", "forge", "plan", "demo", "safer deploy", "--complete-session", "--json"], { vault });
+    const incomplete = runWiki(["forge", "plan", "demo", "safer deploy", "--complete-session", "--json"], { vault });
     expect(incomplete.exitCode).toBe(1);
     expect(incomplete.json()).toMatchObject({ status: "blocked", missing: ["prd-grill:Deployment safety PRD", "slice-breakdown:Deployment safety PRD"] });
 
-    expect(runWiki(["v1", "forge", "plan", "demo", "safer deploy", "--answer", "grill-deploy", "--skill", "grill-me", "--prd", "Deployment safety PRD", "--response", "Scope is only the first deployment gate", "--json"], { vault }).exitCode).toBe(0);
-    expect(runWiki(["v1", "forge", "plan", "demo", "safer deploy", "--prd", "Deployment safety PRD", "--slice", "Block unsafe deploy until checks pass", "--json"], { vault }).exitCode).toBe(0);
+    expect(runWiki(["forge", "plan", "demo", "safer deploy", "--answer", "grill-deploy", "--skill", "grill-me", "--prd", "Deployment safety PRD", "--response", "Scope is only the first deployment gate", "--json"], { vault }).exitCode).toBe(0);
+    expect(runWiki(["forge", "plan", "demo", "safer deploy", "--prd", "Deployment safety PRD", "--slice", "Block unsafe deploy until checks pass", "--json"], { vault }).exitCode).toBe(0);
 
-    const complete = runWiki(["v1", "forge", "plan", "demo", "safer deploy", "--complete-session", "--json"], { vault });
+    const complete = runWiki(["forge", "plan", "demo", "safer deploy", "--complete-session", "--json"], { vault });
     expect(complete.exitCode).toBe(0);
     expect(complete.json()).toMatchObject({ status: "ready-for-artifacts", session: { status: "ready-for-artifacts" } });
 
@@ -103,7 +102,7 @@ describe("V1 forge plan", () => {
     const vault = tempDir("wiki-v1-plan-artifacts-vault");
     initVault(vault);
 
-    const base = ["v1", "forge", "plan", "demo", "safer deploy"];
+    const base = ["forge", "plan", "demo", "safer deploy"];
     expect(runWiki([...base, "--answer", "torpathy-boundary", "--skill", "torpathy", "--response", "Runtime contract owns the gate"], { vault }).exitCode).toBe(0);
     expect(runWiki([...base, "--answer", "domain-language", "--skill", "domain-model", "--response", "Planning session is canonical lifecycle input"], { vault }).exitCode).toBe(0);
     expect(runWiki([...base, "--prd", "Deployment safety PRD"], { vault }).exitCode).toBe(0);
@@ -149,16 +148,10 @@ describe("V1 forge plan", () => {
   });
 
   test("resolver and compatibility metadata declare V1 ownership", () => {
-    expect(resolveWikiCommand(["v1", "forge", "plan", "demo", "feature"])).toEqual({
-      command: "v1:forge:plan",
+    expect(resolveForgeCommand(["plan", "demo", "feature"])).toEqual({
+      command: "forge:plan",
       args: ["demo", "feature"],
     });
     expect(shouldUseForgePlan(["demo", "feature", "--legacy"])).toBe(true);
-    expect(describeLegacyCommand("wiki forge plan")).toEqual({
-      command: "wiki forge plan",
-      status: "v1-owned",
-      replacement: "wiki forge plan",
-      reason: "Forge-owned command; no legacy fallback",
-    });
   });
 });

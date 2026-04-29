@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import matter from "gray-matter";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
-import { resolveWikiCommand } from "../../src/wiki";
+import { resolveForgeCommand } from "../../src/forge";
 
 const sliceId = "DEMO-001";
 
@@ -35,19 +35,19 @@ function evidence(vault: string) {
 
 describe("v1 evidence/review command adapters", () => {
   test("resolver maps v1 evidence and review commands", () => {
-    expect(resolveWikiCommand(["v1", "forge", "evidence", "demo", sliceId, "tdd"])).toEqual({
-      command: "v1:forge:evidence",
+    expect(resolveForgeCommand(["evidence", "demo", sliceId, "tdd"])).toEqual({
+      command: "forge:evidence",
       args: ["demo", sliceId, "tdd"],
     });
-    expect(resolveWikiCommand(["v1", "forge", "review", "record", "demo", sliceId])).toEqual({
-      command: "v1:forge:review",
+    expect(resolveForgeCommand(["review", "record", "demo", sliceId])).toEqual({
+      command: "forge:review",
       args: ["record", "demo", sliceId],
     });
   });
 
   test("v1 tdd evidence appends a typed evidence record", () => {
     const vault = createVaultWithSlice();
-    const result = runWiki(["v1", "forge", "evidence", "demo", sliceId, "tdd", "--command", "bun test tests/v1/x.test.ts", "--result", "passed", "--json"], { vault });
+    const result = runWiki(["forge", "evidence", "demo", sliceId, "tdd", "--command", "bun test tests/v1/x.test.ts", "--result", "passed", "--json"], { vault });
 
     expect(result.exitCode).toBe(0);
     expect(result.json()).toMatchObject({ kind: "tdd", command: "bun test tests/v1/x.test.ts", result: "passed" });
@@ -58,7 +58,7 @@ describe("v1 evidence/review command adapters", () => {
 
   test("v1 targeted verification appends a typed verification record", () => {
     const vault = createVaultWithSlice();
-    const result = runWiki(["v1", "forge", "evidence", "demo", sliceId, "verification", "--command", "bun run check", "--verification-type", "targeted", "--result", "passed", "--json"], { vault });
+    const result = runWiki(["forge", "evidence", "demo", sliceId, "verification", "--command", "bun run check", "--verification-type", "targeted", "--result", "passed", "--json"], { vault });
 
     expect(result.exitCode).toBe(0);
     expect(result.json()).toMatchObject({ kind: "verification", verificationType: "targeted", command: "bun run check", result: "passed" });
@@ -69,7 +69,7 @@ describe("v1 evidence/review command adapters", () => {
 
   test("v1 review record appends typed review evidence without changing status", () => {
     const vault = createVaultWithSlice();
-    const result = runWiki(["v1", "forge", "review", "record", "demo", sliceId, "--verdict", "approved", "--reviewer", "reviewer", "--json"], { vault });
+    const result = runWiki(["forge", "review", "record", "demo", sliceId, "--verdict", "approved", "--reviewer", "reviewer", "--json"], { vault });
 
     expect(result.exitCode).toBe(0);
     expect(result.json()).toMatchObject({ kind: "review", reviewer: "reviewer", verdict: "approved" });

@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import matter from "gray-matter";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
-import { resolveWikiCommand } from "../../src/wiki";
+import { resolveForgeCommand } from "../../src/forge";
 import { shouldUseForgeCheck } from "../../src/forge/cutover";
 
 const sliceId = "DEMO-001";
@@ -44,8 +44,8 @@ function sliceData(vault: string) {
 
 describe("v1 check command adapter", () => {
   test("resolver and cutover predicate keep implemented check on V1", () => {
-    expect(resolveWikiCommand(["v1", "forge", "check", "demo", sliceId, "--json"])).toEqual({
-      command: "v1:forge:check",
+    expect(resolveForgeCommand(["check", "demo", sliceId, "--json"])).toEqual({
+      command: "forge:check",
       args: ["demo", sliceId, "--json"],
     });
     expect(shouldUseForgeCheck(["demo", sliceId, "--json"])).toBe(true);
@@ -54,7 +54,7 @@ describe("v1 check command adapter", () => {
 
   test("v1 check accepts passing evidence without mutating status", () => {
     const vault = createVault(passingEvidence());
-    const result = runWiki(["v1", "forge", "check", "demo", sliceId, "--json"], { vault });
+    const result = runWiki(["forge", "check", "demo", sliceId, "--json"], { vault });
 
     expect(result.exitCode).toBe(0);
     expect(result.json()).toMatchObject({ status: "accepted" });
@@ -64,7 +64,7 @@ describe("v1 check command adapter", () => {
 
   test("v1 check rejects missing evidence without mutating status", () => {
     const vault = createVault([]);
-    const result = runWiki(["v1", "forge", "check", "demo", sliceId, "--json"], { vault });
+    const result = runWiki(["forge", "check", "demo", sliceId, "--json"], { vault });
 
     expect(result.exitCode).toBe(1);
     expect(result.json()).toMatchObject({

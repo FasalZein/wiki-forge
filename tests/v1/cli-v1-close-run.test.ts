@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import matter from "gray-matter";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
-import { resolveWikiCommand } from "../../src/wiki";
+import { resolveForgeCommand } from "../../src/forge";
 
 const sliceId = "DEMO-001";
 
@@ -43,12 +43,12 @@ function sliceData(vault: string) {
 
 describe("v1 close/run command adapters", () => {
   test("resolver maps v1 close and run", () => {
-    expect(resolveWikiCommand(["v1", "forge", "close", "demo", sliceId, "--closed-by", "codex"])).toEqual({
-      command: "v1:forge:close",
+    expect(resolveForgeCommand(["close", "demo", sliceId, "--closed-by", "codex"])).toEqual({
+      command: "forge:close",
       args: ["demo", sliceId, "--closed-by", "codex"],
     });
-    expect(resolveWikiCommand(["v1", "forge", "run", "demo", sliceId])).toEqual({
-      command: "v1:forge:run",
+    expect(resolveForgeCommand(["run", "demo", sliceId])).toEqual({
+      command: "forge:run",
       args: ["demo", sliceId],
     });
   });
@@ -56,7 +56,7 @@ describe("v1 close/run command adapters", () => {
   test("v1 close rejects missing evidence and does not mutate the slice", () => {
     const vault = createVaultWithEvidence([]);
     const before = readFileSync(join(vault, "projects", "demo", "forge", "slices", sliceId, "index.md"), "utf8");
-    const result = runWiki(["v1", "forge", "close", "demo", sliceId, "--closed-by", "codex", "--json"], { vault });
+    const result = runWiki(["forge", "close", "demo", sliceId, "--closed-by", "codex", "--json"], { vault });
 
     expect(result.exitCode).toBe(1);
     expect(result.json()).toMatchObject({
@@ -69,7 +69,7 @@ describe("v1 close/run command adapters", () => {
 
   test("v1 close accepts passing evidence and records closure fields", () => {
     const vault = createVaultWithEvidence(passingEvidence());
-    const result = runWiki(["v1", "forge", "close", "demo", sliceId, "--closed-by", "codex", "--json"], { vault });
+    const result = runWiki(["forge", "close", "demo", sliceId, "--closed-by", "codex", "--json"], { vault });
 
     expect(result.exitCode).toBe(0);
     expect(result.json()).toMatchObject({ status: "accepted" });
@@ -85,7 +85,7 @@ describe("v1 close/run command adapters", () => {
 
   test("v1 run uses close path for a fully verified active slice", () => {
     const vault = createVaultWithEvidence(passingEvidence());
-    const result = runWiki(["v1", "forge", "run", "demo", sliceId, "--agent", "codex", "--json"], { vault });
+    const result = runWiki(["forge", "run", "demo", sliceId, "--agent", "codex", "--json"], { vault });
 
     expect(result.exitCode).toBe(0);
     expect(result.json()).toMatchObject({ status: "accepted" });
@@ -94,7 +94,7 @@ describe("v1 close/run command adapters", () => {
 
   test("v1 project-level run resolves active slice and closes it", () => {
     const vault = createVaultWithEvidence(passingEvidence());
-    const result = runWiki(["v1", "forge", "run", "demo", "--agent", "codex", "--json"], { vault });
+    const result = runWiki(["forge", "run", "demo", "--agent", "codex", "--json"], { vault });
 
     expect(result.exitCode).toBe(0);
     expect(result.json()).toMatchObject({ status: "accepted" });

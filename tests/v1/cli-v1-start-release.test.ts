@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
-import { resolveWikiCommand } from "../../src/wiki";
+import { resolveForgeCommand } from "../../src/forge";
 
 afterEach(() => cleanupTempPaths());
 
@@ -31,19 +31,19 @@ function readSlice(vault: string, sliceId: string) {
 
 describe("v1 forge start/release command adapters", () => {
   test("resolver maps v1 mutating forge commands", () => {
-    expect(resolveWikiCommand(["v1", "forge", "start", "demo", "DEMO-001", "--agent", "codex"])).toEqual({
-      command: "v1:forge:start",
+    expect(resolveForgeCommand(["start", "demo", "DEMO-001", "--agent", "codex"])).toEqual({
+      command: "forge:start",
       args: ["demo", "DEMO-001", "--agent", "codex"],
     });
-    expect(resolveWikiCommand(["v1", "forge", "release", "demo", "DEMO-001", "--json"])).toEqual({
-      command: "v1:forge:release",
+    expect(resolveForgeCommand(["release", "demo", "DEMO-001", "--json"])).toEqual({
+      command: "forge:release",
       args: ["demo", "DEMO-001", "--json"],
     });
   });
 
   test("v1 start accepts a ready slice and writes claim metadata", () => {
     const vault = createVaultWithSlices([{ id: "DEMO-001", status: "ready" }]);
-    const result = runWiki(["v1", "forge", "start", "demo", "DEMO-001", "--agent", "codex", "--json"], { vault });
+    const result = runWiki(["forge", "start", "demo", "DEMO-001", "--agent", "codex", "--json"], { vault });
 
     expect(result.exitCode).toBe(0);
     expect(result.json()).toMatchObject({ status: "accepted" });
@@ -59,7 +59,7 @@ describe("v1 forge start/release command adapters", () => {
       { id: "DEMO-002", status: "ready" },
     ]);
     const before = readSlice(vault, "DEMO-002");
-    const result = runWiki(["v1", "forge", "start", "demo", "DEMO-002", "--agent", "codex", "--json"], { vault });
+    const result = runWiki(["forge", "start", "demo", "DEMO-002", "--agent", "codex", "--json"], { vault });
 
     expect(result.exitCode).toBe(1);
     expect(result.json()).toMatchObject({
@@ -71,7 +71,7 @@ describe("v1 forge start/release command adapters", () => {
 
   test("v1 release clears claim metadata and returns active slice to ready", () => {
     const vault = createVaultWithSlices([{ id: "DEMO-001", status: "in-progress", claimedBy: "codex" }]);
-    const result = runWiki(["v1", "forge", "release", "demo", "DEMO-001", "--json"], { vault });
+    const result = runWiki(["forge", "release", "demo", "DEMO-001", "--json"], { vault });
 
     expect(result.exitCode).toBe(0);
     expect(result.json()).toEqual({

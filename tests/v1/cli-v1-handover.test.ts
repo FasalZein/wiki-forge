@@ -14,8 +14,7 @@ function createVault() {
 
 describe("V1 typed handover command", () => {
   test("top-level handover routes to V1 typed handover instead of legacy session handover", () => {
-    expect(resolveWikiCommand(["handover", "demo"]).command).toBe("v1:handover");
-    expect(resolveWikiCommand(["v1", "handover", "demo"]).command).toBe("v1:handover");
+    expect(resolveWikiCommand(["handover", "demo"]).command).toBe("handover");
   });
 
   test("writes structured forge handover with copy/paste prompt", () => {

@@ -18,7 +18,7 @@ function createVaultWithReadySlice() {
 
 describe("V1 top-level next", () => {
   test("top-level next routes to V1 forge next instead of legacy session next", () => {
-    expect(resolveWikiCommand(["next", "demo"]).command).toBe("v1:forge:next");
+    expect(resolveWikiCommand(["next", "demo"]).command).toBe("next");
   });
 
   test("returns V1 forge projection and ignores legacy backlog projection", () => {

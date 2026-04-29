@@ -1,6 +1,5 @@
 import { printJson, printLine } from "../../lib/cli-output";
 import { requireValue } from "../../cli-shared";
-import { describeLegacyCommand } from "./legacy-compat";
 import { renderForgeNextJson, renderForgeNextText } from "../../forge/workflow/render-next";
 import { loadV1ProjectProjection, loadV1SliceStatus } from "../vault/load-project";
 import { amendV1Slice, checkV1SliceClose, closeV1Slice, releaseV1Slice, startV1Slice } from "../vault/slice-store";
@@ -213,19 +212,6 @@ export async function v1ForgeReview(args: string[]): Promise<void> {
   });
   if (json) printJson(record);
   else printLine(`recorded review evidence for ${sliceId}`);
-}
-
-export function v1Compat(args: string[]): void {
-  const json = args.includes("--json");
-  const command = args.filter((arg) => !arg.startsWith("--")).join(" ").trim();
-  requireValue(command, "legacy command");
-  const compatibility = describeLegacyCommand(command);
-  if (json) printJson(compatibility);
-  else {
-    printLine(`${compatibility.command}: ${compatibility.status}`);
-    if (compatibility.replacement) printLine(`replacement: ${compatibility.replacement}`);
-    printLine(`reason: ${compatibility.reason}`);
-  }
 }
 
 function parseEvidenceResult(value: string): "passed" | "failed" {

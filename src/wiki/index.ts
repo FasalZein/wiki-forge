@@ -27,7 +27,6 @@ import { cacheClear, lintProject, lintSemanticProject, verifyProject } from "../
 import { configCommand } from "../config";
 import { schemaCommand } from "../schema";
 import { assertCommandNotQuarantined } from "./runtime/command-surface";
-import { compatibilityCommand } from "./runtime/compat";
 
 export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   help: (args) => printHelp(args),
@@ -118,23 +117,6 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "close-prd": quarantinedCommand("close-prd"),
   config: (args) => configCommand(args),
   schema: (args) => schemaCommand(args),
-  "v1:forge:next": (args) => forgeNextCommand(args),
-  "v1:forge:status": (args) => forgeStatusCommand(args),
-  "v1:forge:plan": (args) => forgePlanCommand(args),
-  "v1:forge:start": (args) => forgeStartCommand(args),
-  "v1:forge:release": (args) => forgeReleaseCommand(args),
-  "v1:forge:amend": (args) => forgeAmendCommand(args),
-  "v1:forge:check": (args) => forgeCheckCommand(args),
-  "v1:forge:close": (args) => forgeCloseCommand(args),
-  "v1:forge:run": (args) => forgeRunCommand(args),
-  "v1:forge:evidence": (args) => forgeEvidenceCommand(args),
-  "v1:forge:review": (args) => forgeReviewCommand(args),
-  "v1:handover": (args) => handoverCommand(args),
-  "v1:resume": (args) => resumeCommand(args),
-  "v1:export-prompt": (args) => exportPromptCommand(args),
-  "v1:note": (args) => noteCommand(args),
-  "v1:log": (args) => logCommand(args),
-  "v1:compat": (args) => compatibilityCommand(args),
 };
 
 function quarantinedCommand(command: string): CommandHandler {
@@ -182,52 +164,11 @@ export function resolveWikiCommand(rawArgs: string[]) {
     return { command: mapped, args: subArgs };
   }
   assertCommandNotQuarantined(command);
-  if (command === "handover") return { command: "v1:handover", args: rest };
-  if (command === "resume") return { command: "v1:resume", args: rest };
-  if (command === "next") return { command: "v1:forge:next", args: rest };
-  if (command === "export-prompt") return { command: "v1:export-prompt", args: rest };
-  if (command === "note") return { command: "v1:note", args: rest };
-  if (command === "log") return { command: "v1:log", args: rest };
-  if (command === "v1") {
-    return resolveV1Command(rest);
-  }
+  if (command === "handover") return { command: "handover", args: rest };
+  if (command === "resume") return { command: "resume", args: rest };
+  if (command === "next") return { command: "next", args: rest };
+  if (command === "export-prompt") return { command: "export-prompt", args: rest };
+  if (command === "note") return { command: "note", args: rest };
+  if (command === "log") return { command: "log", args: rest };
   return { command, args: rest };
-}
-
-function resolveV1Command(rawArgs: string[]) {
-  const [area, subcommand, ...subArgs] = rawArgs;
-  if (!area || area === "help") throw new Error("missing v1 subcommand. Run 'wiki help' for usage.");
-  if (area === "forge") {
-    if (subcommand === "next") return { command: "v1:forge:next", args: subArgs };
-    if (subcommand === "status") return { command: "v1:forge:status", args: subArgs };
-    if (subcommand === "plan") return { command: "v1:forge:plan", args: subArgs };
-    if (subcommand === "start") return { command: "v1:forge:start", args: subArgs };
-    if (subcommand === "release") return { command: "v1:forge:release", args: subArgs };
-    if (subcommand === "amend") return { command: "v1:forge:amend", args: subArgs };
-    if (subcommand === "check") return { command: "v1:forge:check", args: subArgs };
-    if (subcommand === "close") return { command: "v1:forge:close", args: subArgs };
-    if (subcommand === "run") return { command: "v1:forge:run", args: subArgs };
-    if (subcommand === "evidence") return { command: "v1:forge:evidence", args: subArgs };
-    if (subcommand === "review") return { command: "v1:forge:review", args: subArgs };
-    throw new Error(`unknown v1 forge subcommand: ${subcommand ?? ""}. Run 'wiki help' for usage.`);
-  }
-  if (area === "resume") {
-    return { command: "v1:resume", args: [subcommand, ...subArgs].filter((arg): arg is string => Boolean(arg)) };
-  }
-  if (area === "handover") {
-    return { command: "v1:handover", args: [subcommand, ...subArgs].filter((arg): arg is string => Boolean(arg)) };
-  }
-  if (area === "export-prompt") {
-    return { command: "v1:export-prompt", args: [subcommand, ...subArgs].filter((arg): arg is string => Boolean(arg)) };
-  }
-  if (area === "note") {
-    return { command: "v1:note", args: [subcommand, ...subArgs].filter((arg): arg is string => Boolean(arg)) };
-  }
-  if (area === "log") {
-    return { command: "v1:log", args: [subcommand, ...subArgs].filter((arg): arg is string => Boolean(arg)) };
-  }
-  if (area === "compat") {
-    return { command: "v1:compat", args: [subcommand, ...subArgs].filter((arg): arg is string => Boolean(arg)) };
-  }
-  throw new Error(`unknown v1 subcommand: ${area}. Run 'wiki help' for usage.`);
 }

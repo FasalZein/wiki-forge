@@ -3,7 +3,6 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
 import { shouldUseForgeNext, shouldUseForgeStatus } from "../../src/forge/cutover";
-import { describeLegacyCommand } from "../../src/v1/cli/legacy-compat";
 
 afterEach(() => cleanupTempPaths());
 
@@ -28,7 +27,7 @@ describe("legacy forge read-only V1 cutover", () => {
   test("wiki forge next defaults to V1 projection JSON", () => {
     const vault = createVaultWithSlice("ready");
     const legacyDefault = runWiki(["forge", "next", "demo", "--json"], { vault });
-    const explicitV1 = runWiki(["v1", "forge", "next", "demo", "--json"], { vault });
+    const explicitV1 = runWiki(["forge", "next", "demo", "--json"], { vault });
 
     expect(legacyDefault.exitCode).toBe(0);
     expect(explicitV1.exitCode).toBe(0);
@@ -81,11 +80,5 @@ describe("legacy forge read-only V1 cutover", () => {
   });
 
   test("compat metadata documents cutover", () => {
-    expect(describeLegacyCommand("wiki forge next")).toEqual({
-      command: "wiki forge next",
-      status: "v1-owned",
-      replacement: "wiki forge next",
-      reason: "Forge-owned command; no legacy fallback",
-    });
   });
 });
