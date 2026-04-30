@@ -34,11 +34,6 @@ const TRANSITION_EXCEPTIONS = {
       reason: "Forge status still reads Wiki verification specs until verification evidence readers move behind a shared contract.",
     },
     {
-      importer: "src/forge/status/format.ts",
-      importee: "src/wiki/project-views/index.ts",
-      reason: "Forge status JSON still formats Wiki task context until project-view status contracts move behind a shared read model.",
-    },
-    {
       importer: "src/forge/status/index.ts",
       importee: "src/wiki/project-views/index.ts",
       reason: "Forge status still reads Wiki project-view context until project-view status contracts move behind a shared read model.",
@@ -47,26 +42,6 @@ const TRANSITION_EXCEPTIONS = {
       importer: "src/forge/status/index.ts",
       importee: "src/wiki/verification/index.ts",
       reason: "Forge status still extracts Wiki verification specs until verification evidence readers move behind a shared contract.",
-    },
-    {
-      importer: "src/forge/status/ledger.ts",
-      importee: "src/wiki/project-views/index.ts",
-      reason: "Forge status ledger still reads Wiki planning docs until planning document contracts move behind a shared read model.",
-    },
-    {
-      importer: "src/forge/status/triage.ts",
-      importee: "src/wiki/project-views/index.ts",
-      reason: "Forge status triage still uses Wiki backlog task context until triage input contracts move behind a shared read model.",
-    },
-    {
-      importer: "src/forge/steering/index.ts",
-      importee: "src/wiki/project-views/index.ts",
-      reason: "Forge steering still reads Wiki backlog focus until steering input contracts move behind a shared read model.",
-    },
-    {
-      importer: "src/forge/steering/triage.ts",
-      importee: "src/wiki/project-views/index.ts",
-      reason: "Forge steering triage still uses Wiki backlog task context until triage input contracts move behind a shared read model.",
     },
   ],
   wikiImportsForgeInternals: [

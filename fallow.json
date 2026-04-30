@@ -90,7 +90,7 @@
       },
       {
         "from": "forge-steering-transition",
-        "allow": ["shared", "lib", "forge", "forge-status-transition", "wiki"]
+        "allow": ["shared", "lib", "forge", "forge-status-transition"]
       },
       {
         "from": "forge-command-transition",

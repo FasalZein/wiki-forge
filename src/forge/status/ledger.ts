@@ -15,9 +15,9 @@ import {
 } from "./workflow-ledger";
 import { extractMarkdownSection, readMatterDoc, type MatterDoc } from "./evidence";
 import { applyDerivedLedger } from "./detect";
-import type { BacklogTaskContext } from "../../wiki/project-views";
+import type { ProjectTaskContext } from "../../shared/contracts/project-task-read-model";
 
-type TaskDocState = BacklogTaskContext["planStatus"];
+type TaskDocState = ProjectTaskContext["planStatus"];
 
 type ForgeDecisionRef = {
   ref: string;
@@ -36,7 +36,7 @@ type BuildAuthoredForgeStatusLedgerInput = {
   decisionRefs: ForgeDecisionRef[];
 };
 
-export function isSliceDocsReady(task: Pick<BacklogTaskContext, "planStatus" | "testPlanStatus"> | null | undefined) {
+export function isSliceDocsReady(task: Pick<ProjectTaskContext, "planStatus" | "testPlanStatus"> | null | undefined) {
   return task?.planStatus === "ready" && task.testPlanStatus === "ready";
 }
 

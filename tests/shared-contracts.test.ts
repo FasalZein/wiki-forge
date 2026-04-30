@@ -35,6 +35,17 @@ describe("shared contracts", () => {
     expect(rootConstants).not.toContain("export const VERIFICATION_LEVELS =");
     expect(rootConstants).toContain("./shared/verification/levels");
   });
+
+  test("project task read models are canonical shared contracts", () => {
+    const sharedProjectTaskReadModel = readRepoFile("src/shared/contracts/project-task-read-model.ts");
+    const wikiBacklogCollector = readRepoFile("src/wiki/project-views/backlog/collect.ts");
+    const forgeSteeringTriage = readRepoFile("src/forge/steering/triage.ts");
+
+    expect(sharedProjectTaskReadModel).toContain("export type ProjectTaskContext");
+    expect(sharedProjectTaskReadModel).toContain("export type ProjectBacklogFocus");
+    expect(wikiBacklogCollector).toContain("ProjectTaskContext");
+    expect(forgeSteeringTriage).toContain("../../shared/contracts/project-task-read-model");
+  });
 });
 
 function readRepoFile(path: string): string {

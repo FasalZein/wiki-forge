@@ -5,37 +5,14 @@ import { agentNamesEqual, readProjectAgents } from "../../../lib/agents";
 import { hasSliceDocScaffoldPlaceholders } from "../../../lib/slices/placeholders";
 import { backlogPathFor, readNormalizedText, parseBacklog } from "./io";
 import type { BacklogItem } from "./io";
+import type { ProjectBacklogFocus, ProjectTaskContext, ProjectTaskDocState } from "../../../shared/contracts/project-task-read-model";
 import { relative } from "node:path";
 import { VAULT_ROOT } from "../../../constants";
 import { readSliceSummary } from "../../slices";
 
-export type TaskDocState = "missing" | "incomplete" | "ready";
-export type BacklogTaskContext = {
-  id: string;
-  title: string;
-  section: string;
-  assignee: string | null;
-  sliceStatus: string | null;
-  completedAt: string | null;
-  canonicalCompletion: boolean;
-  taskHubPath?: string;
-  planPath?: string;
-  testPlanPath?: string;
-  hasSliceDocs: boolean;
-  planStatus: TaskDocState;
-  testPlanStatus: TaskDocState;
-  dependencies: string[];
-  blockedBy: string[];
-};
-export type BacklogFocus = {
-  project: string;
-  activeTask: BacklogTaskContext | null;
-  recommendedTask: BacklogTaskContext | null;
-  inProgress: BacklogItem[];
-  todo: BacklogItem[];
-  warnings: string[];
-  blocked: Array<{ id: string; blockedBy: string[] }>;
-};
+export type TaskDocState = ProjectTaskDocState;
+export type BacklogTaskContext = ProjectTaskContext;
+export type BacklogFocus = ProjectBacklogFocus;
 
 export async function collectBacklog(project: string) {
   const backlogPath = await backlogPathFor(project);

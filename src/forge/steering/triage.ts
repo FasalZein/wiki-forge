@@ -1,15 +1,15 @@
 import { TEST_VERIFIED_LEVEL } from "../../constants";
-import type { BacklogFocus, BacklogTaskContext } from "../../wiki/project-views";
+import type { ProjectBacklogFocus, ProjectTaskContext } from "../../shared/contracts/project-task-read-model";
 import { type ForgePhase } from "../status/workflow-ledger";
 import { phaseRecommendation } from "./phase-commands";
 import { type ForgeTriage } from "./triage-types";
 
 export type SteeringTaskRef =
-  | ({ id: string } & Partial<Pick<BacklogTaskContext, "planStatus" | "testPlanStatus" | "sliceStatus" | "section" | "canonicalCompletion">>)
+  | ({ id: string } & Partial<Pick<ProjectTaskContext, "planStatus" | "testPlanStatus" | "sliceStatus" | "section" | "canonicalCompletion">>)
   | null
   | undefined;
 
-export type WorkflowFocus = Pick<BacklogFocus, "activeTask" | "recommendedTask" | "warnings">;
+export type WorkflowFocus = Pick<ProjectBacklogFocus, "activeTask" | "recommendedTask" | "warnings">;
 
 export type FailedForgeHandoff = {
   lastForgeRun?: string;

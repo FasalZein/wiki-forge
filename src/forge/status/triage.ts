@@ -1,9 +1,9 @@
-import type { BacklogTaskContext } from "../../wiki/project-views";
+import type { ProjectTaskContext } from "../../shared/contracts/project-task-read-model";
 import { classifyWorkflowSteeringTriage } from "../steering/triage";
 import { type ForgePhase } from "./workflow-ledger";
 import { type ForgeTriage } from "../steering/triage-types";
 
-type TaskDocState = BacklogTaskContext["planStatus"];
+type TaskDocState = ProjectTaskContext["planStatus"];
 
 export type ForgeTriageInput = {
   activeSlice: string | null;

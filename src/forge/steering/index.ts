@@ -1,4 +1,4 @@
-import type { BacklogFocus, BacklogTaskContext } from "../../wiki/project-views";
+import type { ProjectBacklogFocus, ProjectTaskContext } from "../../shared/contracts/project-task-read-model";
 import { collectForgeStatus } from "../status";
 import {
   classifyWorkflowSteeringTriage,
@@ -11,8 +11,8 @@ import { buildForgeSteering } from "./packet";
 import { type ForgeTriage } from "./triage-types";
 
 export type WorkflowSteeringResolution = {
-  focus: Pick<BacklogFocus, "activeTask" | "recommendedTask" | "warnings">;
-  focusTask: BacklogTaskContext | null;
+  focus: Pick<ProjectBacklogFocus, "activeTask" | "recommendedTask" | "warnings">;
+  focusTask: ProjectTaskContext | null;
   active: boolean;
   workflow: Awaited<ReturnType<typeof collectForgeStatus>> | null;
   workflowNextPhase: ForgePhase | null;

@@ -3,7 +3,9 @@ import { VAULT_ROOT } from "../../../constants";
 import { assertExists, projectRoot } from "../../../cli-shared";
 import { readText } from "../../../lib/fs";
 
-export type BacklogItem = { raw: string; id: string; title: string };
+import type { ProjectBacklogItem } from "../../../shared/contracts/project-task-read-model";
+
+export type BacklogItem = ProjectBacklogItem;
 type ParsedBacklog = { intro: string[]; sections: Record<string, BacklogItem[]>; extras: Record<string, string[]>; order: string[] };
 
 const BACKLOG_SECTIONS = ["In Progress", "Todo", "Backlog", "Done", "Cancelled"] as const;

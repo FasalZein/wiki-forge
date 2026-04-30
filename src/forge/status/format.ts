@@ -1,8 +1,8 @@
-import type { BacklogTaskContext } from "../../wiki/project-views";
+import type { ProjectTaskContext } from "../../shared/contracts/project-task-read-model";
 import { normalizeForgeLedger, type ForgeWorkflowLedger, type ForgeWorkflowValidation } from "./workflow-ledger";
 
 type CompactableForgeStatus = {
-  context: BacklogTaskContext | null;
+  context: ProjectTaskContext | null;
   workflow: {
     ledger: Partial<ForgeWorkflowLedger>;
     validation: ForgeWorkflowValidation;
