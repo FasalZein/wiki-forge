@@ -1,4 +1,4 @@
-import type { CommandHandler } from "../types";
+import type { CommandHandler } from "../shared/contracts/command";
 import {
   forgeAmendCommand,
   forgeCheckCommand,

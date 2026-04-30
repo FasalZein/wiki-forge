@@ -1,7 +1,6 @@
 import type { VerificationLevel } from "./constants";
-
-export type CommandHandler = (args: string[]) => Promise<void> | void;
-export type FrontmatterData = Record<string, unknown>;
+export type { CommandHandler } from "./shared/contracts/command";
+export type { FrontmatterData } from "./shared/contracts/frontmatter";
 
 export type NoteQualitySignals = {
   verificationLevel?: string;

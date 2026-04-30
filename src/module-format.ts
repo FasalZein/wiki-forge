@@ -3,7 +3,8 @@ import { dirname, join } from "node:path";
 import { MODULE_REQUIRED_HEADINGS } from "./constants";
 import { extractWikilinks as extractWikilinksAst } from "./lib/markdown-ast";
 import { isNonMarkdownAttachment, normalizePath, stripMarkdownExtension } from "./lib/notes";
-import type { FrontmatterData, NoteIndex, NoteInfo } from "./types";
+import type { FrontmatterData } from "./shared/contracts/frontmatter";
+import type { NoteIndex, NoteInfo } from "./types";
 import { findTableSpacingProblems } from "./cli-shared";
 
 const headingSlugger = new GithubSlugger();

@@ -1,4 +1,4 @@
-import type { CommandHandler } from "../types"; // desloppify:ignore *
+import type { CommandHandler } from "../shared/contracts/command"; // desloppify:ignore *
 import { printHelp } from "../cli-shared";
 import { dependencyGraph } from "./project-views/dependency-graph";
 import { featureStatusCommand } from "./project-views/feature-status";

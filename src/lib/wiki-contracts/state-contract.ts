@@ -1,4 +1,4 @@
-import type { FrontmatterData } from "../../types";
+import type { FrontmatterData } from "../../shared/contracts/frontmatter";
 
 export const STATE_FIELD_AUTHORITIES = ["authored", "computed", "evidence"] as const;
 export type StateFieldAuthority = (typeof STATE_FIELD_AUTHORITIES)[number];

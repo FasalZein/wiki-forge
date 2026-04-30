@@ -1,6 +1,6 @@
 import { join, resolve } from "node:path";
 import { homedir } from "node:os";
-import type { FrontmatterData } from "../types";
+import type { FrontmatterData } from "../shared/contracts/frontmatter";
 import { safeMatter, projectRoot, assertExists } from "../cli-shared";
 import { VERIFICATION_LEVELS, type VerificationLevel } from "../constants";
 import { exists, readText } from "./fs";
