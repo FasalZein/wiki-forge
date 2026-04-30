@@ -1,0 +1,117 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": [
+    "src/index.ts",
+    "scripts/*.ts"
+  ],
+  "ignorePatterns": [
+    "dist/**",
+    "coverage/**",
+    "experiments/**",
+    "node_modules/**"
+  ],
+  "rules": {
+    "boundary-violation": "error"
+  },
+  "boundaries": {
+    "zones": [
+      {
+        "name": "forge-status-transition",
+        "patterns": ["src/forge/status/**"]
+      },
+      {
+        "name": "forge-command-transition",
+        "patterns": ["src/forge/workflow/commands.ts"]
+      },
+      {
+        "name": "forge-core-transition",
+        "patterns": ["src/forge/core/closure-attestation.ts"]
+      },
+      {
+        "name": "wiki-router-transition",
+        "patterns": ["src/wiki/index.ts"]
+      },
+      {
+        "name": "wiki-forge-transition",
+        "patterns": [
+          "src/wiki/memory/handover/store.ts",
+          "src/wiki/memory/projections/amend.ts",
+          "src/wiki/memory/projections/resume.ts",
+          "src/wiki/memory/prompt-packet.ts",
+          "src/wiki/memory/session-commands.ts",
+          "src/wiki/research/adopt.ts"
+        ]
+      },
+      {
+        "name": "wiki",
+        "patterns": ["src/wiki/**"]
+      },
+      {
+        "name": "forge",
+        "patterns": ["src/forge/**"]
+      },
+      {
+        "name": "shared",
+        "patterns": ["src/shared/**"]
+      },
+      {
+        "name": "lib",
+        "patterns": ["src/lib/**"]
+      },
+      {
+        "name": "protocol-transition",
+        "patterns": ["src/protocol/**"]
+      },
+      {
+        "name": "maintenance-transition",
+        "patterns": ["src/maintenance/**"]
+      }
+    ],
+    "rules": [
+      {
+        "from": "shared",
+        "allow": ["lib"]
+      },
+      {
+        "from": "lib",
+        "allow": ["shared"]
+      },
+      {
+        "from": "forge",
+        "allow": ["shared", "lib", "protocol-transition", "forge-command-transition", "forge-core-transition"]
+      },
+      {
+        "from": "wiki",
+        "allow": ["shared", "lib", "protocol-transition", "maintenance-transition", "wiki-forge-transition"]
+      },
+      {
+        "from": "forge-status-transition",
+        "allow": ["shared", "lib", "forge", "wiki", "protocol-transition"]
+      },
+      {
+        "from": "forge-command-transition",
+        "allow": ["shared", "lib", "forge", "wiki", "wiki-forge-transition", "protocol-transition", "maintenance-transition"]
+      },
+      {
+        "from": "forge-core-transition",
+        "allow": ["shared", "lib", "forge", "maintenance-transition"]
+      },
+      {
+        "from": "wiki-router-transition",
+        "allow": ["shared", "lib", "wiki", "wiki-forge-transition", "forge", "forge-command-transition", "protocol-transition", "maintenance-transition"]
+      },
+      {
+        "from": "wiki-forge-transition",
+        "allow": ["shared", "lib", "wiki", "forge", "forge-status-transition", "protocol-transition", "maintenance-transition"]
+      },
+      {
+        "from": "protocol-transition",
+        "allow": ["shared", "lib", "wiki", "forge", "forge-status-transition"]
+      },
+      {
+        "from": "maintenance-transition",
+        "allow": ["shared", "lib", "wiki", "protocol-transition", "forge", "forge-status-transition", "forge-core-transition"]
+      }
+    ]
+  }
+}
