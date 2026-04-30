@@ -63,10 +63,6 @@
         "patterns": ["src/lib/**"]
       },
       {
-        "name": "protocol-transition",
-        "patterns": ["src/protocol/**"]
-      },
-      {
         "name": "maintenance-transition",
         "patterns": ["src/maintenance/**"]
       }
@@ -82,15 +78,15 @@
       },
       {
         "from": "forge",
-        "allow": ["shared", "lib", "protocol-transition", "forge-status-transition", "forge-steering-transition", "forge-command-transition", "forge-core-transition"]
+        "allow": ["shared", "lib", "forge-status-transition", "forge-steering-transition", "forge-command-transition", "forge-core-transition"]
       },
       {
         "from": "wiki",
-        "allow": ["shared", "lib", "protocol-transition", "maintenance-transition", "wiki-forge-transition"]
+        "allow": ["shared", "lib", "maintenance-transition", "wiki-forge-transition"]
       },
       {
         "from": "forge-status-transition",
-        "allow": ["shared", "lib", "forge", "forge-steering-transition", "wiki", "protocol-transition"]
+        "allow": ["shared", "lib", "forge", "forge-steering-transition", "wiki"]
       },
       {
         "from": "forge-steering-transition",
@@ -98,7 +94,7 @@
       },
       {
         "from": "forge-command-transition",
-        "allow": ["shared", "lib", "forge", "forge-status-transition", "forge-steering-transition", "wiki", "wiki-forge-transition", "protocol-transition", "maintenance-transition"]
+        "allow": ["shared", "lib", "forge", "forge-status-transition", "forge-steering-transition", "wiki", "wiki-forge-transition", "maintenance-transition"]
       },
       {
         "from": "forge-core-transition",
@@ -106,19 +102,15 @@
       },
       {
         "from": "wiki-router-transition",
-        "allow": ["shared", "lib", "wiki", "wiki-forge-transition", "forge", "forge-command-transition", "protocol-transition", "maintenance-transition"]
+        "allow": ["shared", "lib", "wiki", "wiki-forge-transition", "forge", "forge-command-transition", "maintenance-transition"]
       },
       {
         "from": "wiki-forge-transition",
-        "allow": ["shared", "lib", "wiki", "forge", "forge-status-transition", "protocol-transition", "maintenance-transition"]
-      },
-      {
-        "from": "protocol-transition",
-        "allow": ["shared", "lib", "wiki", "forge", "forge-status-transition", "forge-steering-transition"]
+        "allow": ["shared", "lib", "wiki", "forge", "forge-status-transition", "maintenance-transition"]
       },
       {
         "from": "maintenance-transition",
-        "allow": ["shared", "lib", "wiki", "protocol-transition", "forge", "forge-status-transition", "forge-steering-transition", "forge-core-transition"]
+        "allow": ["shared", "lib", "wiki", "forge", "forge-status-transition", "forge-steering-transition", "forge-core-transition"]
       }
     ]
   }

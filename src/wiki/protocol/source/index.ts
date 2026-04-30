@@ -1,4 +1,4 @@
-import { orderFrontmatter } from "../../cli-shared";
+import { orderFrontmatter } from "../../../cli-shared";
 
 export type ProtocolScope = {
   path: string;

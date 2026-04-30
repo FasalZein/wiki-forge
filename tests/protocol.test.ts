@@ -6,7 +6,7 @@ import {
   renderHandoverAlignmentReminder,
   renderPromptProtocolReminders,
   renderProtocolSurface,
-} from "../src/protocol/source";
+} from "../src/wiki/protocol/source";
 import { cleanupTempPaths, runWiki, setRepoFrontmatter, setupVaultAndRepo } from "./test-helpers";
 
 afterEach(() => {

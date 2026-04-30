@@ -5,8 +5,8 @@ import { exists, readText, writeText } from "../../lib/fs";
 import { appendLogEntry } from "../../lib/log";
 import { classifyProjectDocPath } from "../../lib/structure";
 import { findProjectArg, parseProjectRepoBaseArgs } from "../../git-utils";
-import { buildDirectoryTree, listCodeFiles, listRepoMarkdownDocs, readCodePaths } from "../../protocol/discovery/index";
-import { createModuleInternal } from "../../protocol";
+import { buildDirectoryTree, listCodeFiles, listRepoMarkdownDocs, readCodePaths } from "../../wiki/protocol/discovery/index";
+import { createModuleInternal } from "../../wiki/protocol";
 import { guessModuleName } from "../health";
 import { printJson, printLine } from "../../lib/cli-output";
 import {

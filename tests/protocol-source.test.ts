@@ -4,7 +4,7 @@ import {
   renderHandoverAlignmentReminder,
   renderPromptProtocolReminders,
   renderProtocolSurface,
-} from "../src/protocol/source";
+} from "../src/wiki/protocol/source";
 
 describe("protocol source library", () => {
   test("defines the canonical policy model and renderer", () => {

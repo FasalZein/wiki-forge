@@ -1,8 +1,8 @@
 import { appendFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
-import { exists, readText } from "../../lib/fs";
-import { printError, printLine } from "../../lib/cli-output";
+import { exists, readText } from "../../../lib/fs";
+import { printError, printLine } from "../../../lib/cli-output";
 
 const ENV_LINE = 'export KNOWLEDGE_VAULT_ROOT="$HOME/Knowledge"';
 const COMMENT = "# Wiki CLI vault root";

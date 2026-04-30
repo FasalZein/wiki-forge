@@ -28,4 +28,9 @@ describe("Wiki-owned source layout", () => {
     expect(existsSync(join(repoRoot, "src/wiki/schema"))).toBe(true);
     expect(existsSync(join(repoRoot, "src/schema"))).toBe(false);
   });
+
+  test("protocol setup lives inside the Wiki bounded context", () => {
+    expect(existsSync(join(repoRoot, "src/wiki/protocol"))).toBe(true);
+    expect(existsSync(join(repoRoot, "src/protocol"))).toBe(false);
+  });
 });

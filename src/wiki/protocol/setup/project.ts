@@ -1,9 +1,9 @@
 import { join, relative } from "node:path";
 import matter from "gray-matter";
-import { MODULE_REQUIRED_HEADINGS, PROJECT_DIRS, PROJECT_FILES, VAULT_ROOT } from "../../constants";
-import { assertExists, mkdirIfMissing, moduleTitle, normalizeFrontmatterFormatting, nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, scaffoldFile, today, writeNormalizedPage } from "../../cli-shared";
-import { exists, readText, writeText } from "../../lib/fs";
-import { projectModuleSpecPath, projectOnboardingPlanPath, projectSpecsDir } from "../../lib/structure";
+import { MODULE_REQUIRED_HEADINGS, PROJECT_DIRS, PROJECT_FILES, VAULT_ROOT } from "../../../constants";
+import { assertExists, mkdirIfMissing, moduleTitle, normalizeFrontmatterFormatting, nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, scaffoldFile, today, writeNormalizedPage } from "../../../cli-shared";
+import { exists, readText, writeText } from "../../../lib/fs";
+import { projectModuleSpecPath, projectOnboardingPlanPath, projectSpecsDir } from "../../../lib/structure";
 import {
   defaultCrossLinksSection,
   defaultDataModelSection,
@@ -18,10 +18,10 @@ import {
   normalizeInterfacesSection,
   normalizeModuleFrontmatter,
   normalizeTableSpacing,
-} from "../../module-format";
-import { writeProjectIndex } from "../../wiki/project-views";
+} from "../../../module-format";
+import { writeProjectIndex } from "../../project-views";
 import { syncProtocolForProject } from "./index";
-import { printLine } from "../../lib/cli-output";
+import { printLine } from "../../../lib/cli-output";
 
 export async function scaffoldProject(project: string | undefined) {
   requireValue(project, "project");

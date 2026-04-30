@@ -1,5 +1,5 @@
 import { runObsidian } from "./runtime";
-import { printLine } from "../../lib/cli-output";
+import { printLine } from "../../../lib/cli-output";
 
 function noteTargetArgs(note: string) {
   if (note.includes("/") || note.endsWith(".md")) {

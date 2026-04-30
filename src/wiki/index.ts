@@ -15,7 +15,7 @@ import { lintRepo } from "../maintenance/lint-repo";
 import { maintainProject } from "../maintenance/maintain";
 import { refreshFromGit, refreshOnMerge, refreshProject } from "../maintenance/refresh";
 import { syncProject } from "../maintenance/sync";
-import { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeModule, syncProtocol, auditProtocol, obsidianCommand, setupShell } from "../protocol";
+import { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeModule, syncProtocol, auditProtocol, obsidianCommand, setupShell } from "./protocol";
 import { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch, handoffResearch, bridgeResearch, distillResearch, adoptResearch } from "./research";
 import { askProject, fileAnswer, fileResearch } from "./retrieval/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "./retrieval/qmd-commands";

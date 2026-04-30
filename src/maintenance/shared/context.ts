@@ -7,7 +7,7 @@ import { readVerificationLevel, resolveRepoPath, assertGitRepo, gitDiffSummary, 
 import { walkMarkdown } from "../../lib/vault";
 import { collectBacklogFocus } from "../../wiki/project-views";
 import { gitChangedFiles, bindingMatchesFile, gitLastShaForPath, worktreeChangedFiles, worktreeModifiedAt, parseEntryUpdated } from "../../git-utils";
-import { listCodeFiles, listRepoMarkdownDocs, readCodePaths } from "../../protocol/discovery/index";
+import { listCodeFiles, listRepoMarkdownDocs, readCodePaths } from "../../wiki/protocol/discovery/index";
 import { collectChangedTestHealth, isCodeFile } from "../health";
 import type { LintingSnapshot } from "../../wiki/verification";
 import type { MaintenanceAction } from "./diagnostics";

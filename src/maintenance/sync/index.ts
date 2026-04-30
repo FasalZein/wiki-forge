@@ -3,7 +3,7 @@ import { dirname, join, relative } from "node:path";
 import { nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../../cli-shared";
 import { VAULT_ROOT } from "../../constants";
 import { exists, readText } from "../../lib/fs";
-import { END_MARKER, PROTOCOL_FILES, START_MARKER, renderProtocolSurface, type ProtocolScope } from "../../protocol/source/index";
+import { END_MARKER, PROTOCOL_FILES, START_MARKER, renderProtocolSurface, type ProtocolScope } from "../../wiki/protocol/source/index";
 import { resolveStateContract } from "../../lib/state-contract";
 import { resolveRepoPath } from "../../lib/verification";
 import { parseEntryUpdated } from "../../git-utils";

@@ -1,11 +1,11 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { projectRoot, requireValue, safeMatter } from "../../cli-shared";
-import { VAULT_ROOT } from "../../constants";
-import { exists, readText } from "../../lib/fs";
-import { resolveRepoPath } from "../../lib/verification";
+import { projectRoot, requireValue, safeMatter } from "../../../cli-shared";
+import { VAULT_ROOT } from "../../../constants";
+import { exists, readText } from "../../../lib/fs";
+import { resolveRepoPath } from "../../../lib/verification";
 import { type ProtocolScope, PROTOCOL_FILES, START_MARKER, END_MARKER, renderProtocolSurface } from "../source";
-import { printJson, printLine } from "../../lib/cli-output";
+import { printJson, printLine } from "../../../lib/cli-output";
 
 type ProtocolAuditRow = {
   scope: string;

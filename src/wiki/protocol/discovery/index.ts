@@ -1,8 +1,8 @@
 import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
-import { projectRoot, safeMatter } from "../../cli-shared";
-import { isIgnoredDir, loadConfig, matchesAnyIgnore } from "../../lib/config";
-import { exists, readText } from "../../lib/fs";
+import { projectRoot, safeMatter } from "../../../cli-shared";
+import { isIgnoredDir, loadConfig, matchesAnyIgnore } from "../../../lib/config";
+import { exists, readText } from "../../../lib/fs";
 
 export const SCAFFOLD_DIRS = new Set(["src", "lib", "app", "apps", "packages", "services", "workers", "server", "api", "functions", "cmd", "internal"]);
 

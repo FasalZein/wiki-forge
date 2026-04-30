@@ -1,4 +1,4 @@
-import { resolveCommandOnPath } from "../../lib/runtime";
+import { resolveCommandOnPath } from "../../../lib/runtime";
 
 export async function assertObsidianCliAvailable() {
   if (await resolveCommandOnPath("obsidian")) return;
