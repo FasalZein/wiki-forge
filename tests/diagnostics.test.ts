@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DIAGNOSTIC_BLOCKING_SEVERITY, classifyDiagnosticFinding, formatMaintenanceActionLabel, groupDiagnosticFindings } from "../src/maintenance/shared";
+import { DIAGNOSTIC_BLOCKING_SEVERITY, classifyDiagnosticFinding, formatMaintenanceActionLabel, groupDiagnosticFindings } from "../src/health/shared";
 
 describe("diagnostics", () => {
   test("formatMaintenanceActionLabel includes scope when present", () => {

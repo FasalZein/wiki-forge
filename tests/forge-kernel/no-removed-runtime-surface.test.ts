@@ -36,7 +36,7 @@ describe("no removed runtime surface", () => {
   });
 
   test("stable runtime does not import deleted runtime modules", () => {
-    const offenders = sourceFiles(["src/wiki", "src/forge", "src/maintenance", "src/index.ts"]).flatMap((file) => {
+    const offenders = sourceFiles(["src/wiki", "src/forge", "src/health", "src/index.ts"]).flatMap((file) => {
       const source = readFileSync(join(repoRoot, file), "utf8");
       const forbidden = ["../slice/forge", "../../slice/forge", "../slice/lifecycle", "../../slice/lifecycle", "../session", "../../session"];
       return forbidden.filter((specifier) => source.includes(specifier)).map((specifier) => `${file}: ${specifier}`);

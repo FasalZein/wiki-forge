@@ -47,42 +47,42 @@
         ]
       },
       {
-        "name": "maintenance-checkpoint",
-        "patterns": ["src/maintenance/checkpoint.ts", "src/maintenance/checkpoint/**"]
+        "name": "health-checkpoint",
+        "patterns": ["src/health/checkpoint.ts", "src/health/checkpoint/**"]
       },
       {
-        "name": "maintenance-readiness",
-        "patterns": ["src/maintenance/readiness/**"]
+        "name": "health-readiness",
+        "patterns": ["src/health/readiness/**"]
       },
       {
-        "name": "maintenance-sync",
-        "patterns": ["src/maintenance/sync.ts", "src/maintenance/refresh.ts", "src/maintenance/sync/**"]
+        "name": "health-sync",
+        "patterns": ["src/health/sync.ts", "src/health/refresh.ts", "src/health/sync/**"]
       },
       {
-        "name": "maintenance-doctor",
-        "patterns": ["src/maintenance/doctor.ts", "src/maintenance/dashboard.ts", "src/maintenance/doctor/**"]
+        "name": "health-doctor",
+        "patterns": ["src/health/doctor.ts", "src/health/dashboard.ts", "src/health/doctor/**"]
       },
       {
-        "name": "maintenance-drift",
-        "patterns": ["src/maintenance/drift.ts", "src/maintenance/drift/**"]
+        "name": "health-drift",
+        "patterns": ["src/health/drift.ts", "src/health/drift/**"]
       },
       {
-        "name": "maintenance-shared",
-        "patterns": ["src/maintenance/shared/**"]
+        "name": "health-shared",
+        "patterns": ["src/health/shared/**"]
       },
       {
-        "name": "maintenance-health",
+        "name": "health-core",
         "patterns": [
-          "src/maintenance/index.ts",
-          "src/maintenance/maintain.ts",
-          "src/maintenance/_shared.ts",
-          "src/maintenance/commit-check.ts",
-          "src/maintenance/discover.ts",
-          "src/maintenance/lint-repo.ts",
-          "src/maintenance/freshness-classifier.ts",
-          "src/maintenance/test-health.ts",
-          "src/maintenance/health/**",
-          "src/maintenance/lint/**"
+          "src/health/index.ts",
+          "src/health/maintain.ts",
+          "src/health/_shared.ts",
+          "src/health/commit-check.ts",
+          "src/health/discover.ts",
+          "src/health/lint-repo.ts",
+          "src/health/freshness-classifier.ts",
+          "src/health/test-health.ts",
+          "src/health/health/**",
+          "src/health/lint/**"
         ]
       },
       {
@@ -117,7 +117,7 @@
       },
       {
         "from": "wiki",
-        "allow": ["shared", "lib", "wiki-forge-transition", "maintenance-drift"]
+        "allow": ["shared", "lib", "wiki-forge-transition", "health-drift"]
       },
       {
         "from": "forge-status-transition",
@@ -144,12 +144,12 @@
           "wiki-forge-transition",
           "forge",
           "forge-command-transition",
-          "maintenance-health",
-          "maintenance-checkpoint",
-          "maintenance-sync",
-          "maintenance-doctor",
-          "maintenance-drift",
-          "maintenance-readiness"
+          "health-core",
+          "health-checkpoint",
+          "health-sync",
+          "health-doctor",
+          "health-drift",
+          "health-readiness"
         ]
       },
       {
@@ -157,32 +157,32 @@
         "allow": ["shared", "lib", "wiki", "forge", "forge-status-transition"]
       },
       {
-        "from": "maintenance-health",
-        "allow": ["shared", "lib", "wiki", "forge", "maintenance-shared", "maintenance-sync", "maintenance-doctor", "maintenance-drift", "maintenance-readiness", "maintenance-checkpoint"]
+        "from": "health-core",
+        "allow": ["shared", "lib", "wiki", "forge", "health-shared", "health-sync", "health-doctor", "health-drift", "health-readiness", "health-checkpoint"]
       },
       {
-        "from": "maintenance-checkpoint",
-        "allow": ["shared", "lib", "wiki", "forge", "maintenance-shared", "maintenance-health"]
+        "from": "health-checkpoint",
+        "allow": ["shared", "lib", "wiki", "forge", "health-shared", "health-core"]
       },
       {
-        "from": "maintenance-readiness",
-        "allow": ["shared", "lib", "wiki", "forge", "forge-status-transition", "forge-core-transition", "maintenance-shared", "maintenance-health", "maintenance-doctor", "maintenance-drift"]
+        "from": "health-readiness",
+        "allow": ["shared", "lib", "wiki", "forge", "forge-status-transition", "forge-core-transition", "health-shared", "health-core", "health-doctor", "health-drift"]
       },
       {
-        "from": "maintenance-sync",
-        "allow": ["shared", "lib", "wiki", "maintenance-shared", "maintenance-health", "maintenance-drift", "maintenance-readiness"]
+        "from": "health-sync",
+        "allow": ["shared", "lib", "wiki", "health-shared", "health-core", "health-drift", "health-readiness"]
       },
       {
-        "from": "maintenance-doctor",
-        "allow": ["shared", "lib", "wiki", "maintenance-shared", "maintenance-drift", "maintenance-readiness", "maintenance-health"]
+        "from": "health-doctor",
+        "allow": ["shared", "lib", "wiki", "health-shared", "health-drift", "health-readiness", "health-core"]
       },
       {
-        "from": "maintenance-drift",
+        "from": "health-drift",
         "allow": ["shared", "lib", "wiki"]
       },
       {
-        "from": "maintenance-shared",
-        "allow": ["shared", "lib", "wiki", "forge", "maintenance-health"]
+        "from": "health-shared",
+        "allow": ["shared", "lib", "wiki", "forge", "health-core"]
       }
     ]
   }

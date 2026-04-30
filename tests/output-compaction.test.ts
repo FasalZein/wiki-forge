@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { collapseActions, compactMaintainForJson } from "../src/maintenance/maintain";
+import { collapseActions, compactMaintainForJson } from "../src/health/maintain";
 
 describe("collapseActions", () => {
   test("leaves singletons expanded", () => {

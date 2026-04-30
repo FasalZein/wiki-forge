@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { classifyFreshnessChurn } from "../src/maintenance/freshness-classifier";
+import { classifyFreshnessChurn } from "../src/health/freshness-classifier";
 import { cleanupTempPaths } from "./test-helpers";
 
 afterEach(() => {
