@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
+import { cleanupTempPaths, initVault, runGit, runWiki, setupVaultAndRepo, tempDir } from "../test-helpers";
 import { resolveWikiCommand } from "../../src/wiki";
 
 const sliceId = "DEMO-001";
@@ -47,5 +47,25 @@ describe("Forge resume", () => {
       },
       nextAction: "continue-active-slice",
     });
+  });
+
+  test("marks handover prompt stale when it names an older HEAD than the current repo", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const oldHead = runGit(repo, ["rev-list", "--max-parents=0", "HEAD"]).stdout.toString().trim();
+    const currentHead = runGit(repo, ["rev-parse", "HEAD"]).stdout.toString().trim();
+    const handoverDir = join(vault, "projects", "demo", "forge", "handovers");
+    mkdirSync(handoverDir, { recursive: true });
+    writeFileSync(join(handoverDir, "2026-04-29-demo.md"), `---\ntitle: Demo handover\nproject: demo\ntype: forge-handover\nsession_id: 2026-04-29-demo\ncreated_at: '2026-04-29T00:00:00.000Z'\nagent: pi\nrelated_slices: []\nnext_action: Continue from stale prompt.\n---\n# Demo handover\n\n## Summary\n\nStale prompt.\n\n## Copy/paste prompt for next session\n\n\`\`\`text\nContinue demo from clean HEAD ${oldHead}.\n\`\`\`\n`, "utf8");
+
+    const result = runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD"], { vault });
+
+    expect(result.exitCode).toBe(0);
+    const stdout = result.stdout.toString();
+    expect(stdout).toContain("stale handover prompt:");
+    expect(stdout).toContain(oldHead.slice(0, 12));
+    expect(stdout).toContain(currentHead.slice(0, 12));
+    expect(stdout).toContain("wiki forge status demo --repo");
+    expect(stdout).toContain("wiki checkpoint demo --repo");
+    expect(stdout).not.toContain(`prompt: Continue demo from clean HEAD ${oldHead}.`);
   });
 });

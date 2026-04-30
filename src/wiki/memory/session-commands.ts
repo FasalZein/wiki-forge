@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+import { resolve } from "node:path";
 import { requireValue } from "../../cli-shared";
 import { printJson, printLine } from "../../lib/cli-output";
 import { readLatestForgeHandover, writeForgeHandover } from "./handover/store";
@@ -9,18 +11,21 @@ export async function resumeCommand(args: string[]): Promise<void> {
   const json = args.includes("--json");
   const positional = readPositionalArgs(args, ["--repo", "--base"]);
   const project = positional[0];
+  const repo = readFlagValue(args, "--repo") ?? ".";
   requireValue(project, "project");
   const [statusTruth, latestHandover] = await Promise.all([
     loadForgeProjectProjection(project),
     readLatestForgeHandover(project),
   ]);
   const nextAction = readProjectionNextAction(statusTruth);
+  const handoverStaleness = latestHandover ? detectHandoverPromptStaleness(latestHandover.copyPastePrompt, repo) : null;
   const payload = {
     kind: "forge-resume" as const,
     project,
     mutatesLifecycle: false,
     statusTruth,
     latestHandover,
+    handoverStaleness,
     nextAction,
   };
   if (json) printJson(payload);
@@ -28,7 +33,12 @@ export async function resumeCommand(args: string[]): Promise<void> {
     printLine(`resume ${project}: ${nextAction}`);
     if (latestHandover) {
       printLine(`handover: ${latestHandover.path}`);
-      printLine(`prompt: ${latestHandover.copyPastePrompt}`);
+      if (handoverStaleness?.status === "stale") {
+        printLine(`stale handover prompt: names HEAD/base ${handoverStaleness.promptHead}, current HEAD is ${handoverStaleness.currentHead}.`);
+        printLine(`guidance: treat resume as context only; run wiki forge status ${project} --repo ${repo} --json or wiki checkpoint ${project} --repo ${repo} --base HEAD --json before following old prompt instructions.`);
+      } else {
+        printLine(`prompt: ${latestHandover.copyPastePrompt}`);
+      }
     }
   }
 }
@@ -123,6 +133,38 @@ export async function handoverCommand(args: string[]): Promise<void> {
   });
   if (json) printJson(result);
   else printLine(`wrote ${result.path}`);
+}
+
+type HandoverStaleness =
+  | { readonly status: "not-stale" }
+  | { readonly status: "unknown"; readonly reason: string }
+  | { readonly status: "stale"; readonly promptHead: string; readonly currentHead: string };
+
+function detectHandoverPromptStaleness(copyPastePrompt: string, repo: string): HandoverStaleness {
+  const promptHead = readPromptHead(copyPastePrompt);
+  if (!promptHead) return { status: "not-stale" };
+  const currentHead = readGitHead(repo);
+  if (!currentHead) return { status: "unknown", reason: "current HEAD unavailable" };
+  if (currentHead.startsWith(promptHead) || promptHead.startsWith(currentHead)) return { status: "not-stale" };
+  return { status: "stale", promptHead, currentHead };
+}
+
+function readPromptHead(copyPastePrompt: string): string | null {
+  const match = /\b(?:HEAD|base)\s+([0-9a-f]{7,40})\b/i.exec(copyPastePrompt);
+  return match?.[1] ?? null;
+}
+
+function readGitHead(repo: string): string | null {
+  try {
+    return execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: resolve(repo),
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch (error) {
+    if (error instanceof Error) return null;
+    throw error;
+  }
 }
 
 function readProjectionNextAction(projection: Awaited<ReturnType<typeof loadForgeProjectProjection>>): string {
