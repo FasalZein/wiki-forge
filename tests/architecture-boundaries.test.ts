@@ -24,11 +24,6 @@ const SOURCE_BOUNDARIES: readonly SourceBoundary[] = ["wiki", "forge", "shared",
 const TRANSITION_EXCEPTIONS = {
   forgeImportsWikiInternals: [
     {
-      importer: "src/forge/workflow/commands.ts",
-      importee: "src/wiki/memory/session-commands.ts",
-      reason: "Forge command exports still re-export Wiki session commands until Wiki and Forge command seams are split.",
-    },
-    {
       importer: "src/forge/status/index.ts",
       importee: "src/wiki/project-views/index.ts",
       reason: "Forge status still reads Wiki project-view context until project-view status contracts move behind a shared read model.",

@@ -6,7 +6,6 @@ import { amendForgeSlice, checkForgeSliceClose, closeForgeSlice, releaseForgeSli
 import { addPlanningPrd, addPlanningSlice, completePlanningSession, createPlanningArtifacts, evaluatePlanningSessionGate, readPlanningSession, recordPlanningAnswer, type PlanningSession, type PlanningSessionGate, type PlanningSkill } from "../vault/planning-session-store";
 import { readForgeEvidence, recordForgeReviewEvidence, recordForgeStrictTddEvidence, recordForgeTddEvidence, recordForgeVerificationEvidence } from "../vault/evidence-store";
 import { evaluateTddGate } from "../lifecycle/tdd-gate";
-export { exportPromptCommand, handoverCommand, logCommand, noteCommand, resumeCommand } from "../../wiki/memory/session-commands";
 
 export async function forgeNextCommand(args: string[]): Promise<void> {
   await renderForgeProjection(args);

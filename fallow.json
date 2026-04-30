@@ -94,7 +94,7 @@
       },
       {
         "from": "forge-command-transition",
-        "allow": ["shared", "lib", "forge", "forge-status-transition", "forge-steering-transition", "wiki", "wiki-forge-transition", "maintenance-transition"]
+        "allow": ["shared", "lib", "forge", "forge-status-transition", "forge-steering-transition"]
       },
       {
         "from": "forge-core-transition",
