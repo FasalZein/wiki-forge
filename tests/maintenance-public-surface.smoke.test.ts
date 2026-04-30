@@ -48,4 +48,10 @@ describe("maintenance public surface", () => {
     expect(existsSync(join(repoRoot, "src", "shared", "git-truth.ts"))).toBe(true);
     expect(existsSync(join(repoRoot, "src", "forge", "core", "git-truth.ts"))).toBe(false);
   });
+
+  test("diagnostics are a shared gate contract, not maintenance-owned Forge coupling", () => {
+    const repoRoot = join(import.meta.dir, "..");
+
+    expect(existsSync(join(repoRoot, "src", "shared", "diagnostics.ts"))).toBe(true);
+  });
 });

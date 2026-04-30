@@ -98,7 +98,7 @@
       },
       {
         "from": "forge-core-transition",
-        "allow": ["shared", "lib", "forge", "maintenance-transition"]
+        "allow": ["shared", "lib", "forge"]
       },
       {
         "from": "wiki-router-transition",

@@ -1,6 +1,6 @@
 import { formatGitTruthSummary, type GitTruth } from "../../shared/git-truth";
 import type { SliceOwnershipMap } from "./ownership-map";
-import type { DiagnosticFinding } from "../../maintenance/shared";
+import type { DiagnosticFinding } from "../../shared/diagnostics";
 
 export const CLOSURE_ATTESTATION_STATUSES = ["pass", "warning", "pending", "blocked", "not-required"] as const;
 
