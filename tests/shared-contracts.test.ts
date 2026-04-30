@@ -36,6 +36,17 @@ describe("shared contracts", () => {
     expect(rootConstants).toContain("./shared/verification/levels");
   });
 
+  test("verification command specs are canonical shared contracts", () => {
+    const sharedVerificationSpecs = readRepoFile("src/shared/verification/specs.ts");
+    const wikiVerificationSpecs = readRepoFile("src/wiki/verification/verification-specs.ts");
+    const forgeStatus = readRepoFile("src/forge/status/index.ts");
+
+    expect(sharedVerificationSpecs).toContain("export type VerificationCommandSpec");
+    expect(sharedVerificationSpecs).toContain("export function extractVerificationSpecsFromTestPlan");
+    expect(wikiVerificationSpecs).toContain("../../shared/verification/specs");
+    expect(forgeStatus).toContain("../../shared/verification/specs");
+  });
+
   test("project task read models are canonical shared contracts", () => {
     const sharedProjectTaskReadModel = readRepoFile("src/shared/contracts/project-task-read-model.ts");
     const wikiBacklogCollector = readRepoFile("src/wiki/project-views/backlog/collect.ts");

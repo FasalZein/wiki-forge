@@ -29,19 +29,9 @@ const TRANSITION_EXCEPTIONS = {
       reason: "Forge command exports still re-export Wiki session commands until Wiki and Forge command seams are split.",
     },
     {
-      importer: "src/forge/status/evidence-readers.ts",
-      importee: "src/wiki/verification/index.ts",
-      reason: "Forge status still reads Wiki verification specs until verification evidence readers move behind a shared contract.",
-    },
-    {
       importer: "src/forge/status/index.ts",
       importee: "src/wiki/project-views/index.ts",
       reason: "Forge status still reads Wiki project-view context until project-view status contracts move behind a shared read model.",
-    },
-    {
-      importer: "src/forge/status/index.ts",
-      importee: "src/wiki/verification/index.ts",
-      reason: "Forge status still extracts Wiki verification specs until verification evidence readers move behind a shared contract.",
     },
   ],
   wikiImportsForgeInternals: [
