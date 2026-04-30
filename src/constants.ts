@@ -34,9 +34,8 @@ export const MODULE_REQUIRED_HEADINGS = [
   "## Cross Links",
 ];
 
-export const VERIFICATION_LEVELS = ["scaffold", "inferred", "code-verified", "runtime-verified", "test-verified"] as const;
-export type VerificationLevel = (typeof VERIFICATION_LEVELS)[number] | "stale";
-export const TEST_VERIFIED_LEVEL = "test-verified" satisfies VerificationLevel;
+export { TEST_VERIFIED_LEVEL, VERIFICATION_LEVELS } from "./shared/verification/levels";
+export type { VerificationLevel } from "./shared/verification/levels";
 
 export const STALE_UNVERIFIED_DAYS = 30;
 export const CODE_FILE_PATTERN = /\.(ts|tsx|js|jsx|mjs|cjs|mts|cts|py|rb|go|rs|java|kt|swift|vue|svelte|sql|proto|graphql|gql|css|scss|sass|less)$/u;

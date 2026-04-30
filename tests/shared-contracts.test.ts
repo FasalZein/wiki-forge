@@ -24,6 +24,17 @@ describe("shared contracts", () => {
     expect(libStateContract).not.toContain("export function resolveStateContract");
     expect(libStateContract).toContain("../../shared/contracts/state-contract");
   });
+
+  test("verification levels are canonical shared contracts", () => {
+    const sharedVerificationLevels = readRepoFile("src/shared/verification/levels.ts");
+    const rootConstants = readRepoFile("src/constants.ts");
+
+    expect(sharedVerificationLevels).toContain("export const VERIFICATION_LEVELS");
+    expect(sharedVerificationLevels).toContain("export type VerificationLevel");
+    expect(sharedVerificationLevels).toContain("export const TEST_VERIFIED_LEVEL");
+    expect(rootConstants).not.toContain("export const VERIFICATION_LEVELS =");
+    expect(rootConstants).toContain("./shared/verification/levels");
+  });
 });
 
 function readRepoFile(path: string): string {

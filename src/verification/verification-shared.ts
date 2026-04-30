@@ -1,5 +1,6 @@
 import { join, relative } from "node:path";
-import { VERIFICATION_LEVELS, VAULT_ROOT, type VerificationLevel } from "../constants";
+import { VAULT_ROOT } from "../constants";
+import { VERIFICATION_LEVELS, type VerificationLevel } from "../shared/verification/levels";
 import { nowIso, safeMatter, writeNormalizedPage } from "../cli-shared";
 import { exists, readText } from "../lib/fs";
 import { readVerificationLevel } from "../lib/verification";

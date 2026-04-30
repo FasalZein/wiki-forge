@@ -1,4 +1,4 @@
-import type { VerificationLevel } from "./constants";
+import type { VerificationLevel } from "./shared/verification/levels";
 export type { CommandHandler } from "./shared/contracts/command";
 export type { FrontmatterData } from "./shared/contracts/frontmatter";
 
