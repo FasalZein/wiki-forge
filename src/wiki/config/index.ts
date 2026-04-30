@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { loadConfigDetailed, projectConfigPath, type ConfigLeaf, type ResolvedConfig } from "../lib/config";
-import { printError, printJson, printLine } from "../lib/cli-output";
+import { loadConfigDetailed, projectConfigPath, type ConfigLeaf, type ResolvedConfig } from "../../lib/config";
+import { printError, printJson, printLine } from "../../lib/cli-output";
 
 export async function configCommand(args: string[]): Promise<void> {
   const command = args[0];

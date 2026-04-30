@@ -18,4 +18,9 @@ describe("Wiki-owned source layout", () => {
     expect(existsSync(join(repoRoot, "src/wiki/verification"))).toBe(true);
     expect(existsSync(join(repoRoot, "src/verification"))).toBe(false);
   });
+
+  test("config command lives inside the Wiki bounded context", () => {
+    expect(existsSync(join(repoRoot, "src/wiki/config"))).toBe(true);
+    expect(existsSync(join(repoRoot, "src/config"))).toBe(false);
+  });
 });
