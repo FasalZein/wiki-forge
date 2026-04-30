@@ -1,8 +1,8 @@
 import { relative } from "node:path";
-import { VAULT_ROOT } from "../constants";
-import { mkdirIfMissing, nowIso, orderFrontmatter, requireValue, today, writeNormalizedPage } from "../cli-shared";
-import { appendLogEntry } from "../lib/log";
-import { copyFile, exists } from "../lib/fs";
+import { VAULT_ROOT } from "../../constants";
+import { mkdirIfMissing, nowIso, orderFrontmatter, requireValue, today, writeNormalizedPage } from "../../cli-shared";
+import { appendLogEntry } from "../../lib/log";
+import { copyFile, exists } from "../../lib/fs";
 import {
   canonicalizeResearchTopicForWrite,
   deriveSourceSlug,
@@ -15,9 +15,9 @@ import {
   rawVaultPath,
   researchPagePath,
   topicCrossLinks,
-} from "../lib/research";
+} from "../../lib/research";
 import { ensureResearchTopic } from "./_shared";
-import { printLine } from "../lib/cli-output";
+import { printLine } from "../../lib/cli-output";
 
 export async function ingestSource(args: string[]) {
   const { sources, topic, title, bucket } = parseIngestSourceArgs(args);

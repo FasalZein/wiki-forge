@@ -1,12 +1,12 @@
 import { join } from "node:path";
-import { nowIso, orderFrontmatter, safeMatter, writeNormalizedPage } from "../cli-shared";
-import { VAULT_ROOT } from "../constants";
-import { readPlanningDoc, collectPriorResearchRefs, type MatterDoc } from "../protocol/status/index";
-import { appendLogEntry } from "../lib/log";
-import { exists, readText } from "../lib/fs";
-import { normalizeInfluencedBy, normalizeResearchPageRef } from "../lib/research";
-import { projectPrdsDir, projectTaskHubPath, toVaultWikilinkPath } from "../lib/structure";
-import { printJson, printLine } from "../lib/cli-output";
+import { nowIso, orderFrontmatter, safeMatter, writeNormalizedPage } from "../../cli-shared";
+import { VAULT_ROOT } from "../../constants";
+import { readPlanningDoc, collectPriorResearchRefs, type MatterDoc } from "../../protocol/status/index";
+import { appendLogEntry } from "../../lib/log";
+import { exists, readText } from "../../lib/fs";
+import { normalizeInfluencedBy, normalizeResearchPageRef } from "../../lib/research";
+import { projectPrdsDir, projectTaskHubPath, toVaultWikilinkPath } from "../../lib/structure";
+import { printJson, printLine } from "../../lib/cli-output";
 
 const RESEARCH_FRONTMATTER_ORDER = [
   "title",

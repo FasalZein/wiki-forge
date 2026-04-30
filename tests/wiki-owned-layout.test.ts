@@ -8,4 +8,9 @@ describe("Wiki-owned source layout", () => {
     expect(existsSync(join(repoRoot, "src/wiki/retrieval"))).toBe(true);
     expect(existsSync(join(repoRoot, "src/retrieval"))).toBe(false);
   });
+
+  test("research lives inside the Wiki bounded context", () => {
+    expect(existsSync(join(repoRoot, "src/wiki/research"))).toBe(true);
+    expect(existsSync(join(repoRoot, "src/research"))).toBe(false);
+  });
 });

@@ -1,7 +1,7 @@
 import { relative } from "node:path";
-import { STALE_UNVERIFIED_DAYS, VAULT_ROOT } from "../constants";
-import { mkdirIfMissing, nowIso, orderFrontmatter, safeMatter, writeNormalizedPage } from "../cli-shared";
-import { exists, readText } from "../lib/fs";
+import { STALE_UNVERIFIED_DAYS, VAULT_ROOT } from "../../constants";
+import { mkdirIfMissing, nowIso, orderFrontmatter, safeMatter, writeNormalizedPage } from "../../cli-shared";
+import { exists, readText } from "../../lib/fs";
 import {
   classifyRawPath,
   classifyResearchPath,
@@ -15,8 +15,8 @@ import {
   researchTopicDir,
   topicCrossLinks,
   topicLabel,
-} from "../lib/research";
-import { normalizePath, stripMarkdownExtension, walkMarkdown } from "../lib/vault";
+} from "../../lib/research";
+import { normalizePath, stripMarkdownExtension, walkMarkdown } from "../../lib/vault";
 
 export const RESEARCH_STATUSES = ["draft", "reviewed", "verified", "applied"] as const;
 export const RESEARCH_VERIFICATION_LEVELS = ["unverified", "cross-referenced", "source-checked"] as const;

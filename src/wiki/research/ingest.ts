@@ -1,8 +1,8 @@
 import { relative } from "node:path";
-import { VAULT_ROOT } from "../constants";
-import { nowIso, orderFrontmatter, requireValue, today, writeNormalizedPage } from "../cli-shared";
-import { appendLogEntry } from "../lib/log";
-import { exists } from "../lib/fs";
+import { VAULT_ROOT } from "../../constants";
+import { nowIso, orderFrontmatter, requireValue, today, writeNormalizedPage } from "../../cli-shared";
+import { appendLogEntry } from "../../lib/log";
+import { exists } from "../../lib/fs";
 import {
   canonicalizeResearchTopicForWrite,
   deriveSourceSlug,
@@ -10,9 +10,9 @@ import {
   detectResearchSourceType,
   researchPagePath,
   topicCrossLinks,
-} from "../lib/research";
+} from "../../lib/research";
 import { ensureResearchTopic } from "./_shared";
-import { printLine } from "../lib/cli-output";
+import { printLine } from "../../lib/cli-output";
 
 export async function ingestResearch(args: string[]) {
   const { topic, sources, title } = parseIngestResearchArgs(args);

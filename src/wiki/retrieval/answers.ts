@@ -10,7 +10,7 @@ import { sdkHybridAvailable, searchKnowledgeExpandedSdk, searchKnowledgeLexicalS
 import { refreshKnowledgeIndex, resolveAskRetrievalModeWithFreshness } from "./qmd-freshness";
 import { resolveDirectProjectReferenceResults } from "./project-references";
 import { legacyProjectResearchTopic, questionTokens } from "../../lib/research";
-import { createResearchPage } from "../../research";
+import { createResearchPage } from "../research";
 import type { AnswerBrief, AnswerSource, AskOptions, NoteIndex, NoteInfo, NoteQualitySignals, QmdResult } from "../../types";
 import { printLine } from "../../lib/cli-output";
 

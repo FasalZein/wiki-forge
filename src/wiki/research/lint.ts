@@ -1,5 +1,5 @@
 import { collectResearchLintResult } from "./_shared";
-import { printJson, printLine } from "../lib/cli-output";
+import { printJson, printLine } from "../../lib/cli-output";
 
 export async function lintResearch(args: string[]) {
   const topic = args.find((arg) => !arg.startsWith("--"));

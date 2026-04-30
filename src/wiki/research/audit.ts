@@ -1,6 +1,6 @@
-import { collectResearchAudit } from "../lib/research-audit";
+import { collectResearchAudit } from "../../lib/research-audit";
 import { collectResearchLintResult } from "./_shared";
-import { printJson, printLine } from "../lib/cli-output";
+import { printJson, printLine } from "../../lib/cli-output";
 
 export async function auditResearch(args: string[]) {
   const topic = args.find((arg) => !arg.startsWith("--"));

@@ -1,9 +1,9 @@
 import { join } from "node:path";
-import { VAULT_ROOT } from "../constants";
-import { nowIso, orderFrontmatter, safeMatter, writeNormalizedPage } from "../cli-shared";
-import { exists, readText } from "../lib/fs";
-import { classifyResearchPath, normalizeInfluencedBy, normalizeResearchPageRef, normalizeWikiTarget } from "../lib/research";
-import { printJson, printLine } from "../lib/cli-output";
+import { VAULT_ROOT } from "../../constants";
+import { nowIso, orderFrontmatter, safeMatter, writeNormalizedPage } from "../../cli-shared";
+import { exists, readText } from "../../lib/fs";
+import { classifyResearchPath, normalizeInfluencedBy, normalizeResearchPageRef, normalizeWikiTarget } from "../../lib/research";
+import { printJson, printLine } from "../../lib/cli-output";
 
 export async function handoffResearch(args: string[]) {
   const { pageRef, targetRef, json } = parseHandoffArgs(args);

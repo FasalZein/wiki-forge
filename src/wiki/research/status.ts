@@ -1,5 +1,5 @@
 import { RESEARCH_STATUSES, RESEARCH_VERIFICATION_LEVELS, RESEARCH_WORKFLOW_STAGES, collectResearchStatus } from "./_shared";
-import { printJson, printLine } from "../lib/cli-output";
+import { printJson, printLine } from "../../lib/cli-output";
 
 export async function researchStatus(args: string[]) {
   const topic = args.find((arg) => !arg.startsWith("--"));

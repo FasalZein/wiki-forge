@@ -1,13 +1,13 @@
 import { relative } from "node:path";
-import { VAULT_ROOT } from "../constants";
-import { nowIso, orderFrontmatter, writeNormalizedPage } from "../cli-shared";
-import { exists } from "../lib/fs";
+import { VAULT_ROOT } from "../../constants";
+import { nowIso, orderFrontmatter, writeNormalizedPage } from "../../cli-shared";
+import { exists } from "../../lib/fs";
 import {
   canonicalizeResearchTopicForWrite,
   researchPagePath,
   slugifyResearchPage,
   topicCrossLinks,
-} from "../lib/research";
+} from "../../lib/research";
 import { ensureResearchTopic, projectTruthTargets } from "./_shared";
 
 export async function createResearchPage(topic: string, title: string, project?: string) {
