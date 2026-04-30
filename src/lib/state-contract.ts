@@ -5,10 +5,10 @@ export {
   classifyStateField,
   getStateContract,
   resolveStateContract,
-} from "./wiki-contracts/state-contract";
+} from "../shared/contracts/state-contract";
 export type {
   ReconcilerScope,
   StateContract,
   StateContractId,
   StateFieldAuthority,
-} from "./wiki-contracts/state-contract";
+} from "../shared/contracts/state-contract";
