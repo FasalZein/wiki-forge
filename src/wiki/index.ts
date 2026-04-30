@@ -25,7 +25,7 @@ import { acknowledgeImpact } from "./verification/acknowledge-impact";
 import { bindSourcePaths, migrateVerification, verifyPage } from "./verification/verification-pages";
 import { cacheClear, lintProject, lintSemanticProject, verifyProject } from "./verification/linting";
 import { configCommand } from "./config";
-import { schemaCommand } from "../schema";
+import { schemaCommand } from "./schema";
 
 export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   help: (args) => printHelp(args),

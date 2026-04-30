@@ -1,11 +1,11 @@
-import { requireValue } from "../cli-shared";
+import { requireValue } from "../../cli-shared";
 import { featureSchema } from "./feature";
 import { planSchema } from "./plan";
 import { prdSchema } from "./prd";
 import { sliceHubSchema } from "./slice-hub";
 import { testPlanSchema } from "./test-plan";
 import type { JsonSchema } from "./shared";
-import { printJson, printLine } from "../lib/cli-output";
+import { printJson, printLine } from "../../lib/cli-output";
 
 export const SPEC_SCHEMA_KINDS = ["slice-hub", "plan", "test-plan", "prd", "feature"] as const;
 export type SpecSchemaKind = (typeof SPEC_SCHEMA_KINDS)[number];
