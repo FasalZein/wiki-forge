@@ -24,11 +24,6 @@ const SOURCE_BOUNDARIES: readonly SourceBoundary[] = ["wiki", "forge", "shared",
 const TRANSITION_EXCEPTIONS = {
   forgeImportsWikiInternals: [
     {
-      importer: "src/forge/vault/records.ts",
-      importee: "src/wiki/memory/handover/schema.ts",
-      reason: "Forge records still depend on the Wiki handover schema until the handover record contract moves to src/shared.",
-    },
-    {
       importer: "src/forge/workflow/commands.ts",
       importee: "src/wiki/memory/session-commands.ts",
       reason: "Forge command exports still re-export Wiki session commands until Wiki and Forge command seams are split.",
@@ -39,11 +34,6 @@ const TRANSITION_EXCEPTIONS = {
       importer: "src/wiki/index.ts",
       importee: "src/forge/workflow/commands.ts",
       reason: "The Wiki router directly imports Forge workflow commands until the public command seam is split.",
-    },
-    {
-      importer: "src/wiki/memory/handover/schema.ts",
-      importee: "src/forge/vault/path.ts",
-      reason: "Wiki handover schema still uses Forge path branding until the handover record contract moves to src/shared.",
     },
     {
       importer: "src/wiki/memory/handover/store.ts",

@@ -1,4 +1,4 @@
-import type { ForgeHandoverRecord } from "../../wiki/memory/handover/schema";
+import type { ForgeHandoverRecord } from "../../shared/contracts/handover";
 import type { FrontmatterValue, RecordDecodeResult, ForgeDiagnostic, ForgeRecordStatus, VaultDocument } from "./document";
 import { isForgeEvidencePath, isForgeFeaturePath, isForgeHandoverPath, isForgePath, isForgePrdPath, isForgeSlicePath } from "./forge-paths";
 import type { VaultPath } from "./path";
