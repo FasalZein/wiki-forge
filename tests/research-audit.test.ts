@@ -36,7 +36,7 @@ describe("wiki research audit", () => {
     }
   });
 
-  test("passes when links are live and influenced_by points at a real page", () => {
+  test("skips public live link checks by default while preserving influence validation", () => {
     const vault = tempDir("wiki-vault");
     initVault(vault);
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
@@ -46,7 +46,7 @@ describe("wiki research audit", () => {
     const decisionsPath = join(vault, "projects", "demo", "decisions.md");
     writeFileSync(decisionsPath, `${readFileSync(decisionsPath, "utf8").trimEnd()}\n- [[research/demo-topic/linked]]\n`, "utf8");
     const pagePath = join(vault, "research", "demo-topic", "linked.md");
-    writeFileSync(pagePath, `---\ntitle: Linked Research\ntype: research\ntopic: demo-topic\nstatus: applied\nsource_type: article\nsources:\n  - url: https://example.com\n    accessed: 2026-04-13\n    claim: Live source\ninfluenced_by:\n  - projects/demo/decisions\nupdated: 2026-04-13\nverification_level: source-checked\n---\n# Linked Research\n\n## Key Findings\n\n- source: [1]\n`, "utf8");
+    writeFileSync(pagePath, `---\ntitle: Linked Research\ntype: research\ntopic: demo-topic\nstatus: applied\nsource_type: article\nsources:\n  - url: https://example.invalid/unreachable\n    accessed: 2026-04-13\n    claim: Public source checked only in live mode\ninfluenced_by:\n  - projects/demo/decisions\nupdated: 2026-04-13\nverification_level: source-checked\n---\n# Linked Research\n\n## Key Findings\n\n- source: [1]\n`, "utf8");
 
     const result = runWiki(["research", "audit", "demo-topic", "--json"], env);
     expect(result.exitCode).toBe(0);

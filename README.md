@@ -155,7 +155,8 @@ wiki research scaffold "state management"                  # create topic contai
 wiki research ingest "state management" ./notes.md         # seed from existing findings
 wiki research status                                       # coverage + health summary
 wiki research lint                                         # check evidence freshness
-wiki research audit                                        # dead links + influenced_by coverage
+wiki research audit                                        # influenced_by coverage + local deterministic link checks
+wiki research audit --live-network                         # opt into public live URL validation
 wiki source ingest https://example.com/article             # raw source -> raw/ + linked summary
 ```
 

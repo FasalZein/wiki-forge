@@ -5,7 +5,8 @@ import { printJson, printLine } from "../../lib/cli-output";
 export async function auditResearch(args: string[]) {
   const topic = args.find((arg) => !arg.startsWith("--"));
   const json = args.includes("--json");
-  const [audit, lint] = await Promise.all([collectResearchAudit(topic), collectResearchLintResult(topic)]);
+  const liveNetwork = args.includes("--live-network") || process.env.WIKI_LIVE_NETWORK_TESTS === "1";
+  const [audit, lint] = await Promise.all([collectResearchAudit(topic, { liveNetwork }), collectResearchLintResult(topic)]);
   const result = { ...audit, lintIssues: lint.issues };
   if (json) {
     printJson(result);

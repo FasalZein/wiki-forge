@@ -24,7 +24,12 @@ export type ResearchAuditResult = {
   staleUnverified: string[];
 };
 
-export async function collectResearchAudit(topic?: string): Promise<ResearchAuditResult> {
+export type ResearchAuditOptions = {
+  readonly liveNetwork?: boolean;
+};
+
+export async function collectResearchAudit(topic?: string, options: ResearchAuditOptions = {}): Promise<ResearchAuditResult> {
+  const liveNetwork = options.liveNetwork ?? process.env.WIKI_LIVE_NETWORK_TESTS === "1";
   const normalizedTopic = topic ? normalizeTopicPath(topic) : undefined;
   const root = normalizedTopic ? researchTopicDir(normalizedTopic) : researchRoot();
   const pages = (await walkMarkdown(root)).filter((file) => !file.endsWith("/_overview.md")).sort();
@@ -52,7 +57,7 @@ export async function collectResearchAudit(topic?: string): Promise<ResearchAudi
       }
     }
 
-    const urls = await extractAuditUrls(parsed.data.sources);
+    const urls = (await extractAuditUrls(parsed.data.sources)).filter((url) => shouldAuditUrl(url, liveNetwork));
     for (const url of urls) {
       if (!checkedUrls.has(url)) checkedUrls.set(url, checkUrl(url));
     }
@@ -99,6 +104,17 @@ async function extractAuditUrls(sources: unknown) {
     }
   }
   return [...urls];
+}
+
+function shouldAuditUrl(url: string, liveNetwork: boolean) {
+  if (liveNetwork) return true;
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1" || parsed.hostname === "::1" || parsed.hostname === "[::1]";
+  } catch (error) {
+    void error;
+    return false;
+  }
 }
 
 async function checkUrl(url: string) {
