@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { repoRoot } from "./_helpers/wiki-subprocess";
 
@@ -17,12 +17,10 @@ describe("shared contracts", () => {
 
   test("state contract is canonical shared contract", () => {
     const sharedStateContract = readRepoFile("src/shared/contracts/state-contract.ts");
-    const libStateContract = readRepoFile("src/lib/wiki-contracts/state-contract.ts");
 
     expect(sharedStateContract).toContain("export function resolveStateContract");
     expect(sharedStateContract).toContain("export const RECONCILER_WRITE_SCOPE_CONTRACTS");
-    expect(libStateContract).not.toContain("export function resolveStateContract");
-    expect(libStateContract).toContain("../../shared/contracts/state-contract");
+    expect(repoFileExists("src/lib/wiki-contracts/state-contract.ts")).toBe(false);
   });
 
   test("verification levels are canonical shared contracts", () => {
@@ -61,4 +59,8 @@ describe("shared contracts", () => {
 
 function readRepoFile(path: string): string {
   return readFileSync(join(repoRoot, path), "utf8");
+}
+
+function repoFileExists(path: string): boolean {
+  return existsSync(join(repoRoot, path));
 }
