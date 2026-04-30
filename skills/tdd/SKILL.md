@@ -42,7 +42,7 @@ No code without a behavior test. When a behavior is only provable through broade
 
 Do not batch all tests first and all implementation second. Use tracer bullets: one red test, one green implementation, then refactor.
 
-The green record must reuse the exact same `--command` string as red and at least one same `--test` path. If you change the command while fixing the test, record a new red first; otherwise Forge will reject close evidence as an invalid TDD pair.
+Red and green evidence must use the exact same command string. The green record must reuse the exact same `--command` string as red and at least one same `--test` path. If you change the command while fixing the test, record a new red first; otherwise Forge will reject close evidence as an invalid TDD pair.
 
 Do not use characterization as a bypass for implementation work: when changing behavior, add a failing test for the new outcome before making the code pass.
 

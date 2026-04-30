@@ -10,7 +10,7 @@ Wiki is the second-brain memory layer. It owns durable vault memory: research, n
 
 Health inspects and reconciles freshness, drift, repair queues, and readiness gates across Wiki and Forge. Public commands still use `wiki checkpoint`, `wiki maintain`, `wiki doctor`, and related verbs; internally this is the Health boundary, not shared/lib utility code.
 
-Use Wiki for project Q&A, research filing, source binding, drift repair, checkpoint/gate review, and maintaining vault truth. If the task shifts into implementation, execution, slice ownership, review gates, or tracked delivery work, switch to `/forge`. The CLI and Forge kernel, not this skill text, own lifecycle enforcement.
+Use Wiki for project Q&A, research filing, source binding, drift repair, checkpoint/gate review, and maintaining vault truth. If the task shifts into implementation, execution, slice ownership, review gates, or tracked delivery work, switch to `/forge`. The CLI and Forge kernel, not this skill text, own lifecycle enforcement. For real-project operation, follow `docs/production-operator-guide.md` in the repository alongside the current `wiki resume` / `wiki checkpoint` / `wiki forge next` steering.
 
 ## Boundary after the Forge P0 overhaul
 
@@ -42,7 +42,7 @@ If the installed `wiki` binary is unavailable while working inside this reposito
 
 - `wiki checkpoint` is the authoritative freshness/Git source for current vault truth.
 - `wiki maintain` is the authoritative repair plan for freshness repair and reconciliation work.
-- `wiki resume` restores working context only; use it to recover orientation, not to override current freshness truth.
+- `wiki resume` restores working context only; use it to recover orientation, not to override current freshness truth. If it reports a stale handover, re-anchor with `wiki checkpoint <project> --repo <path> --base HEAD --json` and `wiki forge status` / `wiki forge next` before acting.
 - Do not hand-edit freshness metadata or generated pages when a `wiki` command owns that surface.
 - If git activity may have changed repo truth, use `wiki checkpoint`, `wiki maintain`, or `wiki refresh-from-git` instead of manually patching derived wiki state.
 - Keep wiki focused on knowledge-state operations. Use `/forge` for implementation planning, execution, amendment slices, review gates, and tracked SDLC workflow.

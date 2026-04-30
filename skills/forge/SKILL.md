@@ -12,6 +12,10 @@ Health is the cross-cutting inspector/reconciler. It runs freshness, drift, sync
 
 Use this skill when changing runtime/product behavior, continuing a slice, creating follow-up work, handing over active work, or closing verified work. The CLI and Forge kernel own phase ordering, invariants, and close gates. Do not treat this skill body as workflow truth.
 
+## Real-project operator loop
+
+For production use on an actual project, follow `docs/production-operator-guide.md`: resume for context, checkpoint for freshness/Git truth, `wiki forge next` for the next lifecycle action, `wiki forge status <slice>` for slice truth, explicit TDD red/green evidence, targeted verification, review, and `wiki forge run` for close. If resume reports a stale handover, do not follow the old prompt blindly; re-anchor with checkpoint and Forge status/next first.
+
 ## Commands
 
 - Context: `wiki resume <project> --repo <path> --base <rev>` and `wiki handover <project> --repo <path> --base <rev>`.

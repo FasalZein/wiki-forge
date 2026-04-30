@@ -10,6 +10,8 @@ const docs = {
   setup: readFileSync("SETUP.md", "utf8"),
   wikiSkill: readFileSync("skills/wiki/SKILL.md", "utf8"),
   forgeSkill: readFileSync("skills/forge/SKILL.md", "utf8"),
+  tddSkill: readFileSync("skills/tdd/SKILL.md", "utf8"),
+  operatorGuide: readFileSync("docs/production-operator-guide.md", "utf8"),
 };
 
 describe("forge dogfood release gate", () => {
@@ -66,5 +68,27 @@ describe("forge dogfood release gate", () => {
   test("release gate is explicit and separate from per-slice close", () => {
     expect(docs.readme).toContain("Targeted tests = slice proof; full suite = release gate.");
     expect(docs.setup).toContain("Run full `bun test` only for the production Forge release gate, not for normal per-slice closeout.");
+  });
+
+  test("production operator guide and skills describe the stable real-project workflow", () => {
+    for (const required of [
+      "wiki resume <project> --repo <path> --base <rev>",
+      "wiki checkpoint <project> --repo <path> --base <rev>",
+      "wiki forge plan <project> <feature-name> --repo <path>",
+      "wiki forge start <project> <slice-id> --repo <path> --agent <agent>",
+      "wiki forge tdd red <project> <slice-id>",
+      "wiki forge evidence <project> <slice-id> verify",
+      "wiki forge review record <project> <slice-id>",
+      "wiki forge run <project> <slice-id> --repo <path>",
+      "stale handover",
+      "bun run sync:local -- --audit",
+    ]) {
+      expect(docs.operatorGuide).toContain(required);
+    }
+
+    expect(docs.readme).toContain("For production operation, see [Production Operator Guide](docs/production-operator-guide.md).");
+    expect(docs.wikiSkill).toContain("For real-project operation, follow `docs/production-operator-guide.md`");
+    expect(docs.forgeSkill).toContain("Real-project operator loop");
+    expect(docs.tddSkill).toContain("Red and green evidence must use the exact same command string");
   });
 });

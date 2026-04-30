@@ -1,0 +1,109 @@
+# Production Operator Guide
+
+Use this guide when applying wiki-forge to a real project. It is the practical loop; the CLI/kernel remain workflow truth.
+
+## Mental model
+
+- Wiki is the second brain: durable knowledge, research, decisions, source bindings, handovers, retrieval, and page verification.
+- Forge is lifecycle truth: feature/PRD/slice ownership, TDD evidence, targeted verification, review, close, and amend.
+- Health is the inspector/reconciler: checkpoint, maintain, doctor, drift, sync, readiness, and repair planning.
+- Shared/lib are neutral contracts and primitives only. Do not move orchestration there.
+
+## Start or resume
+
+```bash
+wiki resume <project> --repo <path> --base <rev>
+wiki checkpoint <project> --repo <path> --base <rev>
+wiki forge next <project> --repo <path> --json
+```
+
+Treat `wiki resume` as context, not freshness truth. `wiki checkpoint` tells you whether the repo/wiki state is clean. `wiki forge next` tells you whether a slice is active, ready, or whether planning is needed.
+
+## Plan new work
+
+When `wiki forge next` returns `plan-next-slice`, create or continue a Forge planning session:
+
+```bash
+wiki forge plan <project> <feature-name> --repo <path>
+```
+
+Answer the planning packet in order: torpathy/domain-model scope, PRD candidate, PRD grill, then slice breakdown. Keep the first PRD narrow and explicitly list what is out of scope.
+
+## Start a slice
+
+```bash
+wiki forge status <project> <slice-id> --repo <path> --json
+wiki forge start <project> <slice-id> --repo <path> --agent <agent>
+```
+
+Only one slice should be active unless the Forge packet explicitly grants non-overlapping parallel ownership.
+
+## TDD red/green
+
+Record TDD evidence explicitly. Forge does not infer TDD from a passing suite.
+
+```bash
+wiki forge tdd red <project> <slice-id> --test <test-path> --command "<failing command>" --note "why this fails before the change"
+wiki forge tdd green <project> <slice-id> --test <same-test-path> --command "<same command>" --note "what now passes"
+```
+
+The red and green records must use the exact same command string and at least one same test path.
+
+## Targeted verification and review
+
+Run the slice's targeted verification, then record it:
+
+```bash
+wiki forge evidence <project> <slice-id> verify --command "<targeted command>"
+wiki forge review record <project> <slice-id> --verdict approved --reviewer <reviewer>
+```
+
+Targeted verification proves the slice. Full-suite verification is a release gate or final confidence check, not a replacement for targeted evidence.
+
+## Close
+
+```bash
+wiki forge status <project> <slice-id> --repo <path> --json
+wiki forge run <project> <slice-id> --repo <path>
+```
+
+If close is rejected, follow the typed recovery commands from `wiki forge status` or the rejection packet. Do not manually mark slices done.
+
+## Handover and stale resume recovery
+
+Before stopping or transferring work:
+
+```bash
+wiki handover <project> --repo <path> --base <rev>
+```
+
+If resume reports a stale handover, do not follow the old prompt blindly. Re-anchor on current truth:
+
+```bash
+wiki checkpoint <project> --repo <path> --base HEAD --json
+wiki forge status <project> --repo <path> --json
+wiki forge next <project> --repo <path> --json
+```
+
+If checkpoint is clean, stale resume text is context only. If checkpoint reports stale pages or dirty Git state, run repair first.
+
+## Health repair loop
+
+```bash
+wiki checkpoint <project> --repo <path> --base <rev>
+wiki maintain <project> --repo <path> --base <rev>
+wiki doctor <project> --repo <path> --base <rev>
+```
+
+Use `checkpoint` for freshness/Git truth, `maintain` for the repair plan, and `doctor` for readiness diagnostics. Health does not close lifecycle work; Forge does.
+
+## Skill updates
+
+After editing repo skills:
+
+```bash
+bun run sync:local
+bun run sync:local -- --audit
+```
+
+Restart the agent session after syncing so installed skills reload. If skills and runtime disagree, trust the CLI/kernel and update the skill text.

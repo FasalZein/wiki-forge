@@ -59,7 +59,7 @@ cd wiki-forge
 ./install.sh --full
 ```
 
-The installer handles bun, dependencies, local sync of the CLI/qmd/skills, shell config, and the vault directory (`~/Knowledge`). `wiki-only` installs just the second-brain layer (`/wiki`). `full` installs the second-brain layer plus the forge SDLC workflow stack (`/forge`, the repo-owned workflow skills, and the external `/desloppify` companion). See [SETUP.md](SETUP.md) for manual setup, Obsidian config, and troubleshooting.
+The installer handles bun, dependencies, local sync of the CLI/qmd/skills, shell config, and the vault directory (`~/Knowledge`). `wiki-only` installs just the second-brain layer (`/wiki`). `full` installs the second-brain layer plus the forge SDLC workflow stack (`/forge`, the repo-owned workflow skills, and the external `/desloppify` companion). See [SETUP.md](SETUP.md) for manual setup, Obsidian config, and troubleshooting. For production operation, see [Production Operator Guide](docs/production-operator-guide.md).
 
 <details>
 <summary><strong>Manual prerequisites</strong> (if not using the installer)</summary>

@@ -99,7 +99,7 @@ Only after the slice is ready and both docs are filled should `/tdd` begin.
 
 ### 7. Continuation rule
 
-If the user says "proceed", "continue", or otherwise asks for the next implementation step after a completed non-trivial slice, do not continue coding ad hoc.
+If the user says "proceed", "continue", or otherwise asks for the next implementation step after a completed non-trivial slice, do not continue coding ad hoc. On real projects, use `docs/production-operator-guide.md` as the operational checklist, but keep Forge status/next as lifecycle truth.
 
 First:
 
