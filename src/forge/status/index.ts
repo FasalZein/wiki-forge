@@ -1,4 +1,4 @@
-import { collectGitTruth } from "../../forge/core/git-truth";
+import { collectGitTruth } from "../core/git-truth";
 import { resolveRepoPath, readVerificationLevel } from "../../lib/verification";
 import { projectPrdsDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath } from "../../lib/structure";
 import { extractVerificationSpecsFromTestPlan } from "../../wiki/verification";
@@ -7,7 +7,7 @@ import {
   collectTaskContextForId,
   detectTaskDocState,
 } from "../../wiki/project-views";
-import { buildForgeSteering } from "../steering/packet";
+import { buildForgeSteering } from "../../protocol/steering/packet";
 import { extractMarkdownSection, readMatterDoc, readPlanningDoc } from "./evidence";
 import { validateForgeWorkflowLedger } from "./workflow-ledger";
 import {

@@ -1,19 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { collectForgeStatus } from "../../src/protocol";
+import { collectForgeStatus } from "../../src/forge/status";
 import { repoRoot } from "../_helpers/wiki-subprocess";
 
-describe("forge status facade", () => {
-  test("remains importable from the shared protocol surface", () => {
+describe("forge status module", () => {
+  test("remains importable from the Forge status surface", () => {
     expect(typeof collectForgeStatus).toBe("function");
   });
 
   test("keeps orchestration in the facade and delegates helper concerns", () => {
-    const shim = readFileSync(join(repoRoot, "src", "protocol", "forge-status.ts"), "utf8");
-    const source = readFileSync(join(repoRoot, "src", "protocol", "status", "index.ts"), "utf8");
-
-    expect(shim).toContain('./status/index');
+    const source = readFileSync(join(repoRoot, "src", "forge", "status", "index.ts"), "utf8");
     expect(source).toContain("buildAuthoredForgeStatusLedger");
     expect(source).toContain("resolveForgeStatusLedger");
     expect(source).toContain("buildForgeTriage");

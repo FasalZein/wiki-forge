@@ -1,7 +1,7 @@
 import type { BacklogTaskContext } from "../../wiki/project-views";
-import { classifyWorkflowSteeringTriage } from "../steering/triage";
+import { classifyWorkflowSteeringTriage } from "../../protocol/steering/triage";
 import { type ForgePhase } from "./workflow-ledger";
-import { type ForgeTriage } from "../steering/triage-types";
+import { type ForgeTriage } from "../../protocol/steering/triage-types";
 
 type TaskDocState = BacklogTaskContext["planStatus"];
 

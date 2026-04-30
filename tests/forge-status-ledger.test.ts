@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { validateForgeWorkflowLedger, type ForgeWorkflowLedger } from "../src/protocol/status/workflow-ledger";
+import { validateForgeWorkflowLedger, type ForgeWorkflowLedger } from "../src/forge/status/workflow-ledger";
 import {
   isSliceDocsReady,
   mergeAuthoredLedgers,
   normalizeForgeValidationForCloseableSlice,
   readAuthoredHubLedger,
-} from "../src/protocol/forge-status-ledger";
+} from "../src/forge/status/ledger";
 
 describe("forge status ledger helpers", () => {
   test("readAuthoredHubLedger normalizes legacy grill storage to domain-model", () => {

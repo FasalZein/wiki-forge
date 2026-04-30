@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { compactForgeStatusForJson } from "../src/protocol/forge-status-format";
+import { compactForgeStatusForJson } from "../src/forge/status/format";
 
 describe("forge status format helpers", () => {
   test("compactForgeStatusForJson aliases missing to unmet and strips internal context fields", () => {

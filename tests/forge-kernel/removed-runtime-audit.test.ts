@@ -17,12 +17,8 @@ const LEGACY_WORKFLOW_IMPORTS = [
   "../../slice/repair",
   "../session",
   "../../session",
-  "../wiki/project-views",
-  "../../wiki/project-views",
   "../maintenance",
   "../../maintenance",
-  "../wiki/verification",
-  "../../wiki/verification",
 ];
 
 const LEGACY_WORKFLOW_TEXT = [

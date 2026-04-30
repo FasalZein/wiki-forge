@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildForgeTriage } from "../../src/protocol";
+import { buildForgeTriage } from "../../src/forge/status";
 
 describe("forge status triage adapter", () => {
   test("maps pre-implementation workflow phases to shared phase recommendations", () => {

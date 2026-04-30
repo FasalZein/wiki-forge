@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { nowIso, orderFrontmatter, safeMatter, writeNormalizedPage } from "../../cli-shared";
 import { VAULT_ROOT } from "../../constants";
-import { readPlanningDoc, collectPriorResearchRefs, type MatterDoc } from "../../protocol/status/index";
+import { readPlanningDoc, collectPriorResearchRefs, type MatterDoc } from "../../forge/status/index";
 import { appendLogEntry } from "../../lib/log";
 import { exists, readText } from "../../lib/fs";
 import { normalizeInfluencedBy, normalizeResearchPageRef } from "../../lib/research";

@@ -28,6 +28,36 @@ const TRANSITION_EXCEPTIONS = {
       importee: "src/wiki/memory/session-commands.ts",
       reason: "Forge command exports still re-export Wiki session commands until Wiki and Forge command seams are split.",
     },
+    {
+      importer: "src/forge/status/evidence-readers.ts",
+      importee: "src/wiki/verification/index.ts",
+      reason: "Forge status still reads Wiki verification specs until verification evidence readers move behind a shared contract.",
+    },
+    {
+      importer: "src/forge/status/format.ts",
+      importee: "src/wiki/project-views/index.ts",
+      reason: "Forge status JSON still formats Wiki task context until project-view status contracts move behind a shared read model.",
+    },
+    {
+      importer: "src/forge/status/index.ts",
+      importee: "src/wiki/project-views/index.ts",
+      reason: "Forge status still reads Wiki project-view context until project-view status contracts move behind a shared read model.",
+    },
+    {
+      importer: "src/forge/status/index.ts",
+      importee: "src/wiki/verification/index.ts",
+      reason: "Forge status still extracts Wiki verification specs until verification evidence readers move behind a shared contract.",
+    },
+    {
+      importer: "src/forge/status/ledger.ts",
+      importee: "src/wiki/project-views/index.ts",
+      reason: "Forge status ledger still reads Wiki planning docs until planning document contracts move behind a shared read model.",
+    },
+    {
+      importer: "src/forge/status/triage.ts",
+      importee: "src/wiki/project-views/index.ts",
+      reason: "Forge status triage still uses Wiki backlog task context until triage input contracts move behind a shared read model.",
+    },
   ],
   wikiImportsForgeInternals: [
     {
@@ -64,6 +94,11 @@ const TRANSITION_EXCEPTIONS = {
       importer: "src/wiki/memory/projections/resume.ts",
       importee: "src/forge/workflow/status-projection.ts",
       reason: "Wiki resume projection still renders Forge status until status projection contracts move behind a shared read model.",
+    },
+    {
+      importer: "src/wiki/research/adopt.ts",
+      importee: "src/forge/status/index.ts",
+      reason: "Wiki research adoption still reads Forge status until research handoff uses a shared status read model.",
     },
     {
       importer: "src/wiki/memory/prompt-packet.ts",

@@ -6,7 +6,7 @@ import {
   isForgePhaseSkippable,
   type ForgeWorkflowLedger,
   validateForgeWorkflowLedger,
-} from "../src/protocol/status/workflow-ledger";
+} from "../src/forge/status/workflow-ledger";
 
 describe("forge workflow ledger", () => {
   test("keeps the forge phase chain in canonical order", () => {

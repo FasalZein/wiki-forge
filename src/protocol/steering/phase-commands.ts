@@ -1,5 +1,5 @@
 import { loadConfig, phaseSkill } from "../../lib/config";
-import type { ForgePhase } from "../status/workflow-ledger";
+import type { ForgePhase } from "../../forge/status/workflow-ledger";
 import type { ForgeTriage, PrePhaseTriageKind } from "./triage-types";
 
 export type PhaseRecommendation = ForgeTriage & { kind: PrePhaseTriageKind };
