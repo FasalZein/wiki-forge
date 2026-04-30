@@ -47,6 +47,45 @@
         ]
       },
       {
+        "name": "maintenance-checkpoint",
+        "patterns": ["src/maintenance/checkpoint.ts", "src/maintenance/checkpoint/**"]
+      },
+      {
+        "name": "maintenance-readiness",
+        "patterns": ["src/maintenance/readiness/**"]
+      },
+      {
+        "name": "maintenance-sync",
+        "patterns": ["src/maintenance/sync.ts", "src/maintenance/refresh.ts", "src/maintenance/sync/**"]
+      },
+      {
+        "name": "maintenance-doctor",
+        "patterns": ["src/maintenance/doctor.ts", "src/maintenance/dashboard.ts", "src/maintenance/doctor/**"]
+      },
+      {
+        "name": "maintenance-drift",
+        "patterns": ["src/maintenance/drift.ts", "src/maintenance/drift/**"]
+      },
+      {
+        "name": "maintenance-shared",
+        "patterns": ["src/maintenance/shared/**"]
+      },
+      {
+        "name": "maintenance-health",
+        "patterns": [
+          "src/maintenance/index.ts",
+          "src/maintenance/maintain.ts",
+          "src/maintenance/_shared.ts",
+          "src/maintenance/commit-check.ts",
+          "src/maintenance/discover.ts",
+          "src/maintenance/lint-repo.ts",
+          "src/maintenance/freshness-classifier.ts",
+          "src/maintenance/test-health.ts",
+          "src/maintenance/health/**",
+          "src/maintenance/lint/**"
+        ]
+      },
+      {
         "name": "wiki",
         "patterns": ["src/wiki/**"]
       },
@@ -61,10 +100,6 @@
       {
         "name": "lib",
         "patterns": ["src/lib/**"]
-      },
-      {
-        "name": "maintenance-transition",
-        "patterns": ["src/maintenance/**"]
       }
     ],
     "rules": [
@@ -82,7 +117,7 @@
       },
       {
         "from": "wiki",
-        "allow": ["shared", "lib", "maintenance-transition", "wiki-forge-transition"]
+        "allow": ["shared", "lib", "wiki-forge-transition", "maintenance-drift"]
       },
       {
         "from": "forge-status-transition",
@@ -102,15 +137,52 @@
       },
       {
         "from": "wiki-router-transition",
-        "allow": ["shared", "lib", "wiki", "wiki-forge-transition", "forge", "forge-command-transition", "maintenance-transition"]
+        "allow": [
+          "shared",
+          "lib",
+          "wiki",
+          "wiki-forge-transition",
+          "forge",
+          "forge-command-transition",
+          "maintenance-health",
+          "maintenance-checkpoint",
+          "maintenance-sync",
+          "maintenance-doctor",
+          "maintenance-drift",
+          "maintenance-readiness"
+        ]
       },
       {
         "from": "wiki-forge-transition",
-        "allow": ["shared", "lib", "wiki", "forge", "forge-status-transition", "maintenance-transition"]
+        "allow": ["shared", "lib", "wiki", "forge", "forge-status-transition"]
       },
       {
-        "from": "maintenance-transition",
-        "allow": ["shared", "lib", "wiki", "forge", "forge-status-transition", "forge-steering-transition", "forge-core-transition"]
+        "from": "maintenance-health",
+        "allow": ["shared", "lib", "wiki", "forge", "maintenance-shared", "maintenance-sync", "maintenance-doctor", "maintenance-drift", "maintenance-readiness", "maintenance-checkpoint"]
+      },
+      {
+        "from": "maintenance-checkpoint",
+        "allow": ["shared", "lib", "wiki", "forge", "maintenance-shared", "maintenance-health"]
+      },
+      {
+        "from": "maintenance-readiness",
+        "allow": ["shared", "lib", "wiki", "forge", "forge-status-transition", "forge-core-transition", "maintenance-shared", "maintenance-health", "maintenance-doctor", "maintenance-drift"]
+      },
+      {
+        "from": "maintenance-sync",
+        "allow": ["shared", "lib", "wiki", "maintenance-shared", "maintenance-health", "maintenance-drift", "maintenance-readiness"]
+      },
+      {
+        "from": "maintenance-doctor",
+        "allow": ["shared", "lib", "wiki", "maintenance-shared", "maintenance-drift", "maintenance-readiness", "maintenance-health"]
+      },
+      {
+        "from": "maintenance-drift",
+        "allow": ["shared", "lib", "wiki"]
+      },
+      {
+        "from": "maintenance-shared",
+        "allow": ["shared", "lib", "wiki", "forge", "maintenance-health"]
       }
     ]
   }

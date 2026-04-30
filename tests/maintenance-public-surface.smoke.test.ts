@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import * as maintenance from "../src/maintenance";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const expectedExports = [
@@ -53,5 +53,16 @@ describe("maintenance public surface", () => {
     const repoRoot = join(import.meta.dir, "..");
 
     expect(existsSync(join(repoRoot, "src", "shared", "diagnostics.ts"))).toBe(true);
+  });
+
+  test("maintenance is a first-class health boundary, not one broad transition zone", () => {
+    const repoRoot = join(import.meta.dir, "..");
+    const fallowConfig = readFileSync(join(repoRoot, "fallow.json"), "utf8");
+
+    expect(fallowConfig).not.toContain("maintenance-transition");
+    expect(fallowConfig).toContain("maintenance-checkpoint");
+    expect(fallowConfig).toContain("maintenance-readiness");
+    expect(fallowConfig).toContain("maintenance-sync");
+    expect(fallowConfig).toContain("maintenance-health");
   });
 });
