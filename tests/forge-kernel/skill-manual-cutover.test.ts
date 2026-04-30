@@ -11,11 +11,14 @@ describe("skill manuals after legacy cutover", () => {
     expect(forge).toContain("research -> domain-model -> spec -> slices -> ownership -> implementation -> tdd -> verification -> review -> close");
     expect(forge).toContain("Removed legacy commands are not part of the workflow surface");
     expect(forge).toContain("absent from the runtime");
+    expect(forge).toContain("Health is the cross-cutting inspector/reconciler");
+    expect(forge).toContain("Do not move Health orchestration into shared or lib");
   });
 
   test("Wiki skill treats old lifecycle commands as removed, not active tools", () => {
     const wiki = skill("wiki");
     expect(wiki).toContain("Wiki remembers; Forge executes lifecycle.");
+    expect(wiki).toContain("Health inspects and reconciles freshness, drift, repair queues, and readiness gates");
     expect(wiki).toContain("Tracked implementation closes through `wiki forge run`");
     expect(wiki).toContain("absent from the runtime");
     expect(wiki).not.toContain("Closeout/gate review: `wiki closeout");
@@ -28,12 +31,14 @@ describe("skill manuals after legacy cutover", () => {
     expect(prd).toContain("Do not use removed legacy PRD commands");
     expect(slices).toContain("wiki forge plan <project> <feature-name> --repo <path>");
     expect(slices).toContain("absent from the runtime surface");
+    expect(slices).toContain("Forge status is workflow truth. Checkpoint/maintain are Health-owned freshness and repair truth. Generated views are projections.");
     expect(slices).not.toContain("wiki create-issue-slice <project> <title>");
   });
 
   test("TDD skill records evidence through Forge instead of legacy forge-verify", () => {
     const tdd = skill("tdd");
     expect(tdd).toContain("wiki forge evidence <project> <slice> verify");
+    expect(tdd).toContain("The green record must reuse the exact same `--command` string as red");
     expect(tdd).toContain("Do not use removed legacy commands");
     expect(tdd).not.toContain("Run slice verification: `wiki forge evidence");
   });

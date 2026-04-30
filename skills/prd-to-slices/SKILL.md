@@ -120,7 +120,7 @@ wiki checkpoint <project> --repo <path> --base <rev>
 wiki maintain <project> --repo <path> --base <rev>
 ```
 
-Forge status is workflow truth. Checkpoint/maintain are freshness and repair truth. Generated views are projections.
+Forge status is workflow truth. Checkpoint/maintain are Health-owned freshness and repair truth. Generated views are projections.
 
 ### 9. Hand off to implementation
 

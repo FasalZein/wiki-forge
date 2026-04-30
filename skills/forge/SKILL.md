@@ -8,13 +8,15 @@ description: >
 
 Forge is the SDLC lifecycle layer for tracked implementation work. It owns workflow state, slice ownership, Git boundaries, verification evidence, review evidence, handover continuity, and close readiness. Wiki remains the second-brain memory layer; Forge decides whether implementation may proceed or close.
 
+Health is the cross-cutting inspector/reconciler. It runs freshness, drift, sync, repair, checkpoint, doctor, and readiness checks across Wiki and Forge, but it does not own lifecycle truth. Do not move Health orchestration into shared or lib; shared/lib are only for neutral primitives and contracts.
+
 Use this skill when changing runtime/product behavior, continuing a slice, creating follow-up work, handing over active work, or closing verified work. The CLI and Forge kernel own phase ordering, invariants, and close gates. Do not treat this skill body as workflow truth.
 
 ## Commands
 
 - Context: `wiki resume <project> --repo <path> --base <rev>` and `wiki handover <project> --repo <path> --base <rev>`.
 - Pick/inspect: `wiki forge next <project> --repo <path>`, `wiki forge status <project> [slice] --repo <path> --json`.
-- Freshness/repair: `wiki checkpoint <project> --repo <path> --base <rev>`, `wiki maintain <project> --repo <path> --base <rev>`.
+- Health/freshness/repair: `wiki checkpoint <project> --repo <path> --base <rev>`, `wiki maintain <project> --repo <path> --base <rev>`, `wiki doctor <project> --repo <path> --base <rev>`.
 - Plan/run: `wiki forge plan <project> <feature-name> --repo <path>`, `wiki forge run <project> [slice-id] --repo <path>`.
 - TDD evidence: `wiki forge tdd status <project> <slice> --json`, then `wiki forge tdd red <project> <slice> --test <path> --command "<failing command>" --note "<why this fails>"`, then `wiki forge tdd green <project> <slice> --test <same path> --command "<same command>" --note "<what now passes>"`.
 - Verification/review: `wiki forge evidence <project> <slice> verify --command "<targeted command>"`, `wiki forge review record <project> <slice> --verdict <approved|needs_changes|approved_with_followups> --reviewer <name>`.

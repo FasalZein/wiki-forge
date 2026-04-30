@@ -29,6 +29,8 @@ For behavior-preserving refactors, first capture current externally visible beha
 ## Commands
 
 - Inspect workflow: `wiki forge status <project> <slice> --repo <path>`
+- Record TDD red: `wiki forge tdd red <project> <slice> --test <path> --command "<failing command>" --note "<why this fails>"`
+- Record TDD green: `wiki forge tdd green <project> <slice> --test <same path> --command "<same command>" --note "<what now passes>"`
 - Record targeted verification: `wiki forge evidence <project> <slice> verify --command "<targeted command>" --repo <path>`
 - Continue/close tracked work: `wiki forge run <project> <slice> --repo <path>`
 - Do not use removed legacy commands. Record verification with `wiki forge evidence`, then continue with `wiki forge run`.
@@ -39,6 +41,8 @@ For behavior-preserving refactors, first capture current externally visible beha
 No code without a behavior test. When a behavior is only provable through broader verification, record that behavior evidence explicitly.
 
 Do not batch all tests first and all implementation second. Use tracer bullets: one red test, one green implementation, then refactor.
+
+The green record must reuse the exact same `--command` string as red and at least one same `--test` path. If you change the command while fixing the test, record a new red first; otherwise Forge will reject close evidence as an invalid TDD pair.
 
 Do not use characterization as a bypass for implementation work: when changing behavior, add a failing test for the new outcome before making the code pass.
 

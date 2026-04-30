@@ -8,12 +8,15 @@ description: >
 
 Wiki is the second-brain memory layer. It owns durable vault memory: research, notes, decisions, handovers, source bindings, page verification levels, drift/freshness checks, and recall. Wiki remembers; Forge executes lifecycle.
 
-Use it for project Q&A, research filing, source binding, drift repair, checkpoint/gate review, and maintaining vault truth. If the task shifts into implementation, execution, slice ownership, review gates, or tracked delivery work, switch to `/forge`. The CLI and Forge kernel, not this skill text, own lifecycle enforcement.
+Health inspects and reconciles freshness, drift, repair queues, and readiness gates across Wiki and Forge. Public commands still use `wiki checkpoint`, `wiki maintain`, `wiki doctor`, and related verbs; internally this is the Health boundary, not shared/lib utility code.
+
+Use Wiki for project Q&A, research filing, source binding, drift repair, checkpoint/gate review, and maintaining vault truth. If the task shifts into implementation, execution, slice ownership, review gates, or tracked delivery work, switch to `/forge`. The CLI and Forge kernel, not this skill text, own lifecycle enforcement.
 
 ## Boundary after the Forge P0 overhaul
 
 - Wiki answers: what knowledge exists, what pages are stale, what source bindings need repair, and what context should be retrieved.
 - Forge answers: what slice is active, what phase is next, who owns changed files, whether Git/verification/review/ledger evidence permits close, and how to amend closed work.
+- Health answers: what repo/wiki freshness, drift, repair, sync, checkpoint, and readiness work is needed before humans or Forge should trust the current state.
 - `wiki checkpoint` is freshness/Git truth; it must not be treated as workflow completion.
 - `wiki forge status` is workflow truth; it must not be treated as freshness repair.
 - Old lifecycle commands are gone from the runtime surface. Tracked implementation closes through `wiki forge run` or explicit `wiki forge check` / `wiki forge close`.
