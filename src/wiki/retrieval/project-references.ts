@@ -1,8 +1,8 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import matter from "gray-matter";
-import { VAULT_ROOT } from "../constants";
-import type { QmdResult } from "../types";
+import { VAULT_ROOT } from "../../constants";
+import type { QmdResult } from "../../types";
 
 export function extractCanonicalReferenceIds(question: string) {
   const matches = question.match(/\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+\b/giu) ?? []; // desloppify:ignore EMPTY_ARRAY_FALLBACK

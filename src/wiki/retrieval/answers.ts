@@ -1,18 +1,18 @@
 import { dirname, join, relative } from "node:path"; // desloppify:ignore *
 import matter from "gray-matter";
-import { VAULT_ROOT } from "../constants";
-import { orderFrontmatter, projectRoot, mkdirIfMissing, readProjectTitle } from "../cli-shared";
-import { exists, writeText } from "../lib/fs";
-import { buildEvidenceExcerpt, buildScopedNoteIndex, findNoteByVaultPath, fromQmdFile, normalizePath, stripMarkdownExtension } from "../lib/notes";
-import { buildLexicalSearchQuery, normalizeSemanticQueryText } from "../lib/qmd";
-import { appendLogEntry } from "../lib/log";
-import { sdkHybridAvailable, searchKnowledgeExpandedSdk, searchKnowledgeLexicalSdk, searchKnowledgeStructuredSdk } from "../lib/qmd-sdk";
+import { VAULT_ROOT } from "../../constants";
+import { orderFrontmatter, projectRoot, mkdirIfMissing, readProjectTitle } from "../../cli-shared";
+import { exists, writeText } from "../../lib/fs";
+import { buildEvidenceExcerpt, buildScopedNoteIndex, findNoteByVaultPath, fromQmdFile, normalizePath, stripMarkdownExtension } from "../../lib/notes";
+import { buildLexicalSearchQuery, normalizeSemanticQueryText } from "../../lib/qmd";
+import { appendLogEntry } from "../../lib/log";
+import { sdkHybridAvailable, searchKnowledgeExpandedSdk, searchKnowledgeLexicalSdk, searchKnowledgeStructuredSdk } from "../../lib/qmd-sdk";
 import { refreshKnowledgeIndex, resolveAskRetrievalModeWithFreshness } from "./qmd-freshness";
 import { resolveDirectProjectReferenceResults } from "./project-references";
-import { legacyProjectResearchTopic, questionTokens } from "../lib/research";
-import { createResearchPage } from "../research";
-import type { AnswerBrief, AnswerSource, AskOptions, NoteIndex, NoteInfo, NoteQualitySignals, QmdResult } from "../types";
-import { printLine } from "../lib/cli-output";
+import { legacyProjectResearchTopic, questionTokens } from "../../lib/research";
+import { createResearchPage } from "../../research";
+import type { AnswerBrief, AnswerSource, AskOptions, NoteIndex, NoteInfo, NoteQualitySignals, QmdResult } from "../../types";
+import { printLine } from "../../lib/cli-output";
 
 export const DEFAULT_ASK_MAX_RESULTS = 4;
 const DEFAULT_ASK_CANDIDATES = 8;

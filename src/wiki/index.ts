@@ -17,8 +17,8 @@ import { refreshFromGit, refreshOnMerge, refreshProject } from "../maintenance/r
 import { syncProject } from "../maintenance/sync";
 import { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeModule, syncProtocol, auditProtocol, obsidianCommand, setupShell } from "../protocol";
 import { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch, handoffResearch, bridgeResearch, distillResearch, adoptResearch } from "../research";
-import { askProject, fileAnswer, fileResearch } from "../retrieval/answers";
-import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "../retrieval/qmd-commands";
+import { askProject, fileAnswer, fileResearch } from "./retrieval/answers";
+import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "./retrieval/qmd-commands";
 import { forgeAmendCommand, forgeCheckCommand, forgeCloseCommand, forgeEvidenceCommand, forgeNextCommand, forgePlanCommand, forgeReleaseCommand, forgeReviewCommand, forgeRunCommand, forgeStartCommand, forgeStatusCommand } from "../forge/workflow/commands";
 import { exportPromptCommand, handoverCommand, logCommand, noteCommand, resumeCommand } from "./memory/commands";
 import { acknowledgeImpact } from "../verification/acknowledge-impact";

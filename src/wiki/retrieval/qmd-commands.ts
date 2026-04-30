@@ -1,8 +1,8 @@
-import { buildLexicalSearchQuery, buildStructuredHybridQuery, type RetrievalMode, resolveRetrievalMode } from "../lib/qmd";
-import { getQmdStore, sdkHybridAvailable, searchKnowledgeExpandedSdk, searchKnowledgeHybridSdk, searchKnowledgeLexicalSdk, searchKnowledgeStructuredSdk } from "../lib/qmd-sdk";
-import { QMD_INDEX_PATH } from "../constants";
+import { buildLexicalSearchQuery, buildStructuredHybridQuery, type RetrievalMode, resolveRetrievalMode } from "../../lib/qmd";
+import { getQmdStore, sdkHybridAvailable, searchKnowledgeExpandedSdk, searchKnowledgeHybridSdk, searchKnowledgeLexicalSdk, searchKnowledgeStructuredSdk } from "../../lib/qmd-sdk";
+import { QMD_INDEX_PATH } from "../../constants";
 import { embedKnowledgeIndex, refreshKnowledgeIndex } from "./qmd-freshness";
-import { printError, printJson, printLine } from "../lib/cli-output";
+import { printError, printJson, printLine } from "../../lib/cli-output";
 
 export async function searchVault(args: string[]) {
   const hybrid = args[0] === "--hybrid";

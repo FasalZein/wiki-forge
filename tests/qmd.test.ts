@@ -3,12 +3,12 @@ import { DEFAULT_CANDIDATE_LIMITS, parseCandidateLimitsArg } from "../scripts/qm
 import { DEFAULT_BENCH_COMMANDS, parseCommandList } from "../scripts/wiki-maintenance-bench";
 import { resolveQmdIndexPath } from "../src/constants";
 import { join } from "node:path";
-import { DEFAULT_ASK_MAX_RESULTS, classifyAnswerScope, qualitySignalBoost, renderAnswerBrief, resolveAnswerRetrievalStrategy, resolveAskCandidateLimit, scoreAnswerSource } from "../src/retrieval/answers";
-import { resolveQueryExecutionMode, resolveSearchRetrievalMode } from "../src/retrieval/qmd-commands";
+import { DEFAULT_ASK_MAX_RESULTS, classifyAnswerScope, qualitySignalBoost, renderAnswerBrief, resolveAnswerRetrievalStrategy, resolveAskCandidateLimit, scoreAnswerSource } from "../src/wiki/retrieval/answers";
+import { resolveQueryExecutionMode, resolveSearchRetrievalMode } from "../src/wiki/retrieval/qmd-commands";
 import { VAULT_ROOT } from "../src/constants";
 import { buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText, resolveRetrievalMode } from "../src/lib/qmd";
-import { resolveAskRetrievalModeWithFreshness } from "../src/retrieval/qmd-freshness";
-import { extractCanonicalReferenceIds, selectSpecMarkdownFileForId } from "../src/retrieval/project-references";
+import { resolveAskRetrievalModeWithFreshness } from "../src/wiki/retrieval/qmd-freshness";
+import { extractCanonicalReferenceIds, selectSpecMarkdownFileForId } from "../src/wiki/retrieval/project-references";
 import { fromQmdFile } from "../src/lib/vault";
 
 describe("qmd query shaping", () => {

@@ -1,6 +1,6 @@
-import { QMD_INDEX_PATH, VAULT_ROOT } from "../constants";
-import { resolveRetrievalMode, type RetrievalMode } from "../lib/qmd";
-import { getQmdStore } from "../lib/qmd-sdk";
+import { QMD_INDEX_PATH, VAULT_ROOT } from "../../constants";
+import { resolveRetrievalMode, type RetrievalMode } from "../../lib/qmd";
+import { getQmdStore } from "../../lib/qmd-sdk";
 
 export const KNOWLEDGE_COLLECTION = "knowledge";
 
