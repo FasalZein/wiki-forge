@@ -18,5 +18,3 @@ export {
   buildDirectoryTree,
   readCodePaths,
 } from "./repo-scan";
-export { resolveWorkflowSteering, resolveTargetWorkflowSteering } from "./steering";
-export { classifyWorkflowSteeringTriage } from "./steering-triage";

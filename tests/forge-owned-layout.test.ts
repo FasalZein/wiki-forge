@@ -12,4 +12,11 @@ describe("Forge-owned source layout", () => {
     expect(existsSync(join(repoRoot, "src/protocol/forge-status-ledger.ts"))).toBe(false);
     expect(existsSync(join(repoRoot, "src/protocol/forge-status-triage.ts"))).toBe(false);
   });
+
+  test("Forge steering lives inside the Forge bounded context", () => {
+    expect(existsSync(join(repoRoot, "src/forge/steering"))).toBe(true);
+    expect(existsSync(join(repoRoot, "src/protocol/steering"))).toBe(false);
+    expect(existsSync(join(repoRoot, "src/protocol/steering.ts"))).toBe(false);
+    expect(existsSync(join(repoRoot, "src/protocol/steering-triage.ts"))).toBe(false);
+  });
 });

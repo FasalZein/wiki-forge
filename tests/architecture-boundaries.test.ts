@@ -58,6 +58,16 @@ const TRANSITION_EXCEPTIONS = {
       importee: "src/wiki/project-views/index.ts",
       reason: "Forge status triage still uses Wiki backlog task context until triage input contracts move behind a shared read model.",
     },
+    {
+      importer: "src/forge/steering/index.ts",
+      importee: "src/wiki/project-views/index.ts",
+      reason: "Forge steering still reads Wiki backlog focus until steering input contracts move behind a shared read model.",
+    },
+    {
+      importer: "src/forge/steering/triage.ts",
+      importee: "src/wiki/project-views/index.ts",
+      reason: "Forge steering triage still uses Wiki backlog task context until triage input contracts move behind a shared read model.",
+    },
   ],
   wikiImportsForgeInternals: [
     {

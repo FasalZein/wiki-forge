@@ -7,7 +7,7 @@ import {
   collectTaskContextForId,
   detectTaskDocState,
 } from "../../wiki/project-views";
-import { buildForgeSteering } from "../../protocol/steering/packet";
+import { buildForgeSteering } from "../steering/packet";
 import { extractMarkdownSection, readMatterDoc, readPlanningDoc } from "./evidence";
 import { validateForgeWorkflowLedger } from "./workflow-ledger";
 import {

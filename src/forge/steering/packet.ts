@@ -1,7 +1,7 @@
 import { TEST_VERIFIED_LEVEL } from "../../constants";
 import { buildForgeIterationContract, type ForgeIterationContract } from "./iteration-contract";
 import { isForgeRunTriage, isPrePhaseTriage, type ForgeTriage } from "./triage-types";
-import type { ForgePhase } from "../../forge/status/workflow-ledger";
+import type { ForgePhase } from "../status/workflow-ledger";
 
 export type ForgeLane =
   | "domain-work"

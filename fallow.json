@@ -20,6 +20,10 @@
         "patterns": ["src/forge/status/**"]
       },
       {
+        "name": "forge-steering-transition",
+        "patterns": ["src/forge/steering/**"]
+      },
+      {
         "name": "forge-command-transition",
         "patterns": ["src/forge/workflow/commands.ts"]
       },
@@ -78,7 +82,7 @@
       },
       {
         "from": "forge",
-        "allow": ["shared", "lib", "protocol-transition", "forge-command-transition", "forge-core-transition"]
+        "allow": ["shared", "lib", "protocol-transition", "forge-status-transition", "forge-steering-transition", "forge-command-transition", "forge-core-transition"]
       },
       {
         "from": "wiki",
@@ -86,11 +90,15 @@
       },
       {
         "from": "forge-status-transition",
-        "allow": ["shared", "lib", "forge", "wiki", "protocol-transition"]
+        "allow": ["shared", "lib", "forge", "forge-steering-transition", "wiki", "protocol-transition"]
+      },
+      {
+        "from": "forge-steering-transition",
+        "allow": ["shared", "lib", "forge", "forge-status-transition", "wiki"]
       },
       {
         "from": "forge-command-transition",
-        "allow": ["shared", "lib", "forge", "wiki", "wiki-forge-transition", "protocol-transition", "maintenance-transition"]
+        "allow": ["shared", "lib", "forge", "forge-status-transition", "forge-steering-transition", "wiki", "wiki-forge-transition", "protocol-transition", "maintenance-transition"]
       },
       {
         "from": "forge-core-transition",
@@ -106,11 +114,11 @@
       },
       {
         "from": "protocol-transition",
-        "allow": ["shared", "lib", "wiki", "forge", "forge-status-transition"]
+        "allow": ["shared", "lib", "wiki", "forge", "forge-status-transition", "forge-steering-transition"]
       },
       {
         "from": "maintenance-transition",
-        "allow": ["shared", "lib", "wiki", "protocol-transition", "forge", "forge-status-transition", "forge-core-transition"]
+        "allow": ["shared", "lib", "wiki", "protocol-transition", "forge", "forge-status-transition", "forge-steering-transition", "forge-core-transition"]
       }
     ]
   }

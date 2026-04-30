@@ -1,12 +1,12 @@
 import type { BacklogFocus, BacklogTaskContext } from "../../wiki/project-views";
-import { collectForgeStatus } from "../../forge/status";
+import { collectForgeStatus } from "../status";
 import {
   classifyWorkflowSteeringTriage,
   type FailedForgeHandoff,
   type WorkflowFocus,
   type SteeringTaskRef,
 } from "./triage";
-import { type ForgePhase } from "../../forge/status/workflow-ledger";
+import { type ForgePhase } from "../status/workflow-ledger";
 import { buildForgeSteering } from "./packet";
 import { type ForgeTriage } from "./triage-types";
 
@@ -150,7 +150,7 @@ export { classifyWorkflowSteeringTriage } from "./triage";
 export { PRE_PHASE_TRIAGE_KINDS, isForgeRunTriage, isPrePhaseTriage } from "./triage-types";
 export type { ForgeLane, ForgeSteeringPacket } from "./packet";
 export type { PhaseRecommendation } from "./phase-commands";
-export type { ForgePhase } from "../../forge/status/workflow-ledger";
+export type { ForgePhase } from "../status/workflow-ledger";
 export type {
   FailedForgeHandoff,
   SteeringTaskRef,

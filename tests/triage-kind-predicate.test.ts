@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { PRE_PHASE_TRIAGE_KINDS, isPrePhaseTriage } from "../src/protocol/steering/triage-types";
+import { PRE_PHASE_TRIAGE_KINDS, isPrePhaseTriage } from "../src/forge/steering/triage-types";
 
 describe("forge triage kinds", () => {
   test("matches only the declared pre-phase kinds", () => {
