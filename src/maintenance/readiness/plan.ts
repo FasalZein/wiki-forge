@@ -1,8 +1,8 @@
 import { requireValue } from "../../cli-shared";
 import { formatMaintenanceActionLabel, type MaintenanceAction } from "../shared";
 import { appendLogEntry } from "../../lib/log";
-import { collectLintResult, collectSemanticLintResult } from "../../verification";
-import type { LintingSnapshot } from "../../verification";
+import { collectLintResult, collectSemanticLintResult } from "../../wiki/verification";
+import type { LintingSnapshot } from "../../wiki/verification";
 import { parseProjectRepoBaseArgs } from "../../git-utils";
 import { printJson, printLine } from "../../lib/cli-output";
 import {

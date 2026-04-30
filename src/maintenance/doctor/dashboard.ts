@@ -1,6 +1,6 @@
 import { parseProjectRepoBaseArgs } from "../../git-utils";
 import { tailLog } from "../../lib/log";
-import { loadLintingSnapshot, collectStatusRow, collectVerifySummary } from "../../verification";
+import { loadLintingSnapshot, collectStatusRow, collectVerifySummary } from "../../wiki/verification";
 import { collectDriftSummary } from "../drift";
 import { loadProjectSnapshot } from "../shared";
 import { collectMaintenancePlan } from "../readiness/plan";

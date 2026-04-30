@@ -1,12 +1,12 @@
 import { relative } from "node:path";
-import { VAULT_ROOT } from "../constants";
-import { nowIso, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
-import { readText } from "../lib/fs";
-import { resolveRepoPath, assertGitRepo } from "../lib/verification";
-import { appendLogEntry } from "../lib/log";
-import { gitHeadSha } from "../git-utils";
+import { VAULT_ROOT } from "../../constants";
+import { nowIso, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../../cli-shared";
+import { readText } from "../../lib/fs";
+import { resolveRepoPath, assertGitRepo } from "../../lib/verification";
+import { appendLogEntry } from "../../lib/log";
+import { gitHeadSha } from "../../git-utils";
 import { resolveWikiPagePath } from "./verification-shared";
-import { printJson, printLine } from "../lib/cli-output";
+import { printJson, printLine } from "../../lib/cli-output";
 
 /**
  * `wiki acknowledge-impact <project> <page>...` stamps `verified_against: <HEAD-sha>`

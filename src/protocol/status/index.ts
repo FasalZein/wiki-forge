@@ -1,7 +1,7 @@
 import { collectGitTruth } from "../../forge/core/git-truth";
 import { resolveRepoPath, readVerificationLevel } from "../../lib/verification";
 import { projectPrdsDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath } from "../../lib/structure";
-import { extractVerificationSpecsFromTestPlan } from "../../verification";
+import { extractVerificationSpecsFromTestPlan } from "../../wiki/verification";
 import {
   collectBacklogFocus,
   collectTaskContextForId,

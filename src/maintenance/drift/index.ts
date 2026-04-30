@@ -4,7 +4,7 @@ import { nowIso, requireValue, safeMatter, today, writeNormalizedPage } from "..
 import { readText } from "../../lib/fs";
 import { appendLogEntry } from "../../lib/log";
 import { readVerificationLevel } from "../../lib/verification";
-import { loadLintingSnapshot } from "../../verification";
+import { loadLintingSnapshot } from "../../wiki/verification";
 import { collectDriftSummary, type DriftSummary } from "./query";
 import { printJson, printLine } from "../../lib/cli-output";
 

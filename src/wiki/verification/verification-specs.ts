@@ -1,4 +1,4 @@
-import { parseWikiMarkdown } from "../lib/markdown-ast";
+import { parseWikiMarkdown } from "../../lib/markdown-ast";
 
 export type VerificationCommandSpec = {
   command: string;

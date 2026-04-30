@@ -21,8 +21,8 @@ const LEGACY_WORKFLOW_IMPORTS = [
   "../../wiki/project-views",
   "../maintenance",
   "../../maintenance",
-  "../verification",
-  "../../verification",
+  "../wiki/verification",
+  "../../wiki/verification",
 ];
 
 const LEGACY_WORKFLOW_TEXT = [

@@ -3,7 +3,7 @@ import {
   extractShellCommandBlocks,
   extractVerificationSpecs,
   extractVerificationSpecsFromTestPlan,
-} from "../src/verification/verification-specs";
+} from "../src/wiki/verification/verification-specs";
 
 describe("verification specs", () => {
   test("parses directive-prefixed shell blocks into verification specs", () => {

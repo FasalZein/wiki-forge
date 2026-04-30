@@ -1,10 +1,10 @@
 import { join, relative } from "node:path";
-import { VAULT_ROOT } from "../constants";
-import { VERIFICATION_LEVELS, type VerificationLevel } from "../shared/verification/levels";
-import { nowIso, safeMatter, writeNormalizedPage } from "../cli-shared";
-import { exists, readText } from "../lib/fs";
-import { readVerificationLevel } from "../lib/verification";
-import { printError, printLine } from "../lib/cli-output";
+import { VAULT_ROOT } from "../../constants";
+import { VERIFICATION_LEVELS, type VerificationLevel } from "../../shared/verification/levels";
+import { nowIso, safeMatter, writeNormalizedPage } from "../../cli-shared";
+import { exists, readText } from "../../lib/fs";
+import { readVerificationLevel } from "../../lib/verification";
+import { printError, printLine } from "../../lib/cli-output";
 
 export async function resolveWikiPagePath(projectRootPath: string, pageArg: string): Promise<string> {
   const directPath = join(projectRootPath, pageArg);

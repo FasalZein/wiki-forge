@@ -21,9 +21,9 @@ import { askProject, fileAnswer, fileResearch } from "./retrieval/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "./retrieval/qmd-commands";
 import { forgeAmendCommand, forgeCheckCommand, forgeCloseCommand, forgeEvidenceCommand, forgeNextCommand, forgePlanCommand, forgeReleaseCommand, forgeReviewCommand, forgeRunCommand, forgeStartCommand, forgeStatusCommand } from "../forge/workflow/commands";
 import { exportPromptCommand, handoverCommand, logCommand, noteCommand, resumeCommand } from "./memory/commands";
-import { acknowledgeImpact } from "../verification/acknowledge-impact";
-import { bindSourcePaths, migrateVerification, verifyPage } from "../verification/verification-pages";
-import { cacheClear, lintProject, lintSemanticProject, verifyProject } from "../verification/linting";
+import { acknowledgeImpact } from "./verification/acknowledge-impact";
+import { bindSourcePaths, migrateVerification, verifyPage } from "./verification/verification-pages";
+import { cacheClear, lintProject, lintSemanticProject, verifyProject } from "./verification/linting";
 import { configCommand } from "../config";
 import { schemaCommand } from "../schema";
 

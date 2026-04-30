@@ -1,15 +1,15 @@
 import { rmSync } from "node:fs";
 import { join, relative } from "node:path";
-import { MODULE_REQUIRED_HEADINGS, PROJECT_DIRS, PROJECT_FILES, VAULT_ROOT, type VerificationLevel } from "../constants";
-import { assertExists, projectRoot, requireValue, safeMatter } from "../cli-shared";
-import { extractWikilinkTargets, parseWikiMarkdown } from "../lib/markdown-ast";
-import { buildNoteIndex } from "../lib/notes";
-import { classifyProjectDocPath, describeAllowedProjectDocPaths } from "../lib/structure";
-import { exists, listDirs, readText } from "../lib/fs";
-import { readVerificationLevel } from "../lib/verification";
-import { walkMarkdown } from "../lib/vault";
-import { lintFrontmatter, lintWikilinks } from "../module-format";
-import { printJson, printLine } from "../lib/cli-output";
+import { MODULE_REQUIRED_HEADINGS, PROJECT_DIRS, PROJECT_FILES, VAULT_ROOT, type VerificationLevel } from "../../constants";
+import { assertExists, projectRoot, requireValue, safeMatter } from "../../cli-shared";
+import { extractWikilinkTargets, parseWikiMarkdown } from "../../lib/markdown-ast";
+import { buildNoteIndex } from "../../lib/notes";
+import { classifyProjectDocPath, describeAllowedProjectDocPaths } from "../../lib/structure";
+import { exists, listDirs, readText } from "../../lib/fs";
+import { readVerificationLevel } from "../../lib/verification";
+import { walkMarkdown } from "../../lib/vault";
+import { lintFrontmatter, lintWikilinks } from "../../module-format";
+import { printJson, printLine } from "../../lib/cli-output";
 
 export type LintingSnapshot = {
   project: string;

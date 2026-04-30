@@ -1,8 +1,8 @@
 import { parseProjectRepoBaseArgs } from "../../git-utils";
 import { classifyDiagnosticFindings, formatDiagnosticFindingLines, isHardDiagnostic, groupDiagnosticFindings, type DiagnosticFinding, type DiagnosticScope, type MaintenanceAction } from "../shared";
 import { readFlagValue } from "../../lib/cli-utils";
-import { collectLintResult, collectSemanticLintResult } from "../../verification";
-import type { LintingSnapshot } from "../../verification";
+import { collectLintResult, collectSemanticLintResult } from "../../wiki/verification";
+import type { LintingSnapshot } from "../../wiki/verification";
 import { classifySliceLocalPageScope, collectSliceLocalContext, fileMatchesSliceClaims } from "../../wiki/slices";
 import { collectSliceOwnershipMap, type SliceOwnershipMap } from "../../forge/core/ownership-map";
 import { collectGitTruth } from "../../forge/core/git-truth";

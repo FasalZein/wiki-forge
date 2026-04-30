@@ -6,7 +6,7 @@ import { mkdirIfMissing, projectRoot, requireValue, safeMatter } from "../../../
 import { exists, listDirs, readText } from "../../../lib/fs";
 import { projectSpecsDir, projectSpecsIndexPath, projectSpecViewIndexPath, workspaceIndexPath, workspaceProjectsDashboardPath } from "../../../lib/structure";
 import { collectBacklogFocus } from "../backlog/collect";
-import { collectStatusRow, loadLintingSnapshot } from "../../../verification";
+import { collectStatusRow, loadLintingSnapshot } from "../.././verification";
 import {
   buildProjectPageIndex,
   collectProjectPageRows,

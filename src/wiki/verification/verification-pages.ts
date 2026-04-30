@@ -1,11 +1,11 @@
 import { relative } from "node:path";
-import { VAULT_ROOT, type VerificationLevel } from "../constants";
-import { assertExists, nowIso, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../cli-shared";
-import { readText } from "../lib/fs";
-import { readVerificationLevel } from "../lib/verification";
-import { walkMarkdown } from "../lib/vault";
+import { VAULT_ROOT, type VerificationLevel } from "../../constants";
+import { assertExists, nowIso, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../../cli-shared";
+import { readText } from "../../lib/fs";
+import { readVerificationLevel } from "../../lib/verification";
+import { walkMarkdown } from "../../lib/vault";
 import { applyVerificationLevel, computeLevelFromBooleans, isValidVerificationLevel, resolveWikiPagePath } from "./verification-shared";
-import { printLine } from "../lib/cli-output";
+import { printLine } from "../../lib/cli-output";
 
 export async function bindSourcePaths(args: string[]) {
   const { project, pageArg, sourcePaths, mode, dryRun } = parseBindArgs(args);

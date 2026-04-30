@@ -1,7 +1,7 @@
 import { formatMaintenanceActionLabel } from "../shared";
 import { collectBacklog } from "../../wiki/project-views";
-import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "../../verification";
-import type { LintingSnapshot } from "../../verification";
+import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "../../wiki/verification";
+import type { LintingSnapshot } from "../../wiki/verification";
 import { parseProjectRepoBaseArgs } from "../../git-utils";
 import { readSliceSummary } from "../../wiki/slices";
 import { printError, printJson, printLine } from "../../lib/cli-output";

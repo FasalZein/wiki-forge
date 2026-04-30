@@ -6,7 +6,7 @@ import { extractMarkdownSection, readPlanningDoc } from "./evidence";
 import { exists, readText } from "../../lib/fs";
 import type { ForgePhase } from "./workflow-ledger";
 import { normalizePath, stripMarkdownExtension, walkMarkdown } from "../../lib/vault";
-import { extractVerificationSpecsFromTestPlan } from "../../verification";
+import { extractVerificationSpecsFromTestPlan } from "../../wiki/verification";
 
 export type DetectionFinding = {
   phase: ForgePhase;
