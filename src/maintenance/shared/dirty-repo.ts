@@ -1,4 +1,4 @@
-import { collectGitTruth } from "../../forge/core/git-truth";
+import { collectGitTruth } from "../../shared/git-truth";
 
 export type DirtyRepoStatus = {
   modifiedFiles: string[];

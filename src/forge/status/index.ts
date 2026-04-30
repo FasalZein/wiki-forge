@@ -1,4 +1,4 @@
-import { collectGitTruth } from "../core/git-truth";
+import { collectGitTruth } from "../../shared/git-truth";
 import { resolveRepoPath, readVerificationLevel } from "../../lib/verification";
 import { projectPrdsDir, projectTaskHubPath, projectTaskPlanPath, projectTaskTestPlanPath } from "../../lib/structure";
 import { extractVerificationSpecsFromTestPlan } from "../../shared/verification/specs";

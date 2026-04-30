@@ -41,4 +41,11 @@ describe("maintenance public surface", () => {
     expect(existsSync(join(repoRoot, "src", "maintenance", "shared", "dirty-repo.ts"))).toBe(true);
     expect(existsSync(join(repoRoot, "src", "maintenance", "drift", "query.ts"))).toBe(true);
   });
+
+  test("git truth is shared infrastructure, not Forge-owned maintenance coupling", () => {
+    const repoRoot = join(import.meta.dir, "..");
+
+    expect(existsSync(join(repoRoot, "src", "shared", "git-truth.ts"))).toBe(true);
+    expect(existsSync(join(repoRoot, "src", "forge", "core", "git-truth.ts"))).toBe(false);
+  });
 });

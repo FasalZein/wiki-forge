@@ -4,7 +4,7 @@ import { VAULT_ROOT } from "../../constants";
 import { fail, nowIso, writeNormalizedPage } from "../../cli-shared";
 import { parseProjectRepoArgs, bindingMatchesFile, gitChangedFiles } from "../../git-utils";
 import { readFlagValue } from "../../lib/cli-utils";
-import { collectGitTruth, formatGitTruthSummary } from "../../forge/core/git-truth";
+import { collectGitTruth, formatGitTruthSummary } from "../../shared/git-truth";
 import { parseUpdatedDate } from "../../lib/verification";
 import { classifySliceLocalPageScope, collectSliceLocalContext, readSliceSourcePaths } from "../../wiki/slices";
 import { classifyFreshnessChurn } from "../freshness-classifier";

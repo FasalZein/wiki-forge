@@ -1,4 +1,4 @@
-import { formatGitTruthSummary, type GitTruth } from "./git-truth";
+import { formatGitTruthSummary, type GitTruth } from "../../shared/git-truth";
 import type { SliceOwnershipMap } from "./ownership-map";
 import type { DiagnosticFinding } from "../../maintenance/shared";
 

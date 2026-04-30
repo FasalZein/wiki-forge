@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { collectGitTruth } from "../src/forge/core/git-truth";
+import { collectGitTruth } from "../src/shared/git-truth";
 import { cleanupTempPaths, runGit, tempDir } from "./test-helpers";
 
 afterEach(() => {

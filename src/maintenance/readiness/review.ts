@@ -5,7 +5,7 @@ import { collectLintResult, collectSemanticLintResult } from "../../wiki/verific
 import type { LintingSnapshot } from "../../wiki/verification";
 import { classifySliceLocalPageScope, collectSliceLocalContext, fileMatchesSliceClaims } from "../../wiki/slices";
 import { collectSliceOwnershipMap, type SliceOwnershipMap } from "../../forge/core/ownership-map";
-import { collectGitTruth } from "../../forge/core/git-truth";
+import { collectGitTruth } from "../../shared/git-truth";
 import { collectClosureAttestation } from "../../forge/core/closure-attestation";
 import { collectReviewGateStatus } from "../../forge/core/reviews";
 import { printJson, printLine } from "../../lib/cli-output";

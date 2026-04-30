@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { join } from "node:path";
-import { assertGitRepo } from "../../lib/verification";
+import { assertGitRepo } from "../lib/verification";
 
 export type GitStatusKind = "staged" | "unstaged" | "untracked" | "deleted" | "renamed";
 
