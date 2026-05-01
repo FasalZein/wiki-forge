@@ -132,7 +132,14 @@ export async function handoverCommand(args: string[]): Promise<void> {
     relatedSlices: readRepeatedFlagValues(args, "--slice"),
   });
   if (json) printJson(result);
-  else printLine(`wrote ${result.path}`);
+  else {
+    printLine(`wrote ${result.path}`);
+    const preview = result.handover.summary.split("\n")[0]?.trim() ?? "";
+    if (preview) printLine(`summary: ${preview}`);
+    printLine("```text");
+    printLine(result.handover.copyPastePrompt);
+    printLine("```");
+  }
 }
 
 type HandoverStaleness =
