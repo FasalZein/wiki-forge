@@ -43,6 +43,31 @@ export async function doctorProject(args: string[]) {
   }
   printLine(`- top actions:`);
   for (const action of result.topActions) printLine(`  - ${formatMaintenanceActionLabel(action)} ${action.message}`);
+  if (isDoctorDegraded(result)) renderDoctorRecovery(project, repo, base);
+}
+
+function isDoctorDegraded(result: Awaited<ReturnType<typeof collectDoctor>>) {
+  return result.score < 100
+    || result.counts.missingTests > 0
+    || result.counts.stale > 0
+    || result.counts.renamed > 0
+    || result.counts.deleted > 0
+    || result.counts.unbound > 0
+    || result.counts.lint > 0
+    || result.counts.semantic > 0
+    || result.counts.uncovered > 0
+    || result.counts.backlogWarnings > 0;
+}
+
+function renderDoctorRecovery(project: string, repo: string | undefined, base: string) {
+  const repoArg = repo ?? ".";
+  printLine("Recovery:");
+  printLine("```bash");
+  printLine(`wiki checkpoint ${project} --repo ${repoArg} --base ${base} --json`);
+  printLine(`wiki maintain ${project} --repo ${repoArg} --base ${base}`);
+  printLine(`wiki doctor ${project} --repo ${repoArg} --base ${base}`);
+  printLine(`wiki forge next ${project} --repo ${repoArg} --json`);
+  printLine("```");
 }
 
 export async function collectDoctor(project: string, base: string, explicitRepo?: string, options: { worktree?: boolean; projectSnapshot?: ProjectSnapshot; lintingSnapshot?: LintingSnapshot; precomputedRefreshFromGit?: Awaited<ReturnType<typeof collectRefreshFromGit>> | Awaited<ReturnType<typeof collectRefreshFromWorktree>> } = {}) {
