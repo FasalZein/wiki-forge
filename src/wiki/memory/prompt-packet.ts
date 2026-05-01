@@ -1,4 +1,5 @@
 import type { ForgeNextProjection } from "../../forge/workflow/status-projection";
+import type { HandoverStaleness } from "./handover/freshness";
 import type { HandoverRecord } from "./handover-types";
 
 export type PromptPacket = {
@@ -7,6 +8,8 @@ export type PromptPacket = {
   readonly nextAction: string;
   readonly statusTruth: ForgeNextProjection;
   readonly latestHandover: HandoverRecord | null;
+  readonly handoverStaleness: HandoverStaleness | null;
+  readonly recoveryPrompt: string | null;
   readonly prompt: string;
 };
 
@@ -14,19 +17,35 @@ export function buildPromptPacket(input: {
   readonly project: string;
   readonly statusTruth: ForgeNextProjection;
   readonly latestHandover: HandoverRecord | null;
+  readonly handoverStaleness?: HandoverStaleness | null;
+  readonly recoveryPrompt?: string | null;
 }): PromptPacket {
   const nextAction = readProjectionNextAction(input.statusTruth);
+  const handoverStaleness = input.handoverStaleness ?? null;
+  const recoveryPrompt = input.recoveryPrompt ?? null;
   return {
     kind: "prompt-packet",
     project: input.project,
     nextAction,
     statusTruth: input.statusTruth,
     latestHandover: input.latestHandover,
-    prompt: renderPrompt(input.project, nextAction, input.statusTruth, input.latestHandover),
+    handoverStaleness,
+    recoveryPrompt,
+    prompt: renderPrompt(input.project, nextAction, input.statusTruth, input.latestHandover, handoverStaleness, recoveryPrompt),
   };
 }
 
-function renderPrompt(project: string, nextAction: string, statusTruth: ForgeNextProjection, handover: HandoverRecord | null): string {
+function renderPrompt(
+  project: string,
+  nextAction: string,
+  statusTruth: ForgeNextProjection,
+  handover: HandoverRecord | null,
+  handoverStaleness: HandoverStaleness | null,
+  recoveryPrompt: string | null,
+): string {
+  const handoverPromptLabel = handoverStaleness?.status === "stale"
+    ? "Previous handover prompt (stale; context only):"
+    : "Previous handover prompt:";
   return [
     `We are continuing ${project}.`,
     "",
@@ -38,8 +57,9 @@ function renderPrompt(project: string, nextAction: string, statusTruth: ForgeNex
     handover ? `Latest handover: ${handover.path}` : "Latest handover: none",
     handover ? `Related slices: ${handover.relatedSlices.join(", ") || "none"}` : "Related slices: none",
     "",
-    "Previous handover prompt:",
+    handoverPromptLabel,
     handover?.copyPastePrompt || "None recorded.",
+    ...(recoveryPrompt ? ["", "Current recovery prompt:", recoveryPrompt] : []),
   ].join("\n");
 }
 

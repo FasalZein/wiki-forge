@@ -66,6 +66,11 @@ describe("Forge resume", () => {
     expect(stdout).toContain(currentHead.slice(0, 12));
     expect(stdout).toContain("wiki forge status demo --repo");
     expect(stdout).toContain("wiki checkpoint demo --repo");
+    expect(stdout).toContain("Copy/paste recovery prompt:");
+    expect(stdout).toContain("```text");
+    expect(stdout).toContain(`current HEAD ${currentHead}`);
+    expect(stdout).toContain("wiki resume demo --repo");
+    expect(stdout).toContain("wiki forge next demo --repo");
     expect(stdout).not.toContain(`prompt: Continue demo from clean HEAD ${oldHead}.`);
   });
 });
