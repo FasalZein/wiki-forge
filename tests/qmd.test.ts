@@ -3,8 +3,9 @@ import { DEFAULT_CANDIDATE_LIMITS, parseCandidateLimitsArg } from "../scripts/qm
 import { DEFAULT_BENCH_COMMANDS, parseCommandList } from "../scripts/wiki-maintenance-bench";
 import { resolveQmdIndexPath } from "../src/constants";
 import { join } from "node:path";
-import { DEFAULT_ASK_MAX_RESULTS, renderAnswerBrief, resolveAnswerRetrievalStrategy, resolveAskCandidateLimit } from "../src/wiki/retrieval/answers";
+import { DEFAULT_ASK_MAX_RESULTS, resolveAnswerRetrievalStrategy, resolveAskCandidateLimit } from "../src/wiki/retrieval/answers";
 import { classifyAnswerScope, qualitySignalBoost, selectAnswerSources, scoreAnswerSource } from "../src/wiki/retrieval/answer-source-selection";
+import { renderAnswerBrief } from "../src/wiki/retrieval/answer-rendering";
 import { resolveQueryExecutionMode, resolveSearchRetrievalMode } from "../src/wiki/retrieval/qmd-commands";
 import { VAULT_ROOT } from "../src/constants";
 import { buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText, resolveRetrievalMode } from "../src/lib/qmd";
