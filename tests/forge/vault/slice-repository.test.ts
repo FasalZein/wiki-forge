@@ -46,9 +46,8 @@ describe("SliceDocumentRepository", () => {
 
       const result = await readSliceHub(vault, "test-proj", "TEST-001");
 
-      expect(result).toBeDefined();
-      expect(result.path).toContain("TEST-001/index.md");
-      expect(result.data).toBeDefined();
+      expect(result.path).toBe("projects/test-proj/forge/slices/TEST-001/index.md");
+      expect(Object.keys(result.data).sort()).toEqual(["claimed_by", "created_at", "project", "review_policy", "status", "task_id", "title", "type", "updated"]);
       expect(result.data.title).toBe("TEST-001 Test slice");
       expect(result.data.status).toBe("in-progress");
       expect(result.data.claimed_by).toBe("agent");
