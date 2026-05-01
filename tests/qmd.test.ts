@@ -3,7 +3,8 @@ import { DEFAULT_CANDIDATE_LIMITS, parseCandidateLimitsArg } from "../scripts/qm
 import { DEFAULT_BENCH_COMMANDS, parseCommandList } from "../scripts/wiki-maintenance-bench";
 import { resolveQmdIndexPath } from "../src/constants";
 import { join } from "node:path";
-import { DEFAULT_ASK_MAX_RESULTS, classifyAnswerScope, qualitySignalBoost, renderAnswerBrief, resolveAnswerRetrievalStrategy, resolveAskCandidateLimit, scoreAnswerSource } from "../src/wiki/retrieval/answers";
+import { DEFAULT_ASK_MAX_RESULTS, renderAnswerBrief, resolveAnswerRetrievalStrategy, resolveAskCandidateLimit } from "../src/wiki/retrieval/answers";
+import { classifyAnswerScope, qualitySignalBoost, selectAnswerSources, scoreAnswerSource } from "../src/wiki/retrieval/answer-source-selection";
 import { resolveQueryExecutionMode, resolveSearchRetrievalMode } from "../src/wiki/retrieval/qmd-commands";
 import { VAULT_ROOT } from "../src/constants";
 import { buildLexicalSearchQuery, buildStructuredHybridQuery, classifyRetrievalIntent, normalizeSemanticQueryText, resolveRetrievalMode } from "../src/lib/qmd";
@@ -228,6 +229,28 @@ describe("ask defaults", () => {
     expect(verbose).toContain("Question: where do PRDs live");
     expect(verbose).toContain("Routing:");
     expect(compact.length).toBeLessThan(verbose.length);
+  });
+});
+
+describe("answer source selection", () => {
+  test("deduplicates candidates by first-seen vault path and ranks project sources first", () => {
+    const candidateResults = [
+      { docid: "1", score: 0.2, file: "projects/wiki-forge/specs/index.md", title: "specs index", snippet: "PRDs live under specs/prds" },
+      { docid: "2", score: 0.99, file: "projects/wiki-forge/specs/index.md", title: "duplicate specs index", snippet: "duplicate" },
+      { docid: "3", score: 0.95, file: "wiki/concepts/project-wiki-system.md", title: "wiki concept", snippet: "concept" },
+    ];
+    const noteIndex = {
+      byVaultPath: new Map(),
+      byVaultPathLower: new Map(),
+      byBasename: new Map(),
+      byAlias: new Map(),
+    };
+
+    const sources = selectAnswerSources("wiki-forge", "where do PRDs live", candidateResults, noteIndex);
+
+    expect(sources.map((source) => source.vaultPath)).toEqual(["projects/wiki-forge/specs/index", "wiki/concepts/project-wiki-system"]);
+    expect(sources[0]?.result.docid).toBe("1");
+    expect(sources[0]?.scope).toBe("project");
   });
 });
 
