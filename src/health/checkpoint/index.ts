@@ -226,6 +226,7 @@ function renderCheckpoint(result: Awaited<ReturnType<typeof collectCheckpoint>>)
   printLine(`Unbound files: ${result.unboundFiles.length}`);
   for (const file of result.unboundFiles.slice(0, 50)) printLine(`  ${file}`);
   printLine("");
+  if (!result.clean) renderCheckpointRecovery(result);
   if (!result.gitTruth.clean) {
     const staleSuffix = result.stalePages.length > 0 ? `; ${result.stalePages.length} stale page${result.stalePages.length === 1 ? "" : "s"}` : "";
     printLine(`Result: DIRTY (${formatGitTruthSummary(result.gitTruth)}${staleSuffix})`);
@@ -236,4 +237,16 @@ function renderCheckpoint(result: Awaited<ReturnType<typeof collectCheckpoint>>)
     return;
   }
   printLine(`Result: ${result.clean ? "CLEAN" : `STALE (${result.stalePages.length} page${result.stalePages.length === 1 ? "" : "s"} need update)`}`);
+}
+
+function renderCheckpointRecovery(result: Awaited<ReturnType<typeof collectCheckpoint>>) {
+  const base = result.base ?? "HEAD";
+  printLine("Recovery:");
+  printLine("```bash");
+  printLine(`wiki checkpoint ${result.project} --repo ${result.repo} --base ${base} --json`);
+  printLine(`wiki maintain ${result.project} --repo ${result.repo} --base ${base}`);
+  printLine(`wiki doctor ${result.project} --repo ${result.repo} --base ${base}`);
+  printLine(`wiki checkpoint ${result.project} --repo ${result.repo} --base ${base}`);
+  printLine("```");
+  printLine("");
 }

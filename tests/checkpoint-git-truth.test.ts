@@ -34,6 +34,10 @@ describe("checkpoint git truth", () => {
     expect(result.exitCode).not.toBe(0);
     expect(output).toContain("Git worktree: DIRTY");
     expect(output).toContain("Result: DIRTY");
+    expect(output).toContain("Recovery:");
+    expect(output).toContain(`wiki checkpoint dirty --repo ${repo} --base HEAD --json`);
+    expect(output).toContain(`wiki maintain dirty --repo ${repo} --base HEAD`);
+    expect(output).toContain(`wiki doctor dirty --repo ${repo} --base HEAD`);
     expect(output).not.toContain("Result: CLEAN");
   });
 
@@ -49,5 +53,6 @@ describe("checkpoint git truth", () => {
     expect(payload.freshnessClean).toBe(true);
     expect(payload.gitTruth.clean).toBe(false);
     expect(payload.gitTruth.untracked).toEqual(["src/untracked.ts"]);
+    expect(payload).not.toHaveProperty("recovery");
   });
 });
