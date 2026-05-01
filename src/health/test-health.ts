@@ -1,1 +1,1 @@
-export { collectChangedTestHealth, guessModuleName, isCodeFile, isTestFile } from "./health/index";
+export { collectChangedTestHealth, guessModuleName, isCodeFile, isTestFile } from "./test-health/index";

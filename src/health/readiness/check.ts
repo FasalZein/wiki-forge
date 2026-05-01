@@ -5,7 +5,7 @@ import { printError, printJson, printLine } from "../../lib/cli-output";
 import { exists, readText } from "../../lib/fs";
 import { resolveRepoPath, assertGitRepo } from "../../lib/verification";
 import { parseProjectRepoBaseArgs, resolveBaseRevision } from "../../git-utils";
-import { isTestFile } from "../health";
+import { isTestFile } from "../test-health";
 import { collectDoctor, compactDoctorForJson } from "../doctor";
 import { collectReadinessReview } from "./review";
 import { collectSliceLocalContext, fileMatchesSliceClaims, readSliceHub } from "../../wiki/slices";

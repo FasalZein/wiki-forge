@@ -40,6 +40,7 @@ describe("health public surface", () => {
     expect(existsSync(join(repoRoot, "src", "health", "shared", "diagnostics.ts"))).toBe(true);
     expect(existsSync(join(repoRoot, "src", "health", "shared", "dirty-repo.ts"))).toBe(true);
     expect(existsSync(join(repoRoot, "src", "health", "drift", "query.ts"))).toBe(true);
+    expect(existsSync(join(repoRoot, "src", "health", "health"))).toBe(false);
     expect(existsSync(join(repoRoot, "src", "maintenance"))).toBe(false);
   });
 

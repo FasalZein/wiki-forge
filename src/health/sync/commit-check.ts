@@ -5,7 +5,7 @@ import { exists } from "../../lib/fs";
 import { parseUpdatedDate, resolveRepoPath, assertGitRepo } from "../../lib/verification";
 import { parseProjectRepoArgs, gitLines, normalizeRelPath } from "../../git-utils";
 import { loadProjectSnapshot, isWorktreeSourceNewer } from "../shared";
-import { isCodeFile } from "../health";
+import { isCodeFile } from "../test-health";
 import { printJson, printLine } from "../../lib/cli-output";
 
 export async function commitCheck(args: string[]) {

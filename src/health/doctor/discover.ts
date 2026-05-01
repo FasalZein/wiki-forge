@@ -7,7 +7,7 @@ import { classifyProjectDocPath } from "../../lib/structure";
 import { findProjectArg, parseProjectRepoBaseArgs } from "../../git-utils";
 import { buildDirectoryTree, listCodeFiles, listRepoMarkdownDocs, readCodePaths } from "../../wiki/protocol/discovery/index";
 import { createModuleInternal } from "../../wiki/protocol";
-import { guessModuleName } from "../health";
+import { guessModuleName } from "../test-health";
 import { printJson, printLine } from "../../lib/cli-output";
 import {
   loadProjectSnapshot,
