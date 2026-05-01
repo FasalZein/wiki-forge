@@ -3,7 +3,8 @@ import { DEFAULT_CANDIDATE_LIMITS, parseCandidateLimitsArg } from "../scripts/qm
 import { DEFAULT_BENCH_COMMANDS, parseCommandList } from "../scripts/wiki-maintenance-bench";
 import { resolveQmdIndexPath } from "../src/constants";
 import { join } from "node:path";
-import { DEFAULT_ASK_MAX_RESULTS, resolveAnswerRetrievalStrategy, resolveAskCandidateLimit } from "../src/wiki/retrieval/answers";
+import { DEFAULT_ASK_MAX_RESULTS, resolveAnswerRetrievalStrategy, resolveAskCandidateLimit } from "../src/wiki/retrieval/answer-brief";
+import { parseAskOptions } from "../src/wiki/retrieval/answer-request";
 import { classifyAnswerScope, qualitySignalBoost, selectAnswerSources, scoreAnswerSource } from "../src/wiki/retrieval/answer-source-selection";
 import { renderAnswerBrief } from "../src/wiki/retrieval/answer-rendering";
 import { resolveQueryExecutionMode, resolveSearchRetrievalMode } from "../src/wiki/retrieval/qmd-commands";
@@ -181,6 +182,24 @@ describe("benchmark harness config", () => {
 
   test("parses and normalizes maintenance benchmark commands", () => {
     expect(parseCommandList("gate,update-index,gate,bind")).toEqual(["gate", "update-index", "bind"]);
+  });
+});
+
+describe("answer request parsing", () => {
+  test("parses project, normalized question, retrieval flags, max results, and slug", () => {
+    expect(parseAskOptions(["wiki-forge", " where", " do", " PRDs  live ", "--verbose", "--bm25", "--max-results", "7", "--slug", "PRD locations"])).toEqual({
+      project: "wiki-forge",
+      question: "where do PRDs live",
+      expand: false,
+      bm25: true,
+      verbose: true,
+      maxResults: 7,
+      slug: "prd-locations",
+    });
+  });
+
+  test("rejects invalid max results through the request seam", () => {
+    expect(() => parseAskOptions(["wiki-forge", "question", "--max-results", "0"])).toThrow("invalid --max-results: 0");
   });
 });
 
