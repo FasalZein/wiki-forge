@@ -1,7 +1,7 @@
 import matter from "gray-matter";
 import { existsSync } from "node:fs";
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { mkdir } from "node:fs/promises";
+import { relative } from "node:path";
 import { VAULT_ROOT } from "../../constants";
 import { nowIso, orderFrontmatter, writeNormalizedPage } from "../../cli-shared";
 import type { CloseSliceIntent, StartSliceIntent } from "../kernel/intent";
@@ -15,7 +15,7 @@ import { readProjectSliceDocuments } from "./load-project";
 import { parseVaultDocument } from "./frontmatter-codec";
 import { readForgeEvidence } from "./evidence-store";
 import { decodeForgeRecord } from "./records";
-import { forgeProjectDir, forgeSliceDir, forgeSlicePath, forgeSlicePlanPath, forgeSliceTestPlanPath } from "./forge-paths";
+import { nextSliceId, readAllSliceIds, readSliceHub, sliceDocPaths, updateSliceHub } from "./slice-repository";
 
 export type StartSliceInput = {
   readonly project: string;
@@ -226,35 +226,12 @@ async function updateSliceFrontmatter(
   removals: readonly string[],
   vaultRoot = VAULT_ROOT,
 ): Promise<void> {
-  const path = sliceIndexPath(vaultRoot, project, sliceId);
-  if (!existsSync(path)) throw new Error(`slice index not found: ${project}/${sliceId}`);
-  const raw = await readFile(path, "utf8");
-  const parsed = matter(raw);
-  const data = { ...parsed.data, ...updates };
-  for (const key of removals) delete data[key];
-  await writeFile(path, matter.stringify(parsed.content, data), "utf8");
-}
-
-function sliceIndexPath(vaultRoot: string, project: string, sliceId: string): string {
-  return join(vaultRoot, forgeSlicePath(project, sliceId));
-}
-
-function sliceDocPaths(vaultRoot: string, project: string, sliceId: string) {
-  const dir = join(vaultRoot, forgeSliceDir(project, sliceId));
-  return {
-    dir,
-    indexPath: join(vaultRoot, forgeSlicePath(project, sliceId)),
-    planPath: join(vaultRoot, forgeSlicePlanPath(project, sliceId)),
-    testPlanPath: join(vaultRoot, forgeSliceTestPlanPath(project, sliceId)),
-  };
+  await updateSliceHub(vaultRoot, project, sliceId, updates, removals);
 }
 
 async function readClosedForgeSliceHub(project: string, sliceId: string, vaultRoot: string) {
-  const path = sliceIndexPath(vaultRoot, project, sliceId);
-  if (!existsSync(path)) throw new Error(`slice index not found: ${project}/${sliceId}`);
-  const raw = await readFile(path, "utf8");
-  const relativePath = normalizeVaultPath(relative(vaultRoot, path));
-  const document = parseVaultDocument(relativePath, raw);
+  const hub = await readSliceHub(vaultRoot, project, sliceId);
+  const document = parseVaultDocument(hub.path, hub.markdown);
   const decoded = decodeForgeRecord(document);
   if (decoded.status !== "valid" || decoded.record.kind !== "slice" || decoded.record.taskId !== sliceId) {
     throw new Error(`slice is not a Forge canonical slice record: ${project}/${sliceId}`);
@@ -262,9 +239,8 @@ async function readClosedForgeSliceHub(project: string, sliceId: string, vaultRo
   if (decoded.record.status !== "done") {
     throw new Error(`cannot amend ${sliceId}: slice is not closed in Forge lifecycle truth`);
   }
-  const parsed = matter(raw);
   const evidence = await readForgeEvidence(project, sliceId, vaultRoot);
-  if (!hasRequiredCloseEvidence(parsed.data, evidence)) {
+  if (!hasRequiredCloseEvidence(hub.data, evidence)) {
     throw new Error(`cannot amend ${sliceId}: slice is not closed in Forge lifecycle truth`);
   }
   return document;
@@ -280,19 +256,7 @@ function hasRequiredCloseEvidence(data: Record<string, unknown>, evidence: Await
 }
 
 async function nextForgeSliceId(vaultRoot: string, project: string): Promise<string> {
-  const prefix = project.replace(/[^a-zA-Z0-9]+/gu, "-").replace(/^-+|-+$/gu, "").toUpperCase();
-  const slicesRoot = join(vaultRoot, `${forgeProjectDir(project)}/slices`);
-  if (!existsSync(slicesRoot)) return `${prefix}-001`;
-  const entries = await readdir(slicesRoot, { withFileTypes: true });
-  const pattern = new RegExp(`^${escapeRegExp(prefix)}-(\\d{3})$`, "u");
-  let max = 0;
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const match = entry.name.match(pattern);
-    if (!match) continue;
-    max = Math.max(max, Number.parseInt(match[1] ?? "0", 10));
-  }
-  return `${prefix}-${String(max + 1).padStart(3, "0")}`;
+  return nextSliceId(await readAllSliceIds(vaultRoot, project), project);
 }
 
 async function assertAmendmentDocsMissing(paths: ReturnType<typeof sliceDocPaths>, sliceId: string): Promise<void> {
