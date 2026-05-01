@@ -20,6 +20,7 @@
     "lint": "eslint src/",
     "check": "tsc --noEmit && eslint src/ --max-warnings 50",
     "test": "bun test",
+    "test:coverage": "bun test --coverage",
     "ax:optimizer:install": "bun install --cwd experiments/ax-optimizer",
     "ax:optimizer:check": "bun run --cwd experiments/ax-optimizer check",
     "ax:optimizer:baseline:workflow": "bun run --cwd experiments/ax-optimizer baseline:workflow",

@@ -1,5 +1,4 @@
-import { join, relative } from "node:path"; // desloppify:ignore *
-import { statSync } from "node:fs";
+import { relative } from "node:path"; // desloppify:ignore *
 import { VAULT_ROOT } from "../../constants";
 import { projectRoot, assertExists, safeMatter } from "../../cli-shared";
 import { readText } from "../../lib/fs";
@@ -280,14 +279,4 @@ export function projectSnapshotToLintingSnapshot(snapshot: ProjectSnapshot, note
       verificationLevel: entry.verificationLevel,
     })),
   };
-}
-
-export function isWorktreeSourceNewer(repo: string, sourcePath: string, updated: Date | null) {
-  if (!updated) return true;
-  const absolutePath = join(repo, sourcePath);
-  try {
-    return statSync(absolutePath).mtimeMs > updated.getTime();
-  } catch {
-    return true;
-  }
 }

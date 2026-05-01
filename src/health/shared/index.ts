@@ -21,8 +21,8 @@ export type {
 export {
   collectRefreshFromGit,
   collectRefreshFromWorktree,
-  isWorktreeSourceNewer,
   loadProjectSnapshot,
   projectSnapshotToLintingSnapshot,
 } from "./context";
 export type { ProjectSnapshot, RefreshOptions, WorktreeImpactedPage } from "./context";
+export { isWorktreeSourceNewer } from "./worktree-mtime";

@@ -2,6 +2,7 @@ import { describe, expect, test, afterAll } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { computeStatus, type SliceState } from "../src/wiki/project-views/status";
+import { normalizeBody } from "../src/wiki/project-views/projection/text-normalize";
 import { tempDir, cleanupTempPaths, initVault, runWiki } from "./test-helpers";
 
 afterAll(cleanupTempPaths);
@@ -112,6 +113,12 @@ describe("computeStatus", () => {
       { taskId: "PROJ-001", status: null, verificationLevel: null },
     ];
     expect(computeStatus(slices)).toBe("not-started");
+  });
+});
+
+describe("projection text normalization", () => {
+  test("normalizes CRLF and trailing whitespace for generated projection comparisons", () => {
+    expect(normalizeBody("hello\r\nworld\n\n")).toBe("hello\nworld");
   });
 });
 

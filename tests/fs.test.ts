@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { exists, readText, writeText, listDirs, ensureDir, appendText, statFingerprint } from "../src/lib/fs";
@@ -7,8 +7,7 @@ import { exists, readText, writeText, listDirs, ensureDir, appendText, statFinge
 let tempDir: string;
 
 function makeTempDir() {
-  tempDir = join(tmpdir(), `fs-test-${Date.now()}`);
-  mkdirSync(tempDir, { recursive: true });
+  tempDir = mkdtempSync(join(tmpdir(), "fs-test-"));
   return tempDir;
 }
 
