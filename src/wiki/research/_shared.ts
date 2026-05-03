@@ -2,6 +2,7 @@ import { relative } from "node:path";
 import { STALE_UNVERIFIED_DAYS, VAULT_ROOT } from "../../constants";
 import { mkdirIfMissing, nowIso, orderFrontmatter, safeMatter, writeNormalizedPage } from "../../cli-shared";
 import { exists, readText } from "../../lib/fs";
+import { classifyVaultFolderPath } from "../../shared/project-structure/vault-taxonomy";
 import {
   classifyRawPath,
   classifyResearchPath,
@@ -182,6 +183,7 @@ export async function collectResearchLintResult(topic?: string, project?: string
     : normalizedTopic ? researchTopicDir(normalizedTopic) : researchRoot();
   const pages = (await walkMarkdown(root)).sort();
   const issues: string[] = [];
+  const misplacedProjectResearch = await collectMisplacedProjectResearch(project);
   const inbound = await buildResearchInboundCounts();
   for (const file of pages) {
     const rel = normalizePath(relative(VAULT_ROOT, file));
@@ -210,7 +212,34 @@ export async function collectResearchLintResult(topic?: string, project?: string
       if (!classifyRawPath(rel)) issues.push(`${rel} invalid raw path: expected ${describeAllowedRawPaths()}`);
     }
   }
-  return { topic: normalizedTopic, root: relative(VAULT_ROOT, root) || "research", issues };
+  for (const misplaced of misplacedProjectResearch) {
+    issues.push(`${misplaced.path} misplaced project research: expected ${misplaced.expectedRoot}`);
+  }
+  return { topic: normalizedTopic, root: relative(VAULT_ROOT, root) || "research", issues, misplacedProjectResearch };
+}
+
+type MisplacedProjectResearch = {
+  readonly path: string;
+  readonly project: string;
+  readonly expectedRoot: string;
+  readonly reason: string;
+};
+
+async function collectMisplacedProjectResearch(project?: string): Promise<MisplacedProjectResearch[]> {
+  const legacyRoot = project ? `${VAULT_ROOT}/research/projects/${project}` : `${VAULT_ROOT}/research/projects`;
+  const files = await walkMarkdown(legacyRoot);
+  return files.map((file) => {
+    const rel = normalizePath(relative(VAULT_ROOT, file));
+    const classification = classifyVaultFolderPath(rel);
+    const projectMatch = rel.match(/^research\/projects\/([^/]+)\//u);
+    const misplacedProject = projectMatch?.[1] ?? project ?? "unknown";
+    return {
+      path: rel,
+      project: misplacedProject,
+      expectedRoot: `projects/${misplacedProject}/research`,
+      reason: classification.reason,
+    };
+  }).sort((left, right) => left.path.localeCompare(right.path));
 }
 
 async function hasTopicHubForResearchPage(relPath: string) {

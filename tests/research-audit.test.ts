@@ -78,6 +78,28 @@ describe("wiki research audit", () => {
     expect(describeAllowedResearchPaths()).toContain("projects/<project>/research/<topic>");
   });
 
+  test("research lint reports misplaced project research outside project roots without moving it", () => {
+    const vault = tempDir("wiki-vault");
+    initVault(vault);
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+    mkdirSync(join(vault, "research", "projects", "demo"), { recursive: true });
+    writeFileSync(join(vault, "research", "projects", "demo", "old-note.md"), `---\ntitle: Old Note\ntype: research\nproject: demo\n---\n# Old Note\n`, "utf8");
+
+    const result = runWiki(["research", "lint", "--project", "demo", "--json"], env);
+
+    expect(result.exitCode).toBe(1);
+    const payload = JSON.parse(result.stdout.toString());
+    expect(payload.misplacedProjectResearch).toEqual([
+      {
+        path: "research/projects/demo/old-note.md",
+        project: "demo",
+        expectedRoot: "projects/demo/research",
+        reason: "legacy project research layout; use projects/<project>/research/<topic>/<slug>.md",
+      },
+    ]);
+    expect(readFileSync(join(vault, "research", "projects", "demo", "old-note.md"), "utf8")).toContain("# Old Note");
+  });
+
   test("project research files inside the project research folder", () => {
     const vault = tempDir("wiki-vault");
     initVault(vault);
