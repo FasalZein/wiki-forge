@@ -1,4 +1,4 @@
-export type CommandSurfaceDomain = "wiki-memory" | "forge-workflow" | "admin-view" | "migration";
+export type CommandSurfaceDomain = "wiki-memory" | "forge-workflow" | "admin-view";
 
 export type CommandSurfaceEntry = {
   readonly publicCommands: readonly string[];
@@ -20,7 +20,7 @@ const COMMAND_SURFACE = [
   entry(["forge"], "forge-workflow", "Forge workflow namespace mounted under Wiki.", { handler: "forge:*", mayMutateLifecycle: true }),
   entry(["next"], "forge-workflow", "Top-level alias for Forge next action.", { handler: "forge:next", mayMutateLifecycle: false }),
   entry(["dashboard", "dependency-graph", "summary", "update-index", "feature-status", "scaffold-layer", "create-layer-page", "lint-vault"], "admin-view", "Generated views or hierarchy admin; never lifecycle authority.", { mayReadGeneratedProjections: true }),
-  entry(["checkpoint", "maintain", "refresh", "refresh-from-git", "sync", "discover", "ingest-diff", "commit-check", "install-git-hook", "refresh-on-merge", "lint-repo", "doctor", "lint", "lint-semantic", "verify", "bind", "drift-check", "verify-page", "migrate-verification", "cache-clear", "acknowledge-impact"], "admin-view", "Wiki maintenance/freshness/verification admin; must not be treated as Forge lifecycle authority."),
+  entry(["checkpoint", "maintain", "refresh", "refresh-from-git", "sync", "discover", "ingest-diff", "commit-check", "install-git-hook", "refresh-on-merge", "lint-repo", "doctor", "lint", "lint-semantic", "verify", "bind", "drift-check", "verify-page", "cache-clear", "acknowledge-impact"], "admin-view", "Wiki maintenance/freshness/verification admin; must not be treated as Forge lifecycle authority."),
 ] as const satisfies readonly CommandSurfaceEntry[];
 
 export function listCommandSurfaceEntries(): readonly CommandSurfaceEntry[] {

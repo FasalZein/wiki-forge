@@ -29,14 +29,6 @@ const targetedVerification: ForgeEvidenceRecord = {
 
 describe("forge evidence gates", () => {
   test("TDD evidence requires an explicit red to green sequence", () => {
-    const legacyCoarseTdd: ForgeEvidenceRecord = {
-      kind: "tdd",
-      command: greenTddEvidence.command,
-      result: "passed",
-      recordedAt: "2026-04-28T04:32:00.000Z",
-    };
-
-    expect(hasPassedTddEvidence([legacyCoarseTdd])).toBe(false);
     expect(hasPassedTddEvidence([greenTddEvidence])).toBe(false);
     expect(hasPassedTddEvidence([redTddEvidence])).toBe(false);
     expect(hasPassedTddEvidence([redTddEvidence, greenTddEvidence])).toBe(true);

@@ -32,24 +32,29 @@ describe("removed read-only Forge cutover", () => {
     expect(legacyDefault.exitCode).toBe(0);
     expect(explicitForge.exitCode).toBe(0);
     expect(legacyDefault.json()).toEqual(explicitForge.json());
-    expect(legacyDefault.json()).toEqual({
+    expect(legacyDefault.json()).toMatchObject({
       status: "ready",
       project: "demo",
       nextSliceId: "DEMO-001",
       nextAction: "start-ready-slice",
+      nextCommand: "wiki forge start demo DEMO-001",
+      reason: "A released slice is ready to start.",
       source: "canonical-records",
     });
   });
 
-  test("wiki forge next returns empty when only draft legacy slices exist", () => {
+  test("wiki forge next returns release guidance when only draft slices exist", () => {
     const vault = createVaultWithSlice("draft");
     const result = runWiki(["forge", "next", "demo", "--json"], { vault });
 
     expect(result.exitCode).toBe(0);
-    expect(result.json()).toEqual({
-      status: "empty",
+    expect(result.json()).toMatchObject({
+      status: "drafts",
       project: "demo",
-      nextAction: "plan-next-slice",
+      nextAction: "release-draft-slice",
+      nextCommand: "wiki forge release demo DEMO-001",
+      reason: "Draft slices exist but must be released before start.",
+      candidates: [{ sliceId: "DEMO-001", title: "DEMO-001 first slice", nextCommand: "wiki forge release demo DEMO-001" }],
       source: "canonical-records",
     });
   });
@@ -59,11 +64,13 @@ describe("removed read-only Forge cutover", () => {
     const result = runWiki(["forge", "status", "demo", "--json"], { vault });
 
     expect(result.exitCode).toBe(0);
-    expect(result.json()).toEqual({
+    expect(result.json()).toMatchObject({
       status: "active",
       project: "demo",
       activeSliceId: "DEMO-001",
       nextAction: "continue-active-slice",
+      nextCommand: "wiki forge status demo DEMO-001 --json",
+      reason: "Active slice exists; inspect slice status and continue its gates.",
       source: "canonical-records",
     });
   });

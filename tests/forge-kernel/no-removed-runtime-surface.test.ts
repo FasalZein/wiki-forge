@@ -20,7 +20,7 @@ const REMOVED_PATHS = [
 const REMOVED_COMMANDS = [
   "backlog", "add-task", "move-task", "complete-task", "claim", "forge-start", "forge-verify", "forge-close",
   "pipeline", "pipeline-reset", "create-feature", "create-prd", "create-plan", "create-test-plan", "create-issue-slice",
-  "start-feature", "close-feature", "start-prd", "close-prd", "status", "gate", "closeout",
+  "start-feature", "close-feature", "start-prd", "close-prd", "status", "gate", "closeout", "migrate-verification",
 ];
 
 describe("no removed runtime surface", () => {

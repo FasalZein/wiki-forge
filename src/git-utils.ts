@@ -20,6 +20,8 @@ type ParseProjectRepoBaseOptions = {
   fallbackLabel?: string;
 };
 
+const DEFAULT_UNRESOLVED_BASE = "HEAD~1";
+
 export async function resolveDefaultBase(project: string, explicitRepo?: string): Promise<string> {
   // 1. Check _summary.md for default_base
   const summaryPath = join(projectRoot(project), "_summary.md");
@@ -37,7 +39,7 @@ export async function resolveDefaultBase(project: string, explicitRepo?: string)
     }
   } catch {}
   // 3. Fall back
-  return "HEAD~1";
+  return DEFAULT_UNRESOLVED_BASE;
 }
 
 async function gitRevisionExists(repo: string, rev: string) {
@@ -76,12 +78,13 @@ export async function parseProjectRepoBaseArgs(args: string[], options: ParsePro
   if (
     baseIndex < 0
     && options.fallbackToHeadIfUnresolvable
-    && base === "HEAD~1"
+    && base === DEFAULT_UNRESOLVED_BASE
   ) {
     const resolvedRepo = await resolveRepoPath(project, repo);
-    if (!await gitRevisionExists(resolvedRepo, "HEAD~1")) {
+    const defaultBaseExists = await gitRevisionExists(resolvedRepo, DEFAULT_UNRESOLVED_BASE);
+    if (!defaultBaseExists && await gitRevisionExists(resolvedRepo, "HEAD")) {
       base = "HEAD";
-      baseFallbackNote = `${options.fallbackLabel ?? "command"}: HEAD~1 unresolvable, falling back to HEAD`;
+      baseFallbackNote = `${options.fallbackLabel ?? "command"}: default base ${DEFAULT_UNRESOLVED_BASE} is unavailable in this repo; using HEAD for a single-commit baseline`;
     }
   }
   return { project, repo, base, ...(baseFallbackNote ? { baseFallbackNote } : {}) };

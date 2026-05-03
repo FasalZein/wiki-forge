@@ -19,7 +19,6 @@ export const KERNEL_RECORD_KINDS = [
   "handover",
   "projection",
   "memory",
-  "legacy-document",
 ] as const;
 export type KernelRecordKind = (typeof KERNEL_RECORD_KINDS)[number];
 

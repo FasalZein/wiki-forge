@@ -55,7 +55,10 @@ Internal / Repair:
   wiki forge start <project> [slice-id] [--agent <name>] [--repo <path>] [--json]
   wiki forge check <project> [slice-id] [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
   wiki forge close <project> [slice-id] [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
-  wiki forge evidence <project> <slice-id> <tdd|verify> [--red <text>] [--green <text>] [--command <cmd>] [--note <text>] [--json]
+  wiki forge tdd status <project> <slice-id> [--json]
+  wiki forge tdd red <project> <slice-id> --test <path> --command <cmd> [--note <text>] [--json]
+  wiki forge tdd green <project> <slice-id> --test <path> --command <cmd> [--note <text>] [--json]
+  wiki forge evidence <project> <slice-id> verify --command <cmd> [--verification-type targeted|full-suite] [--result passed|failed] [--json]
   wiki forge review record <project> <slice-id> --verdict <approved|needs_changes|approved_with_followups> --reviewer <name> [--model <model>] [--artifact <path>] [--blocker <text>] [--repo <path>]
   wiki forge amend <project> <closed-slice-id> --reason <text> [--title <text>] [--source <path...>] [--agent <name>] [--start] [--repo <path>] [--json]
   wiki forge status <project> [slice-id] [--json]
@@ -91,7 +94,6 @@ Verification & Drift:
   wiki bind <project> <module-or-page> <source-path...> [--mode replace|merge] [--dry-run]
   wiki drift-check <project> [--repo <path>] [--show-unbound] [--fix] [--json]
   wiki acknowledge-impact <project> <page...> [--repo <path>] [--json]
-  wiki migrate-verification <project>
 
 Project Setup:
   wiki scaffold-project <project>

@@ -306,8 +306,9 @@ When source code changes after verification, `drift-check` demotes the page to `
 Tracked implementation closes through Forge evidence and close gates:
 
 ```bash
-wiki forge evidence <project> <slice> tdd --red <red> --green <green> --command <cmd>
-wiki forge evidence <project> <slice> verify --command <cmd>
+wiki forge tdd red <project> <slice> --test <path> --command "<failing test command>"
+wiki forge tdd green <project> <slice> --test <same path> --command "<same command>"
+wiki forge evidence <project> <slice> verify --command "<targeted command>"
 wiki forge review record <project> <slice> --verdict approved --reviewer <name>
 wiki forge run <project> <slice> --repo <path>
 ```

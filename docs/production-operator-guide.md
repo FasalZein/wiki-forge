@@ -29,6 +29,17 @@ wiki forge plan <project> <feature-name> --repo <path>
 
 Answer the planning packet in order: torpathy/domain-model scope, PRD candidate, PRD grill, then slice breakdown. Keep the first PRD narrow and explicitly list what is out of scope.
 
+## Superseding priorities
+
+A workflow-navigation fix can supersede cleanup or refactor slices when it reduces repeated agent failure, hidden-state probing, or unsafe lifecycle ambiguity. Prefer fixing the CLI/kernel contract before continuing lower-leverage cleanup, because navigation defects compound across every later slice.
+
+Use this decision rule:
+
+1. If the new work makes Forge packets more actionable or prevents agents from guessing lifecycle state, create a new feature/PRD and prioritize it.
+2. If the new work is ordinary cleanup, refactor, or docs drift, keep it behind the active workflow-navigation feature unless it blocks the current slice.
+3. Always record the supersession reason in the new PRD or slice plan, including which existing feature or slice is being paused and why.
+4. Do not abandon the paused work silently; return to `wiki forge next <project> --repo <path> --json` after the superseding slice closes.
+
 ## Start a slice
 
 ```bash

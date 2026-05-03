@@ -1,10 +1,9 @@
 import { relative } from "node:path";
-import { VAULT_ROOT, type VerificationLevel } from "../../constants";
+import { VAULT_ROOT } from "../../constants";
 import { assertExists, nowIso, projectRoot, requireValue, safeMatter, writeNormalizedPage } from "../../cli-shared";
 import { readText } from "../../lib/fs";
-import { readVerificationLevel } from "../../lib/verification";
 import { walkMarkdown } from "../../lib/vault";
-import { applyVerificationLevel, computeLevelFromBooleans, isValidVerificationLevel, resolveWikiPagePath } from "./verification-shared";
+import { applyVerificationLevel, isValidVerificationLevel, resolveWikiPagePath } from "./verification-shared";
 import { printLine } from "../../lib/cli-output";
 
 export async function bindSourcePaths(args: string[]) {
@@ -97,26 +96,4 @@ export async function verifyPage(args: string[]) {
     if (await applyVerificationLevel(wikiFilePath, level, dryRun, relative(VAULT_ROOT, wikiFilePath), false, { allowDowngrade })) updatedCount += 1;
   }
   if (pageArgs.length > 1) printLine(`${dryRun ? "would update" : "updated"} ${updatedCount} page(s) for ${project}`);
-}
-
-export async function migrateVerification(project: string | undefined) {
-  requireValue(project, "project");
-  const root = projectRoot(project);
-  await assertExists(root, `project not found: ${project}`);
-  let updatedCount = 0;
-  for (const file of await walkMarkdown(root)) {
-    const parsed = safeMatter(relative(VAULT_ROOT, file), await readText(file), { silent: true });
-    if (!parsed) continue;
-    const hasOldFields = "verified_code" in parsed.data || "verified_runtime" in parsed.data || "verified_tests" in parsed.data;
-    if (!hasOldFields && parsed.data.verification_level) continue;
-    const nextLevel = computeLevelFromBooleans(parsed.data) as VerificationLevel;
-    const data = { ...parsed.data, verification_level: nextLevel } as Record<string, unknown>;
-    delete data.verified_code;
-    delete data.verified_runtime;
-    delete data.verified_tests;
-    writeNormalizedPage(file, parsed.content, data);
-    updatedCount += 1;
-    printLine(`migrated ${relative(VAULT_ROOT, file)} -> ${nextLevel}`);
-  }
-  printLine(`migrated ${updatedCount} file(s) for ${project}`);
 }

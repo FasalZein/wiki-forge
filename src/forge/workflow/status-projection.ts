@@ -12,39 +12,68 @@ export type SliceProjectionRecord = {
   readonly status: ForgeRecordStatus;
 };
 
+export type ForgeDraftSliceCandidate = {
+  readonly sliceId: string;
+  readonly title: string;
+  readonly commands: {
+    readonly release: string;
+    readonly startAfterRelease: string;
+  };
+};
+
+export type ForgeActionableCandidate = {
+  readonly sliceId: string;
+  readonly title: string;
+  readonly nextCommand: string;
+};
+
+type ForgeActionableFields = {
+  readonly reason: string;
+  readonly nextCommand?: string;
+  readonly noSafeCommandReason?: string;
+  readonly candidates?: readonly ForgeActionableCandidate[];
+};
+
 export type ForgeNextProjection =
-  | {
+  | ({
     readonly status: "active";
     readonly project: string;
     readonly activeSliceId: string;
     readonly nextAction: "continue-active-slice";
     readonly source: "canonical-records";
-  }
-  | {
+  } & ForgeActionableFields)
+  | ({
     readonly status: "ready";
     readonly project: string;
     readonly nextSliceId: string;
     readonly nextAction: "start-ready-slice";
     readonly source: "canonical-records";
-  }
-  | {
+  } & ForgeActionableFields)
+  | ({
+    readonly status: "drafts";
+    readonly project: string;
+    readonly draftSlices: readonly ForgeDraftSliceCandidate[];
+    readonly nextAction: "release-draft-slice";
+    readonly source: "canonical-records";
+  } & ForgeActionableFields)
+  | ({
     readonly status: "empty";
     readonly project: string;
     readonly nextAction: "plan-next-slice";
     readonly source: "canonical-records";
-  }
-  | {
+  } & ForgeActionableFields)
+  | ({
     readonly status: "conflict";
     readonly project: string;
     readonly rejection: KernelRejection;
     readonly source: "canonical-records";
-  }
-  | {
+  } & ForgeActionableFields)
+  | ({
     readonly status: "needs-repair";
     readonly project: string;
     readonly diagnostics: readonly string[];
     readonly source: "canonical-records";
-  };
+  } & ForgeActionableFields);
 
 export type ForgeNextInput = {
   readonly project: string;

@@ -71,4 +71,21 @@ describe("git-utils helpers", () => {
 
     await expect(resolveBaseRevision(repo, "HEAD~1")).rejects.toThrow(/git base resolve failed/i);
   });
+
+  test("parseProjectRepoBaseArgs falls back only for implicit HEAD~1 on single-commit repos", async () => {
+    const repo = tempDir("git-utils-single-commit");
+    mkdirSync(join(repo, "src"), { recursive: true });
+    writeFileSync(join(repo, "src", "auth.ts"), "export const auth = 1\n", "utf8");
+    runGit(repo, ["init", "-q"]);
+    runGit(repo, ["add", "."]);
+    runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
+
+    const implicit = await parseProjectRepoBaseArgs(["demo", "--repo", repo], { fallbackToHeadIfUnresolvable: true, fallbackLabel: "doctor" });
+    expect(implicit.base).toBe("HEAD");
+    expect(implicit.baseFallbackNote).toBe("doctor: default base HEAD~1 is unavailable in this repo; using HEAD for a single-commit baseline");
+
+    const explicit = await parseProjectRepoBaseArgs(["demo", "--repo", repo, "--base", "HEAD~1"], { fallbackToHeadIfUnresolvable: true, fallbackLabel: "doctor" });
+    expect(explicit.base).toBe("HEAD~1");
+    expect(explicit.baseFallbackNote).toBeUndefined();
+  });
 });

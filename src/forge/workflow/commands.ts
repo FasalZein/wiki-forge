@@ -4,7 +4,7 @@ import { renderForgeNextJson, renderForgeNextText } from "./render-next";
 import { renderForgeSliceStatusText } from "./render-slice-status";
 import { loadForgeProjectProjection, loadForgeSliceStatus } from "../vault/load-project";
 import { amendForgeSlice, checkForgeSliceClose, closeForgeSlice, releaseForgeSlice, startForgeSlice } from "../vault/slice-store";
-import { readForgeEvidence, recordForgeReviewEvidence, recordForgeStrictTddEvidence, recordForgeTddEvidence, recordForgeVerificationEvidence } from "../vault/evidence-store";
+import { readForgeEvidence, recordForgeReviewEvidence, recordForgeStrictTddEvidence, recordForgeVerificationEvidence } from "../vault/evidence-store";
 import { evaluateTddGate } from "../lifecycle/tdd-gate";
 
 export { forgePlanCommand } from "./plan-command";
@@ -156,16 +156,15 @@ export async function forgeEvidenceCommand(args: string[]): Promise<void> {
   requireValue(kind, "evidence kind");
   const command = readFlagValue(args, "--command");
   requireValue(command, "--command");
+  if (kind !== "verify" && kind !== "verification") throw new Error(`unknown forge evidence kind: ${kind}. Use 'verify' for targeted verification or 'wiki forge tdd red/green' for TDD evidence.`);
   const result = parseEvidenceResult(readFlagValue(args, "--result") ?? "passed");
-  const record = kind === "tdd"
-    ? await recordForgeTddEvidence({ project, sliceId, command, result })
-    : await recordForgeVerificationEvidence({
-      project,
-      sliceId,
-      command,
-      result,
-      verificationType: parseVerificationType(readFlagValue(args, "--verification-type") ?? "targeted"),
-    });
+  const record = await recordForgeVerificationEvidence({
+    project,
+    sliceId,
+    command,
+    result,
+    verificationType: parseVerificationType(readFlagValue(args, "--verification-type") ?? "targeted"),
+  });
   if (json) printJson(record);
   else printLine(`recorded ${record.kind} evidence for ${sliceId}`);
 }

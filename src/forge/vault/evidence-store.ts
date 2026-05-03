@@ -4,7 +4,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { VAULT_ROOT } from "../../constants";
 import { forgeSlicePath } from "./forge-paths";
-import type { LegacyTddEvidenceRecord, ReviewEvidenceRecord, TddEvidenceRecord, ForgeEvidenceRecord, VerificationEvidenceRecord } from "../lifecycle/evidence";
+import type { ReviewEvidenceRecord, TddEvidenceRecord, ForgeEvidenceRecord, VerificationEvidenceRecord } from "../lifecycle/evidence";
 
 export type RecordTddEvidenceInput = {
   readonly project: string;
@@ -33,17 +33,6 @@ export type RecordReviewEvidenceInput = {
   readonly recordedAt?: string;
   readonly vaultRoot?: string;
 };
-
-export async function recordForgeTddEvidence(input: RecordTddEvidenceInput): Promise<LegacyTddEvidenceRecord> {
-  const record: LegacyTddEvidenceRecord = {
-    kind: "tdd",
-    command: input.command,
-    result: input.result,
-    recordedAt: input.recordedAt ?? new Date().toISOString(),
-  };
-  await appendForgeEvidence(input.project, input.sliceId, record, input.vaultRoot);
-  return record;
-}
 
 export async function recordForgeStrictTddEvidence(input: RecordStrictTddEvidenceInput): Promise<TddEvidenceRecord> {
   const record: TddEvidenceRecord = {
@@ -108,8 +97,19 @@ function normalizeEvidenceList(value: unknown): readonly ForgeEvidenceRecord[] {
 
 function isEvidenceRecord(value: unknown): value is ForgeEvidenceRecord {
   if (!value || typeof value !== "object" || !("kind" in value)) return false;
+  if (isTddEvidenceRecord(value)) return true;
   const kind = (value as { kind?: unknown }).kind;
-  return kind === "tdd" || kind === "verification" || kind === "review" || kind === "closure";
+  return kind === "verification" || kind === "review" || kind === "closure";
+}
+
+function isTddEvidenceRecord(value: Record<string, unknown>): value is TddEvidenceRecord {
+  const record = value as Partial<TddEvidenceRecord>;
+  return record.kind === "tdd"
+    && (record.phase === "red" || record.phase === "green")
+    && typeof record.command === "string"
+    && Array.isArray(record.testPaths)
+    && (record.result === "passed" || record.result === "failed")
+    && typeof record.recordedAt === "string";
 }
 
 function sliceIndexPath(vaultRoot: string, project: string, sliceId: string): string {

@@ -22,7 +22,7 @@ import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } fro
 import { forgeAmendCommand, forgeCheckCommand, forgeCloseCommand, forgeEvidenceCommand, forgeNextCommand, forgePlanCommand, forgeReleaseCommand, forgeReviewCommand, forgeRunCommand, forgeStartCommand, forgeStatusCommand } from "../forge/workflow/commands";
 import { exportPromptCommand, handoverCommand, logCommand, noteCommand, resumeCommand } from "./memory/commands";
 import { acknowledgeImpact } from "./verification/acknowledge-impact";
-import { bindSourcePaths, migrateVerification, verifyPage } from "./verification/verification-pages";
+import { bindSourcePaths, verifyPage } from "./verification/verification-pages";
 import { cacheClear, lintProject, lintSemanticProject, verifyProject } from "./verification/linting";
 import { configCommand } from "./config";
 import { schemaCommand } from "./schema";
@@ -82,7 +82,6 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   bind: (args) => bindSourcePaths(args),
   "drift-check": (args) => driftCheck(args),
   "verify-page": (args) => verifyPage(args),
-  "migrate-verification": (args) => migrateVerification(args[0]),
   "cache-clear": () => cacheClear(),
   summary: (args) => summaryProject(args),
   "setup-shell": (args) => setupShell(args),

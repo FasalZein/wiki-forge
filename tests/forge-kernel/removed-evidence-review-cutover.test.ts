@@ -35,19 +35,19 @@ function evidence(vault: string) {
 
 describe("removed evidence/review Forge cutover", () => {
   test("implemented evidence/review commands do not fall back to legacy", () => {
-    expect(shouldUseForgeEvidence(["demo", sliceId, "tdd", "--command", "bun test", "--json"])).toBe(true);
-    expect(shouldUseForgeEvidence(["demo", sliceId, "tdd", "--command", "bun test"])).toBe(true);
+    expect(shouldUseForgeEvidence(["demo", sliceId, "verify", "--command", "bun test", "--json"])).toBe(true);
+    expect(shouldUseForgeEvidence(["demo", sliceId, "verification", "--command", "bun test"])).toBe(true);
     expect(shouldUseForgeReview(["record", "demo", sliceId, "--verdict", "approved", "--reviewer", "reviewer"])).toBe(true);
     expect(shouldUseForgeReview(["record", "demo", sliceId, "--verdict", "approved", "--reviewer", "reviewer"])).toBe(true);
   });
 
-  test("default wiki forge evidence tdd routes to Forge", () => {
+  test("default wiki forge evidence tdd is removed", () => {
     const vault = createVault();
     const result = runWiki(["forge", "evidence", "demo", sliceId, "tdd", "--command", "bun test tests/forge-kernel/x.test.ts", "--json"], { vault });
 
-    expect(result.exitCode).toBe(0);
-    expect(result.json()).toMatchObject({ kind: "tdd", command: "bun test tests/forge-kernel/x.test.ts", result: "passed" });
-    expect(evidence(vault)).toMatchObject([{ kind: "tdd", command: "bun test tests/forge-kernel/x.test.ts", result: "passed" }]);
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr.toString()).toContain("Use 'verify' for targeted verification or 'wiki forge tdd red/green' for TDD evidence");
+    expect(evidence(vault)).toBeUndefined();
   });
 
   test("default wiki forge evidence verify routes to Forge targeted verification", () => {

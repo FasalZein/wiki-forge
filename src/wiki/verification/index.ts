@@ -1,4 +1,4 @@
-export { bindSourcePaths, verifyPage, migrateVerification } from "./verification-pages";
+export { bindSourcePaths, verifyPage } from "./verification-pages";
 export { statusProject, lintProject, lintSemanticProject, verifyProject, cacheClear, collectStatusRow, collectVerifySummary, collectLintResult, collectSemanticLintResult, loadLintingSnapshot } from "./linting";
 export type { LintingSnapshot } from "./linting";
 export { applyVerificationLevel } from "./verification-shared";

@@ -86,6 +86,8 @@ describe("forge dogfood release gate", () => {
       "JSON output remains automation-facing",
       "Project-specific research lives under `projects/<project>/research/`",
       "Global `research/` is only for reusable cross-project topics",
+      "A workflow-navigation fix can supersede cleanup or refactor slices",
+      "Always record the supersession reason in the new PRD or slice plan",
       "bun run sync:local -- --audit",
     ]) {
       expect(docs.operatorGuide).toContain(required);

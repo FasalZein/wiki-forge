@@ -50,11 +50,13 @@ status: ready
       },
     ]);
 
-    expect(projection).toEqual({
+    expect(projection).toMatchObject({
       status: "ready",
       project: "demo",
       nextSliceId: "DEMO-001",
       nextAction: "start-ready-slice",
+      nextCommand: "wiki forge start demo DEMO-001",
+      reason: "A released slice is ready to start.",
       source: "canonical-records",
     });
   });
@@ -64,11 +66,13 @@ status: ready
     const result = runWiki(["forge", "next", "demo", "--json"], { vault });
 
     expect(result.exitCode).toBe(0);
-    expect(result.json()).toEqual({
+    expect(result.json()).toMatchObject({
       status: "ready",
       project: "demo",
       nextSliceId: "DEMO-001",
       nextAction: "start-ready-slice",
+      nextCommand: "wiki forge start demo DEMO-001",
+      reason: "A released slice is ready to start.",
       source: "canonical-records",
     });
   });

@@ -10,13 +10,6 @@ export type TddEvidenceRecord = {
   readonly recordedAt: string;
 };
 
-export type LegacyTddEvidenceRecord = {
-  readonly kind: "tdd";
-  readonly command: string;
-  readonly result: ForgeEvidenceResult;
-  readonly recordedAt: string;
-};
-
 export type VerificationEvidenceRecord = {
   readonly kind: "verification";
   readonly verificationType: "targeted" | "full-suite";
@@ -39,7 +32,7 @@ export type ClosureEvidenceRecord = {
   readonly requiredEvidence: readonly string[];
 };
 
-export type ForgeEvidenceRecord = TddEvidenceRecord | LegacyTddEvidenceRecord | VerificationEvidenceRecord | ReviewEvidenceRecord | ClosureEvidenceRecord;
+export type ForgeEvidenceRecord = TddEvidenceRecord | VerificationEvidenceRecord | ReviewEvidenceRecord | ClosureEvidenceRecord;
 
 export type AmendmentSliceDraft = {
   readonly project: string;

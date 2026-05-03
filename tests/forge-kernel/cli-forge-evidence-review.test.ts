@@ -35,9 +35,9 @@ function evidence(vault: string) {
 
 describe("forge evidence/review command adapters", () => {
   test("resolver maps forge evidence and review commands", () => {
-    expect(resolveForgeCommand(["evidence", "demo", sliceId, "tdd"])).toEqual({
+    expect(resolveForgeCommand(["evidence", "demo", sliceId, "verify"])).toEqual({
       command: "forge:evidence",
-      args: ["demo", sliceId, "tdd"],
+      args: ["demo", sliceId, "verify"],
     });
     expect(resolveForgeCommand(["review", "record", "demo", sliceId])).toEqual({
       command: "forge:review",
@@ -45,15 +45,13 @@ describe("forge evidence/review command adapters", () => {
     });
   });
 
-  test("forge tdd evidence appends a typed evidence record", () => {
+  test("forge evidence rejects removed coarse TDD records", () => {
     const vault = createVaultWithSlice();
     const result = runWiki(["forge", "evidence", "demo", sliceId, "tdd", "--command", "bun test tests/forge-kernel/x.test.ts", "--result", "passed", "--json"], { vault });
 
-    expect(result.exitCode).toBe(0);
-    expect(result.json()).toMatchObject({ kind: "tdd", command: "bun test tests/forge-kernel/x.test.ts", result: "passed" });
-    expect(evidence(vault)).toMatchObject([
-      { kind: "tdd", command: "bun test tests/forge-kernel/x.test.ts", result: "passed" },
-    ]);
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr.toString()).toContain("Use 'verify' for targeted verification or 'wiki forge tdd red/green' for TDD evidence");
+    expect(evidence(vault)).toBeUndefined();
   });
 
   test("forge targeted verification appends a typed verification record", () => {

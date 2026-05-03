@@ -3,7 +3,6 @@ import { collectBacklog } from "../../wiki/project-views";
 import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "../../wiki/verification";
 import type { LintingSnapshot } from "../../wiki/verification";
 import { parseProjectRepoBaseArgs } from "../../git-utils";
-import { readSliceSummary } from "../../wiki/slices";
 import { printError, printJson, printLine } from "../../lib/cli-output";
 import {
   loadProjectSnapshot,
@@ -84,7 +83,6 @@ export async function collectDoctor(project: string, base: string, explicitRepo?
   ]);
   const maintain = await collectMaintenancePlan(project, base, explicitRepo, projectSnapshot, lintingSnapshot, { worktree: options.worktree, precomputedRefreshFromGit: options.precomputedRefreshFromGit });
   const focus = maintain.focus;
-  const backlogConsistencyWarnings = await collectBacklogConsistencyWarnings(project, backlog.sections);
 
   const totalRepoFiles = maintain.discover.repoFiles || 1;
   const coverageRatio = maintain.discover.boundFiles / totalRepoFiles;
@@ -113,7 +111,7 @@ export async function collectDoctor(project: string, base: string, explicitRepo?
     semantic,
     backlog,
     focus,
-    backlogWarnings: [...focus.warnings, ...backlogConsistencyWarnings],
+    backlogWarnings: focus.warnings,
     maintain,
     counts: {
       stale: drift.stale,
@@ -126,37 +124,12 @@ export async function collectDoctor(project: string, base: string, explicitRepo?
       uncovered: maintain.discover.uncoveredFiles.length,
       repoDocs: maintain.discover.repoDocFiles.length,
       missingTests: maintain.refreshFromGit.testHealth.codeFilesWithoutChangedTests.length,
-      backlogWarnings: focus.warnings.length + backlogConsistencyWarnings.length,
+      backlogWarnings: focus.warnings.length,
     },
     topActions: maintain.actions.slice(0, 25),
-    backlogConsistencyWarnings,
   };
 }
 
-async function collectBacklogConsistencyWarnings(project: string, sections: Record<string, Array<{ id: string }>>) {
-  const warnings: string[] = [];
-  const entries: Array<{ section: string; item: { id: string } }> = [];
-  for (const [section, items] of Object.entries(sections)) {
-    for (const item of items) {
-      entries.push({ section, item });
-    }
-  }
-  const summaries = await Promise.all(entries.map(({ item }) => readSliceSummary(project, item.id)));
-  for (let i = 0; i < entries.length; i++) {
-    const { section, item } = entries[i];
-    const { status, completedAt } = summaries[i];
-    if (!status && !completedAt) continue;
-    if (section === "Done") {
-      if (status !== "done" || !completedAt) {
-        warnings.push(`${item.id} legacy done-slice metadata drift; run wiki maintain ${project} --repair-done-slices`);
-      }
-      continue;
-    }
-    if (status === "done") warnings.push(`${item.id} is marked done in slice docs but still lives in ${section}`);
-    if (completedAt) warnings.push(`${item.id} records completed_at in slice docs but still lives in ${section}`);
-  }
-  return warnings;
-}
 
 export function compactDoctorForJson(result: Awaited<ReturnType<typeof collectDoctor>>) {
   const MAX_DRIFT_ROWS = 30;

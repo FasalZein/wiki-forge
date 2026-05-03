@@ -26,7 +26,6 @@ export const KERNEL_INTENT_TYPES = [
   "forge-close",
   "amend-slice",
   "generate-projection",
-  "classify-legacy-document",
 ] as const;
 export type KernelIntentType = (typeof KERNEL_INTENT_TYPES)[number];
 
@@ -100,10 +99,6 @@ export type GenerateProjectionIntent = KernelIntentBase<"generate-projection", {
   readonly targetPath?: string;
 }>;
 
-export type ClassifyLegacyDocumentIntent = KernelIntentBase<"classify-legacy-document", {
-  readonly path: string;
-}>;
-
 export type KernelIntent =
   | StartSliceIntent
   | CompletePhaseIntent
@@ -112,7 +107,6 @@ export type KernelIntent =
   | RequestReviewIntent
   | CloseSliceIntent
   | AmendSliceIntent
-  | GenerateProjectionIntent
-  | ClassifyLegacyDocumentIntent;
+  | GenerateProjectionIntent;
 
 export type Intent = KernelIntent;

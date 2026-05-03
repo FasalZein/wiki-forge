@@ -6,7 +6,7 @@ const REMOVED_COMMANDS = [
   "status", "gate", "closeout", "backlog", "add-task", "move-task", "complete-task",
   "claim", "forge-start", "forge-verify", "forge-close", "pipeline", "pipeline-reset",
   "create-feature", "create-prd", "create-plan", "create-test-plan", "create-issue-slice",
-  "start-feature", "close-feature", "start-prd", "close-prd",
+  "start-feature", "close-feature", "start-prd", "close-prd", "migrate-verification",
 ];
 
 describe("command surface registry", () => {

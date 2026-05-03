@@ -8,7 +8,6 @@ export const KERNEL_REJECTION_CODES = [
   "MissingVerificationEvidence",
   "ReviewGateMissing",
   "GateFailed",
-  "InvalidLegacyDocument",
   "ConcurrentModification",
   "ProjectionStaleButCanonicalValid",
 ] as const;
@@ -20,7 +19,6 @@ export const KERNEL_INVARIANTS = [
   "required-evidence-before-close",
   "review-before-close",
   "gate-before-release",
-  "valid-legacy-document",
   "optimistic-concurrency",
   "canonical-state-over-projection",
 ] as const;

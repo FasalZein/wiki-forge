@@ -66,6 +66,7 @@ function renderPrompt(
 function renderStatusLine(statusTruth: ForgeNextProjection): string {
   if (statusTruth.status === "active") return `Active slice: ${statusTruth.activeSliceId}`;
   if (statusTruth.status === "ready") return `Ready slice: ${statusTruth.nextSliceId}`;
+  if (statusTruth.status === "drafts") return `Draft slices need release: ${statusTruth.draftSlices.map((slice) => slice.sliceId).join(", ")}`;
   if (statusTruth.status === "empty") return "No ready slice: plan next slice";
   if (statusTruth.status === "conflict") return `Conflict: ${statusTruth.rejection.code}`;
   return `Needs repair: ${statusTruth.diagnostics.join("; ")}`;

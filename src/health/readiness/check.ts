@@ -130,7 +130,6 @@ export async function collectReadinessCheck(project: string, base: string, expli
     if (unownedChangedFiles.length > 0) findings.push({ scope: "history", severity: "blocker", message: `${unownedChangedFiles.length} changed file(s) are unowned by the active slice`, files: unownedChangedFiles });
   } else if (doctor.maintain.refreshFromGit.uncoveredFiles.length > 0) findings.push({ scope: "slice", severity: "warning", message: `${doctor.maintain.refreshFromGit.uncoveredFiles.length} changed file(s) are not covered by wiki bindings`, files: doctor.maintain.refreshFromGit.uncoveredFiles });
   if (doctor.counts.repoDocs > 0) findings.push({ scope: "project", severity: "warning", message: `${doctor.counts.repoDocs} repo markdown doc(s) should live in the wiki vault` });
-  for (const warning of doctor.backlogConsistencyWarnings) findings.push({ scope: "history", severity: "warning", message: warning });
   for (const action of doctor.maintain.actions.filter((action) => action.scope === "parent")) findings.push({ scope: "parent", severity: "warning", message: action.message });
   if (structuralRefactor?.ok) findings.push({ scope: "slice", severity: "warning", message: `structural refactor exception: ${doctor.counts.missingTests} changed code file(s) skipped direct changed-test matching; typecheck/build/test parity remained intact` });
   if (!options.structuralRefactor) {

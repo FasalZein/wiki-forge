@@ -33,7 +33,7 @@ const SLICE_COMMANDS = new Set(["forge:start", "forge:release", "forge:check", "
 const NO_PROJECT_COMMANDS = new Set([
   "help", "cache-clear", "log", "obsidian", "setup-shell", "lint-vault",
   "search", "query", "qmd-status", "qmd-update", "qmd-embed", "qmd-setup",
-  "scaffold-layer", "create-layer-page", "migrate-verification", "bind",
+  "scaffold-layer", "create-layer-page", "bind",
   "drift-check", "verify-page", "update-index",
   "research:scaffold", "research:status", "research:ingest", "research:lint", "research:audit",
   "source:ingest",
