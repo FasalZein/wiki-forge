@@ -158,7 +158,6 @@ async function renderOnboardingPlan(project: string, repo?: string) {
     "", "#### Slice B: Module And Interface Map", "", "- [ ] Identify module boundaries", "- [ ] Map routes, handlers, services, repositories, jobs, and events", "- [ ] Map frontend feature boundaries and external surfaces", `- [ ] Seed \`projects/${project}/modules/*/spec.md\`, \`architecture/\`, and \`contracts/\``,
     "", "#### Slice C: Data Model", "", "- [ ] Identify schema files, migrations, tables, and key relationships", "- [ ] Identify critical calculations and invariants", `- [ ] Seed \`projects/${project}/data/*.md\``,
     "", "#### Slice D: Verification And Operations", "", "- [ ] Identify tests, runtime verification signals, and operational runbooks", `- [ ] Seed \`projects/${project}/verification/*.md\` and \`runbooks/*.md\``,
-    "", "#### Slice E: Legacy Sources", "", "- [ ] Inventory useful legacy docs without treating them as canonical", "- [ ] Record where code must replace doc assumptions", `- [ ] Seed \`projects/${project}/legacy/*.md\``,
   ];
   if (researchDirs.length) {
     slices.push(

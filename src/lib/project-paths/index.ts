@@ -10,7 +10,6 @@ export const PROJECT_FREEFORM_DOC_DIRS = [
   "changes",
   "runbooks",
   "verification",
-  "legacy",
   "planning-sessions",
 ] as const;
 

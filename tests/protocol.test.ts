@@ -75,6 +75,18 @@ describe("wiki protocol commands", () => {
     expect(auditJson.missing.some((row: { path: string }) => row.path === "apps/api/CLAUDE.md")).toBe(true);
   });
 
+  test("onboarding plan does not seed a project legacy folder", () => {
+    const { vault } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    const result = runWiki(["onboard-plan", "demo", "--repo", ".", "--write"], env);
+
+    expect(result.exitCode).toBe(0);
+    const plan = readFileSync(join(vault, "projects", "demo", "specs", "onboarding-plan.md"), "utf8");
+    expect(plan).not.toContain("Legacy Sources");
+    expect(plan).not.toContain("projects/demo/legacy");
+  });
+
   test("onboard with --repo syncs root protocol files", () => {
     const { vault, repo } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };

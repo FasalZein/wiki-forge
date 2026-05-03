@@ -162,7 +162,7 @@ function requiredFrontmatterFields(vaultPath: string): string[] {
   const rel = vaultPath.replace(/\\/g, "/");
   if (rel.startsWith("projects/") && rel.endsWith("/_summary")) return ["title", "type", "project", "updated", "status"];
   if (rel.includes("/modules/") && rel.endsWith("/spec")) return ["module", "updated", "status"];
-  if (/(^projects\/[^/]+\/(architecture|code-map|contracts|data|changes|runbooks|verification|legacy)\/.*)$/u.test(rel)) {
+  if (/(^projects\/[^/]+\/(architecture|code-map|contracts|data|changes|runbooks|verification)\/.*)$/u.test(rel)) {
     return ["title", "type", "project", "updated", "status"];
   }
   return [];

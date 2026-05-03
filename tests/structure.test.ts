@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { PROJECT_DIRS } from "../src/constants";
 import {
   classifyProjectDocPath,
   isAllowedProjectDocPath,
@@ -64,6 +65,9 @@ describe("project structure contract", () => {
   });
 
   test("rejects non-canonical project doc paths", () => {
+    expect(PROJECT_DIRS).not.toContain("legacy");
+    expect(classifyProjectDocPath("legacy/source-inventory.md")).toBeNull();
+    expect(isAllowedProjectDocPath("legacy/source-inventory.md")).toBe(false);
     expect(isAllowedProjectDocPath("notes/random.md")).toBe(false);
     expect(isAllowedProjectDocPath("specs/random.md")).toBe(false);
     expect(isAllowedProjectDocPath("specs/demo-015/index.md")).toBe(false);

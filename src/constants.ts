@@ -17,7 +17,6 @@ export const PROJECT_DIRS = [
   "changes",
   "runbooks",
   "verification",
-  "legacy",
   "specs",
 ] as const;
 
