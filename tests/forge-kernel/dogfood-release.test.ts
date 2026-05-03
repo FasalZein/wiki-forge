@@ -81,6 +81,9 @@ describe("forge dogfood release gate", () => {
       "wiki forge review record <project> <slice-id>",
       "wiki forge run <project> <slice-id> --repo <path>",
       "stale handover",
+      "Recovery blocks are presentation-only",
+      "checkpoint, maintain, and doctor",
+      "JSON output remains automation-facing",
       "bun run sync:local -- --audit",
     ]) {
       expect(docs.operatorGuide).toContain(required);

@@ -97,6 +97,21 @@ wiki doctor <project> --repo <path> --base <rev>
 
 Use `checkpoint` for freshness/Git truth, `maintain` for the repair plan, and `doctor` for readiness diagnostics. Health does not close lifecycle work; Forge does.
 
+Recovery blocks are presentation-only. When non-JSON `checkpoint`, `maintain`, or `doctor` output reports dirty, stale, degraded, or actionable state, the CLI prints a `Recovery:` block with copy/paste commands. Follow those commands before continuing lifecycle work. They re-run Health and Forge read models; they do not mutate Forge lifecycle state or mark slices done.
+
+JSON output remains automation-facing. Use `--json` when another tool needs structured checkpoint, maintain, or doctor data; use the non-JSON recovery block when a human operator needs the next safe commands.
+
+The normal recovery chain is checkpoint, maintain, and doctor:
+
+```bash
+wiki checkpoint <project> --repo <path> --base HEAD --json
+wiki maintain <project> --repo <path> --base HEAD
+wiki doctor <project> --repo <path> --base HEAD
+wiki forge next <project> --repo <path> --json
+```
+
+After repairs or wiki page updates, rerun checkpoint before starting, closing, or handing over Forge work.
+
 ## Skill updates
 
 After editing repo skills:
