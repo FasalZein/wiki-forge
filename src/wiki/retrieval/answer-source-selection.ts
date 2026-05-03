@@ -1,6 +1,5 @@
-import matter from "gray-matter";
 import { buildEvidenceExcerpt, findNoteByVaultPath, fromQmdFile, normalizePath, stripMarkdownExtension } from "../../lib/notes";
-import { legacyProjectResearchTopic, questionTokens } from "../../lib/research";
+import { questionTokens } from "../../lib/research";
 import type { AnswerSource, NoteIndex, NoteInfo, NoteQualitySignals, QmdResult } from "../../types";
 
 const VERIFICATION_LEVEL_BOOST: Record<string, number> = {
@@ -53,10 +52,8 @@ function questionPrefersResearch(question: string) {
 export function classifyAnswerScope(project: string, markdownPath: string, note?: NoteInfo | null): AnswerSource["scope"] {
   const normalized = normalizePath(markdownPath).toLowerCase();
   const projectPrefix = `projects/${project.toLowerCase()}/`;
-  const researchTopicPrefix = `research/${project.toLowerCase()}/`;
-  const legacyResearchProjectPrefix = `research/${legacyProjectResearchTopic(project).toLowerCase()}/`;
   if (normalized.startsWith(projectPrefix)) return "project";
-  if (isProjectBoundResearch(project, normalized, note, researchTopicPrefix, legacyResearchProjectPrefix)) return "project";
+  if (isProjectBoundResearch(project, normalized)) return "project";
   if (normalized.startsWith("wiki/")) return "wiki";
   if (normalized === "index.md" || normalized === "log.md" || normalized.startsWith("specs/") || normalized.startsWith("tools/") || normalized.startsWith("skills/") || normalized.startsWith("research/")) return "meta";
   return "other";
@@ -79,10 +76,8 @@ export function scoreAnswerSource(
 
   const normalized = normalizePath(markdownPath).toLowerCase();
   const projectPrefix = `projects/${project.toLowerCase()}/`;
-  const researchTopicPrefix = `research/${project.toLowerCase()}/`;
-  const legacyResearchProjectPrefix = `research/${legacyProjectResearchTopic(project).toLowerCase()}/`;
   const prefersResearch = questionPrefersResearch(question);
-  const projectBoundResearch = isProjectBoundResearch(project, normalized, note, researchTopicPrefix, legacyResearchProjectPrefix);
+  const projectBoundResearch = isProjectBoundResearch(project, normalized);
 
   if (normalized === `${projectPrefix}_summary.md`) adjusted += 0.9;
   if (normalized === `${projectPrefix}decisions.md`) adjusted += 1.1;
@@ -117,29 +112,8 @@ export function scoreAnswerSource(
   return adjusted + evidenceScore * 0.35 + Math.min(topicBoost, 0.4);
 }
 
-function isProjectBoundResearch(
-  project: string,
-  normalizedMarkdownPath: string,
-  note: NoteInfo | null | undefined,
-  researchTopicPrefix = `research/${project.toLowerCase()}/`,
-  legacyResearchProjectPrefix = `research/${legacyProjectResearchTopic(project).toLowerCase()}/`,
-) {
-  if (!normalizedMarkdownPath.startsWith("research/")) return false;
-  if (normalizedMarkdownPath.startsWith(researchTopicPrefix) || normalizedMarkdownPath.startsWith(legacyResearchProjectPrefix)) return true;
-  const projectFromFrontmatter = readProjectFromNote(note);
-  return projectFromFrontmatter === project.toLowerCase();
-}
-
-function readProjectFromNote(note: NoteInfo | null | undefined) {
-  if (!note?.content) return null;
-  let project: string | null = null;
-  try {
-    const parsed = matter(note.content);
-    project = typeof parsed.data.project === "string" ? parsed.data.project.trim().toLowerCase() : null;
-  } catch {
-    project = null;
-  }
-  return project;
+function isProjectBoundResearch(project: string, normalizedMarkdownPath: string) {
+  return normalizedMarkdownPath.startsWith(`projects/${project.toLowerCase()}/research/`);
 }
 
 export function qualitySignalBoost(signals?: NoteQualitySignals): number {

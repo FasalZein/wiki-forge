@@ -4,7 +4,7 @@ import { STALE_UNVERIFIED_DAYS, VAULT_ROOT } from "../constants";
 import { safeMatter } from "../cli-shared";
 import { exists, readText } from "./fs";
 import { normalizePath, stripMarkdownExtension, walkMarkdown } from "./vault";
-import { normalizeInfluencedBy, normalizeTopicPath, rawRoot, researchRoot, researchTopicDir } from "./research";
+import { normalizeInfluencedBy, normalizeTopicPath, projectResearchRoot, projectResearchTopicDir, rawRoot, researchRoot, researchTopicDir } from "./research";
 
 export type ResearchAuditResult = {
   topic?: string;
@@ -26,12 +26,15 @@ export type ResearchAuditResult = {
 
 export type ResearchAuditOptions = {
   readonly liveNetwork?: boolean;
+  readonly project?: string;
 };
 
 export async function collectResearchAudit(topic?: string, options: ResearchAuditOptions = {}): Promise<ResearchAuditResult> {
   const liveNetwork = options.liveNetwork ?? process.env.WIKI_LIVE_NETWORK_TESTS === "1";
   const normalizedTopic = topic ? normalizeTopicPath(topic) : undefined;
-  const root = normalizedTopic ? researchTopicDir(normalizedTopic) : researchRoot();
+  const root = options.project
+    ? normalizedTopic ? projectResearchTopicDir(options.project, normalizedTopic) : projectResearchRoot(options.project)
+    : normalizedTopic ? researchTopicDir(normalizedTopic) : researchRoot();
   const pages = (await walkMarkdown(root)).filter((file) => !file.endsWith("/_overview.md")).sort();
   const deadLinks: Array<{ page: string; url: string; status: number | null; message: string }> = [];
   const missingInfluence: string[] = [];

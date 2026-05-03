@@ -112,6 +112,19 @@ wiki forge next <project> --repo <path> --json
 
 After repairs or wiki page updates, rerun checkpoint before starting, closing, or handing over Forge work.
 
+## Research placement
+
+Project-specific research lives under `projects/<project>/research/`. Use it for research that exists to support one project's decisions, architecture, PRDs, slices, or handovers.
+
+Global `research/` is only for reusable cross-project topics. Do not file project-bound research under `research/projects/<project>/...`; that path is not a compatibility mode or a canonical location.
+
+```bash
+wiki research file <topic> --project <project> <title>
+# writes: projects/<project>/research/<topic>/<slug>.md
+```
+
+After accepted findings influence implementation, hand them off into project truth (`projects/<project>/decisions` or `projects/<project>/architecture/domain-language`) or bridge them to the active Forge slice.
+
 ## Skill updates
 
 After editing repo skills:

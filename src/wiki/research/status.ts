@@ -1,10 +1,12 @@
 import { RESEARCH_STATUSES, RESEARCH_VERIFICATION_LEVELS, RESEARCH_WORKFLOW_STAGES, collectResearchStatus } from "./_shared";
 import { printJson, printLine } from "../../lib/cli-output";
+import { readFlagValue } from "../../cli-shared";
 
 export async function researchStatus(args: string[]) {
-  const topic = args.find((arg) => !arg.startsWith("--"));
+  const topic = readResearchTopicArg(args);
+  const project = readFlagValue(args, "--project");
   const json = args.includes("--json");
-  const result = await collectResearchStatus(topic);
+  const result = await collectResearchStatus(topic, project);
   if (json) printJson(result);
   else {
     printLine(`research status${result.topic ? ` for ${result.topic}` : ""}:`);
@@ -22,6 +24,16 @@ export async function researchStatus(args: string[]) {
       printLine(`- project-truth targets: ${result.workflow.canonicalTargets.join(", ")}`);
     }
   }
+}
+
+function readResearchTopicArg(args: string[]) {
+  const skipped = new Set<number>();
+  const projectIndex = args.indexOf("--project");
+  if (projectIndex >= 0) {
+    skipped.add(projectIndex);
+    skipped.add(projectIndex + 1);
+  }
+  return args.find((arg, index) => !skipped.has(index) && !arg.startsWith("--"));
 }
 
 export { collectResearchStatus };

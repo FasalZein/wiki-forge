@@ -288,7 +288,8 @@ describe("answer reranking", () => {
     expect(classifyAnswerScope("wiki-forge", "specs/system-spec.md")).toBe("meta");
   });
 
-  test("classifies project-bound research by frontmatter, not only by path prefix", () => {
+  test("classifies only project-folder research as project-bound", () => {
+    expect(classifyAnswerScope("wiki-forge", "projects/wiki-forge/research/auth/oauth-options.md")).toBe("project");
     expect(
       classifyAnswerScope("wiki-forge", "research/auth/oauth-options.md", {
         absolutePath: "/tmp/research/auth/oauth-options.md",
@@ -298,12 +299,12 @@ describe("answer reranking", () => {
         headings: new Set(),
         content: "---\nproject: wiki-forge\n---\n\n# OAuth Options\n",
       }),
-    ).toBe("project");
+    ).toBe("meta");
   });
 
   test("prefers project spec docs over research notes for location questions", () => {
     const projectScore = scoreAnswerSource("wiki-forge", "where do PRDs live", "projects/wiki-forge/specs/index.md", "project", 0.4, 1);
-    const researchScore = scoreAnswerSource("wiki-forge", "where do PRDs live", "research/wiki-forge/chronological-spec-ordering-and-auto-heal.md", "project", 0.4, 1);
+    const researchScore = scoreAnswerSource("wiki-forge", "where do PRDs live", "projects/wiki-forge/research/spec-ordering/chronological-spec-ordering-and-auto-heal.md", "project", 0.4, 1);
     expect(projectScore).toBeGreaterThan(researchScore);
   });
 
@@ -314,7 +315,7 @@ describe("answer reranking", () => {
   });
 
   test("keeps project research competitive for rationale questions", () => {
-    const researchScore = scoreAnswerSource("wiki-forge", "why did we move spec docs into task folders", "research/wiki-forge/task-based-spec-folders-and-hubs.md", "project", 0.4, 1);
+    const researchScore = scoreAnswerSource("wiki-forge", "why did we move spec docs into task folders", "projects/wiki-forge/research/spec-folders/task-based-spec-folders-and-hubs.md", "project", 0.4, 1);
     const projectScore = scoreAnswerSource("wiki-forge", "why did we move spec docs into task folders", "projects/wiki-forge/specs/index.md", "project", 0.4, 1);
     expect(researchScore).toBeGreaterThan(1);
     expect(projectScore).toBeGreaterThan(0);
@@ -322,7 +323,7 @@ describe("answer reranking", () => {
 
   test("prefers domain-language over research notes for terminology questions", () => {
     const domainLanguageScore = scoreAnswerSource("wiki-forge", "what terminology should we use for domain language pages", "projects/wiki-forge/architecture/domain-language.md", "project", 0.4, 1);
-    const researchScore = scoreAnswerSource("wiki-forge", "what terminology should we use for domain language pages", "research/wiki-forge/research-taxonomy-normalization.md", "project", 0.4, 1);
+    const researchScore = scoreAnswerSource("wiki-forge", "what terminology should we use for domain language pages", "projects/wiki-forge/research/research-taxonomy/research-taxonomy-normalization.md", "project", 0.4, 1);
     expect(domainLanguageScore).toBeGreaterThan(researchScore);
   });
 });

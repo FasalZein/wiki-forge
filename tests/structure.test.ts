@@ -15,7 +15,7 @@ import {
   workspaceIndexPath,
   workspaceProjectsDashboardPath,
 } from "../src/lib/structure";
-import { classifyRawPath, classifyResearchPath, classifyResearchPathMode, isAllowedRawBucket, isLegacyProjectResearchPath } from "../src/lib/research";
+import { classifyRawPath, classifyResearchPath, describeAllowedResearchPaths, isAllowedRawBucket, normalizeResearchPageRef } from "../src/lib/research";
 
 describe("project path primitives", () => {
   test("build canonical project spec paths", () => {
@@ -72,21 +72,26 @@ describe("project structure contract", () => {
 });
 
 describe("research structure contract", () => {
-  test("allows canonical research topic and page paths", () => {
+  test("allows global and project-scoped research paths", () => {
     expect(classifyResearchPath("research/wiki-forge/_overview.md")).toBe("topic-overview");
     expect(classifyResearchPath("research/wiki-forge/spec-ia.md")).toBe("research-page");
-    expect(classifyResearchPath("research/projects/wiki-forge/_overview.md")).toBe("topic-overview");
-    expect(classifyResearchPath("research/projects/wiki-forge/spec-ia.md")).toBe("research-page");
+    expect(classifyResearchPath("projects/wiki-forge/research/auth-refactor/_overview.md")).toBe("topic-overview");
+    expect(classifyResearchPath("projects/wiki-forge/research/auth-refactor/spec-ia.md")).toBe("research-page");
     expect(classifyResearchPath("research/agents/_overview.md")).toBe("topic-overview");
   });
 
-  test("marks research/projects/<project> paths as legacy-compatible, not canonical", () => {
-    expect(classifyResearchPathMode("research/wiki-forge/_overview.md")).toBe("canonical");
-    expect(classifyResearchPathMode("research/wiki-forge/spec-ia.md")).toBe("canonical");
-    expect(classifyResearchPathMode("research/projects/wiki-forge/_overview.md")).toBe("legacy-project");
-    expect(classifyResearchPathMode("research/projects/wiki-forge/spec-ia.md")).toBe("legacy-project");
-    expect(isLegacyProjectResearchPath("research/projects/wiki-forge/spec-ia.md")).toBe(true);
-    expect(isLegacyProjectResearchPath("research/wiki-forge/spec-ia.md")).toBe(false);
+  test("rejects research/projects legacy compatibility paths", () => {
+    expect(classifyResearchPath("research/projects/wiki-forge/_overview.md")).toBeNull();
+    expect(classifyResearchPath("research/projects/wiki-forge/spec-ia.md")).toBeNull();
+    expect(describeAllowedResearchPaths()).not.toContain("legacy");
+    expect(describeAllowedResearchPaths()).toContain("projects/<project>/research/<topic>");
+  });
+
+  test("normalizes project research refs without global research prefixing", () => {
+    expect(normalizeResearchPageRef("projects/wiki-forge/research/runtime-audit/findings")).toBe("projects/wiki-forge/research/runtime-audit/findings");
+    expect(normalizeResearchPageRef("research/cross-project-topic/findings")).toBe("research/cross-project-topic/findings");
+    expect(normalizeResearchPageRef("cross-project-topic/findings")).toBe("research/cross-project-topic/findings");
+    expect(normalizeResearchPageRef("research/projects/wiki-forge/runtime-audit/findings")).toBeNull();
   });
 
   test("allows canonical raw buckets only", () => {

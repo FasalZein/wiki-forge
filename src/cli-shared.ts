@@ -5,6 +5,7 @@ import matter from "gray-matter";
 import { PROJECT_FILES, VAULT_ROOT, VAULT_ROOT_ENV } from "./constants";
 import type { FrontmatterData } from "./shared/contracts/frontmatter";
 import { printError, printLine } from "./lib/cli-output";
+export { readFlagValue, readFlagValues } from "./lib/cli-utils";
 
 export const FORCE_CONFIRM_FLAG = "--yes-really-force";
 

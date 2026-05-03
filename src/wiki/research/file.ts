@@ -4,17 +4,19 @@ import { nowIso, orderFrontmatter, writeNormalizedPage } from "../../cli-shared"
 import { exists } from "../../lib/fs";
 import {
   canonicalizeResearchTopicForWrite,
+  projectResearchPagePath,
   researchPagePath,
   slugifyResearchPage,
   topicCrossLinks,
 } from "../../lib/research";
-import { ensureResearchTopic, projectTruthTargets } from "./_shared";
+import { ensureProjectResearchTopic, ensureResearchTopic, projectTruthTargets } from "./_shared";
 
 export async function createResearchPage(topic: string, title: string, project?: string) {
-  const normalizedTopic = canonicalizeResearchTopicForWrite(topic, project);
-  await ensureResearchTopic(normalizedTopic);
+  const normalizedTopic = canonicalizeResearchTopicForWrite(topic);
+  if (project) await ensureProjectResearchTopic(project, normalizedTopic);
+  else await ensureResearchTopic(normalizedTopic);
   const slug = slugifyResearchPage(title);
-  const outputPath = researchPagePath(normalizedTopic, slug);
+  const outputPath = project ? projectResearchPagePath(project, normalizedTopic, slug) : researchPagePath(normalizedTopic, slug);
   if (await exists(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
   const data = orderFrontmatter({
     title,
@@ -59,7 +61,7 @@ export async function createResearchPage(topic: string, title: string, project?:
     "",
     "## Cross Links",
     "",
-    ...topicCrossLinks(normalizedTopic),
+    ...(project ? [`- [[projects/${project}/research/${normalizedTopic}/_overview]]`] : topicCrossLinks(normalizedTopic)),
     ...(project ? ["- [[projects/" + project + "/decisions]]", "- [[projects/" + project + "/architecture/domain-language]]"] : []),
     "",
   ].join("\n");

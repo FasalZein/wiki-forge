@@ -8,6 +8,8 @@ description: >
 
 Wiki is the second-brain memory layer. It owns durable vault memory: research, notes, decisions, handovers, source bindings, page verification levels, drift/freshness checks, and recall. Wiki remembers; Forge executes lifecycle.
 
+Project-specific research belongs in `projects/<project>/research/`. Global `research/` is only for reusable cross-project topics. Do not file or recommend project-bound research under `research/projects/<project>/...`.
+
 Health inspects and reconciles freshness, drift, repair queues, and readiness gates across Wiki and Forge. Public commands still use `wiki checkpoint`, `wiki maintain`, `wiki doctor`, and related verbs; internally this is the Health boundary, not shared/lib utility code.
 
 Use Wiki for project Q&A, research filing, source binding, drift repair, checkpoint/gate review, and maintaining vault truth. If the task shifts into implementation, execution, slice ownership, review gates, or tracked delivery work, switch to `/forge`. The CLI and Forge kernel, not this skill text, own lifecycle enforcement. For real-project operation, follow `docs/production-operator-guide.md` in the repository alongside the current `wiki resume` / `wiki checkpoint` / `wiki forge next` steering.
@@ -31,7 +33,8 @@ Use Wiki for project Q&A, research filing, source binding, drift repair, checkpo
 - Reconcile git impact: `wiki refresh-from-git <project> --repo <path> --base <rev>`
 - Bind sources: `wiki bind <project> <page> <source-path...> [--mode replace|merge]`
 - Verify a page: `wiki verify-page <project> <page> <level>`
-- File research: `wiki research file <topic> --project <project> <title>`
+- File project research: `wiki research file <topic> --project <project> <title>` writes `projects/<project>/research/<topic>/<slug>.md`
+- File cross-project research: use global `wiki research file <topic> <title>` only when the topic is reusable beyond one project
 - Handoff research: `wiki research handoff <research-page> <project-truth-page>`
 - Bridge research: `wiki research bridge <research-page> --project <project> --slice <slice-id>`
 - Workflow status from Forge: `wiki forge status <project> [slice-id] --repo <path>`

@@ -10,6 +10,9 @@ import {
   normalizeInfluencedBy,
   normalizeTopicPath,
   rawRoot,
+  projectResearchOverviewPath,
+  projectResearchRoot,
+  projectResearchTopicDir,
   researchOverviewPath,
   researchRoot,
   researchTopicDir,
@@ -28,6 +31,53 @@ export function projectTruthTargets(project: string) {
     `projects/${normalized}/decisions`,
     `projects/${normalized}/architecture/domain-language`,
   ];
+}
+
+export async function ensureProjectResearchTopic(project: string, topic: string) {
+  const normalizedTopic = normalizeTopicPath(topic);
+  const dir = projectResearchTopicDir(project, normalizedTopic);
+  await mkdirIfMissing(projectResearchRoot(project));
+  await mkdirIfMissing(dir);
+  const overviewPath = projectResearchOverviewPath(project, normalizedTopic);
+  let created = false;
+  if (!await exists(overviewPath)) {
+    const data = orderFrontmatter({
+      title: topicLabel(normalizedTopic),
+      type: "research-topic",
+      project,
+      topic: normalizedTopic,
+      created_at: nowIso(),
+      updated: nowIso(),
+      status: "current",
+      verification_level: "unverified",
+    }, ["title", "type", "project", "topic", "created_at", "updated", "status", "verification_level"]);
+    const body = [
+      `# ${topicLabel(normalizedTopic)}`,
+      "",
+      "> [!summary]",
+      "> Project-specific research topic hub. Capture findings that belong to this project here, then hand off accepted conclusions into project truth.",
+      "",
+      "## Overview",
+      "",
+      "",
+      "",
+      "## Active Questions",
+      "",
+      "- ",
+      "",
+      "## Pages",
+      "",
+      "- ",
+      "",
+      "## Cross Links",
+      "",
+      `- [[projects/${project}/research/${normalizedTopic}/_overview]]`,
+      "",
+    ].join("\n");
+    writeNormalizedPage(overviewPath, body, data);
+    created = true;
+  }
+  return { topic: normalizedTopic, dir, overviewPath, created };
 }
 
 export async function ensureResearchTopic(topic: string) {
@@ -76,9 +126,11 @@ export async function ensureResearchTopic(topic: string) {
   return { topic: normalizedTopic, dir, overviewPath, created };
 }
 
-export async function collectResearchStatus(topic?: string) {
+export async function collectResearchStatus(topic?: string, project?: string) {
   const normalizedTopic = topic ? normalizeTopicPath(topic) : undefined;
-  const root = normalizedTopic ? researchTopicDir(normalizedTopic) : researchRoot();
+  const root = project
+    ? normalizedTopic ? projectResearchTopicDir(project, normalizedTopic) : projectResearchRoot(project)
+    : normalizedTopic ? researchTopicDir(normalizedTopic) : researchRoot();
   const pages = (await walkMarkdown(root)).filter((file) => !file.endsWith("/_overview.md"));
   const byStatus = Object.fromEntries(RESEARCH_STATUSES.map((status) => [status, 0])) as Record<string, number>;
   const byVerification = Object.fromEntries(RESEARCH_VERIFICATION_LEVELS.map((level) => [level, 0])) as Record<string, number>;
@@ -111,7 +163,7 @@ export async function collectResearchStatus(topic?: string) {
   const canonicalTargets = [...projectTargets].sort();
   return {
     topic: normalizedTopic,
-    root: relative(VAULT_ROOT, root) || "research",
+    root: relative(VAULT_ROOT, root) || (project ? `projects/${project}/research` : "research"),
     counts: { total: pages.length, missingSources, staleUnverified, missingInfluence, readyToHandoff },
     byStatus,
     byVerification,
@@ -123,9 +175,11 @@ export async function collectResearchStatus(topic?: string) {
   };
 }
 
-export async function collectResearchLintResult(topic?: string) {
+export async function collectResearchLintResult(topic?: string, project?: string) {
   const normalizedTopic = topic ? normalizeTopicPath(topic) : undefined;
-  const root = normalizedTopic ? researchTopicDir(normalizedTopic) : researchRoot();
+  const root = project
+    ? normalizedTopic ? projectResearchTopicDir(project, normalizedTopic) : projectResearchRoot(project)
+    : normalizedTopic ? researchTopicDir(normalizedTopic) : researchRoot();
   const pages = (await walkMarkdown(root)).sort();
   const issues: string[] = [];
   const inbound = await buildResearchInboundCounts();
@@ -160,10 +214,12 @@ export async function collectResearchLintResult(topic?: string) {
 }
 
 async function hasTopicHubForResearchPage(relPath: string) {
-  const match = normalizePath(relPath).match(/^research\/(.+)\/[^/]+\.md$/u);
-  if (!match) return false;
-  const overviewRel = `research/${match[1]}/_overview.md`;
-  return exists(`${VAULT_ROOT}/${overviewRel}`);
+  const normalized = normalizePath(relPath);
+  const globalMatch = normalized.match(/^research\/(.+)\/[^/]+\.md$/u);
+  if (globalMatch) return exists(`${VAULT_ROOT}/research/${globalMatch[1]}/_overview.md`);
+  const projectMatch = normalized.match(/^projects\/([^/]+)\/research\/(.+)\/[^/]+\.md$/u);
+  if (projectMatch) return exists(`${VAULT_ROOT}/projects/${projectMatch[1]}/research/${projectMatch[2]}/_overview.md`);
+  return false;
 }
 
 async function buildResearchInboundCounts() {

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { classifyResearchPath, describeAllowedResearchPaths } from "../src/lib/research";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "./test-helpers";
 
 afterEach(() => {
@@ -66,5 +67,38 @@ describe("wiki research audit", () => {
     expect(runWiki(["research", "ingest", "demo-topic", sourcePath], env).exitCode).toBe(0);
     const pagePath = join(vault, "research", "demo-topic", "notes.md");
     expect(readFileSync(pagePath, "utf8")).toContain("influenced_by: []");
+  });
+
+  test("research path rules hard-cut project research into project folders", () => {
+    expect(classifyResearchPath("projects/demo/research/auth-options/session-auth-options.md")).toBe("research-page");
+    expect(classifyResearchPath("projects/demo/research/auth-options/_overview.md")).toBe("topic-overview");
+    expect(classifyResearchPath("research/auth-options/session-auth-options.md")).toBe("research-page");
+    expect(classifyResearchPath("research/projects/demo/session-auth-options.md")).toBeNull();
+    expect(describeAllowedResearchPaths()).not.toContain("legacy");
+    expect(describeAllowedResearchPaths()).toContain("projects/<project>/research/<topic>");
+  });
+
+  test("project research files inside the project research folder", () => {
+    const vault = tempDir("wiki-vault");
+    initVault(vault);
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    const result = runWiki(["research", "file", "auth-options", "--project", "demo", "Session Auth Options"], env);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.toString()).toContain("created projects/demo/research/auth-options/session-auth-options.md");
+    const projectResearchPath = join(vault, "projects", "demo", "research", "auth-options", "session-auth-options.md");
+    expect(readFileSync(projectResearchPath, "utf8")).toContain("project: demo");
+    expect(() => readFileSync(join(vault, "research", "demo", "session-auth-options.md"), "utf8")).toThrow();
+    expect(() => readFileSync(join(vault, "research", "projects", "demo", "session-auth-options.md"), "utf8")).toThrow();
+
+    const status = runWiki(["research", "status", "auth-options", "--project", "demo", "--json"], env);
+    expect(status.exitCode).toBe(0);
+    expect(JSON.parse(status.stdout.toString()).root).toBe("projects/demo/research/auth-options");
+
+    const lint = runWiki(["research", "lint", "auth-options", "--project", "demo", "--json"], env);
+    expect(lint.exitCode).toBe(1);
+    expect(JSON.parse(lint.stdout.toString()).root).toBe("projects/demo/research/auth-options");
   });
 });

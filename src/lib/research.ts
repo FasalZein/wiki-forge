@@ -6,7 +6,6 @@ import { normalizePath, stripMarkdownExtension } from "./vault";
 const TOPIC_SEGMENT = "[a-z0-9]+(?:-[a-z0-9]+)*";
 const TOPIC_PATH = `(?:${TOPIC_SEGMENT}\/)*${TOPIC_SEGMENT}`;
 const TOPIC_PATH_PATTERN = new RegExp(`^${TOPIC_PATH}$`, "u");
-const LEGACY_PROJECT_TOPIC_PATTERN = new RegExp(`^projects\/(${TOPIC_SEGMENT})$`, "u");
 
 export const RAW_BUCKETS = ["articles", "papers", "assets", "conversations"] as const;
 
@@ -29,20 +28,12 @@ export function isCanonicalResearchTopic(topic: string) {
 
 export function classifyResearchPath(relPath: string): "topic-overview" | "research-page" | null {
   const rel = relPath.replaceAll("\\", "/").replace(/^\.\//u, "");
+  if (rel.startsWith("research/projects/")) return null;
   if (new RegExp(`^research\/${TOPIC_PATH}\/_overview\.md$`, "u").test(rel)) return "topic-overview";
   if (new RegExp(`^research\/${TOPIC_PATH}\/[a-z0-9]+(?:-[a-z0-9]+)*\.md$`, "u").test(rel)) return "research-page";
+  if (new RegExp(`^projects\/${TOPIC_SEGMENT}\/research\/${TOPIC_PATH}\/_overview\.md$`, "u").test(rel)) return "topic-overview";
+  if (new RegExp(`^projects\/${TOPIC_SEGMENT}\/research\/${TOPIC_PATH}\/[a-z0-9]+(?:-[a-z0-9]+)*\.md$`, "u").test(rel)) return "research-page";
   return null;
-}
-
-export function classifyResearchPathMode(relPath: string): "canonical" | "legacy-project" | null {
-  const rel = relPath.replaceAll("\\", "/").replace(/^\.\//u, "");
-  const kind = classifyResearchPath(rel);
-  if (!kind) return null;
-  return rel.startsWith("research/projects/") ? "legacy-project" : "canonical";
-}
-
-export function isLegacyProjectResearchPath(relPath: string) {
-  return classifyResearchPathMode(relPath) === "legacy-project";
 }
 
 export function isAllowedResearchPath(relPath: string) {
@@ -50,7 +41,7 @@ export function isAllowedResearchPath(relPath: string) {
 }
 
 export function describeAllowedResearchPaths() {
-  return "canonical: research/<topic>/_overview.md; research/<topic>/<slug>.md. legacy compatibility: research/projects/<project>/...";
+  return "global: research/<topic>/_overview.md; research/<topic>/<slug>.md. project-specific: projects/<project>/research/<topic>/_overview.md; projects/<project>/research/<topic>/<slug>.md";
 }
 
 export function researchRoot() {
@@ -70,6 +61,23 @@ export function researchPagePath(topic: string, slug: string) {
   return join(researchTopicDir(topic), `${slug}.md`);
 }
 
+export function projectResearchRoot(project: string) {
+  return join(VAULT_ROOT, "projects", project, "research");
+}
+
+export function projectResearchTopicDir(project: string, topic: string) {
+  const normalized = normalizeTopicPath(topic);
+  return join(projectResearchRoot(project), ...normalized.split("/"));
+}
+
+export function projectResearchOverviewPath(project: string, topic: string) {
+  return join(projectResearchTopicDir(project, topic), "_overview.md");
+}
+
+export function projectResearchPagePath(project: string, topic: string, slug: string) {
+  return join(projectResearchTopicDir(project, topic), `${slug}.md`);
+}
+
 export function topicLabel(topic: string) {
   const normalized = normalizeTopicPath(topic);
   const last = normalized.split("/").filter(Boolean).pop() ?? normalized;
@@ -85,23 +93,8 @@ export function canonicalProjectResearchTopic(project: string) {
   return normalizeTopicPath(project);
 }
 
-export function legacyProjectResearchTopic(project: string) {
-  return normalizeTopicPath(`projects/${project}`);
-}
-
-export function canonicalizeResearchTopicForWrite(topic: string, project?: string) {
-  const normalizedTopic = normalizeTopicPath(topic);
-  if (project) {
-    const canonicalTopic = canonicalProjectResearchTopic(project);
-    if (normalizedTopic === canonicalTopic || normalizedTopic === legacyProjectResearchTopic(project)) {
-      return canonicalTopic;
-    }
-  }
-  const legacyMatch = normalizedTopic.match(LEGACY_PROJECT_TOPIC_PATTERN);
-  if (legacyMatch) {
-    return canonicalProjectResearchTopic(legacyMatch[1]);
-  }
-  return normalizedTopic;
+export function canonicalizeResearchTopicForWrite(topic: string) {
+  return normalizeTopicPath(topic);
 }
 
 export function slugifyResearchPage(value: string) {
@@ -162,7 +155,9 @@ export function normalizeInfluencedBy(value: unknown) {
 export function normalizeResearchPageRef(value: string) {
   const normalized = normalizeWikiTarget(value);
   if (!normalized) return null;
-  return normalized.startsWith("research/") ? normalized : `research/${normalized}`;
+  if (normalized.startsWith("research/projects/")) return null;
+  if (normalized.startsWith("research/") || /^projects\/[^/]+\/research\//u.test(normalized)) return normalized;
+  return `research/${normalized}`;
 }
 
 export function rawRoot() {

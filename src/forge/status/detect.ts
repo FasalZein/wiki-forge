@@ -120,8 +120,8 @@ async function _derive(project: string, sliceId: string, vaultRoot: string): Pro
   // -------------------------------------------------------------------
   // Phase: research
   // Rule: slice-scoped research bridge evidence counts as research evidence.
-  // research/**/*.md can also match by frontmatter, source_paths, or
-  // legacy basename heuristics during migration. Parent PRD Prior Research
+  // Canonical project research under projects/<project>/research can match by
+  // frontmatter or explicit parent PRD source_paths. Parent PRD Prior Research
   // links alone are not enough; `wiki research bridge` must write slice evidence.
   // -------------------------------------------------------------------
   const researchRefs = await detectResearchRefs(project, sliceId, parentPrd, vaultRoot);
@@ -130,14 +130,6 @@ async function _derive(project: string, sliceId: string, vaultRoot: string): Pro
       completedAt: new Date().toISOString(),
       researchRefs: researchRefs.refs,
     };
-    if (researchRefs.legacyFallbackUsed) {
-      findings.push({
-        phase: "research",
-        scope: "slice",
-        severity: "warning",
-        message: "deprecated basename research matching was used; add task_id or slice_id frontmatter to the research note",
-      });
-    }
   }
 
   // -------------------------------------------------------------------

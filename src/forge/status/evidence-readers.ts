@@ -1,5 +1,5 @@
 import { readdirSync } from "node:fs";
-import { basename, join, relative } from "node:path";
+import { join, relative } from "node:path";
 import { STALE_UNVERIFIED_DAYS } from "../../constants";
 import { safeMatter } from "../../cli-shared";
 import { extractMarkdownSection, readPlanningDoc } from "./evidence";
@@ -20,8 +20,8 @@ export async function detectResearchRefs(
   sliceId: string,
   parentPrd: string | undefined,
   vaultRoot: string,
-): Promise<{ refs: string[]; legacyFallbackUsed: boolean }> {
-  const researchDir = join(vaultRoot, "research");
+): Promise<{ refs: string[] }> {
+  const projectResearchDir = join(vaultRoot, "projects", project, "research");
 
   const prdSourcePaths = new Set<string>();
   const prdsDir = join(vaultRoot, "projects", project, "specs", "prds");
@@ -33,37 +33,32 @@ export async function detectResearchRefs(
   }
 
   const refs: string[] = [];
-  let legacyFallbackUsed = false;
-  const sliceIdLower = sliceId.toLowerCase();
-  const prdIdLower = parentPrd ? parentPrd.toLowerCase() : null;
+  const candidateFiles = new Set<string>();
 
-  if (!await exists(researchDir)) {
-    return { refs: [...new Set(refs)], legacyFallbackUsed };
+  if (await exists(projectResearchDir)) {
+    for (const file of await walkMarkdown(projectResearchDir)) candidateFiles.add(file);
   }
 
-  for (const file of await walkMarkdown(researchDir)) {
+  for (const sourcePath of prdSourcePaths) {
+    const normalized = normalizePath(sourcePath).replace(/\.md$/u, "");
+    if (normalized.startsWith("research/projects/")) continue;
+    const absolute = join(vaultRoot, `${normalized}.md`);
+    if (await exists(absolute)) candidateFiles.add(absolute);
+  }
+
+  for (const file of candidateFiles) {
     const relVaultPath = normalizePath(relative(vaultRoot, file));
     const relNoExt = stripMarkdownExtension(relVaultPath);
-    const base = basename(file, ".md").toLowerCase();
-    const matchesByName =
-      (prdIdLower && (base.startsWith(`${prdIdLower}-`) || base === prdIdLower)) ||
-      base.startsWith(`${sliceIdLower}-`) ||
-      base === sliceIdLower;
     const matchesBySourcePath = prdSourcePaths.has(relVaultPath) || prdSourcePaths.has(relNoExt);
     const parsed = safeMatter(relVaultPath, await readText(file), { silent: true });
     const taskId = typeof parsed?.data.task_id === "string" ? parsed.data.task_id.trim() : "";
     const sliceFrontmatterId = typeof parsed?.data.slice_id === "string" ? parsed.data.slice_id.trim() : "";
     const matchesByFrontmatter = taskId === sliceId || sliceFrontmatterId === sliceId;
 
-    if (matchesByFrontmatter || matchesBySourcePath || matchesByName) {
-      refs.push(relNoExt);
-      if (!matchesByFrontmatter && !matchesBySourcePath && matchesByName) {
-        legacyFallbackUsed = true;
-      }
-    }
+    if (matchesByFrontmatter || matchesBySourcePath) refs.push(relNoExt);
   }
 
-  return { refs: [...new Set(refs)], legacyFallbackUsed };
+  return { refs: [...new Set(refs)] };
 }
 
 export async function detectDomainModelRefs(

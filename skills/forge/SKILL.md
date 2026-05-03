@@ -6,7 +6,7 @@ description: >
 
 # Forge
 
-Forge is the SDLC lifecycle layer for tracked implementation work. It owns workflow state, slice ownership, Git boundaries, verification evidence, review evidence, handover continuity, and close readiness. Wiki remains the second-brain memory layer; Forge decides whether implementation may proceed or close.
+Forge is the SDLC lifecycle layer for tracked implementation work. It owns workflow state, slice ownership, Git boundaries, verification evidence, review evidence, handover continuity, and close readiness. Wiki remains the second-brain memory layer; Forge decides whether implementation may proceed or close. Project-specific research belongs under `projects/<project>/research/`; global `research/` is only for reusable cross-project topics.
 
 Health is the cross-cutting inspector/reconciler. It runs freshness, drift, sync, repair, checkpoint, doctor, and readiness checks across Wiki and Forge, but it does not own lifecycle truth. Do not move Health orchestration into shared or lib; shared/lib are only for neutral primitives and contracts.
 

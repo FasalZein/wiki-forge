@@ -84,6 +84,8 @@ describe("forge dogfood release gate", () => {
       "Recovery blocks are presentation-only",
       "checkpoint, maintain, and doctor",
       "JSON output remains automation-facing",
+      "Project-specific research lives under `projects/<project>/research/`",
+      "Global `research/` is only for reusable cross-project topics",
       "bun run sync:local -- --audit",
     ]) {
       expect(docs.operatorGuide).toContain(required);
