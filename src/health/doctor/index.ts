@@ -1,4 +1,4 @@
-import { formatMaintenanceActionLabel } from "../shared";
+import { formatMaintenanceActionLabel, renderHealthRecoveryBlock } from "../shared";
 import { collectBacklog } from "../../wiki/project-views";
 import { collectLintResult, collectSemanticLintResult, collectStatusRow, collectVerifySummary, loadLintingSnapshot } from "../../wiki/verification";
 import type { LintingSnapshot } from "../../wiki/verification";
@@ -61,13 +61,12 @@ function isDoctorDegraded(result: Awaited<ReturnType<typeof collectDoctor>>) {
 
 function renderDoctorRecovery(project: string, repo: string | undefined, base: string) {
   const repoArg = repo ?? ".";
-  printLine("Recovery:");
-  printLine("```bash");
-  printLine(`wiki checkpoint ${project} --repo ${repoArg} --base ${base} --json`);
-  printLine(`wiki maintain ${project} --repo ${repoArg} --base ${base}`);
-  printLine(`wiki doctor ${project} --repo ${repoArg} --base ${base}`);
-  printLine(`wiki forge next ${project} --repo ${repoArg} --json`);
-  printLine("```");
+  for (const line of renderHealthRecoveryBlock([
+    `wiki checkpoint ${project} --repo ${repoArg} --base ${base} --json`,
+    `wiki maintain ${project} --repo ${repoArg} --base ${base}`,
+    `wiki doctor ${project} --repo ${repoArg} --base ${base}`,
+    `wiki forge next ${project} --repo ${repoArg} --json`,
+  ])) printLine(line);
 }
 
 export async function collectDoctor(project: string, base: string, explicitRepo?: string, options: { worktree?: boolean; projectSnapshot?: ProjectSnapshot; lintingSnapshot?: LintingSnapshot; precomputedRefreshFromGit?: Awaited<ReturnType<typeof collectRefreshFromGit>> | Awaited<ReturnType<typeof collectRefreshFromWorktree>> } = {}) {

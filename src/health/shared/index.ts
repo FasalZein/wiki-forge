@@ -1,4 +1,5 @@
 export { createCascadeRefreshAction, filesChangedSinceVerification, verifiedCommitExists } from "./cascade-refresh";
+export { renderHealthRecoveryBlock } from "./recovery-block";
 export { collectDirtyRepoStatus } from "./dirty-repo";
 export type { DirtyRepoStatus } from "./dirty-repo";
 export {

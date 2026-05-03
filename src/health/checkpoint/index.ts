@@ -8,7 +8,7 @@ import { collectGitTruth, formatGitTruthSummary } from "../../shared/git-truth";
 import { parseUpdatedDate } from "../../lib/verification";
 import { classifySliceLocalPageScope, collectSliceLocalContext, readSliceSourcePaths } from "../../wiki/slices";
 import { classifyFreshnessChurn } from "../freshness-classifier";
-import { loadProjectSnapshot } from "../shared";
+import { loadProjectSnapshot, renderHealthRecoveryBlock } from "../shared";
 import { printJson, printLine } from "../../lib/cli-output";
 
 type CheckpointPageStatus = {
@@ -241,12 +241,11 @@ function renderCheckpoint(result: Awaited<ReturnType<typeof collectCheckpoint>>)
 
 function renderCheckpointRecovery(result: Awaited<ReturnType<typeof collectCheckpoint>>) {
   const base = result.base ?? "HEAD";
-  printLine("Recovery:");
-  printLine("```bash");
-  printLine(`wiki checkpoint ${result.project} --repo ${result.repo} --base ${base} --json`);
-  printLine(`wiki maintain ${result.project} --repo ${result.repo} --base ${base}`);
-  printLine(`wiki doctor ${result.project} --repo ${result.repo} --base ${base}`);
-  printLine(`wiki checkpoint ${result.project} --repo ${result.repo} --base ${base}`);
-  printLine("```");
+  for (const line of renderHealthRecoveryBlock([
+    `wiki checkpoint ${result.project} --repo ${result.repo} --base ${base} --json`,
+    `wiki maintain ${result.project} --repo ${result.repo} --base ${base}`,
+    `wiki doctor ${result.project} --repo ${result.repo} --base ${base}`,
+    `wiki checkpoint ${result.project} --repo ${result.repo} --base ${base}`,
+  ])) printLine(line);
   printLine("");
 }

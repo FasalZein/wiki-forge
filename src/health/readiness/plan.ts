@@ -1,5 +1,5 @@
 import { requireValue } from "../../cli-shared";
-import { formatMaintenanceActionLabel, type MaintenanceAction } from "../shared";
+import { formatMaintenanceActionLabel, renderHealthRecoveryBlock, type MaintenanceAction } from "../shared";
 import { appendLogEntry } from "../../lib/log";
 import { collectLintResult, collectSemanticLintResult } from "../../wiki/verification";
 import type { LintingSnapshot } from "../../wiki/verification";
@@ -119,13 +119,12 @@ function shouldRenderMaintainRecovery(
 }
 
 function renderMaintainRecovery(project: string, repo: string, base: string) {
-  printLine("Recovery:");
-  printLine("```bash");
-  printLine(`wiki maintain ${project} --repo ${repo} --base ${base} --json`);
-  printLine(`wiki doctor ${project} --repo ${repo} --base ${base}`);
-  printLine(`wiki checkpoint ${project} --repo ${repo} --base ${base}`);
-  printLine(`wiki forge next ${project} --repo ${repo} --json`);
-  printLine("```");
+  for (const line of renderHealthRecoveryBlock([
+    `wiki maintain ${project} --repo ${repo} --base ${base} --json`,
+    `wiki doctor ${project} --repo ${repo} --base ${base}`,
+    `wiki checkpoint ${project} --repo ${repo} --base ${base}`,
+    `wiki forge next ${project} --repo ${repo} --json`,
+  ])) printLine(line);
 }
 
 export function collapseActions(actions: Array<Pick<MaintenanceAction, "kind" | "message" | "scope">>): string[] {
