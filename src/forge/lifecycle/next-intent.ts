@@ -1,17 +1,7 @@
 import { validateSingleActiveSlice } from "./active-slice-invariant";
-import { collectLegacyDiagnostics, type ForgeNextInput, type ForgeNextProjection } from "../workflow/status-projection";
+import type { ForgeNextInput, ForgeNextProjection } from "../workflow/status-projection";
 
 export function evaluateForgeNext(input: ForgeNextInput): ForgeNextProjection {
-  const diagnostics = collectLegacyDiagnostics(input.legacyClassifications);
-  if (diagnostics.length > 0) {
-    return {
-      status: "needs-repair",
-      project: input.project,
-      source: "canonical-records",
-      diagnostics,
-    };
-  }
-
   const activeSlices = input.slices.filter((slice) => slice.status === "in-progress");
   if (activeSlices.length > 1) {
     const rejection = validateSingleActiveSlice({

@@ -95,7 +95,6 @@ export function projectDocumentsToForgeNext(project: string, documents: readonly
   return evaluateForgeNext({
     project,
     slices: decoded.flatMap(sliceProjectionRecord),
-    legacyClassifications: [],
   });
 }
 

@@ -4,8 +4,6 @@ import { join, relative } from "node:path";
 import { repoRoot } from "../_helpers/wiki-subprocess";
 
 const NORMAL_RUNTIME_DIRS = ["src/wiki", "src/forge"];
-const MIGRATION_ONLY_DIRS = ["src/forge/migration"];
-
 const LEGACY_WORKFLOW_IMPORTS = [
   "../slice",
   "../../slice",
@@ -36,10 +34,8 @@ describe("Forge legacy deletion audit", () => {
     expect(offenders).toEqual([]);
   });
 
-  test("migration-only Forge code is the only Forge area allowed to mention migration", () => {
-    const migrationFiles = tsFilesInDirs(MIGRATION_ONLY_DIRS);
-    expect(migrationFiles.length).toBeGreaterThan(0);
-    for (const file of migrationFiles) expect(file).toStartWith("src/forge/migration/");
+  test("migration-only Forge code has been removed", () => {
+    expect(runtimeFiles().filter((file) => file.startsWith("src/forge/migration/"))).toEqual([]);
   });
 });
 

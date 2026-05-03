@@ -1,26 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { classifyLegacyDocument } from "../../src/forge/vault/legacy-classifier";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { repoRoot } from "../_helpers/wiki-subprocess";
+import { decodeForgeRecord } from "../../src/forge/vault/records";
 import { parseVaultDocument } from "../../src/forge/vault/frontmatter-codec";
 
-const projectionMarkdown = `---
-title: Backlog
-type: projection
-project: wiki-forge
-generated: true
----
-# Backlog
-`;
-
-const ambiguousMarkdown = `---
-title: Random note
-project: wiki-forge
----
-# Random note
-This note has project metadata but no lifecycle kind or stable id.
-`;
-
-const validSliceMarkdown = `---
-title: WIKI-FORGE-213 forge vault codecs and legacy classifier
+const oldSpecsSliceMarkdown = `---
+title: WIKI-FORGE-213 old specs slice
 type: spec
 spec_kind: task-hub
 project: wiki-forge
@@ -30,39 +16,14 @@ status: in-progress
 # WIKI-FORGE-213
 `;
 
-describe("forge old document classifier", () => {
-  test("generated index/backlog projection is excluded from canonical lifecycle truth", () => {
-    const document = parseVaultDocument("projects/wiki-forge/backlog.md", projectionMarkdown);
-    const classification = classifyLegacyDocument(document);
-
-    expect(classification).toEqual({
-      status: "projection",
-      canonical: false,
-      reason: "generated or projection document is not lifecycle truth",
-    });
+describe("removed forge old document classifier", () => {
+  test("legacy classifier module is deleted", () => {
+    expect(existsSync(join(repoRoot, "src", "forge", "vault", "legacy-classifier.ts"))).toBe(false);
   });
 
-  test("ambiguous invalid document is quarantined with reason", () => {
-    const document = parseVaultDocument("projects/wiki-forge/notes/random.md", ambiguousMarkdown);
-    const classification = classifyLegacyDocument(document);
+  test("old specs slice documents are quarantined by canonical Forge decoding", () => {
+    const document = parseVaultDocument("projects/wiki-forge/specs/slices/WIKI-FORGE-213/index.md", oldSpecsSliceMarkdown);
 
-    expect(classification).toEqual({
-      status: "quarantined",
-      canonical: false,
-      reason: "document does not match a Forge canonical lifecycle shape",
-      diagnostics: [
-        {
-          code: "UnknownLifecycleShape",
-          message: "document has project metadata but no recognized canonical record kind",
-        },
-      ],
-    });
-  });
-
-  test("old specs slice documents are quarantined under Forge", () => {
-    const document = parseVaultDocument("projects/wiki-forge/specs/slices/WIKI-FORGE-213/index.md", validSliceMarkdown);
-    const classification = classifyLegacyDocument(document);
-
-    expect(classification.status).toBe("quarantined");
+    expect(decodeForgeRecord(document).status).toBe("quarantined");
   });
 });

@@ -3,7 +3,6 @@ import { hasPassedTargetedVerification } from "../lifecycle/verification-gate";
 import { evaluateTddGate } from "../lifecycle/tdd-gate";
 import type { ForgeEvidenceRecord } from "../lifecycle/evidence";
 import type { KernelRejection } from "../kernel/rejection";
-import type { LegacyClassification } from "../vault/legacy-classifier";
 import type { SliceRecord, ForgeDiagnostic, ForgeRecordStatus } from "../vault/document";
 
 export type SliceProjectionRecord = {
@@ -50,7 +49,6 @@ export type ForgeNextProjection =
 export type ForgeNextInput = {
   readonly project: string;
   readonly slices: readonly SliceProjectionRecord[];
-  readonly legacyClassifications?: readonly LegacyClassification[];
   readonly generatedProjectionActiveSliceId?: string;
 };
 
@@ -138,13 +136,6 @@ export function projectSliceToStatus(input: SliceStatusInput): SliceStatusProjec
     nextAction: resolveNextAction(input.record.status, closeGate),
     source: "canonical-records",
   };
-}
-
-export function collectLegacyDiagnostics(classifications: readonly LegacyClassification[] = []): readonly string[] {
-  return classifications.flatMap((classification) => {
-    if (classification.status !== "repairable" && classification.status !== "quarantined") return [];
-    return classification.diagnostics.map((diagnostic) => `${diagnostic.code}: ${diagnostic.message}`);
-  });
 }
 
 function summarizeEvidence(evidence: readonly ForgeEvidenceRecord[]): SliceEvidenceSummary {
