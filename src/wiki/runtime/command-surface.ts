@@ -12,7 +12,7 @@ export type CommandSurfaceEntry = {
 const COMMAND_SURFACE = [
   entry(["help"], "admin-view", "Help renders command documentation."),
   entry(["scaffold-project", "onboard", "onboard-plan", "create-module", "normalize-module", "protocol", "protocol:sync", "protocol:audit", "obsidian", "setup-shell", "config", "schema"], "admin-view", "Setup/configuration commands; not workflow authority."),
-  entry(["search", "query", "ask", "file-answer", "research", "research:scaffold", "research:status", "research:ingest", "research:file", "research:lint", "research:audit", "research:handoff", "research:bridge", "research:distill", "research:adopt", "source", "source:ingest", "qmd-status", "qmd-update", "qmd-embed", "qmd-setup"], "wiki-memory", "Wiki memory and retrieval commands."),
+  entry(["search", "query", "ask", "file-answer", "research", "research:scaffold", "research:status", "research:ingest", "research:file", "research:lint", "research:audit", "research:handoff", "research:bridge", "source", "source:ingest", "qmd-status", "qmd-update", "qmd-embed", "qmd-setup"], "wiki-memory", "Wiki memory and retrieval commands."),
   entry(["handover"], "wiki-memory", "Typed handover memory object.", { handler: "handover" }),
   entry(["resume"], "wiki-memory", "Typed resume packet from handover memory and Forge status truth.", { handler: "resume" }),
   entry(["note", "log"], "wiki-memory", "Typed project memory entries that do not mutate Forge lifecycle.", { handler: "memory" }),

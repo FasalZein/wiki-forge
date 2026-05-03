@@ -45,12 +45,12 @@ function sliceData(vault: string) {
 describe("removed mutating Forge cutover", () => {
   test("implemented mutating commands do not fall back to legacy", () => {
     expect(shouldUseForgeStart(["demo", sliceId, "--json"])).toBe(true);
-    expect(shouldUseForgeStart(["demo", sliceId, "--legacy", "--json"])).toBe(true);
+    expect(shouldUseForgeStart(["demo", sliceId, "--json"])).toBe(true);
     expect(shouldUseForgeRelease(["demo", sliceId])).toBe(true);
     expect(shouldUseForgeClose(["demo", sliceId, "--json"])).toBe(true);
     expect(shouldUseForgeRun(["demo", sliceId, "--json"])).toBe(true);
     expect(shouldUseForgeRun(["demo", "--json"])).toBe(true);
-    expect(shouldUseForgeRun(["demo", sliceId, "--legacy", "--json"])).toBe(true);
+    expect(shouldUseForgeRun(["demo", sliceId, "--json"])).toBe(true);
   });
 
   test("default wiki forge start routes to Forge", () => {

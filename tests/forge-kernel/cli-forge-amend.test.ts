@@ -85,7 +85,7 @@ describe("Forge amend", () => {
   });
 
   test("cutover predicate keeps amend on stable Forge", () => {
-    expect(shouldUseForgeAmend(["demo", "DEMO-001", "--legacy", "--reason", "bug"])).toBe(true);
+    expect(shouldUseForgeAmend(["demo", "DEMO-001", "--reason", "bug"])).toBe(true);
   });
 });
 

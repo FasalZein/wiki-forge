@@ -54,9 +54,9 @@ function passingEvidence() {
 }
 
 describe("forge slice-specific forge status", () => {
-  test("slice-specific status routes to Forge even with --legacy", () => {
+  test("slice-specific status routes to Forge", () => {
     expect(shouldUseForgeStatus(["demo", sliceId, "--json"])).toBe(true);
-    expect(shouldUseForgeStatus(["demo", sliceId, "--legacy", "--json"])).toBe(true);
+    expect(shouldUseForgeStatus(["demo", sliceId, "--json"])).toBe(true);
   });
 
   test("reports draft slices from canonical Forge truth", () => {

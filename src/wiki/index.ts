@@ -16,7 +16,7 @@ import { maintainProject } from "../health/maintain";
 import { refreshFromGit, refreshOnMerge, refreshProject } from "../health/refresh";
 import { syncProject } from "../health/sync";
 import { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeModule, syncProtocol, auditProtocol, obsidianCommand, setupShell } from "./protocol";
-import { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch, handoffResearch, bridgeResearch, distillResearch, adoptResearch } from "./research";
+import { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch, handoffResearch, bridgeResearch } from "./research";
 import { askProject, fileAnswer, fileResearch } from "./retrieval/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "./retrieval/qmd-commands";
 import { forgeAmendCommand, forgeCheckCommand, forgeCloseCommand, forgeEvidenceCommand, forgeNextCommand, forgePlanCommand, forgeReleaseCommand, forgeReviewCommand, forgeRunCommand, forgeStartCommand, forgeStatusCommand } from "../forge/workflow/commands";
@@ -74,8 +74,6 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "research:audit": (args) => auditResearch(args),
   "research:handoff": (args) => handoffResearch(args),
   "research:bridge": (args) => bridgeResearch(args),
-  "research:distill": (args) => distillResearch(args),
-  "research:adopt": (args) => adoptResearch(args),
   "source:ingest": (args) => ingestSource(args),
   "qmd-status": () => qmdStatus(),
   "qmd-update": (args) => qmdUpdate(args),
@@ -111,9 +109,7 @@ export function resolveWikiCommand(rawArgs: string[]) {
       file: "research:file",
       handoff: "research:handoff",
       bridge: "research:bridge",
-      distill: "research:distill",
-      adopt: "research:adopt",
-    }[subcommand as "scaffold" | "status" | "ingest" | "lint" | "audit" | "file" | "handoff" | "bridge" | "distill" | "adopt"];
+    }[subcommand as "scaffold" | "status" | "ingest" | "lint" | "audit" | "file" | "handoff" | "bridge"];
     if (!mapped) throw new Error(`unknown research subcommand: ${subcommand}. Run 'wiki help' for usage.`);
     return { command: mapped, args: subArgs };
   }

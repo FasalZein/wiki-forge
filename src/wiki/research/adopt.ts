@@ -127,8 +127,6 @@ export async function bridgeResearch(args: string[]) {
   printLine(`- next: ${result.nextAction}`);
 }
 
-export const adoptResearch = bridgeResearch;
-
 function parseBridgeArgs(args: string[]) {
   let page: string | undefined;
   let project: string | undefined;

@@ -243,7 +243,6 @@ function parseAmendArgs(args: readonly string[]) {
         break;
       case "--json":
       case "--start":
-      case "--legacy":
         break;
       default:
         if (!arg.startsWith("--")) positional.push(arg);

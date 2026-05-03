@@ -36,9 +36,9 @@ function evidence(vault: string) {
 describe("removed evidence/review Forge cutover", () => {
   test("implemented evidence/review commands do not fall back to legacy", () => {
     expect(shouldUseForgeEvidence(["demo", sliceId, "tdd", "--command", "bun test", "--json"])).toBe(true);
-    expect(shouldUseForgeEvidence(["demo", sliceId, "tdd", "--legacy", "--command", "bun test"])).toBe(true);
+    expect(shouldUseForgeEvidence(["demo", sliceId, "tdd", "--command", "bun test"])).toBe(true);
     expect(shouldUseForgeReview(["record", "demo", sliceId, "--verdict", "approved", "--reviewer", "reviewer"])).toBe(true);
-    expect(shouldUseForgeReview(["record", "demo", sliceId, "--legacy", "--verdict", "approved", "--reviewer", "reviewer"])).toBe(true);
+    expect(shouldUseForgeReview(["record", "demo", sliceId, "--verdict", "approved", "--reviewer", "reviewer"])).toBe(true);
   });
 
   test("default wiki forge evidence tdd routes to Forge", () => {

@@ -50,7 +50,7 @@ describe("forge check command adapter", () => {
       args: ["demo", sliceId, "--json"],
     });
     expect(shouldUseForgeCheck(["demo", sliceId, "--json"])).toBe(true);
-    expect(shouldUseForgeCheck(["demo", sliceId, "--legacy", "--json"])).toBe(true);
+    expect(shouldUseForgeCheck(["demo", sliceId, "--json"])).toBe(true);
   });
 
   test("forge check accepts passing evidence without mutating status", () => {

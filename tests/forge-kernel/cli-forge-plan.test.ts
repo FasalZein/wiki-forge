@@ -54,11 +54,11 @@ describe("Forge plan", () => {
     expect(existsSync(join(vault, "projects", "demo", "forge", "slices"))).toBe(false);
   });
 
-  test("removed plan flag routes to the same Forge gate and ignores --legacy", () => {
+  test("removed plan flag routes to the same Forge gate", () => {
     const vault = tempDir("wiki-plan-removed-vault");
     initVault(vault);
 
-    const result = runWiki(["forge", "plan", "demo", "new onboarding", "--legacy", "--json"], { vault });
+    const result = runWiki(["forge", "plan", "demo", "new onboarding", "--json"], { vault });
 
     expect(result.exitCode).toBe(1);
     expect(result.json()).toMatchObject({
@@ -152,6 +152,6 @@ describe("Forge plan", () => {
       command: "forge:plan",
       args: ["demo", "feature"],
     });
-    expect(shouldUseForgePlan(["demo", "feature", "--legacy"])).toBe(true);
+    expect(shouldUseForgePlan(["demo", "feature"])).toBe(true);
   });
 });

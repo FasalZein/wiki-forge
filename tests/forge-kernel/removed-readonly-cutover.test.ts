@@ -70,13 +70,13 @@ describe("removed read-only Forge cutover", () => {
 
   test("implemented read-only commands do not fall back to legacy", () => {
     expect(shouldUseForgeNext(["demo", "--json"])).toBe(true);
-    expect(shouldUseForgeNext(["demo", "--legacy", "--json"])).toBe(true);
+    expect(shouldUseForgeNext(["demo", "--json"])).toBe(true);
     expect(shouldUseForgeNext(["demo", "--prompt-json"])).toBe(false);
     expect(shouldUseForgeNext(["demo", "--all", "--prompt-json"])).toBe(false);
 
     expect(shouldUseForgeStatus(["demo", "--json"])).toBe(true);
     expect(shouldUseForgeStatus(["demo", "DEMO-001", "--json"])).toBe(true);
-    expect(shouldUseForgeStatus(["demo", "--legacy", "--json"])).toBe(true);
+    expect(shouldUseForgeStatus(["demo", "--json"])).toBe(true);
   });
 
   test("compat metadata documents cutover", () => {

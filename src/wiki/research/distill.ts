@@ -55,8 +55,6 @@ export async function handoffResearch(args: string[]) {
   printLine(`- next: ${result.nextAction}`);
 }
 
-export const distillResearch = handoffResearch;
-
 function parseHandoffArgs(args: string[]) {
   const positionals = args.filter((arg) => !arg.startsWith("--"));
   const page = positionals[0];

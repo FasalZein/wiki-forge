@@ -73,6 +73,11 @@ status: ready
     });
   });
 
+  test("research compatibility aliases are removed", () => {
+    expect(() => resolveWikiCommand(["research", "distill", "some-page", "projects/demo/decisions"])).toThrow("unknown research subcommand: distill");
+    expect(() => resolveWikiCommand(["research", "adopt", "some-page", "--project", "demo", "--slice", "DEMO-001"])).toThrow("unknown research subcommand: adopt");
+  });
+
   test("public forge compatibility namespace is removed", () => {
     const vault = createVaultWithSlice("done");
     const result = runWiki(["forge", "compat", "wiki", "forge", "next", "--json"], { vault });
