@@ -99,7 +99,33 @@ export async function maintainProject(args: string[], repair?: MaintainRepairInp
         ? `  7. wiki forge check ${options.project} --repo ${result.repo} --worktree`
         : `  7. wiki forge check ${options.project} --repo ${result.repo} --base ${options.base}`);
     }
+    if (shouldRenderMaintainRecovery(result, indexRefresh, gateOk, repair)) {
+      renderMaintainRecovery(options.project, result.repo, result.base);
+    }
   }
+}
+
+function shouldRenderMaintainRecovery(
+  result: Awaited<ReturnType<typeof collectMaintenancePlan>>,
+  indexRefresh: Awaited<ReturnType<typeof autoRefreshIndex>>,
+  gateOk: boolean,
+  repair: MaintainRepairInput | undefined,
+) {
+  return !gateOk
+    || result.actions.length > 0
+    || indexRefresh.stale.length > 0
+    || indexRefresh.written.length > 0
+    || Boolean(repair && (repair.repaired.length > 0 || repair.missingDocs.length > 0 || repair.archiveCandidates.length > 0));
+}
+
+function renderMaintainRecovery(project: string, repo: string, base: string) {
+  printLine("Recovery:");
+  printLine("```bash");
+  printLine(`wiki maintain ${project} --repo ${repo} --base ${base} --json`);
+  printLine(`wiki doctor ${project} --repo ${repo} --base ${base}`);
+  printLine(`wiki checkpoint ${project} --repo ${repo} --base ${base}`);
+  printLine(`wiki forge next ${project} --repo ${repo} --json`);
+  printLine("```");
 }
 
 export function collapseActions(actions: Array<Pick<MaintenanceAction, "kind" | "message" | "scope">>): string[] {
