@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { maintainProject } from "../../src/health/readiness/plan";
 import { cleanupTempPaths, initVault, runGit, runWiki, setRepoFrontmatter, tempDir } from "../test-helpers";
 
 afterEach(() => cleanupTempPaths());
@@ -21,6 +22,10 @@ function setupProject() {
 }
 
 describe("maintain operator output", () => {
+  test("maintain command does not expose legacy done-slice repair injection", () => {
+    expect(maintainProject.length).toBe(1);
+  });
+
   test("actionable non-JSON maintain output includes recovery commands", () => {
     const { env, repo } = setupProject();
     writeFileSync(join(repo, "src", "uncovered.ts"), "export const uncovered = 1\n", "utf8");
@@ -30,6 +35,7 @@ describe("maintain operator output", () => {
 
     expect(result.exitCode).toBe(0);
     expect(output).toContain("maintain plan for demo:");
+    expect(output).not.toContain("legacy done-slice repair");
     expect(output).toContain("Recovery:");
     expect(output).toContain(`wiki maintain demo --repo ${repo} --base HEAD --json`);
     expect(output).toContain(`wiki doctor demo --repo ${repo} --base HEAD`);
@@ -46,6 +52,7 @@ describe("maintain operator output", () => {
 
     expect(result.exitCode).toBe(0);
     expect(payload.project).toBe("demo");
+    expect(payload).not.toHaveProperty("repair");
     expect(payload).not.toHaveProperty("recovery");
   });
 });

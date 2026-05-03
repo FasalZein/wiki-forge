@@ -28,14 +28,7 @@ export async function autoRefreshIndex(project: string, options: { dryRun?: bool
   return { stale, written: written.map((target) => target.path) };
 }
 
-export type MaintainRepairInput = {
-  repaired: Array<{ taskId: string; completedAt: string; files: string[]; changes: string[] }>;
-  alreadyCurrent: number;
-  missingDocs: string[];
-  archiveCandidates: Array<{ taskId: string; completedAt: string; ageDays: number }>;
-};
-
-export async function maintainProject(args: string[], repair?: MaintainRepairInput) {
+export async function maintainProject(args: string[]) {
   const options = await parseProjectRepoBaseArgs(args);
   const json = args.includes("--json");
   const verbose = args.includes("--verbose");
@@ -45,21 +38,17 @@ export async function maintainProject(args: string[], repair?: MaintainRepairInp
   const indexRefresh = await autoRefreshIndex(options.project, { dryRun });
   appendLogEntry("maintain", options.project, {
     project: options.project,
-    details: [worktree ? "mode=worktree" : `base=${options.base}`, `actions=${result.actions.length}`, `index_stale=${indexRefresh.stale.length}`, `index_written=${indexRefresh.written.length}`, ...(repair ? [`repaired=${repair.repaired.length}`] : [])],
+    details: [worktree ? "mode=worktree" : `base=${options.base}`, `actions=${result.actions.length}`, `index_stale=${indexRefresh.stale.length}`, `index_written=${indexRefresh.written.length}`],
   });
   const missingTests = result.refreshFromGit.testHealth.codeFilesWithoutChangedTests.length;
   const gateOk = missingTests === 0;
   if (json) {
     const shaped = verbose ? result : compactMaintainForJson(result);
-    printJson({ ...shaped, ...(repair ? { repair } : {}), indexRefresh, gate: { ok: gateOk, missingTests } });
+    printJson({ ...shaped, indexRefresh, gate: { ok: gateOk, missingTests } });
   } else {
     if (result.focus.activeTask) printLine(`active task: ${result.focus.activeTask.id} ${result.focus.activeTask.title} (plan=${result.focus.activeTask.planStatus} test-plan=${result.focus.activeTask.testPlanStatus})`);
     else if (result.focus.recommendedTask) printLine(`next backlog task: ${result.focus.recommendedTask.id} ${result.focus.recommendedTask.title}`);
     for (const warning of result.focus.warnings) printLine(`- backlog warning: ${warning}`);
-    if (repair) {
-      printLine(`legacy done-slice repair: repaired=${repair.repaired.length} already_current=${repair.alreadyCurrent} missing_docs=${repair.missingDocs.length}`);
-      if (repair.archiveCandidates.length) printLine(`- archive candidates: ${repair.archiveCandidates.map((candidate) => `${candidate.taskId} (${candidate.ageDays}d)`).join(", ")}`);
-    }
     printLine(`maintain plan for ${options.project}:`);
     printLine(`- repo: ${result.repo}`);
     printLine(`- base: ${result.base}`);
@@ -99,7 +88,7 @@ export async function maintainProject(args: string[], repair?: MaintainRepairInp
         ? `  7. wiki forge check ${options.project} --repo ${result.repo} --worktree`
         : `  7. wiki forge check ${options.project} --repo ${result.repo} --base ${options.base}`);
     }
-    if (shouldRenderMaintainRecovery(result, indexRefresh, gateOk, repair)) {
+    if (shouldRenderMaintainRecovery(result, indexRefresh, gateOk)) {
       renderMaintainRecovery(options.project, result.repo, result.base);
     }
   }
@@ -109,13 +98,11 @@ function shouldRenderMaintainRecovery(
   result: Awaited<ReturnType<typeof collectMaintenancePlan>>,
   indexRefresh: Awaited<ReturnType<typeof autoRefreshIndex>>,
   gateOk: boolean,
-  repair: MaintainRepairInput | undefined,
 ) {
   return !gateOk
     || result.actions.length > 0
     || indexRefresh.stale.length > 0
-    || indexRefresh.written.length > 0
-    || Boolean(repair && (repair.repaired.length > 0 || repair.missingDocs.length > 0 || repair.archiveCandidates.length > 0));
+    || indexRefresh.written.length > 0;
 }
 
 function renderMaintainRecovery(project: string, repo: string, base: string) {
