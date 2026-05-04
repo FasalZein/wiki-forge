@@ -9,6 +9,7 @@ cd wiki-forge
 # or:
 ./install.sh --wiki-only
 ./install.sh --full
+./install.sh --wiki-only --skip-skills  # CLI + QMD only; install /wiki later if desired
 ```
 
 The install script handles first-time bootstrap: bun, dependencies, local sync of the CLI/qmd/skills, shell config, vault directory, and skill installation. By default it creates `~/Knowledge` if it does not exist yet.
@@ -23,6 +24,7 @@ Install modes:
 
 - `wiki-only`: installs only the `/wiki` second-brain layer
 - `full`: installs `/wiki`, the repo-owned `/forge` workflow stack, and the external `/desloppify` companion
+- `--skip-skills`: installs only the CLI/QMD setup now; you can install agent skills later with `bun run sync:wiki` or `bun run sync:full`
 
 
 ## Forge operating rules
@@ -79,9 +81,10 @@ The CLI auto-detects `~/Knowledge` if the env var is unset.
 `sync:local` is the canonical install path. It relinks the CLI, refreshes qmd, installs the selected repo-owned skill set discovered under `skills/*/SKILL.md`, and in `full` mode adds the external `/desloppify` companion.
 
 ```bash
-bun run sync:wiki                             # wiki-only second-brain install set
-bun run sync:full                             # full wiki+forge install set
-bun run sync:local -- --install-set wiki-only # equivalent explicit form
+bun run sync:wiki                                             # wiki-only second-brain install set
+bun run sync:full                                             # full wiki+forge install set
+bun run sync:local -- --install-set wiki-only                 # equivalent explicit form
+bun run sync:local -- --install-set wiki-only --skip-skills   # CLI + QMD only
 ```
 
 Current full repo-owned skill set:

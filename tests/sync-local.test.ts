@@ -11,7 +11,7 @@ afterEach(() => {
 describe("sync-local", () => {
   test("builds the default local sync plan", () => {
     const repoDir = process.cwd();
-    const plan = buildSyncPlan({ repoDir, includeCompanions: false, audit: false, installSet: "full" });
+    const plan = buildSyncPlan({ repoDir, includeCompanions: false, audit: false, installSet: "full", installSkills: true });
     const repoSkillSteps = plan.slice(3, 3 + REPO_SKILLS.length * 2);
     const repoSkillLabels = REPO_SKILLS.flatMap((skill) => [
       `remove repo skill ${skill}`,
@@ -47,8 +47,8 @@ describe("sync-local", () => {
   test("full installs include external companion skills while audit still covers repo-owned skills only", () => {
     expect(COMPANION_SKILLS).toEqual(["FasalZein/desloppify"]);
     const repoDir = process.cwd();
-    const withCompanions = buildSyncPlan({ repoDir, includeCompanions: true, audit: false, installSet: "full" });
-    const without = buildSyncPlan({ repoDir, includeCompanions: false, audit: false, installSet: "full" });
+    const withCompanions = buildSyncPlan({ repoDir, includeCompanions: true, audit: false, installSet: "full", installSkills: true });
+    const without = buildSyncPlan({ repoDir, includeCompanions: false, audit: false, installSet: "full", installSkills: true });
     expect(withCompanions.map((s) => s.label)).toEqual(without.map((s) => s.label));
     expect(withCompanions.at(-1)?.label).toBe("install companion skill desloppify");
     expect(REPO_SKILLS).not.toContain("desloppify");
@@ -61,17 +61,28 @@ describe("sync-local", () => {
   });
 
   test("parses install set and with-companions flags", () => {
-    expect(parseSyncArgs([], "/repo/wiki-forge")).toEqual({ includeCompanions: true, audit: false, installSet: "full", repoDir: "/repo/wiki-forge" });
-    expect(parseSyncArgs(["--with-companions"], "/repo/wiki-forge")).toEqual({ includeCompanions: true, audit: false, installSet: "full", repoDir: "/repo/wiki-forge" });
-    expect(parseSyncArgs(["--audit"], "/repo/wiki-forge")).toEqual({ includeCompanions: true, audit: true, installSet: "full", repoDir: "/repo/wiki-forge" });
-    expect(parseSyncArgs(["--wiki-only"], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: false, installSet: "wiki-only", repoDir: "/repo/wiki-forge" });
-    expect(parseSyncArgs(["--install-set", "wiki-only"], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: false, installSet: "wiki-only", repoDir: "/repo/wiki-forge" });
+    expect(parseSyncArgs([], "/repo/wiki-forge")).toEqual({ includeCompanions: true, audit: false, installSet: "full", repoDir: "/repo/wiki-forge", installSkills: true });
+    expect(parseSyncArgs(["--with-companions"], "/repo/wiki-forge")).toEqual({ includeCompanions: true, audit: false, installSet: "full", repoDir: "/repo/wiki-forge", installSkills: true });
+    expect(parseSyncArgs(["--audit"], "/repo/wiki-forge")).toEqual({ includeCompanions: true, audit: true, installSet: "full", repoDir: "/repo/wiki-forge", installSkills: true });
+    expect(parseSyncArgs(["--wiki-only"], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: false, installSet: "wiki-only", repoDir: "/repo/wiki-forge", installSkills: true });
+    expect(parseSyncArgs(["--install-set", "wiki-only"], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: false, installSet: "wiki-only", repoDir: "/repo/wiki-forge", installSkills: true });
+    expect(parseSyncArgs(["--wiki-only", "--skip-skills"], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: false, installSet: "wiki-only", repoDir: "/repo/wiki-forge", installSkills: false });
+  });
+
+  test("skip-skills keeps CLI and QMD setup but omits all agent skills", () => {
+    const repoDir = process.cwd();
+    const plan = buildSyncPlan({ repoDir, includeCompanions: false, audit: false, installSet: "full", installSkills: false });
+    expect(plan.map((step) => step.label)).toEqual([
+      "link wiki cli",
+      "install latest qmd",
+      "rebuild qmd native modules",
+    ]);
   });
 
   test("wiki-only install set narrows repo skill selection to the wiki skill", () => {
     const repoDir = process.cwd();
     expect(selectRepoSkills(repoDir, "wiki-only")).toEqual([...WIKI_ONLY_SKILLS]);
-    const plan = buildSyncPlan({ repoDir, includeCompanions: false, audit: false, installSet: "wiki-only" });
+    const plan = buildSyncPlan({ repoDir, includeCompanions: false, audit: false, installSet: "wiki-only", installSkills: true });
     expect(plan.map((step) => step.label)).toEqual([
       "link wiki cli",
       "install latest qmd",

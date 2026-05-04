@@ -24,6 +24,7 @@ export type SyncOptions = {
   audit: boolean;
   installSet: InstallSet;
   repoDir: string;
+  installSkills: boolean;
 };
 
 if (import.meta.main) {
@@ -52,6 +53,7 @@ async function main(args: string[]) {
   printLine("wiki-forge local sync");
   printLine(`- repo: ${options.repoDir}`);
   printLine(`- install set: ${options.installSet}`);
+  printLine(`- skills: ${options.installSkills ? "yes" : "no"}`);
   printLine(`- companion skills: ${shouldInstallCompanions(options) ? "yes" : "no"}`);
 
   for (const step of plan) {
@@ -59,7 +61,7 @@ async function main(args: string[]) {
     runStep(step, options.repoDir);
   }
 
-  assertInstalledRepoSkillsFresh(options);
+  if (options.installSkills) assertInstalledRepoSkillsFresh(options);
   printLine("sync complete");
   printLine("restart your agent session to pick up refreshed skill instructions");
 }
@@ -71,20 +73,23 @@ export function parseSyncArgs(args: string[], repoDir = resolve(import.meta.dir,
     audit: args.includes("--audit"),
     installSet,
     repoDir,
+    installSkills: !args.includes("--skip-skills"),
   };
 }
 
 export function buildSyncPlan(options: SyncOptions): SyncStep[] {
-  const repoSkills = selectRepoSkills(options.repoDir, options.installSet).flatMap((skill) => ([
-    {
-      label: `remove repo skill ${skill}`,
-      command: ["npx", "skills@latest", "remove", skill, "-g", "-y"],
-    },
-    {
-      label: `install repo skill ${skill}`,
-      command: ["npx", "skills@latest", "add", resolve(options.repoDir, "skills", skill), "-g", "-y"],
-    },
-  ]));
+  const repoSkills = options.installSkills
+    ? selectRepoSkills(options.repoDir, options.installSet).flatMap((skill) => ([
+      {
+        label: `remove repo skill ${skill}`,
+        command: ["npx", "skills@latest", "remove", skill, "-g", "-y"],
+      },
+      {
+        label: `install repo skill ${skill}`,
+        command: ["npx", "skills@latest", "add", resolve(options.repoDir, "skills", skill), "-g", "-y"],
+      },
+    ]))
+    : [];
   const companionSkills = shouldInstallCompanions(options)
     ? COMPANION_SKILLS.map((skill) => ({
       label: `install companion skill ${skill.split("/").pop()}`,
@@ -139,8 +144,8 @@ export function assertInstalledRepoSkillsFresh(options: Pick<SyncOptions, "repoD
   );
 }
 
-function shouldInstallCompanions(options: Pick<SyncOptions, "installSet" | "includeCompanions">): boolean {
-  return options.installSet === "full" && COMPANION_SKILLS.length > 0;
+function shouldInstallCompanions(options: Pick<SyncOptions, "installSet" | "includeCompanions" | "installSkills">): boolean {
+  return options.installSkills && options.installSet === "full" && COMPANION_SKILLS.length > 0;
 }
 
 function ensureCommand(command: string, errorMessage: string) {
@@ -148,6 +153,12 @@ function ensureCommand(command: string, errorMessage: string) {
 }
 
 function parseInstallSetArg(args: string[]): InstallSet {
+  const unknown = args.filter((arg, index) => {
+    if (["--wiki-only", "--full", "--audit", "--skip-skills", "--with-companions"].includes(arg)) return false;
+    if (args[index - 1] === "--install-set") return false;
+    return arg !== "--install-set";
+  });
+  if (unknown.length > 0) throw new Error(`unknown sync option(s): ${unknown.join(", ")}`);
   if (args.includes("--wiki-only")) return "wiki-only";
   if (args.includes("--full")) return "full";
   const index = args.indexOf("--install-set");

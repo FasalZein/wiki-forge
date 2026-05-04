@@ -57,6 +57,7 @@ cd wiki-forge
 # or:
 ./install.sh --wiki-only
 ./install.sh --full
+./install.sh --wiki-only --skip-skills  # CLI + QMD only; install /wiki later if desired
 ```
 
 The installer handles bun, dependencies, local sync of the CLI/qmd/skills, shell config, and the vault directory (`~/Knowledge`). `wiki-only` installs just the second-brain layer (`/wiki`). `full` installs the second-brain layer plus the Forge SDLC workflow stack (`/forge`, repo-owned workflow skills, and the external `/desloppify` companion).
@@ -66,6 +67,8 @@ Read next:
 - [SETUP.md](SETUP.md) — install, manual setup, Obsidian, troubleshooting, and copy/paste agent prompts
 - [How wiki-forge works](docs/how-it-works.md) — Wiki/QMD retrieval path and Forge next-command workflow
 - [Production Operator Guide](docs/production-operator-guide.md) — operating Forge on real project work
+
+For production operation, see [Production Operator Guide](docs/production-operator-guide.md).
 
 ### Agent setup prompt
 
@@ -92,6 +95,7 @@ brew install sqlite   # macOS — required for Bun SDK hybrid retrieval
 ```bash
 bun run sync:local                                      # relink CLI, refresh qmd, reinstall repo-owned skills, and add external workflow companions
 bun run sync:local -- --install-set wiki-only           # relink CLI/qmd and install only the wiki skill
+bun run sync:local -- --install-set wiki-only --skip-skills # relink CLI/qmd without installing agent skills
 bun run sync:local -- --audit                           # audit the default full repo-owned skill set
 bun run sync:local -- --install-set wiki-only --audit   # audit only the wiki-only install set
 ```

@@ -7,6 +7,7 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 VAULT_DEFAULT="$HOME/Knowledge"
 INSTALL_SET=""
+SKILL_MODE=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -16,9 +17,15 @@ while [ $# -gt 0 ]; do
     --full)
       INSTALL_SET="full"
       ;;
+    --skip-skills)
+      SKILL_MODE="skip"
+      ;;
+    --install-skills)
+      SKILL_MODE="install"
+      ;;
     *)
       echo "[error] unknown option: $1"
-      echo "usage: ./install.sh [--wiki-only|--full]"
+      echo "usage: ./install.sh [--wiki-only|--full] [--install-skills|--skip-skills]"
       exit 1
       ;;
   esac
@@ -65,17 +72,43 @@ if [ -z "$INSTALL_SET" ]; then
   esac
 fi
 
-# 5. Sync CLI, qmd, and selected skills
-echo "Syncing local CLI, qmd, and skills (${INSTALL_SET})..."
-bun run sync:local -- --install-set "$INSTALL_SET"
+# 5. Choose whether to install agent skills
+if [ -z "$SKILL_MODE" ]; then
+  echo "Agent skills:"
+  if [ "$INSTALL_SET" = "wiki-only" ]; then
+    echo "  1) install /wiki skill"
+    echo "  2) skip skills for now (CLI + QMD only)"
+  else
+    echo "  1) install full workflow skills (/wiki + /forge stack + companions)"
+    echo "  2) skip skills for now (CLI + QMD only)"
+  fi
+  read -rp "Install agent skills? [1]: " skill_choice
+  case "${skill_choice:-1}" in
+    1) SKILL_MODE="install" ;;
+    2) SKILL_MODE="skip" ;;
+    *)
+      echo "[error] invalid skill choice: ${skill_choice}"
+      exit 1
+      ;;
+  esac
+fi
+
+SYNC_ARGS=(--install-set "$INSTALL_SET")
+if [ "$SKILL_MODE" = "skip" ]; then
+  SYNC_ARGS+=(--skip-skills)
+fi
+
+# 6. Sync CLI, qmd, and selected skills
+echo "Syncing local CLI, qmd, and skills (${INSTALL_SET}; skills=${SKILL_MODE})..."
+bun run sync:local -- "${SYNC_ARGS[@]}"
 echo "[ok] local sync complete"
 
-# 6. Set up vault
+# 7. Set up vault
 read -rp "Vault path [$VAULT_DEFAULT]: " vault_input
 VAULT="${vault_input:-$VAULT_DEFAULT}"
 mkdir -p "$VAULT"
 
-# 7. Set KNOWLEDGE_VAULT_ROOT in shell config
+# 8. Set KNOWLEDGE_VAULT_ROOT in shell config
 SHELL_NAME="$(basename "${SHELL:-/bin/zsh}")"
 case "$SHELL_NAME" in
   zsh)  RC_FILE="$HOME/.zshrc" ;;
@@ -110,16 +143,25 @@ echo "Next steps:"
 echo "  source $(basename "${RC_FILE:-your-shell-config}")"
 echo "  wiki help"
 echo "  bun run sync:local -- --install-set ${INSTALL_SET}   # refresh CLI/qmd/repo skills and external workflow companions after local changes"
+echo "  bun run sync:local -- --install-set ${INSTALL_SET} --skip-skills   # refresh only CLI/qmd"
 echo ""
 if [ "$INSTALL_SET" = "wiki-only" ]; then
   echo "Installed mode: wiki-only"
   echo "  - wiki remains your second-brain layer"
-  echo "  - forge workflow skills were not installed"
+  if [ "$SKILL_MODE" = "skip" ]; then
+    echo "  - agent skills were skipped; install /wiki later with: bun run sync:wiki"
+  else
+    echo "  - installed /wiki skill only"
+  fi
 else
   echo "Installed mode: full"
   echo "  - wiki remains your second-brain layer"
   echo "  - forge adds the SDLC workflow layer on top"
-  echo "  - desloppify is installed as an external workflow companion"
+  if [ "$SKILL_MODE" = "skip" ]; then
+    echo "  - agent skills were skipped; install them later with: bun run sync:full"
+  else
+    echo "  - installed full workflow skills and external companion skills"
+  fi
 fi
 echo ""
 echo "Obsidian users: enable the Obsidian CLI in Settings → General → CLI."

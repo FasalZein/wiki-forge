@@ -24,6 +24,14 @@ describe("developer-ready wiki-only workflow smoke", () => {
     expect(labels.some((label) => label.includes("companion skill"))).toBe(false);
   });
 
+  test("skill installation can be skipped while keeping CLI and QMD setup", () => {
+    const options = parseSyncArgs(["--wiki-only", "--skip-skills"], process.cwd());
+    const labels = buildSyncPlan(options).map((step) => step.label);
+
+    expect(options.installSkills).toBe(false);
+    expect(labels).toEqual(["link wiki cli", "install latest qmd", "rebuild qmd native modules"]);
+  });
+
   test("full install includes Forge workflow skills for opt-in lifecycle use", () => {
     const options = parseSyncArgs(["--full"], process.cwd());
     const labels = buildSyncPlan(options).map((step) => step.label);
