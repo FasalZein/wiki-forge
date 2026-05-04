@@ -5,6 +5,7 @@ import { mkdirIfMissing, nowIso, orderFrontmatter, requireValue, writeNormalized
 import { slugify } from "../planning";
 import { exists, readText } from "../../../lib/fs";
 import { printJson, printLine } from "../../../lib/cli-output";
+import { classifyVaultFolderPath } from "../../../shared/project-structure/vault-taxonomy";
 
 const CORE_TOP_LEVEL_DIRS = ["projects", "research", "raw", "wiki", "ideas", "templates", "journal", "specs"] as const;
 const CORE_ROOT_FILES = ["AGENTS.md", "index.md", "log.md"] as const;
@@ -131,6 +132,8 @@ export async function lintVault(args: string[]) {
 
 export async function collectVaultLintResult() {
   const issues: string[] = [];
+  const ghostProjects: Array<{ project: string; path: string; reason: string }> = [];
+  const generatedProjections: Array<{ path: string; reason: string }> = [];
   const topLevelEntries = readdirSync(VAULT_ROOT).filter((entry) => !entry.startsWith("."));
   const customLayers = Object.keys(LAYERS);
   const allowedDirs = new Set<string>([...CORE_TOP_LEVEL_DIRS, ...customLayers]);
@@ -162,7 +165,36 @@ export async function collectVaultLintResult() {
     if (await exists(join(VAULT_ROOT, layer)) && !await exists(layerIndex)) issues.push(`${layer}/ missing index.md`);
   }
 
-  return { root: VAULT_ROOT, issues, layers: { core: [...CORE_TOP_LEVEL_DIRS], custom: customLayers } };
+  const projectsDir = join(VAULT_ROOT, "projects");
+  if (await exists(projectsDir)) {
+    for (const entry of readdirSync(projectsDir).filter((name) => !name.startsWith("_"))) {
+      const projectDir = join(projectsDir, entry);
+      if (!statSync(projectDir).isDirectory()) continue;
+      const files = [...new Bun.Glob("**/*").scanSync({ cwd: projectDir, onlyFiles: true })].map((file) => file.replaceAll("\\", "/"));
+      const markdownFiles = files.filter((file) => file.endsWith(".md"));
+      if (markdownFiles.length === 0 && files.every((file) => file === ".activity.jsonl")) {
+        const reason = "project folder contains only activity logs or no markdown files";
+        ghostProjects.push({ project: entry, path: `projects/${entry}`, reason });
+        issues.push(`projects/${entry} ghost project candidate: ${reason}`);
+      }
+      for (const file of markdownFiles) {
+        const rel = `projects/${entry}/${file}`;
+        const classification = classifyVaultFolderPath(rel);
+        if (classification.kind === "generated-projection") generatedProjections.push({ path: rel, reason: classification.reason });
+      }
+    }
+    const dashboard = join(projectsDir, "_dashboard.md");
+    if (await exists(dashboard)) {
+      const rel = "projects/_dashboard.md";
+      const classification = classifyVaultFolderPath(rel);
+      if (classification.kind === "generated-projection") generatedProjections.push({ path: rel, reason: classification.reason });
+    }
+  }
+
+  generatedProjections.sort((left, right) => left.path.localeCompare(right.path));
+  ghostProjects.sort((left, right) => left.path.localeCompare(right.path));
+
+  return { root: VAULT_ROOT, issues, layers: { core: [...CORE_TOP_LEVEL_DIRS], custom: customLayers }, ghostProjects, generatedProjections };
 }
 
 export async function summarizeLayer(args: string[]) {
