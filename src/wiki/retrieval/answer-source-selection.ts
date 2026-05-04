@@ -81,6 +81,7 @@ export function scoreAnswerSource(
 
   if (normalized === `${projectPrefix}_summary.md`) adjusted += 0.9;
   if (normalized === `${projectPrefix}decisions.md`) adjusted += 1.1;
+  if (normalized.startsWith(`${projectPrefix}architecture/`)) adjusted += 0.5;
   if (normalized === `${projectPrefix}architecture/domain-language.md`) adjusted += 1.05;
   if (normalized === `${projectPrefix}specs/index.md`) adjusted += 1;
   if (normalized === `${projectPrefix}backlog.md`) adjusted += 0.2;

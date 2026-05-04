@@ -326,6 +326,12 @@ describe("answer reranking", () => {
     const researchScore = scoreAnswerSource("wiki-forge", "what terminology should we use for domain language pages", "projects/wiki-forge/research/research-taxonomy/research-taxonomy-normalization.md", "project", 0.4, 1);
     expect(domainLanguageScore).toBeGreaterThan(researchScore);
   });
+
+  test("prefers exact architecture notes over nearby lifecycle records for architecture questions", () => {
+    const architectureScore = scoreAnswerSource("wiki-forge", "what is the markdown folder migration plan", "projects/wiki-forge/architecture/markdown-folder-migration-plan.md", "project", 0.4, 1);
+    const sliceScore = scoreAnswerSource("wiki-forge", "what is the markdown folder migration plan", "projects/wiki-forge/forge/slices/wiki-forge-250/index.md", "project", 0.4, 1);
+    expect(architectureScore).toBeGreaterThan(sliceScore);
+  });
 });
 
 describe("quality-signal score boosting", () => {
