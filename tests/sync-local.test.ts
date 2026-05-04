@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { assertInstalledRepoSkillsFresh, auditInstalledRepoSkills, buildSyncPlan, COMPANION_SKILLS, listRepoSkills, parseSyncArgs, REPO_SKILLS, selectRepoSkills, WIKI_ONLY_SKILLS } from "../scripts/sync-local";
 import { cleanupTempPaths, tempDir } from "./test-helpers";
@@ -52,6 +52,12 @@ describe("sync-local", () => {
     expect(withCompanions.map((s) => s.label)).toEqual(without.map((s) => s.label));
     expect(withCompanions.at(-1)?.label).toBe("install companion skill desloppify");
     expect(REPO_SKILLS).not.toContain("desloppify");
+  });
+
+  test("package scripts expose explicit wiki-only and full skill sync commands", () => {
+    const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as { scripts: Record<string, string> };
+    expect(packageJson.scripts["sync:wiki"]).toBe("bun scripts/sync-local.ts --wiki-only");
+    expect(packageJson.scripts["sync:full"]).toBe("bun scripts/sync-local.ts --full");
   });
 
   test("parses install set and with-companions flags", () => {

@@ -73,8 +73,9 @@ The CLI auto-detects `~/Knowledge` if the env var is unset.
 `sync:local` is the canonical install path. It relinks the CLI, refreshes qmd, installs the selected repo-owned skill set discovered under `skills/*/SKILL.md`, and in `full` mode adds the external `/desloppify` companion.
 
 ```bash
-bun run sync:local                            # full wiki+forge install set
-bun run sync:local -- --install-set wiki-only
+bun run sync:wiki                             # wiki-only second-brain install set
+bun run sync:full                             # full wiki+forge install set
+bun run sync:local -- --install-set wiki-only # equivalent explicit form
 ```
 
 Current full repo-owned skill set:
@@ -135,10 +136,11 @@ npx skills list -g | grep -E "desloppify|domain-model|forge|grill-me|improve-cod
 
 ### 5. Sync local updates
 
-After pulling repo changes or editing `skills/*/SKILL.md`, run:
+After pulling repo changes or editing `skills/*/SKILL.md`, run the install set you want to keep active:
 
 ```bash
-bun run sync:local
+bun run sync:wiki  # wiki-only
+bun run sync:full  # wiki + forge workflow skills
 ```
 
 That refreshes:
