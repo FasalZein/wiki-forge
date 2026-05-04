@@ -201,6 +201,6 @@ After the refactor slices ship and the feature is `computed_status = complete`, 
 
 ## Local skill maintenance
 
-After editing `skills/*/SKILL.md`, run `bun run sync:local`.
+After editing `skills/*/SKILL.md`, run `bun run sync:full` for the full workflow install or `bun run sync:wiki` for wiki-only.
 Optionally run `bun run sync:local -- --audit`.
 Then restart the agent session.

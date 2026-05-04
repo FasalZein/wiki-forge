@@ -46,4 +46,4 @@ Red and green evidence must use the exact same command string. The green record 
 
 Do not use characterization as a bypass for implementation work: when changing behavior, add a failing test for the new outcome before making the code pass.
 
-After editing repo skill files, run `bun run sync:local` and optionally `bun run sync:local -- --audit`, then restart the agent session.
+After editing repo skill files, run `bun run sync:full` for the full workflow install or `bun run sync:wiki` for wiki-only, optionally audit with `bun run sync:local -- --audit`, then restart the agent session.

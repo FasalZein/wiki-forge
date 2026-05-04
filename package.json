@@ -9,7 +9,8 @@
     "skills",
     "install.sh",
     "README.md",
-    "SETUP.md"
+    "SETUP.md",
+    "docs"
   ],
   "bin": {
     "wiki": "./bin/wiki"

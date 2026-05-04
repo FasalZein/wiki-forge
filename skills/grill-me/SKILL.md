@@ -109,6 +109,6 @@ This skill exists as a compatibility surface, not as the canonical forge design 
 
 ## Local skill maintenance
 
-After editing `skills/*/SKILL.md`, run `bun run sync:local`.
+After editing `skills/*/SKILL.md`, run `bun run sync:full` for the full workflow install or `bun run sync:wiki` for wiki-only.
 Optionally run `bun run sync:local -- --audit`.
 Then restart the agent session.

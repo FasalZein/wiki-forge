@@ -59,7 +59,21 @@ cd wiki-forge
 ./install.sh --full
 ```
 
-The installer handles bun, dependencies, local sync of the CLI/qmd/skills, shell config, and the vault directory (`~/Knowledge`). `wiki-only` installs just the second-brain layer (`/wiki`). `full` installs the second-brain layer plus the forge SDLC workflow stack (`/forge`, the repo-owned workflow skills, and the external `/desloppify` companion). See [SETUP.md](SETUP.md) for manual setup, Obsidian config, and troubleshooting. For production operation, see [Production Operator Guide](docs/production-operator-guide.md).
+The installer handles bun, dependencies, local sync of the CLI/qmd/skills, shell config, and the vault directory (`~/Knowledge`). `wiki-only` installs just the second-brain layer (`/wiki`). `full` installs the second-brain layer plus the Forge SDLC workflow stack (`/forge`, repo-owned workflow skills, and the external `/desloppify` companion).
+
+Read next:
+
+- [SETUP.md](SETUP.md) — install, manual setup, Obsidian, troubleshooting, and copy/paste agent prompts
+- [How wiki-forge works](docs/how-it-works.md) — Wiki/QMD retrieval path and Forge next-command workflow
+- [Production Operator Guide](docs/production-operator-guide.md) — operating Forge on real project work
+
+### Agent setup prompt
+
+Paste this into a new agent session after cloning the repo:
+
+```text
+We are setting up wiki-forge. First read SETUP.md in full, then follow its install mode guidance. If I ask for wiki-only, install only the Wiki second-brain layer. If I ask for full setup, install Wiki plus the Forge workflow skills. Do not create project handover files in the repo; handovers belong in the Knowledge vault. After setup, run wiki qmd-status and tell me whether QMD needs embeddings.
+```
 
 <details>
 <summary><strong>Manual prerequisites</strong> (if not using the installer)</summary>

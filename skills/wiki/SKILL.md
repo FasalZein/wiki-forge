@@ -50,4 +50,4 @@ If the installed `wiki` binary is unavailable while working inside this reposito
 - If git activity may have changed repo truth, use `wiki checkpoint`, `wiki maintain`, or `wiki refresh-from-git` instead of manually patching derived wiki state.
 - Keep wiki focused on knowledge-state operations. Use `/forge` for implementation planning, execution, amendment slices, review gates, and tracked SDLC workflow.
 - Do not use or advertise removed legacy lifecycle commands. They are absent from the runtime; use the `wiki forge ...` surface instead.
-- After editing repo skill files such as `skills/*/SKILL.md`: run `bun run sync:local`, optionally `bun run sync:local -- --audit`, then restart the agent session.
+- After editing repo skill files such as `skills/*/SKILL.md`: run `bun run sync:wiki` for a wiki-only install or `bun run sync:full` for the full Wiki+Forge workflow install, optionally audit with `bun run sync:local -- --audit`, then restart the agent session.

@@ -46,4 +46,4 @@ If evidence or implementation context has drifted, use `wiki research bridge` be
 
 ## Skill edits
 
-After editing repo skill files, run `bun run sync:local`, then `bun run sync:local -- --audit`, then restart the agent session.
+After editing repo skill files, run `bun run sync:full`, then `bun run sync:local -- --audit`, then restart the agent session. Use `bun run sync:wiki` only when intentionally keeping a wiki-only install without Forge workflow skills.

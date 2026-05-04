@@ -13,6 +13,12 @@ cd wiki-forge
 
 The install script handles first-time bootstrap: bun, dependencies, local sync of the CLI/qmd/skills, shell config, vault directory, and skill installation. By default it creates `~/Knowledge` if it does not exist yet.
 
+If you are using an agent, give it this first:
+
+```text
+Read SETUP.md completely before running setup. Use wiki-only when I only want the second-brain layer. Use full when I want Wiki plus the Forge workflow skills. Do not write handover or project knowledge files into the repo; those belong in the Knowledge vault. After install, run wiki qmd-status and report whether Needs embedding is 0.
+```
+
 Install modes:
 
 - `wiki-only`: installs only the `/wiki` second-brain layer
@@ -201,6 +207,14 @@ wiki/syntheses/                  # filed answer briefs
 templates/                       # page templates
 ```
 
+## How the pieces fit
+
+See [docs/how-it-works.md](docs/how-it-works.md) for the end-to-end model:
+
+- Wiki stores and retrieves durable project knowledge through markdown + QMD.
+- Forge is optional and guides implementation by returning explicit `nextCommand` values.
+- Health commands (`checkpoint`, `maintain`, `doctor`) inspect freshness and repair needs; they do not close lifecycle work.
+
 ## Agent Setup
 
 ### For Claude Code
@@ -251,8 +265,9 @@ The `npx skills add -g --all` command installs skills for all supported agent ha
 
 Paste this into any agent session to get started on a project:
 
-```
-I need to onboard a project into the wiki. Here's what to do:
+```text
+First read this project's SETUP.md and docs/how-it-works.md. Then onboard the target project into wiki-forge. Keep project knowledge in the Knowledge vault, not in the repo.
+
 
 1. Run: wiki scaffold-project <project-name>
 2. Run: wiki onboard <project-name> --repo <path-to-repo>
@@ -269,6 +284,7 @@ I need to onboard a project into the wiki. Here's what to do:
 
 Use /forge for the full SDLC workflow when building features.
 Use /wiki for CLI reference.
+After onboarding, run wiki qmd-update, wiki qmd-embed, and wiki qmd-status. Retrieval is ready when Needs embedding is 0.
 ```
 
 ### Human Onboarding
