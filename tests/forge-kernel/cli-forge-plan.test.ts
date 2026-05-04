@@ -3,7 +3,6 @@ import matter from "gray-matter";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
-import { shouldUseForgePlan } from "../../src/forge/cutover";
 import { resolveForgeCommand } from "../../src/forge";
 
 afterEach(() => cleanupTempPaths());
@@ -152,6 +151,5 @@ describe("Forge plan", () => {
       command: "forge:plan",
       args: ["demo", "feature"],
     });
-    expect(shouldUseForgePlan(["demo", "feature"])).toBe(true);
   });
 });

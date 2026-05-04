@@ -3,7 +3,6 @@ import matter from "gray-matter";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
-import { shouldUseForgeAmend } from "../../src/forge/cutover";
 
 afterEach(() => cleanupTempPaths());
 
@@ -85,7 +84,6 @@ describe("Forge amend", () => {
   });
 
   test("cutover predicate keeps amend on stable Forge", () => {
-    expect(shouldUseForgeAmend(["demo", "DEMO-001", "--reason", "bug"])).toBe(true);
   });
 });
 

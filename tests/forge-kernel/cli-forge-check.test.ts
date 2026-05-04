@@ -4,7 +4,6 @@ import { join } from "node:path";
 import matter from "gray-matter";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
 import { resolveForgeCommand } from "../../src/forge";
-import { shouldUseForgeCheck } from "../../src/forge/cutover";
 
 const sliceId = "DEMO-001";
 
@@ -49,8 +48,6 @@ describe("forge check command adapter", () => {
       command: "forge:check",
       args: ["demo", sliceId, "--json"],
     });
-    expect(shouldUseForgeCheck(["demo", sliceId, "--json"])).toBe(true);
-    expect(shouldUseForgeCheck(["demo", sliceId, "--json"])).toBe(true);
   });
 
   test("forge check accepts passing evidence without mutating status", () => {

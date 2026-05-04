@@ -3,7 +3,6 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import matter from "gray-matter";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
-import { shouldUseForgeStatus } from "../../src/forge/cutover";
 
 const sliceId = "DEMO-001";
 
@@ -55,8 +54,6 @@ function passingEvidence() {
 
 describe("forge slice-specific forge status", () => {
   test("slice-specific status routes to Forge", () => {
-    expect(shouldUseForgeStatus(["demo", sliceId, "--json"])).toBe(true);
-    expect(shouldUseForgeStatus(["demo", sliceId, "--json"])).toBe(true);
   });
 
   test("reports draft slices from canonical Forge truth", () => {

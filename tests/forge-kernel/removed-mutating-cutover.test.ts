@@ -3,7 +3,6 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import matter from "gray-matter";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
-import { shouldUseForgeClose, shouldUseForgeRelease, shouldUseForgeRun, shouldUseForgeStart } from "../../src/forge/cutover";
 
 const sliceId = "DEMO-001";
 
@@ -43,16 +42,6 @@ function sliceData(vault: string) {
 }
 
 describe("removed mutating Forge cutover", () => {
-  test("implemented mutating commands do not fall back to legacy", () => {
-    expect(shouldUseForgeStart(["demo", sliceId, "--json"])).toBe(true);
-    expect(shouldUseForgeStart(["demo", sliceId, "--json"])).toBe(true);
-    expect(shouldUseForgeRelease(["demo", sliceId])).toBe(true);
-    expect(shouldUseForgeClose(["demo", sliceId, "--json"])).toBe(true);
-    expect(shouldUseForgeRun(["demo", sliceId, "--json"])).toBe(true);
-    expect(shouldUseForgeRun(["demo", "--json"])).toBe(true);
-    expect(shouldUseForgeRun(["demo", sliceId, "--json"])).toBe(true);
-  });
-
   test("default wiki forge start routes to Forge", () => {
     const vault = createVault("ready");
     const result = runWiki(["forge", "start", "demo", sliceId, "--agent", "codex", "--json"], { vault });

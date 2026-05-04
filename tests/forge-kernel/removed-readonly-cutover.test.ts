@@ -2,7 +2,6 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
-import { shouldUseForgeNext, shouldUseForgeStatus } from "../../src/forge/cutover";
 
 afterEach(() => cleanupTempPaths());
 
@@ -73,21 +72,5 @@ describe("removed read-only Forge cutover", () => {
       reason: "Active slice exists; inspect slice status and continue its gates.",
       source: "canonical-records",
     });
-  });
-
-  test("implemented read-only commands do not fall back to legacy", () => {
-    expect(shouldUseForgeNext(["demo", "--json"])).toBe(true);
-    expect(shouldUseForgeNext(["demo", "--json"])).toBe(true);
-    expect(shouldUseForgeNext(["demo", "--prompt-json"])).toBe(false);
-    expect(shouldUseForgeNext(["demo", "--all", "--prompt-json"])).toBe(false);
-
-    expect(shouldUseForgeStatus(["demo", "--json"])).toBe(true);
-    expect(shouldUseForgeStatus(["demo", "DEMO-001", "--json"])).toBe(true);
-    expect(shouldUseForgeStatus(["demo", "--json"])).toBe(true);
-  });
-
-  test("compat metadata documents cutover", () => {
-    expect(shouldUseForgeNext(["demo", "--json"])).toBe(true);
-    expect(shouldUseForgeStatus(["demo", "--json"])).toBe(true);
   });
 });

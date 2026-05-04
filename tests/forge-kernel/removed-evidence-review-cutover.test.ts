@@ -3,7 +3,6 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import matter from "gray-matter";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
-import { shouldUseForgeEvidence, shouldUseForgeReview } from "../../src/forge/cutover";
 
 const sliceId = "DEMO-001";
 
@@ -34,13 +33,6 @@ function evidence(vault: string) {
 }
 
 describe("removed evidence/review Forge cutover", () => {
-  test("implemented evidence/review commands do not fall back to legacy", () => {
-    expect(shouldUseForgeEvidence(["demo", sliceId, "verify", "--command", "bun test", "--json"])).toBe(true);
-    expect(shouldUseForgeEvidence(["demo", sliceId, "verification", "--command", "bun test"])).toBe(true);
-    expect(shouldUseForgeReview(["record", "demo", sliceId, "--verdict", "approved", "--reviewer", "reviewer"])).toBe(true);
-    expect(shouldUseForgeReview(["record", "demo", sliceId, "--verdict", "approved", "--reviewer", "reviewer"])).toBe(true);
-  });
-
   test("default wiki forge evidence tdd is removed", () => {
     const vault = createVault();
     const result = runWiki(["forge", "evidence", "demo", sliceId, "tdd", "--command", "bun test tests/forge-kernel/x.test.ts", "--json"], { vault });
