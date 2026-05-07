@@ -44,6 +44,7 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "protocol:audit": (args) => auditProtocol(args),
   "dependency-graph": (args) => dependencyGraph(args),
   handover: (args) => handoverCommand(args),
+  "agent-handover": (args) => handoverCommand(args),
   note: (args) => noteCommand(args),
   next: (args) => forgeNextCommand(args),
   "acknowledge-impact": (args) => acknowledgeImpact(args),
@@ -131,7 +132,7 @@ export function resolveWikiCommand(rawArgs: string[]) {
     if (!mapped) throw new Error(`unknown protocol subcommand: ${subcommand}. Run 'wiki help' for usage.`);
     return { command: mapped, args: subArgs };
   }
-  if (command === "handover") return { command: "handover", args: rest };
+  if (command === "handover" || command === "agent-handover") return { command: "handover", args: rest };
   if (command === "resume") return { command: "resume", args: rest };
   if (command === "next") return { command: "next", args: rest };
   if (command === "export-prompt") return { command: "export-prompt", args: rest };

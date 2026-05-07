@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
+import type { ForgeHandoverRecord } from "./schema";
 
 export type HandoverStaleness =
   | { readonly status: "not-stale" }
@@ -7,12 +8,11 @@ export type HandoverStaleness =
   | { readonly status: "stale"; readonly promptHead: string; readonly currentHead: string };
 
 export function detectHandoverPromptStaleness(copyPastePrompt: string, repo: string): HandoverStaleness {
-  const promptHead = readPromptHead(copyPastePrompt);
-  if (!promptHead) return { status: "not-stale" };
-  const currentHead = readGitHead(repo);
-  if (!currentHead) return { status: "unknown", reason: "current HEAD unavailable" };
-  if (currentHead.startsWith(promptHead) || promptHead.startsWith(currentHead)) return { status: "not-stale" };
-  return { status: "stale", promptHead, currentHead };
+  return detectHandoverRevisionStaleness(readPromptHead(copyPastePrompt), repo);
+}
+
+export function detectForgeHandoverStaleness(handover: ForgeHandoverRecord, repo: string): HandoverStaleness {
+  return detectHandoverRevisionStaleness(handover.baseRevision ?? readPromptHead(handover.copyPastePrompt), repo);
 }
 
 export function renderHandoverRecoveryPrompt(input: {
@@ -32,8 +32,16 @@ export function renderHandoverRecoveryPrompt(input: {
   ].join("\n");
 }
 
+function detectHandoverRevisionStaleness(promptHead: string | null, repo: string): HandoverStaleness {
+  if (!promptHead) return { status: "not-stale" };
+  const currentHead = readGitHead(repo);
+  if (!currentHead) return { status: "unknown", reason: "current HEAD unavailable" };
+  if (currentHead.startsWith(promptHead) || promptHead.startsWith(currentHead)) return { status: "not-stale" };
+  return { status: "stale", promptHead, currentHead };
+}
+
 function readPromptHead(copyPastePrompt: string): string | null {
-  const match = /\b(?:HEAD|base)\s+([0-9a-f]{7,40})\b/iu.exec(copyPastePrompt);
+  const match = /(?:\b(?:HEAD|base)\s+|--base\s+["']?)([0-9a-f]{7,40})\b/iu.exec(copyPastePrompt);
   return match?.[1] ?? null;
 }
 

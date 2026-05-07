@@ -65,7 +65,7 @@ describe("forge records", () => {
 });
 
 describe("forge handover rendering", () => {
-  test("renders structured handover and copy/paste prompt", () => {
+  test("renders durable handover without saving the generated next-session prompt", () => {
     const handover: ForgeHandoverRecord = {
       kind: "handover",
       path: "projects/wiki-forge/forge/handovers/2026-handover.md",
@@ -80,13 +80,23 @@ describe("forge handover rendering", () => {
       summary: "Created no-fallback dogfood artifacts.",
       nextAction: "Implement Forge path and schema primitives.",
       copyPastePrompt: "Continue Forge. Do not add fallback.",
+      baseRevision: "abc1234",
+      runbookCommands: ["wiki forge status wiki-forge WIKI-FORGE-001 --repo . --json"],
     };
 
     const markdown = renderForgeHandoverMarkdown(handover);
 
     expect(markdown).toContain("type: forge-handover");
     expect(markdown).toContain("related_features:");
-    expect(markdown).toContain("## Copy/paste prompt for next session");
+    expect(markdown).toContain('base_revision: "abc1234"');
+    expect(markdown).toContain("## Context refresh required");
+    expect(markdown).toContain("wiki query --bm25 'wiki-forge latest decisions architecture handover'");
+    expect(markdown).toContain("wiki query --bm25 'wiki-forge WIKI-FORGE-001'");
+    expect(markdown).toContain("wiki query --bm25 'wiki-forge PRD-001'");
+    expect(markdown).toContain("## Runbook commands");
+    expect(markdown).toContain("wiki forge status wiki-forge WIKI-FORGE-001 --repo . --json");
+    expect(markdown).toContain("## Operator prompt");
     expect(markdown).toContain("Continue Forge. Do not add fallback.");
+    expect(markdown).not.toContain("## Copy/paste prompt for next session");
   });
 });

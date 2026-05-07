@@ -1,7 +1,9 @@
 import { requireValue } from "../../cli-shared";
+import { resolveBaseRevision } from "../../git-utils";
 import { printJson, printLine } from "../../lib/cli-output";
 import { readLatestForgeHandover, writeForgeHandover } from "./handover/store";
-import { detectHandoverPromptStaleness, renderHandoverRecoveryPrompt } from "./handover/freshness";
+import { detectForgeHandoverStaleness, renderHandoverRecoveryPrompt } from "./handover/freshness";
+import { renderStructuredHandoverPrompt } from "./handover/render";
 import { loadForgeProjectProjection } from "../../forge/vault/load-project";
 import { buildPromptPacket } from "../../wiki/memory/prompt-packet";
 import { tailMemoryLog, writeMemoryLogEntry, writeMemoryNote } from "../../wiki/memory/store";
@@ -17,7 +19,7 @@ export async function resumeCommand(args: string[]): Promise<void> {
     readLatestForgeHandover(project),
   ]);
   const nextAction = readProjectionNextAction(statusTruth);
-  const handoverStaleness = latestHandover ? detectHandoverPromptStaleness(latestHandover.copyPastePrompt, repo) : null;
+  const handoverStaleness = latestHandover ? detectForgeHandoverStaleness(latestHandover, repo) : null;
   const payload = {
     kind: "forge-resume" as const,
     project,
@@ -40,7 +42,7 @@ export async function resumeCommand(args: string[]): Promise<void> {
         printLine(renderHandoverRecoveryPrompt({ project, repo, currentHead: handoverStaleness.currentHead }));
         printLine("```");
       } else {
-        printLine(`prompt: ${latestHandover.copyPastePrompt}`);
+        printLine(`operator prompt: ${latestHandover.copyPastePrompt || "none recorded"}`);
       }
     }
   }
@@ -56,7 +58,7 @@ export async function exportPromptCommand(args: string[]): Promise<void> {
     loadForgeProjectProjection(project),
     readLatestForgeHandover(project),
   ]);
-  const handoverStaleness = latestHandover ? detectHandoverPromptStaleness(latestHandover.copyPastePrompt, repo) : null;
+  const handoverStaleness = latestHandover ? detectForgeHandoverStaleness(latestHandover, repo) : null;
   const recoveryPrompt = handoverStaleness?.status === "stale"
     ? renderHandoverRecoveryPrompt({ project, repo, currentHead: handoverStaleness.currentHead })
     : null;
@@ -118,35 +120,64 @@ export async function logCommand(args: string[]): Promise<void> {
 
 export async function handoverCommand(args: string[]): Promise<void> {
   const json = args.includes("--json");
-  const positional = readPositionalArgs(args, ["--session", "--agent", "--feature", "--prd", "--slice", "--summary", "--next-action", "--prompt"]);
+  const positional = readPositionalArgs(args, ["--session", "--agent", "--feature", "--prd", "--slice", "--summary", "--next-action", "--prompt", "--repo", "--base", "--command"]);
   const project = positional[0];
   requireValue(project, "project");
   const sessionId = readFlagValue(args, "--session") ?? new Date().toISOString().slice(0, 10);
   const summary = readFlagValue(args, "--summary");
   const nextAction = readFlagValue(args, "--next-action");
-  const copyPastePrompt = readFlagValue(args, "--prompt");
+  const operatorPrompt = readFlagValue(args, "--prompt");
   requireValue(summary, "--summary");
   requireValue(nextAction, "--next-action");
-  requireValue(copyPastePrompt, "--prompt");
+  requireValue(operatorPrompt, "--prompt");
+  const relatedPrds = readRepeatedFlagValues(args, "--prd");
+  const relatedSlices = readRepeatedFlagValues(args, "--slice");
+  const repo = readFlagValue(args, "--repo") ?? ".";
+  const base = readFlagValue(args, "--base") ?? "HEAD";
+  const runbookCommands = readRepeatedFlagValues(args, "--command");
+  const resolvedBase = await resolveHandoverBase(repo, base);
+  const nextSessionPrompt = renderStructuredHandoverPrompt({
+    project,
+    summary,
+    nextAction,
+    operatorPrompt,
+    relatedPrds,
+    relatedSlices,
+    runbookCommands,
+    repo,
+    base: resolvedBase,
+  });
   const result = await writeForgeHandover({
     project,
     sessionId,
     agent: readFlagValue(args, "--agent") ?? "agent",
     summary,
     nextAction,
-    copyPastePrompt,
+    copyPastePrompt: operatorPrompt,
+    baseRevision: resolvedBase,
+    runbookCommands,
     relatedFeatures: readRepeatedFlagValues(args, "--feature"),
-    relatedPrds: readRepeatedFlagValues(args, "--prd"),
-    relatedSlices: readRepeatedFlagValues(args, "--slice"),
+    relatedPrds,
+    relatedSlices,
   });
-  if (json) printJson(result);
+  if (json) printJson({ ...result, nextSessionPrompt });
   else {
     printLine(`wrote ${result.path}`);
     const preview = result.handover.summary.split("\n")[0]?.trim() ?? "";
     if (preview) printLine(`summary: ${preview}`);
+    printLine("Next-session prompt for the user:");
     printLine("```text");
-    printLine(result.handover.copyPastePrompt);
+    printLine(nextSessionPrompt);
     printLine("```");
+  }
+}
+
+async function resolveHandoverBase(repo: string, base: string): Promise<string> {
+  try {
+    return await resolveBaseRevision(repo, base);
+  } catch (error) {
+    if (error instanceof Error) return base;
+    throw error;
   }
 }
 

@@ -158,6 +158,7 @@ function decodeHandoverRecord(document: VaultDocument): RecordDecodeResult<Forge
   const createdAt = readString(document.frontmatter.created_at);
   const agent = readString(document.frontmatter.agent);
   const nextAction = readString(document.frontmatter.next_action);
+  const baseRevision = readString(document.frontmatter.base_revision);
   if (!project) diagnostics.push(missingRequiredField("project", "handover record"));
   else if (pathProject && project !== pathProject) diagnostics.push(projectMismatch(project, pathProject));
   if (!title) diagnostics.push(missingRequiredField("title", "handover record"));
@@ -181,7 +182,9 @@ function decodeHandoverRecord(document: VaultDocument): RecordDecodeResult<Forge
       relatedSlices: readStringArray(document.frontmatter.related_slices),
       summary: readFirstSection(document.body, "Summary"),
       nextAction,
-      copyPastePrompt: readFencedSection(document.body, "Copy/paste prompt for next session"),
+      copyPastePrompt: readHandoverPrompt(document.body),
+      ...(baseRevision ? { baseRevision } : {}),
+      ...readRunbookCommands(document.body),
     },
   };
 }
@@ -243,6 +246,21 @@ function readFencedSection(body: string, heading: string): string {
   const section = readFirstSection(body, heading);
   const match = section.match(/```(?:text)?\n([\s\S]*?)\n```/u);
   return match?.[1]?.trim() ?? section;
+}
+
+function readHandoverPrompt(body: string): string {
+  const operatorPrompt = readFirstSection(body, "Operator prompt");
+  if (operatorPrompt) return operatorPrompt;
+  return readFencedSection(body, "Copy/paste prompt for next session");
+}
+
+function readRunbookCommands(body: string): { readonly runbookCommands?: readonly string[] } {
+  const section = readFirstSection(body, "Runbook commands");
+  const commands = section.split("\n")
+    .map((line) => line.trim())
+    .map((line) => line.match(/^-\s+`?(.+?)`?$/u)?.[1]?.trim() ?? "")
+    .filter(Boolean);
+  return commands.length > 0 ? { runbookCommands: commands } : {};
 }
 
 function escapeRegExp(value: string): string {

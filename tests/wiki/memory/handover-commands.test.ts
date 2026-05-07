@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { join } from "node:path";
 import { cleanupTempPaths, runWiki, tempDir } from "../../test-helpers";
 import { initVault } from "../../test-helpers";
 
@@ -8,7 +7,7 @@ afterEach(() => {
 });
 
 describe("handover command CLI output", () => {
-  test("non-JSON handover prints path, summary preview, and copy/paste prompt block", () => {
+  test("non-JSON handover prints path, summary preview, and user-facing next-session prompt", () => {
     const vault = tempDir("wiki-handover-cli");
     initVault(vault);
 
@@ -32,8 +31,14 @@ describe("handover command CLI output", () => {
     // Summary preview or confirmation of rich summary
     expect(stdout).toContain("Refactored");
 
-    // Copy/paste prompt block
+    // User-facing prompt block separates refresh, summary, next action, and operator prompt.
+    expect(stdout).toContain("Next-session prompt for the user:");
     expect(stdout).toContain("```text");
+    expect(stdout).toContain("Context refresh");
+    expect(stdout).toContain("wiki query --bm25");
+    expect(stdout).toContain("Session summary:");
+    expect(stdout).toContain("Next action:");
+    expect(stdout).toContain("Operator prompt:");
     expect(stdout).toContain("Continue from HEAD abc1234");
     expect(stdout).toContain("```");
   });
@@ -59,6 +64,11 @@ describe("handover command CLI output", () => {
     expect(parsed.status).toBe("written");
     expect(parsed.handover.summary).toBe("Summary text.");
     expect(parsed.handover.copyPastePrompt).toBe("Continue.");
+    expect(parsed.nextSessionPrompt).toContain("Context refresh");
+    expect(parsed.nextSessionPrompt).toContain("wiki query --bm25 'demo-project latest decisions architecture handover'");
+    expect(parsed.nextSessionPrompt).toContain("Session summary:\nSummary text.");
+    expect(parsed.nextSessionPrompt).toContain("Next action:\nNext.");
+    expect(parsed.nextSessionPrompt).toContain("Operator prompt:\nContinue.");
     expect(parsed.handover.nextAction).toBe("Next.");
   });
 

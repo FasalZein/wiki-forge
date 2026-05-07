@@ -14,4 +14,6 @@ export type ForgeHandoverRecord = {
   readonly summary: string;
   readonly nextAction: string;
   readonly copyPastePrompt: string;
+  readonly baseRevision?: string;
+  readonly runbookCommands?: readonly string[];
 };

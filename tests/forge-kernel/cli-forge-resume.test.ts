@@ -49,6 +49,71 @@ describe("Forge resume", () => {
     });
   });
 
+  test("resolves --base HEAD in structured handovers so later commits become stale", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const handoverHead = runGit(repo, ["rev-parse", "HEAD"]).stdout.toString().trim();
+
+    const handover = runWiki([
+      "handover",
+      "demo",
+      "--repo",
+      repo,
+      "--base",
+      "HEAD",
+      "--summary",
+      "Structured HEAD prompt.",
+      "--next-action",
+      "Continue from structured HEAD prompt.",
+      "--prompt",
+      "Continue only after refreshing.",
+      "--json",
+    ], { vault });
+    expect(handover.exitCode).toBe(0);
+    expect(handover.json().handover.copyPastePrompt).toBe("Continue only after refreshing.");
+    expect(handover.json().handover.baseRevision).toBe(handoverHead);
+    expect(handover.json().nextSessionPrompt).toContain(`--base '${handoverHead}'`);
+
+    writeFileSync(join(repo, "src", "auth.ts"), "export const a = 3\n", "utf8");
+    runGit(repo, ["add", "."]);
+    runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "third"]);
+    const currentHead = runGit(repo, ["rev-parse", "HEAD"]).stdout.toString().trim();
+
+    const result = runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD"], { vault });
+
+    expect(result.exitCode).toBe(0);
+    const stdout = result.stdout.toString();
+    expect(stdout).toContain("stale handover prompt:");
+    expect(stdout).toContain(handoverHead.slice(0, 12));
+    expect(stdout).toContain(currentHead.slice(0, 12));
+  });
+
+  test("marks structured handover prompt stale when it names an older --base than the current repo", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const oldHead = runGit(repo, ["rev-list", "--max-parents=0", "HEAD"]).stdout.toString().trim();
+
+    const handover = runWiki([
+      "handover",
+      "demo",
+      "--repo",
+      repo,
+      "--base",
+      oldHead,
+      "--summary",
+      "Structured stale prompt.",
+      "--next-action",
+      "Continue from structured stale prompt.",
+      "--prompt",
+      "Continue only after refreshing.",
+    ], { vault });
+    expect(handover.exitCode).toBe(0);
+
+    const result = runWiki(["resume", "demo", "--repo", repo, "--base", "HEAD"], { vault });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.toString()).toContain("stale handover prompt:");
+    expect(result.stdout.toString()).toContain(oldHead.slice(0, 12));
+  });
+
   test("marks handover prompt stale when it names an older HEAD than the current repo", () => {
     const { vault, repo } = setupVaultAndRepo();
     const oldHead = runGit(repo, ["rev-list", "--max-parents=0", "HEAD"]).stdout.toString().trim();

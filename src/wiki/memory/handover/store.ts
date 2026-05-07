@@ -14,6 +14,8 @@ export type WriteHandoverInput = {
   readonly summary: string;
   readonly nextAction: string;
   readonly copyPastePrompt: string;
+  readonly baseRevision?: string;
+  readonly runbookCommands?: readonly string[];
   readonly relatedFeatures: readonly string[];
   readonly relatedPrds: readonly string[];
   readonly relatedSlices: readonly string[];
@@ -63,6 +65,8 @@ export async function writeForgeHandover(input: WriteHandoverInput): Promise<Wri
     summary: input.summary,
     nextAction: input.nextAction,
     copyPastePrompt: input.copyPastePrompt,
+    ...(input.baseRevision ? { baseRevision: input.baseRevision } : {}),
+    ...(input.runbookCommands && input.runbookCommands.length > 0 ? { runbookCommands: input.runbookCommands } : {}),
   };
   const absolutePath = join(input.vaultRoot ?? VAULT_ROOT, path);
   await mkdir(dirname(absolutePath), { recursive: true });

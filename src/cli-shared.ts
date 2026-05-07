@@ -19,7 +19,7 @@ Contract:
 Retrieval:
   wiki ask <project> <question...>
   wiki search [--hybrid] <query...>
-  wiki query [--expand] <query...>
+  wiki query [--expand|--bm25] <query...>
   wiki qmd-status
 
 Research:
@@ -39,7 +39,8 @@ Optional workflow:
 
 const FULL_HELP_CATALOG = `Session:
   wiki resume <project> [--repo <path>] [--base <rev>] [--json]
-  wiki handover <project> [--repo <path>] [--base <rev>] --accomplished <text> [--accomplished <text> ...] [--blocker <text> ...|--no-blockers] [--allow-auto-only] [--json]
+  wiki handover <project> [--repo <path>] [--base <rev>] --summary <text> --next-action <text> --prompt <text> [--prd <id>] [--slice <id>] [--command <cmd> ...] [--json]
+  wiki agent-handover <project> ...     # alias for handover; prints the user-facing prompt
   wiki next <project> [--json]
   wiki note <project> <message...> [--agent <name>] [--slice <slice-id>] [--json]
   wiki log append <kind> <title> [--project <p>] [--details <text>]
@@ -111,7 +112,7 @@ Project Setup:
 Retrieval:
   wiki ask <project> [--expand] [--verbose] [-n <num>] <question...>
   wiki file-answer <project> [--expand] [--verbose] [--slug <slug>] [-n <num>] <question...>
-  wiki query [--expand] <query...>
+  wiki query [--expand|--bm25] <query...>
   wiki search [--hybrid] <query...>
   wiki qmd-setup
   wiki qmd-status

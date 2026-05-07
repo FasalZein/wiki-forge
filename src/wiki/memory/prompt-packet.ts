@@ -44,8 +44,8 @@ function renderPrompt(
   recoveryPrompt: string | null,
 ): string {
   const handoverPromptLabel = handoverStaleness?.status === "stale"
-    ? "Previous handover prompt (stale; context only):"
-    : "Previous handover prompt:";
+    ? "Operator prompt from latest handover (stale; context only):"
+    : "Operator prompt from latest handover:";
   return [
     `We are continuing ${project}.`,
     "",
@@ -56,6 +56,7 @@ function renderPrompt(
     renderStatusLine(statusTruth),
     handover ? `Latest handover: ${handover.path}` : "Latest handover: none",
     handover ? `Related slices: ${handover.relatedSlices.join(", ") || "none"}` : "Related slices: none",
+    handover?.baseRevision ? `Handover base revision: ${handover.baseRevision}` : "Handover base revision: none recorded",
     "",
     handoverPromptLabel,
     handover?.copyPastePrompt || "None recorded.",

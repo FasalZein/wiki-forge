@@ -82,11 +82,24 @@ If close is rejected, follow the typed recovery commands from `wiki forge status
 
 ## Handover and stale resume recovery
 
-Before stopping or transferring work:
+Before stopping or transferring work, refresh durable memory and workflow truth, then write the handover with separate fields:
 
 ```bash
-wiki handover <project> --repo <path> --base <rev>
+wiki checkpoint <project> --repo <path> --base <rev>
+wiki forge next <project> --repo <path>
+wiki query --bm25 "<project> latest decisions architecture handover"
+wiki query --bm25 "<project> <slice-id or Forge slices active ready in-progress>"
+wiki query --bm25 "<project> <prd-id or Forge PRD requirements latest>"
+wiki agent-handover <project> --repo <path> --base <rev> \
+  --summary "<what changed and what evidence exists>" \
+  --next-action "<next workflow action>" \
+  --command "<first exact command with options>" \
+  --command "<second exact command with options>" \
+  --prompt "<operator intent for the next model>" \
+  --slice <slice-id> --prd <prd-id>
 ```
+
+`wiki agent-handover` is an alias for `wiki handover` that makes the handoff intent explicit. The generated next-session prompt is printed to the user for copy/paste into a fresh agent session; it is not the durable wiki handover body. The wiki handover stores facts, base revision, operator intent, and optional runbook commands. The printed prompt intentionally separates context refresh, summary, next action, runbook commands, and operator prompt. The next model must read the `wiki query` hits and Forge status before following handover text; if they disagree, current wiki/Forge truth wins.
 
 If resume reports a stale handover, do not follow the old prompt blindly. Re-anchor on current truth:
 

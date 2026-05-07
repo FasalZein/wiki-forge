@@ -18,7 +18,7 @@ For production use on an actual project, follow `docs/production-operator-guide.
 
 ## Commands
 
-- Context: `wiki resume <project> --repo <path> --base <rev>` and `wiki handover <project> --repo <path> --base <rev>`.
+- Context: `wiki resume <project> --repo <path> --base <rev>` and `wiki handover <project> --repo <path> --base <rev> --summary "<what changed>" --next-action "<workflow action>" --prompt "<operator intent>" [--prd <id>] [--slice <id>] [--command "<runbook command>" ...]`. `wiki agent-handover` is an alias for the same user-facing handover flow.
 - Pick/inspect: `wiki forge next <project> --repo <path>`, `wiki forge status <project> [slice] --repo <path> --json`.
 - Health/freshness/repair: `wiki checkpoint <project> --repo <path> --base <rev>`, `wiki maintain <project> --repo <path> --base <rev>`, `wiki doctor <project> --repo <path> --base <rev>`.
 - Plan/run: `wiki forge plan <project> <feature-name> --repo <path>`, `wiki forge run <project> [slice-id] --repo <path>`.
@@ -41,6 +41,28 @@ Dogfood non-trivial repo work with real Forge commands: `next`, explicit `status
 When verification, review, check, or close fails, do not assume a generic rerun is correct. Use `wiki forge status <project> <slice> --json` as workflow truth, `wiki checkpoint` as freshness truth, and `wiki maintain` as the repair path. Use `wiki resume` for context only, not as proof that freshness or repair work is complete.
 
 Removed legacy commands are not part of the workflow surface. Use `wiki forge ...` for tracked implementation; old backlog, slice lifecycle, pipeline, gate, and closeout commands are absent from the runtime.
+
+## Creating a handover
+
+A Forge handover is not just a single next prompt. Create it as a structured transfer packet. The generated next-session prompt is for the user: it is printed by the command so the user can copy/paste it into a fresh agent session. The wiki handover stores durable facts, base revision, operator intent, and optional runbook commands; it must not be the only place the user can find the prompt.
+
+1. Refresh before writing: run `wiki checkpoint <project> --repo <path> --base <rev>`, `wiki forge next <project> --repo <path>`, and use `wiki query --bm25` for the latest project memory, related Forge slices, and related PRD. If those disagree with your local notes, fix the lifecycle state or summary before handing over.
+2. Write separate fields: `--summary` is what changed and evidence gathered; `--next-action` is the next workflow action/command; `--prompt` is the operator intent for the next model. Do not cram the summary, command, and prompt into one sentence.
+3. Attach IDs: pass `--slice <id>` and `--prd <id>` whenever known so the generated next-session prompt includes targeted wiki-query checks and Forge status checks.
+4. Add explicit runbook commands with repeated `--command "<cmd with options>"` flags when the next session must run more than one command. Preserve command order; include options inside each quoted command.
+5. Keep the user-facing prompt operational: tell the next model to read query hits and Forge truth first, then follow the operator prompt only if it still matches current truth.
+
+Example:
+
+```bash
+wiki agent-handover wiki-forge --repo . --base HEAD \
+  --slice WIKI-FORGE-123 --prd PRD-045 \
+  --summary "Implemented X, recorded TDD red/green, targeted test passes." \
+  --next-action "Run status, then record review evidence." \
+  --command "wiki forge status wiki-forge WIKI-FORGE-123 --repo . --json" \
+  --command "wiki forge review record wiki-forge WIKI-FORGE-123 --verdict approved --reviewer codex" \
+  --prompt "Continue the review gate for WIKI-FORGE-123; do not start unrelated refactors."
+```
 
 If evidence or implementation context has drifted, use `wiki research bridge` before continuing delivery work. For full details, run `wiki help` or `wiki help --all`.
 
