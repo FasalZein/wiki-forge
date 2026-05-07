@@ -24,11 +24,14 @@ Retrieval:
 
 Research:
   wiki research file <topic> --project <project> <title>
-  wiki research status [topic] [--json]
-  wiki research ingest <topic> <source-url-or-path...>
+  wiki research status [topic] [--project <project>] [--json]
+  wiki research ingest <topic> --project <project> <source-url-or-path...>
+  wiki research migrate-projects [--project <project>] [--write] [--json]
 
 Second-brain management:
   wiki scaffold-project <project>
+  wiki prune-empty-dirs <project> [--write] [--json]
+  wiki prune-ghost-projects [--write] [--json]
   wiki summary <project> [--repo <path>] [--json]
   wiki status [project] [--json]
   wiki resume <project> [--repo <path>] [--base <rev>] [--json]
@@ -46,6 +49,8 @@ const FULL_HELP_CATALOG = `Session:
   wiki log append <kind> <title> [--project <p>] [--details <text>]
   wiki log tail [n]
   wiki export-prompt <project> <slice-id> [--agent codex|claude|pi]
+  wiki prune-empty-dirs <project> [--write] [--json]
+  wiki prune-ghost-projects [--write] [--json]
 
 Workflow / Forge:
   wiki forge plan <project> <feature-name> [--repo <path>]

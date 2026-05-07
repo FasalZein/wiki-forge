@@ -118,7 +118,6 @@ async function collectProtocolTargets(project: string, repo: string): Promise<Pr
   const scopes = await readProtocolScopes(project);
   const rows: ProtocolTarget[] = [];
   for (const scope of scopes) {
-    const expected = renderProtocolSurface(project, scope);
     for (const file of PROTOCOL_FILES) {
       const path = relative(repo, protocolFilePath(repo, scope.path, file)).replaceAll("\\", "/") || file;
       const absolutePath = protocolFilePath(repo, scope.path, file);
@@ -127,6 +126,7 @@ async function collectProtocolTargets(project: string, repo: string): Promise<Pr
         continue;
       }
       const current = await readText(absolutePath);
+      const expected = renderProtocolSurface(project, scope, { updated: readProtocolUpdated(current) ?? "missing" });
       rows.push({ scope: scope.scope, file, path, status: extractManagedBlock(current) === expected ? "ok" : "stale" });
     }
   }
@@ -163,8 +163,8 @@ async function writeProtocolTargets(project: string, repo: string, targets: Prot
     if (!scope) continue;
     const absolutePath = protocolFilePath(repo, scope.path, target.file);
     mkdirSync(dirname(absolutePath), { recursive: true });
-    const next = renderProtocolSurface(project, scope);
     const current = await exists(absolutePath) ? await readText(absolutePath) : "";
+    const next = renderProtocolSurface(project, scope, { updated: readProtocolUpdated(current) ?? nowIso() });
     const remainder = current ? extractRemainder(current) : "";
     const output = `${next}${remainder ? `\n\n${remainder.trimStart()}` : ""}`.trimEnd() + "\n";
     writeFileSync(absolutePath, output, "utf8");
@@ -263,6 +263,10 @@ function upsertSection(markdown: string, heading: string, body: string) {
 
 function protocolFilePath(repo: string, scopePath: string, file: string) {
   return join(repo, scopePath === "." ? "" : scopePath, file);
+}
+
+function readProtocolUpdated(content: string): string | null {
+  return /^updated:\s*['"]?([^'"\n]+)['"]?\s*$/mu.exec(content)?.[1]?.trim() ?? null;
 }
 
 function extractManagedBlock(content: string) {

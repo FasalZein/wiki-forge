@@ -8,7 +8,9 @@ description: >
 
 Wiki is the second-brain memory layer. It owns durable vault memory: research, notes, decisions, handovers, source bindings, page verification levels, drift/freshness checks, and recall. Wiki remembers; Forge executes lifecycle.
 
-Project-specific research belongs in `projects/<project>/research/`. Global `research/` is only for reusable cross-project topics. Do not file or recommend project-bound research under `research/projects/<project>/...`.
+The wiki vault is not assumed to be the current repository. Resolve it through `KNOWLEDGE_VAULT_ROOT` or the `wiki` CLI; do not create `projects/`, `research/`, `AGENTS.md`, or `CLAUDE.md` under the repo just because the user says "wiki". In this project setup the expected external vault is usually `~/Knowledge`, with project pages under `~/Knowledge/projects/<project>/`.
+
+Project-specific research belongs in `projects/<project>/research/`. Global `research/` is only for reusable cross-project topics. Do not file or recommend project-bound research under `research/projects/<project>/...` or top-level `research/<project>/...`.
 
 Health inspects and reconciles freshness, drift, repair queues, and readiness gates across Wiki and Forge. Public commands still use `wiki checkpoint`, `wiki maintain`, `wiki doctor`, and related verbs; internally this is the Health boundary, not shared/lib utility code.
 
@@ -34,7 +36,9 @@ Use Wiki for project Q&A, research filing, source binding, drift repair, checkpo
 - Bind sources: `wiki bind <project> <page> <source-path...> [--mode replace|merge]`
 - Verify a page: `wiki verify-page <project> <page> <level>`
 - File project research: `wiki research file <topic> --project <project> <title>` writes `projects/<project>/research/<topic>/<slug>.md`
-- File cross-project research: use global `wiki research file <topic> <title>` only when the topic is reusable beyond one project
+- Ingest project research/source material: `wiki research ingest <topic> --project <project> <source...>` and `wiki source ingest --project <project> --topic <topic> <source...>` write the research note under `projects/<project>/research/...`
+- File cross-project research: use global `wiki research file <topic> --global <title>` or global ingest with `--global` only when the topic is reusable beyond one project
+- Migrate old project research: `wiki research migrate-projects [--project <project>] [--write]` moves legacy `research/projects/<project>/...` notes into `projects/<project>/research/...` after a dry run.
 - Handoff research: `wiki research handoff <research-page> <project-truth-page>`
 - Bridge research: `wiki research bridge <research-page> --project <project> --slice <slice-id>`
 - Workflow status from Forge: `wiki forge status <project> [slice-id] --repo <path>`

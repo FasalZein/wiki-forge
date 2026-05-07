@@ -3,7 +3,7 @@ import { printHelp } from "../cli-shared";
 import { dependencyGraph } from "./project-views/dependency-graph";
 import { featureStatusCommand } from "./project-views/feature-status";
 import { updateIndex } from "./project-views/index-log";
-import { createLayerPage, lintVault, scaffoldLayer } from "./project-views/layers";
+import { createLayerPage, lintVault, pruneGhostProjects, scaffoldLayer } from "./project-views/layers";
 import { summaryProject } from "./project-views/summary";
 import { checkpoint } from "../health/checkpoint";
 import { commitCheck, installGitHook } from "../health/commit-check";
@@ -15,8 +15,8 @@ import { lintRepo } from "../health/lint-repo";
 import { maintainProject } from "../health/maintain";
 import { refreshFromGit, refreshOnMerge, refreshProject } from "../health/refresh";
 import { syncProject } from "../health/sync";
-import { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeModule, syncProtocol, auditProtocol, obsidianCommand, setupShell } from "./protocol";
-import { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch, handoffResearch, bridgeResearch } from "./research";
+import { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeModule, pruneEmptyProjectDirs, syncProtocol, auditProtocol, obsidianCommand, setupShell } from "./protocol";
+import { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch, handoffResearch, bridgeResearch, migrateProjectResearch } from "./research";
 import { askProject, fileAnswer, fileResearch } from "./retrieval/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "./retrieval/qmd-commands";
 import { forgeAmendCommand, forgeCheckCommand, forgeCloseCommand, forgeEvidenceCommand, forgeNextCommand, forgePlanCommand, forgeReleaseCommand, forgeReviewCommand, forgeRunCommand, forgeStartCommand, forgeStatusCommand } from "../forge/workflow/commands";
@@ -34,6 +34,7 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   onboard: (args) => onboardProject(args),
   "onboard-plan": (args) => onboardPlan(args),
   "normalize-module": (args) => normalizeModule(args),
+  "prune-empty-dirs": (args) => pruneEmptyProjectDirs(args),
   dashboard: (args) => dashboardProject(args),
   "commit-check": (args) => commitCheck(args),
   "install-git-hook": (args) => installGitHook(args),
@@ -75,6 +76,7 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "research:audit": (args) => auditResearch(args),
   "research:handoff": (args) => handoffResearch(args),
   "research:bridge": (args) => bridgeResearch(args),
+  "research:migrate-projects": (args) => migrateProjectResearch(args),
   "source:ingest": (args) => ingestSource(args),
   "qmd-status": () => qmdStatus(),
   "qmd-update": (args) => qmdUpdate(args),
@@ -89,6 +91,7 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "scaffold-layer": (args) => scaffoldLayer(args),
   "create-layer-page": (args) => createLayerPage(args),
   "lint-vault": (args) => lintVault(args),
+  "prune-ghost-projects": (args) => pruneGhostProjects(args),
   "feature-status": (args) => featureStatusCommand(args),
   config: (args) => configCommand(args),
   schema: (args) => schemaCommand(args),
@@ -109,7 +112,8 @@ export function resolveWikiCommand(rawArgs: string[]) {
       file: "research:file",
       handoff: "research:handoff",
       bridge: "research:bridge",
-    }[subcommand as "scaffold" | "status" | "ingest" | "lint" | "audit" | "file" | "handoff" | "bridge"];
+      "migrate-projects": "research:migrate-projects",
+    }[subcommand as "scaffold" | "status" | "ingest" | "lint" | "audit" | "file" | "handoff" | "bridge" | "migrate-projects"];
     if (!mapped) throw new Error(`unknown research subcommand: ${subcommand}. Run 'wiki help' for usage.`);
     return { command: mapped, args: subArgs };
   }

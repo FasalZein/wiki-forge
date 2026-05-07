@@ -6,6 +6,22 @@
   "type": "object",
   "additionalProperties": true,
   "properties": {
+    "vault": {
+      "type": "object",
+      "description": "Knowledge vault location. Set this once globally so wiki commands resolve the external second-brain vault without agents passing KNOWLEDGE_VAULT_ROOT.",
+      "additionalProperties": true,
+      "properties": {
+        "root": {
+          "type": "string",
+          "description": "Absolute path, or ~/path, to the Knowledge vault root containing AGENTS.md, index.md, and projects/.",
+          "examples": [
+            "~/Knowledge",
+            "/Users/me/Knowledge"
+          ],
+          "default": "~/Knowledge"
+        }
+      }
+    },
     "repo": {
       "type": "object",
       "description": "Repository-level knobs.",

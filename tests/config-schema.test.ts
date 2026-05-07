@@ -12,6 +12,13 @@ describe("schemas/wiki.config.schema.json", () => {
     expect(parsed.$id).toBe("https://wiki-forge.dev/schemas/wiki.config.schema.json");
   });
 
+  test("describes the vault.root key as a string", () => {
+    const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
+
+    expect(schema.properties.vault.properties.root.type).toBe("string");
+    expect(schema.properties.vault.properties.root.description).toContain("Knowledge vault root");
+  });
+
   test("describes the repo.ignore key as a string array", () => {
     const parsed = JSON.parse(readFileSync(schemaPath, "utf8"));
     expect(parsed.properties.repo.properties.ignore.type).toBe("array");

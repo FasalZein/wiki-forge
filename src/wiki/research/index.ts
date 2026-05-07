@@ -7,3 +7,4 @@ export { auditResearch } from "./audit";
 export { createResearchPage } from "./file";
 export { handoffResearch } from "./distill";
 export { bridgeResearch } from "./adopt";
+export { migrateProjectResearch } from "./migrate-projects";

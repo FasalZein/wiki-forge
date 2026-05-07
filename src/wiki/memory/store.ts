@@ -1,5 +1,6 @@
 import { readdirSync } from "node:fs";
 import { basename, join } from "node:path";
+import { projectRoot } from "../../cli-shared";
 import { VAULT_ROOT } from "../../constants";
 import { writeText, readText, exists } from "../../lib/fs";
 
@@ -53,6 +54,7 @@ export async function writeMemoryNote(input: {
   readonly message: string;
   readonly sliceId?: string;
 }): Promise<MemoryNoteRecord> {
+  await assertMemoryProjectExists(input.project);
   const createdAt = new Date().toISOString();
   const id = timestampId(createdAt);
   const relativePath = join("projects", input.project, "memory", "notes", `${id}.md`);
@@ -78,6 +80,7 @@ export async function writeMemoryLogEntry(input: {
   readonly title: string;
   readonly details?: readonly string[];
 }): Promise<MemoryLogRecord> {
+  await assertMemoryProjectExists(input.project);
   const createdAt = new Date().toISOString();
   const id = timestampId(createdAt);
   const relativePath = join("projects", input.project, "memory", "log", `${id}.md`);
@@ -173,6 +176,12 @@ function readFrontmatterList(content: string, key: string): readonly string[] {
   const block = content.match(new RegExp(`^${key}:\\n((?:  - .+\\n?)*)`, "m"));
   if (!block) return [];
   return block[1].split("\n").map((line) => line.replace(/^  -\s*/, "").trim()).filter(Boolean).map(unquoteYamlString);
+}
+
+async function assertMemoryProjectExists(project: string): Promise<void> {
+  if (!await exists(projectRoot(project))) {
+    throw new Error(`project not found: ${project}. Use an existing project slug; memory commands do not create projects.`);
+  }
 }
 
 function timestampId(value: string): string {

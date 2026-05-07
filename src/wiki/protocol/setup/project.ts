@@ -1,8 +1,10 @@
+import { readdirSync, rmdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import matter from "gray-matter";
-import { MODULE_REQUIRED_HEADINGS, PROJECT_DIRS, PROJECT_FILES, VAULT_ROOT } from "../../../constants";
+import { MODULE_REQUIRED_HEADINGS, PROJECT_FILES, VAULT_ROOT } from "../../../constants";
 import { assertExists, mkdirIfMissing, moduleTitle, normalizeFrontmatterFormatting, nowIso, orderFrontmatter, projectRoot, requireValue, safeMatter, scaffoldFile, today, writeNormalizedPage } from "../../../cli-shared";
 import { exists, readText, writeText } from "../../../lib/fs";
+import { slugifySegment } from "../../../lib/research";
 import { projectModuleSpecPath, projectOnboardingPlanPath, projectSpecsDir } from "../../../lib/structure";
 import {
   defaultCrossLinksSection,
@@ -21,14 +23,15 @@ import {
 } from "../../../module-format";
 import { writeProjectIndex } from "../../project-views";
 import { syncProtocolForProject } from "./index";
-import { printLine } from "../../../lib/cli-output";
+import { printJson, printLine } from "../../../lib/cli-output";
 
 export async function scaffoldProject(project: string | undefined) {
   requireValue(project, "project");
+  assertCanonicalProjectSlug(project);
+  assertNoDuplicateProjectSlug(project);
   const root = projectRoot(project);
   let created = 0;
-  await mkdirIfMissing(root);
-  for (const dir of PROJECT_DIRS) created += (await mkdirIfMissing(join(root, dir))) ? 1 : 0;
+  created += (await mkdirIfMissing(root)) ? 1 : 0;
   for (const file of PROJECT_FILES) {
     const path = join(root, file);
     if (!await exists(path)) {
@@ -39,6 +42,25 @@ export async function scaffoldProject(project: string | undefined) {
   }
   if (created > 0) printLine(`scaffolded ${project}`);
   await writeProjectIndex(project);
+}
+
+export async function pruneEmptyProjectDirs(args: string[]) {
+  const project = args[0];
+  requireValue(project, "project");
+  const root = projectRoot(project);
+  await assertExists(root, `project not found: ${relative(VAULT_ROOT, root)}`);
+  const write = args.includes("--write");
+  const json = args.includes("--json");
+  const emptyDirs = collectEmptyDirs(root);
+  if (write) {
+    for (const dir of [...emptyDirs].sort((left, right) => right.length - left.length)) rmdirSync(dir);
+  }
+  const relativeDirs = emptyDirs.map((dir) => relative(VAULT_ROOT, dir).replaceAll("\\", "/")).sort();
+  const payload = { project, write, emptyDirs: relativeDirs, count: relativeDirs.length };
+  if (json) return printJson(payload);
+  printLine(`${write ? "removed" : "would remove"} ${relativeDirs.length} empty project director${relativeDirs.length === 1 ? "y" : "ies"} for ${project}`);
+  for (const dir of relativeDirs) printLine(`- ${dir}`);
+  if (!write && relativeDirs.length > 0) printLine("dry run only; pass --write to remove empty directories");
 }
 
 export async function onboardProject(args: string[]) {
@@ -134,6 +156,51 @@ function parseOnboardPlanOptions(args: string[]) {
   const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
   if (repoIndex >= 0) requireValue(repo, "repo");
   return { project, repo, write: args.includes("--write") };
+}
+
+function assertCanonicalProjectSlug(project: string): void {
+  if (project !== slugifySegment(project)) {
+    throw new Error(`project names must be canonical slugs. Use '${slugifySegment(project)}' instead of '${project}'.`);
+  }
+}
+
+function assertNoDuplicateProjectSlug(project: string): void {
+  const projectsRoot = join(VAULT_ROOT, "projects");
+  let existingProjects: string[] = [];
+  try {
+    existingProjects = readdirSync(projectsRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+  } catch (error) {
+    if (error instanceof Error) return;
+    throw error;
+  }
+  const requestedSlug = slugifySegment(project);
+  const duplicate = existingProjects.find((existing) => existing !== project && slugifySegment(existing) === requestedSlug);
+  if (duplicate) throw new Error(`project '${project}' duplicates existing project '${duplicate}' after slug normalization.`);
+}
+
+function collectEmptyDirs(root: string): string[] {
+  return collectEmptyDirsInternal(root).filter((dir) => dir !== root);
+}
+
+function collectEmptyDirsInternal(root: string): string[] {
+  const emptyDirs: string[] = [];
+  const entries = readdirSync(root);
+  let hasFile = false;
+  for (const entry of entries) {
+    const path = join(root, entry);
+    const stats = statSync(path);
+    if (!stats.isDirectory()) {
+      hasFile = true;
+      continue;
+    }
+    emptyDirs.push(...collectEmptyDirsInternal(path));
+  }
+  const directoryEntries = entries.filter((entry) => statSync(join(root, entry)).isDirectory());
+  const allChildDirectoriesAreEmpty = directoryEntries.every((entry) => emptyDirs.includes(join(root, entry)));
+  if (!hasFile && allChildDirectoriesAreEmpty) emptyDirs.push(root);
+  return emptyDirs;
 }
 
 async function detectResearchDirs(repo: string): Promise<string[]> {

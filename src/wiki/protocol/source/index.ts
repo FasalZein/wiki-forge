@@ -1,4 +1,5 @@
 import { orderFrontmatter } from "../../../cli-shared";
+import { VAULT_ROOT } from "../../../constants";
 
 export type ProtocolScope = {
   path: string;
@@ -65,7 +66,7 @@ export function buildCanonicalProtocolSource(project: string, scope: ProtocolSco
   };
 }
 
-export function renderProtocolSurface(project: string, scope: ProtocolScope) {
+export function renderProtocolSurface(project: string, scope: ProtocolScope, options: { readonly updated?: string } = {}) {
   const source = buildCanonicalProtocolSource(project, scope);
   const data = orderFrontmatter({
     managed_by: source.managedBy,
@@ -73,7 +74,10 @@ export function renderProtocolSurface(project: string, scope: ProtocolScope) {
     project,
     scope: scope.scope,
     applies_to: scope.path,
-  }, ["managed_by", "protocol_version", "project", "scope", "applies_to"]);
+    vault_root: VAULT_ROOT,
+    project_wiki_root: `projects/${project}`,
+    ...(options.updated ? { updated: options.updated } : {}),
+  }, ["managed_by", "protocol_version", "project", "scope", "applies_to", "vault_root", "project_wiki_root", "updated"]);
   const frontmatter = [
     "---",
     ...Object.entries(data).flatMap(([key, value]) => Array.isArray(value)
@@ -82,10 +86,10 @@ export function renderProtocolSurface(project: string, scope: ProtocolScope) {
     "---",
     "",
   ].join("\n");
-  return [frontmatter.trimEnd(), renderManagedProtocolBlock(source)].join("\n");
+  return [frontmatter.trimEnd(), renderManagedProtocolBlock(source, project)].join("\n");
 }
 
-export function renderManagedProtocolBlock(source: CanonicalProtocolSource) {
+export function renderManagedProtocolBlock(source: CanonicalProtocolSource, project = "<project>") {
   return [
     START_MARKER,
     "# Agent Protocol",
@@ -94,6 +98,10 @@ export function renderManagedProtocolBlock(source: CanonicalProtocolSource) {
     "> `AGENTS.md` and `CLAUDE.md` carry the same sync-managed protocol block. Do not treat them as separate policy sources.",
     "",
     source.scopeLine,
+    `Knowledge vault root: \`${VAULT_ROOT}\``,
+    `Project wiki root: \`${VAULT_ROOT}/projects/${project}\``,
+    "",
+    "Do not create wiki pages under the repository unless the repository itself is the configured Knowledge vault. Use the `wiki` CLI so paths resolve through `KNOWLEDGE_VAULT_ROOT`.",
     "",
     ...source.workflowLines,
     "",

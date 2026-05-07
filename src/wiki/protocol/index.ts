@@ -7,6 +7,7 @@ export {
   createModule,
   createModuleInternal,
   normalizeModule,
+  pruneEmptyProjectDirs,
 } from "./project-setup";
 export { setupShell } from "./setup";
 export {

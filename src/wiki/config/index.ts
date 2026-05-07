@@ -88,6 +88,7 @@ function positionalArgs(args: string[]): string[] {
 }
 
 function getLeaf(config: ResolvedConfig, key: string): ConfigLeaf<unknown> | undefined {
+  if (key === "vault.root") return config.vault.root;
   if (key === "repo.ignore") return config.repo.ignore;
   if (key === "workflow.phaseSkills.research") return config.workflow.phaseSkills.research;
   if (key === "workflow.phaseSkills.domainModel") return config.workflow.phaseSkills.domainModel;
@@ -100,6 +101,11 @@ function getLeaf(config: ResolvedConfig, key: string): ConfigLeaf<unknown> | und
 
 const DEFAULT_CONFIG_FILE = `{
   "$schema": "./schemas/wiki.config.schema.json",
+  "vault": {
+    // Absolute path to your external Knowledge vault. Commands use this so agents
+    // do not create wiki folders in the current repository by mistake.
+    "root": "~/Knowledge"
+  },
   "repo": {
     // Add project-specific repo scan exclusions here. Built-in generated/vendor
     // exclusions already cover node_modules, .venv, dist, build, coverage, etc.
@@ -120,6 +126,9 @@ const DEFAULT_CONFIG_FILE = `{
 
 function serialize(config: ResolvedConfig) {
   return {
+    vault: {
+      root: { value: config.vault.root.value, source: config.vault.root.source },
+    },
     repo: {
       ignore: { value: config.repo.ignore.value, source: config.repo.ignore.source },
     },
@@ -138,6 +147,7 @@ function serialize(config: ResolvedConfig) {
 
 function printText(config: ResolvedConfig): void {
   printLine("wiki config (effective):");
+  printLine(`  vault.root = ${JSON.stringify(config.vault.root.value)}  (source: ${config.vault.root.source})`);
   const ignore = config.repo.ignore;
   const value = ignore.value.length ? `[${ignore.value.map((p) => JSON.stringify(p)).join(", ")}]` : "[]";
   printLine(`  repo.ignore = ${value}  (source: ${ignore.source})`);

@@ -1,7 +1,6 @@
 import { appendFileSync, existsSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { VAULT_ROOT } from "../../constants";
-import { ensureDir } from "../../lib/fs";
 
 export type ActivityEntry = {
   ts: string;
@@ -35,7 +34,7 @@ const NO_PROJECT_COMMANDS = new Set([
   "search", "query", "qmd-status", "qmd-update", "qmd-embed", "qmd-setup",
   "scaffold-layer", "create-layer-page", "bind",
   "drift-check", "verify-page", "update-index",
-  "research:scaffold", "research:status", "research:ingest", "research:lint", "research:audit",
+  "research:scaffold", "research:status", "research:ingest", "research:lint", "research:audit", "research:migrate-projects",
   "source:ingest",
 ]);
 
@@ -82,7 +81,7 @@ export function appendActivity(entry: ActivityEntry): void {
   if (!entry.project) return; // skip non-project commands — nothing to scope to
   try {
     const path = projectActivityPath(entry.project);
-    ensureDir(dirname(path));
+    if (!existsSync(join(VAULT_ROOT, "projects", entry.project))) return;
     appendFileSync(path, JSON.stringify(entry) + "\n", "utf8");
     void pruneIfNeeded(path);
   } catch {

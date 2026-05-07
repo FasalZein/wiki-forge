@@ -1,6 +1,7 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
+import { parse as parseJsonc } from "jsonc-parser";
 
 export const VAULT_ROOT_ENV = "KNOWLEDGE_VAULT_ROOT";
 export const VAULT_ROOT = resolveVaultRoot();
@@ -64,6 +65,9 @@ function resolveVaultRoot() {
     return resolved;
   }
 
+  const configRoot = readConfiguredVaultRoot(process.cwd());
+  if (configRoot) return configRoot;
+
   const detected = findVaultRoot(process.cwd()) ?? findVaultRoot(resolve(import.meta.dir, "..", "..", ".."));
   if (detected) {
     return detected;
@@ -76,6 +80,28 @@ function resolveVaultRoot() {
   }
 
   return resolve(import.meta.dir, "..", "..", "..");
+}
+
+function readConfiguredVaultRoot(cwd: string): string | null {
+  const candidates = [
+    join(cwd, "wiki.config.jsonc"),
+    join(homedir(), ".config", "wiki-forge", "config.jsonc"),
+  ];
+  for (const path of candidates) {
+    if (!existsSync(path)) continue;
+    const parsed = parseJsonc(readFileSync(path, "utf8")) as unknown;
+    if (!isRecord(parsed)) continue;
+    const vault = parsed.vault;
+    if (!isRecord(vault) || typeof vault.root !== "string" || !vault.root.trim()) continue;
+    const resolved = resolve(vault.root.replace(/^~/u, homedir()));
+    if (!existsSync(resolved)) throw new Error(`vault.root in ${path} points to non-existent path: ${resolved}`);
+    return resolved;
+  }
+  return null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function findVaultRoot(start: string) {

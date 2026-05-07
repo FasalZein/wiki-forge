@@ -1,4 +1,4 @@
-import { readdirSync, statSync } from "node:fs";
+import { readdirSync, rmSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../../../constants";
 import { mkdirIfMissing, nowIso, orderFrontmatter, requireValue, writeNormalizedPage } from "../../../cli-shared";
@@ -8,7 +8,7 @@ import { printJson, printLine } from "../../../lib/cli-output";
 import { classifyVaultFolderPath } from "../../../shared/project-structure/vault-taxonomy";
 
 const CORE_TOP_LEVEL_DIRS = ["projects", "research", "raw", "wiki", "ideas", "templates", "journal", "specs"] as const;
-const CORE_ROOT_FILES = ["AGENTS.md", "index.md", "log.md"] as const;
+const CORE_ROOT_FILES = ["AGENTS.md", "CLAUDE.md", "index.md", "log.md"] as const;
 
 type LayerDefinition = {
   name: string;
@@ -170,6 +170,7 @@ export async function collectVaultLintResult() {
     for (const entry of readdirSync(projectsDir).filter((name) => !name.startsWith("_"))) {
       const projectDir = join(projectsDir, entry);
       if (!statSync(projectDir).isDirectory()) continue;
+      if (entry !== slugify(entry)) issues.push(`projects/${entry} non-canonical project directory; expected '${slugify(entry)}'`);
       const files = [...new Bun.Glob("**/*").scanSync({ cwd: projectDir, onlyFiles: true })].map((file) => file.replaceAll("\\", "/"));
       const markdownFiles = files.filter((file) => file.endsWith(".md"));
       if (markdownFiles.length === 0 && files.every((file) => file === ".activity.jsonl")) {
@@ -195,6 +196,31 @@ export async function collectVaultLintResult() {
   ghostProjects.sort((left, right) => left.path.localeCompare(right.path));
 
   return { root: VAULT_ROOT, issues, layers: { core: [...CORE_TOP_LEVEL_DIRS], custom: customLayers }, ghostProjects, generatedProjections };
+}
+
+export async function pruneGhostProjects(args: string[]) {
+  const write = args.includes("--write");
+  const json = args.includes("--json");
+  const result = await collectVaultLintResult();
+  const removed: string[] = [];
+  const blocked: Array<{ path: string; reason: string }> = [];
+  for (const ghost of result.ghostProjects) {
+    const absolutePath = join(VAULT_ROOT, ghost.path);
+    const files = [...new Bun.Glob("**/*").scanSync({ cwd: absolutePath, onlyFiles: true })].map((file) => file.replaceAll("\\", "/"));
+    const unsafe = files.filter((file) => file !== ".activity.jsonl");
+    if (unsafe.length > 0) {
+      blocked.push({ path: ghost.path, reason: `contains non-activity files: ${unsafe.join(", ")}` });
+      continue;
+    }
+    if (write) rmSync(absolutePath, { recursive: true, force: true });
+    removed.push(ghost.path);
+  }
+  const payload = { write, removed, blocked, counts: { removed: removed.length, blocked: blocked.length } };
+  if (json) return printJson(payload);
+  printLine(`${write ? "removed" : "would remove"} ${removed.length} ghost project folder(s)`);
+  for (const path of removed) printLine(`- ${path}`);
+  for (const item of blocked) printLine(`- blocked ${item.path}: ${item.reason}`);
+  if (!write && removed.length > 0) printLine("dry run only; pass --write to remove ghost project folders");
 }
 
 export async function summarizeLayer(args: string[]) {

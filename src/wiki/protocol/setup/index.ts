@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { projectRoot, requireValue, safeMatter } from "../../../cli-shared";
+import { nowIso, projectRoot, requireValue, safeMatter } from "../../../cli-shared";
 import { VAULT_ROOT } from "../../../constants";
 import { exists, readText } from "../../../lib/fs";
 import { resolveRepoPath } from "../../../lib/verification";
@@ -28,8 +28,8 @@ export async function syncProtocol(args: string[]) {
     for (const file of PROTOCOL_FILES) {
       const path = protocolFilePath(repo, scope.path, file);
       mkdirSync(dirname(path), { recursive: true });
-      const next = renderProtocolSurface(project, scope);
       const current = await exists(path) ? await readText(path) : "";
+      const next = renderProtocolSurface(project, scope, { updated: readProtocolUpdated(current) ?? nowIso() });
       const remainder = current ? extractRemainder(current) : "";
       const output = `${next}${remainder ? `\n\n${remainder.trimStart()}` : ""}`.trimEnd() + "\n";
       const updated = output !== current;
@@ -56,7 +56,6 @@ export async function auditProtocol(args: string[]) {
   const rows: ProtocolAuditRow[] = [];
 
   for (const scope of scopes) {
-    const expected = renderProtocolSurface(project, scope);
     for (const file of PROTOCOL_FILES) {
       const path = protocolFilePath(repo, scope.path, file);
       const rel = relative(repo, path).replaceAll("\\", "/") || file;
@@ -66,6 +65,7 @@ export async function auditProtocol(args: string[]) {
       }
       const current = await readText(path);
       const managed = extractManagedBlock(current);
+      const expected = renderProtocolSurface(project, scope, { updated: readProtocolUpdated(current) ?? "missing" });
       rows.push({ scope: scope.scope, file, path: rel, status: managed === expected ? "ok" : "stale" });
     }
   }
@@ -124,6 +124,10 @@ function normalizeScopePath(path: string) {
 
 function protocolFilePath(repo: string, scopePath: string, file: string) {
   return join(repo, scopePath === "." ? "" : scopePath, file);
+}
+
+function readProtocolUpdated(content: string): string | null {
+  return /^updated:\s*['"]?([^'"\n]+)['"]?\s*$/mu.exec(content)?.[1]?.trim() ?? null;
 }
 
 function extractManagedBlock(content: string) {

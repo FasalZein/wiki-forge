@@ -11,4 +11,4 @@ export { slugify } from "./planning";
 export { dependencyGraph } from "./dependency-graph";
 export { updateIndex, writeProjectIndex, collectStaleIndexTargets, writeNavigationIndex, writeNamedNavigationTargets } from "./index-log";
 export { summaryProject } from "./summary";
-export { createLayerPage, lintVault, scaffoldLayer } from "./layers";
+export { createLayerPage, lintVault, pruneGhostProjects, scaffoldLayer } from "./layers";

@@ -8,19 +8,22 @@ import {
   deriveSourceSlug,
   deriveSourceTitle,
   detectResearchSourceType,
+  projectResearchPagePath,
   researchPagePath,
   topicCrossLinks,
 } from "../../lib/research";
-import { ensureResearchTopic } from "./_shared";
+import { ensureProjectResearchTopic, ensureResearchTopic, projectTruthTargets } from "./_shared";
+import { assertGlobalResearchAllowed, assertProjectExists, isResearchRoutingFlag, readResearchProjectRouting } from "./project-routing";
 import { printLine } from "../../lib/cli-output";
 
 export async function ingestResearch(args: string[]) {
-  const { topic, sources, title } = parseIngestResearchArgs(args);
+  const { topic, sources, title, project } = await parseIngestResearchArgs(args);
   const normalizedTopic = canonicalizeResearchTopicForWrite(topic);
-  await ensureResearchTopic(normalizedTopic);
+  if (project) await ensureProjectResearchTopic(project, normalizedTopic);
+  else await ensureResearchTopic(normalizedTopic);
   for (const source of sources) {
     const slug = deriveSourceSlug(source);
-    const outputPath = researchPagePath(normalizedTopic, slug);
+    const outputPath = project ? projectResearchPagePath(project, normalizedTopic, slug) : researchPagePath(normalizedTopic, slug);
     if (await exists(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
     const sourceType = await detectResearchSourceType(source);
     const sourceField = /^https?:\/\//iu.test(source) ? { url: source } : { path: source };
@@ -28,6 +31,7 @@ export async function ingestResearch(args: string[]) {
       title: title ?? deriveSourceTitle(source),
       type: "research",
       topic: normalizedTopic,
+      ...(project ? { project } : {}),
       status: "draft",
       source_type: sourceType,
       sources: [{ ...sourceField, accessed: today(), claim: "TODO: capture the specific claim supported by this source." }],
@@ -65,18 +69,19 @@ export async function ingestResearch(args: string[]) {
       "",
       "## Cross Links",
       "",
-      ...topicCrossLinks(normalizedTopic),
+      ...(project ? [`- [[projects/${project}/research/${normalizedTopic}/_overview]]`, `- [[${projectTruthTargets(project)[0]}]]`, `- [[${projectTruthTargets(project)[1]}]]`] : topicCrossLinks(normalizedTopic)),
       "",
     ].join("\n");
     writeNormalizedPage(outputPath, body, data);
-    appendLogEntry("ingest-research", data.title as string, { details: [`topic=${normalizedTopic}`, `path=${relative(VAULT_ROOT, outputPath)}`] });
+    appendLogEntry("ingest-research", data.title as string, { ...(project ? { project } : {}), details: [`topic=${normalizedTopic}`, `path=${relative(VAULT_ROOT, outputPath)}`] });
     printLine(`created ${relative(VAULT_ROOT, outputPath)}`);
   }
 }
 
-function parseIngestResearchArgs(args: string[]) {
+async function parseIngestResearchArgs(args: string[]) {
   const topic = args[0];
   requireValue(topic, "topic");
+  const routing = readResearchProjectRouting(args.slice(1));
   const sources: string[] = [];
   let title: string | undefined;
   for (let index = 1; index < args.length; index += 1) {
@@ -86,10 +91,17 @@ function parseIngestResearchArgs(args: string[]) {
       index += 1;
       continue;
     }
+    if (isResearchRoutingFlag(arg)) {
+      if (arg === "--project") index += 1;
+      continue;
+    }
     sources.push(arg);
   }
   if (title) requireValue(title, "title");
+  if (routing.project) await assertProjectExists(routing.project);
+  else if (routing.global) await assertGlobalResearchAllowed(topic, routing.global);
+  else throw new Error("research ingest needs --project <project> for project-bound research, or --global for reusable cross-project research");
   if (!sources.length) throw new Error("missing source");
   if (title && sources.length > 1) throw new Error("--title only supports a single source");
-  return { topic, sources, title };
+  return { topic, sources, title, project: routing.project };
 }

@@ -13,21 +13,25 @@ import {
   rawBucketDir,
   rawPathForSource,
   rawVaultPath,
+  projectResearchPagePath,
   researchPagePath,
   topicCrossLinks,
 } from "../../lib/research";
-import { ensureResearchTopic } from "./_shared";
+import { ensureProjectResearchTopic, ensureResearchTopic, projectTruthTargets } from "./_shared";
+import { assertGlobalResearchAllowed, assertProjectExists, isResearchRoutingFlag, readResearchProjectRouting } from "./project-routing";
 import { printLine } from "../../lib/cli-output";
 
 export async function ingestSource(args: string[]) {
-  const { sources, topic, title, bucket } = parseIngestSourceArgs(args);
+  const { sources, topic, title, bucket, project, global } = await parseIngestSourceArgs(args);
   const normalizedTopic = canonicalizeResearchTopicForWrite(topic ?? "sources/inbox");
-  await ensureResearchTopic(normalizedTopic);
+  if (project) await ensureProjectResearchTopic(project, normalizedTopic);
+  else if (global) await ensureResearchTopic(normalizedTopic);
+  else throw new Error("source ingest needs --project <project> for project-bound sources, or --global for reusable cross-project sources");
   for (const source of sources) {
     const resolvedBucket = bucket ?? inferRawBucket(source);
     const rawDir = rawBucketDir(resolvedBucket);
     const rawPath = rawPathForSource(source, resolvedBucket);
-    const outputPath = researchPagePath(normalizedTopic, deriveSourceSlug(source));
+    const outputPath = project ? projectResearchPagePath(project, normalizedTopic, deriveSourceSlug(source)) : researchPagePath(normalizedTopic, deriveSourceSlug(source));
     if (await exists(outputPath)) throw new Error(`research page already exists: ${relative(VAULT_ROOT, outputPath)}`);
     await mkdirIfMissing(rawDir);
     if (await exists(rawPath)) throw new Error(`raw source already exists: ${relative(VAULT_ROOT, rawPath)}`);
@@ -68,6 +72,7 @@ export async function ingestSource(args: string[]) {
       title: title ?? deriveSourceTitle(source),
       type: "research",
       topic: normalizedTopic,
+      ...(project ? { project } : {}),
       status: "draft",
       source_type: sourceType,
       sources: [{ raw: rawVaultPath(rawPath), accessed: today(), claim: "TODO: capture the specific claim supported by this source." }],
@@ -105,18 +110,19 @@ export async function ingestSource(args: string[]) {
       "",
       "## Cross Links",
       "",
-      ...topicCrossLinks(normalizedTopic),
+      ...(project ? [`- [[projects/${project}/research/${normalizedTopic}/_overview]]`, `- [[${projectTruthTargets(project)[0]}]]`, `- [[${projectTruthTargets(project)[1]}]]`] : topicCrossLinks(normalizedTopic)),
       "",
     ].join("\n");
     writeNormalizedPage(outputPath, body, data);
-    appendLogEntry("ingest-source", data.title as string, { details: [`topic=${normalizedTopic}`, `raw=${relative(VAULT_ROOT, rawPath)}`, `path=${relative(VAULT_ROOT, outputPath)}`] });
+    appendLogEntry("ingest-source", data.title as string, { ...(project ? { project } : {}), details: [`topic=${normalizedTopic}`, `raw=${relative(VAULT_ROOT, rawPath)}`, `path=${relative(VAULT_ROOT, outputPath)}`] });
     printLine(`created ${relative(VAULT_ROOT, rawPath)}`);
     printLine(`created ${relative(VAULT_ROOT, outputPath)}`);
   }
 }
 
-function parseIngestSourceArgs(args: string[]) {
+async function parseIngestSourceArgs(args: string[]) {
   const sources: string[] = [];
+  const routing = readResearchProjectRouting(args);
   let topic: string | undefined;
   let title: string | undefined;
   let bucket: string | undefined;
@@ -137,13 +143,19 @@ function parseIngestSourceArgs(args: string[]) {
       index += 1;
       continue;
     }
+    if (isResearchRoutingFlag(arg)) {
+      if (arg === "--project") index += 1;
+      continue;
+    }
     sources.push(arg);
   }
   if (!sources.length) throw new Error("missing source");
   if (topic !== undefined) requireValue(topic, "topic");
   if (title !== undefined) requireValue(title, "title");
   if (bucket !== undefined) requireValue(bucket, "bucket");
+  if (routing.project) await assertProjectExists(routing.project);
+  else if (topic) await assertGlobalResearchAllowed(topic, routing.global);
   if (bucket && !isAllowedRawBucket(bucket)) throw new Error(`unknown raw bucket: ${bucket}`);
   if (title && sources.length > 1) throw new Error("--title only supports a single source");
-  return { sources, topic, title, bucket };
+  return { sources, topic, title, bucket, project: routing.project, global: routing.global };
 }

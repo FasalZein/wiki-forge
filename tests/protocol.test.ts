@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   buildCanonicalProtocolSource,
@@ -14,6 +14,69 @@ afterEach(() => {
 });
 
 describe("wiki protocol commands", () => {
+  test("scaffold-project rejects non-canonical project names and duplicate slugs", () => {
+    const { vault } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    const spaced = runWiki(["scaffold-project", "Code Forge"], env);
+    expect(spaced.exitCode).toBe(1);
+    expect(spaced.stderr.toString()).toContain("Use 'code-forge' instead of 'Code Forge'");
+
+    expect(runWiki(["scaffold-project", "code-forge"], env).exitCode).toBe(0);
+    mkdirSync(join(vault, "projects", "Code Forge"), { recursive: true });
+    const duplicate = runWiki(["scaffold-project", "code-forge"], env);
+    expect(duplicate.exitCode).toBe(1);
+    expect(duplicate.stderr.toString()).toContain("duplicates existing project 'Code Forge'");
+  });
+
+  test("scaffold-project does not create placeholder empty project directories", () => {
+    const { vault } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    const result = runWiki(["scaffold-project", "demo"], env);
+
+    expect(result.exitCode).toBe(0);
+    expect(readFileSync(join(vault, "projects", "demo", "_summary.md"), "utf8")).toContain("title:");
+    expect(existsSync(join(vault, "projects", "demo", "modules"))).toBe(false);
+    expect(existsSync(join(vault, "projects", "demo", "runbooks"))).toBe(false);
+  });
+
+  test("prune-ghost-projects removes activity-only ghost project folders", () => {
+    const { vault } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    mkdirSync(join(vault, "projects", "plan"), { recursive: true });
+    writeFileSync(join(vault, "projects", "plan", ".activity.jsonl"), "{}\n", "utf8");
+    const dryRun = runWiki(["prune-ghost-projects", "--json"], env);
+    expect(dryRun.exitCode).toBe(0);
+    expect(dryRun.json().removed).toContain("projects/plan");
+    expect(existsSync(join(vault, "projects", "plan"))).toBe(true);
+
+    const write = runWiki(["prune-ghost-projects", "--write", "--json"], env);
+    expect(write.exitCode).toBe(0);
+    expect(write.json().removed).toContain("projects/plan");
+    expect(existsSync(join(vault, "projects", "plan"))).toBe(false);
+  });
+
+  test("prune-empty-dirs removes old placeholder project directories", () => {
+    const { vault } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    mkdirSync(join(vault, "projects", "demo", "modules", "empty-module"), { recursive: true });
+    mkdirSync(join(vault, "projects", "demo", "runbooks"), { recursive: true });
+
+    const dryRun = runWiki(["prune-empty-dirs", "demo", "--json"], env);
+    expect(dryRun.exitCode).toBe(0);
+    expect(dryRun.json().emptyDirs).toContain("projects/demo/modules/empty-module");
+    expect(existsSync(join(vault, "projects", "demo", "runbooks"))).toBe(true);
+
+    const write = runWiki(["prune-empty-dirs", "demo", "--write", "--json"], env);
+    expect(write.exitCode).toBe(0);
+    expect(existsSync(join(vault, "projects", "demo", "modules"))).toBe(false);
+    expect(existsSync(join(vault, "projects", "demo", "runbooks"))).toBe(false);
+  });
+
   test("protocol sync installs root files and preserves local notes below the managed block", () => {
     const { vault, repo } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };

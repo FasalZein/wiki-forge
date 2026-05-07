@@ -13,6 +13,9 @@ export interface ConfigLeaf<T> {
 }
 
 export interface ResolvedConfig {
+  vault: {
+    root: ConfigLeaf<string>;
+  };
   repo: {
     ignore: ConfigLeaf<string[]>;
   };
@@ -42,6 +45,7 @@ export class WikiConfigError extends Error {
 }
 
 const KNOWN_LEAF_PATHS = new Set([
+  "vault.root",
   "repo.ignore",
   "workflow.phaseSkills.research",
   "workflow.phaseSkills.domainModel",
@@ -64,6 +68,9 @@ export const BUILT_IN_REPO_IGNORE = [
 ];
 
 const DEFAULT_CONFIG: ResolvedConfig = {
+  vault: {
+    root: { value: "~/Knowledge", source: "default" },
+  },
   repo: {
     ignore: { value: BUILT_IN_REPO_IGNORE, source: "default" },
   },
@@ -81,6 +88,9 @@ const DEFAULT_CONFIG: ResolvedConfig = {
 
 function defaultConfig(): ResolvedConfig {
   return {
+    vault: {
+      root: { value: DEFAULT_CONFIG.vault.root.value, source: "default" },
+    },
     repo: {
       ignore: { value: [...DEFAULT_CONFIG.repo.ignore.value], source: "default" },
     },
@@ -169,6 +179,15 @@ function applyLayer(
     throw new WikiConfigError(`invalid config in ${filePath}: root must be an object`);
   }
   walkLayer(raw, "", (path, value) => {
+    if (path === "vault.root") {
+      if (typeof value !== "string") {
+        throw new WikiConfigError(
+          `invalid config in ${filePath}: key 'vault.root' expected type 'string'`,
+        );
+      }
+      config.vault.root = { value, source };
+      return;
+    }
     if (path === "repo.ignore") {
       if (!Array.isArray(value) || value.some((v) => typeof v !== "string")) {
         throw new WikiConfigError(

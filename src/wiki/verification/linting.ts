@@ -1,6 +1,6 @@
 import { rmSync } from "node:fs";
 import { join, relative } from "node:path";
-import { MODULE_REQUIRED_HEADINGS, PROJECT_DIRS, PROJECT_FILES, VAULT_ROOT, type VerificationLevel } from "../../constants";
+import { MODULE_REQUIRED_HEADINGS, PROJECT_FILES, VAULT_ROOT, type VerificationLevel } from "../../constants";
 import { assertExists, projectRoot, requireValue, safeMatter } from "../../cli-shared";
 import { extractWikilinkTargets, parseWikiMarkdown } from "../../lib/markdown-ast";
 import { buildNoteIndex } from "../../lib/notes";
@@ -148,7 +148,6 @@ export async function collectVerifySummary(project: string, snapshot?: LintingSn
 export async function collectLintResult(project: string, snapshot?: LintingSnapshot) {
   const state = snapshot ?? await loadLintingSnapshot(project, { noteIndex: true });
   const issues: string[] = [];
-  for (const dir of PROJECT_DIRS) if (!await exists(join(state.root, dir))) issues.push(`missing directory: ${dir}`);
   for (const file of PROJECT_FILES) if (!await exists(join(state.root, file))) issues.push(`missing file: ${file}`);
   const noteIndex = state.noteIndex ?? await buildNoteIndex();
   for (const entry of state.pageEntries) {

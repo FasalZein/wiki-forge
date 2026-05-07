@@ -6,7 +6,27 @@ afterEach(() => {
   cleanupTempPaths();
 });
 
-describe("handover command CLI output", () => {
+describe("memory command CLI output", () => {
+  test("note refuses to create a project folder for an unknown project", () => {
+    const vault = tempDir("wiki-memory-note-cli");
+    initVault(vault);
+
+    const result = runWiki(["note", "note", "this should not create projects/note"], { KNOWLEDGE_VAULT_ROOT: vault });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr.toString()).toContain("project not found: note");
+  });
+
+  test("log append refuses to create a project folder for an unknown project", () => {
+    const vault = tempDir("wiki-memory-log-cli");
+    initVault(vault);
+
+    const result = runWiki(["log", "append", "status", "verification", "this should not create projects/status"], { KNOWLEDGE_VAULT_ROOT: vault });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr.toString()).toContain("project not found: status");
+  });
+
   test("non-JSON handover prints path, summary preview, and user-facing next-session prompt", () => {
     const vault = tempDir("wiki-handover-cli");
     initVault(vault);

@@ -1,1 +1,1 @@
-export { createLayerPage, lintVault, scaffoldLayer, summarizeLayer } from "./projection/layers";
+export { createLayerPage, lintVault, pruneGhostProjects, scaffoldLayer, summarizeLayer } from "./projection/layers";

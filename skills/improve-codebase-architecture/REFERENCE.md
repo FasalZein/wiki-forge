@@ -149,24 +149,33 @@ Durable architectural guidance that is NOT coupled to current file paths:
 - [[projects/<project>/decisions]]
 ```
 
-## Optional GitHub Issue Template
+## Optional External Issue Template
 
-Only used when the user opts into external tracking. The wiki note is the
-source of truth; the issue is a pointer.
+Only used when the user opts into external tracking. Keep Wiki/Forge internals out
+of GitHub, Linear, and other external systems. External issues should describe the
+user-visible work and link to the repository PR if needed; the wiki remains the
+internal source of truth.
+
+Do not paste wikilinks, vault paths, Forge slice IDs, PRD IDs, or workflow commands
+into external issue bodies.
 
 ```markdown
-## Tracks
+## Outcome
 
-- Wiki feature: projects/<project>/specs/features/FEAT-<nnn>-<slug>.md
-- Wiki PRD: projects/<project>/specs/prds/PRD-<nnn>-<slug>.md
-- Architecture review: projects/<project>/architecture/reviews/architecture-review-<YYYY-MM-DD>.md
-
-## TL;DR
-
-<copied verbatim from the wiki note's TL;DR>
+<one-sentence user-visible outcome>
 
 ## Scope
 
-See the wiki PRD for full scope and acceptance criteria. This issue exists so
-external collaborators / project boards can track shipping progress.
+- <externally meaningful behavior/change>
+- <externally meaningful constraint>
+
+## Acceptance criteria
+
+- <observable behavior or verification point>
+- <observable behavior or verification point>
+
+## Internal tracking
+
+Managed internally by the delivery workflow. See the linked PR/repo history for
+implementation details.
 ```
