@@ -29,6 +29,21 @@ describe("wiki protocol commands", () => {
     expect(duplicate.stderr.toString()).toContain("duplicates existing project 'Code Forge'");
   });
 
+  test("project artifact commands refuse unknown projects instead of creating folders", () => {
+    const { vault } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    const moduleResult = runWiki(["create-module", "node", "api"], env);
+    expect(moduleResult.exitCode).toBe(1);
+    expect(moduleResult.stderr.toString()).toContain("project not found: node");
+    expect(existsSync(join(vault, "projects", "node"))).toBe(false);
+
+    const planResult = runWiki(["onboard-plan", "plan", "--write"], env);
+    expect(planResult.exitCode).toBe(1);
+    expect(planResult.stderr.toString()).toContain("project not found: plan");
+    expect(existsSync(join(vault, "projects", "plan"))).toBe(false);
+  });
+
   test("scaffold-project does not create placeholder empty project directories", () => {
     const { vault } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
@@ -142,6 +157,7 @@ describe("wiki protocol commands", () => {
     const { vault } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
 
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
     const result = runWiki(["onboard-plan", "demo", "--repo", ".", "--write"], env);
 
     expect(result.exitCode).toBe(0);

@@ -78,6 +78,7 @@ export async function onboardProject(args: string[]) {
 
 export async function onboardPlan(args: string[]) {
   const options = parseOnboardPlanOptions(args);
+  await assertExistingProject(options.project);
   const rendered = await renderOnboardingPlan(options.project, options.repo);
   if (!options.write) return printLine(rendered);
   const outputPath = projectOnboardingPlanPath(options.project);
@@ -98,6 +99,7 @@ export async function createModule(args: string[]) {
 }
 
 export async function createModuleInternal(project: string, moduleName: string, sourcePaths: string[]) {
+  await assertExistingProject(project);
   const specPath = projectModuleSpecPath(project, moduleName);
   await mkdirIfMissing(join(projectRoot(project), "modules", moduleName));
   if (await exists(specPath)) throw new Error(`module spec already exists: ${relative(VAULT_ROOT, specPath)}`);
@@ -156,6 +158,12 @@ function parseOnboardPlanOptions(args: string[]) {
   const repo = repoIndex >= 0 ? args[repoIndex + 1] : undefined;
   if (repoIndex >= 0) requireValue(repo, "repo");
   return { project, repo, write: args.includes("--write") };
+}
+
+async function assertExistingProject(project: string): Promise<void> {
+  if (!await exists(projectRoot(project))) {
+    throw new Error(`project not found: ${project}. Run scaffold-project with a canonical project slug before writing project artifacts.`);
+  }
 }
 
 function assertCanonicalProjectSlug(project: string): void {
