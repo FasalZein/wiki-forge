@@ -26,7 +26,7 @@ Research:
   wiki research file <topic> --project <project> <title>
   wiki research status [topic] [--project <project>] [--json]
   wiki research ingest <topic> --project <project> <source-url-or-path...>
-  wiki research migrate-projects [--project <project>] [--write] [--json]
+  wiki research migrate-projects [--project <legacy-project>] [--to-project <project>] [--write] [--json]
 
 Second-brain management:
   wiki scaffold-project <project>

@@ -38,7 +38,7 @@ Use Wiki for project Q&A, research filing, source binding, drift repair, checkpo
 - File project research: `wiki research file <topic> --project <project> <title>` writes `projects/<project>/research/<topic>/<slug>.md`
 - Ingest project research/source material: `wiki research ingest <topic> --project <project> <source...>` and `wiki source ingest --project <project> --topic <topic> <source...>` write the research note under `projects/<project>/research/...`
 - File cross-project research: use global `wiki research file <topic> --global <title>` or global ingest with `--global` only when the topic is reusable beyond one project. Never omit both `--project` and `--global`.
-- Migrate old project research: `wiki research migrate-projects [--project <project>] [--write]` moves legacy `research/projects/<project>/...` notes into `projects/<project>/research/...` after a dry run.
+- Migrate old project research: `wiki research migrate-projects [--project <legacy-project>] [--to-project <project>] [--write]` moves legacy `research/projects/<project>/...` notes into `projects/<project>/research/...` after a dry run; use `--to-project` only for an explicit rename/merge decision.
 - Handoff research: `wiki research handoff <research-page> <project-truth-page>`
 - Bridge research: `wiki research bridge <research-page> --project <project> --slice <slice-id>`
 - Workflow status from Forge: `wiki forge status <project> [slice-id] --repo <path>`

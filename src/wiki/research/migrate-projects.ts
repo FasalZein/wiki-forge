@@ -18,13 +18,16 @@ export type ProjectResearchMigration = {
 
 export async function migrateProjectResearch(args: string[]) {
   const project = readFlagValue(args, "--project");
+  const targetProject = readFlagValue(args, "--to-project");
+  if (targetProject && !project) throw new Error("--to-project requires --project to name the legacy source project");
   const write = args.includes("--write");
   const json = args.includes("--json");
-  const migrations = await collectProjectResearchMigrations(project, write);
+  const migrations = await collectProjectResearchMigrations(project, targetProject, write);
   const removedEmptyDirs = write ? pruneEmptyLegacyDirs(project) : [];
   const payload = {
     write,
     project: project ?? null,
+    targetProject: targetProject ?? null,
     migrations,
     removedEmptyDirs,
     counts: {
@@ -44,23 +47,25 @@ export async function migrateProjectResearch(args: string[]) {
   if (!write && payload.counts.ready > 0) printLine("dry run only; pass --write to move files");
 }
 
-async function collectProjectResearchMigrations(project: string | undefined, write: boolean): Promise<ProjectResearchMigration[]> {
+async function collectProjectResearchMigrations(project: string | undefined, targetProject: string | undefined, write: boolean): Promise<ProjectResearchMigration[]> {
   const legacyRoot = join(VAULT_ROOT, "research", "projects", project ?? "");
   const files = await walkMarkdown(legacyRoot);
   const migrations: ProjectResearchMigration[] = [];
   for (const file of files.sort()) {
-    const migration = await planMigration(file, write);
-    if (project && migration.project !== project) continue;
+    const from = normalizePath(relative(VAULT_ROOT, file));
+    if (project && !from.startsWith(`research/projects/${project}/`)) continue;
+    const migration = await planMigration(file, targetProject, write);
     migrations.push(migration);
   }
   return migrations;
 }
 
-async function planMigration(file: string, write: boolean): Promise<ProjectResearchMigration> {
+async function planMigration(file: string, targetProject: string | undefined, write: boolean): Promise<ProjectResearchMigration> {
   const from = normalizePath(relative(VAULT_ROOT, file));
   const match = from.match(/^research\/projects\/([^/]+)\/(.+\.md)$/u);
   if (!match) return blocked(from, from, "unknown", "migrated", "not under research/projects/<project>");
-  const project = match[1] ?? "unknown";
+  const sourceProject = match[1] ?? "unknown";
+  const project = targetProject ?? sourceProject;
   const rest = match[2] ?? basename(file);
   const topic = inferTopic(rest);
   const destination = join(projectRoot(project), "research", ...topic.split("/"), basename(rest));

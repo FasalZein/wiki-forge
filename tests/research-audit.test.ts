@@ -172,6 +172,27 @@ describe("wiki research audit", () => {
     expect(() => readFileSync(join(vault, "research", "projects", "demo", "auth-options", "old-note.md"), "utf8")).toThrow();
   });
 
+  test("migrates legacy research into an explicitly renamed target project", () => {
+    const vault = tempDir("wiki-vault");
+    initVault(vault);
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "new-project"], env).exitCode).toBe(0);
+    mkdirSync(join(vault, "research", "projects", "old-project"), { recursive: true });
+    writeFileSync(join(vault, "research", "projects", "old-project", "note.md"), `---\ntitle: Note\ntype: research\nproject: old-project\ntopic: old-project\n---\n# Note\n`, "utf8");
+
+    const dryRun = runWiki(["research", "migrate-projects", "--project", "old-project", "--to-project", "new-project", "--json"], env);
+    expect(dryRun.exitCode).toBe(0);
+    expect(dryRun.json().targetProject).toBe("new-project");
+    expect(dryRun.json().migrations[0].to).toBe("projects/new-project/research/migrated/note.md");
+
+    const write = runWiki(["research", "migrate-projects", "--project", "old-project", "--to-project", "new-project", "--write", "--json"], env);
+    expect(write.exitCode).toBe(0);
+    const migrated = readFileSync(join(vault, "projects", "new-project", "research", "migrated", "note.md"), "utf8");
+    expect(migrated).toContain("project: new-project");
+    expect(migrated).toContain("topic: migrated");
+  });
+
   test("project research files inside the project research folder", () => {
     const vault = tempDir("wiki-vault");
     initVault(vault);
