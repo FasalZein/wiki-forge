@@ -29,6 +29,7 @@ Use Wiki for project Q&A, research filing, source binding, drift repair, checkpo
 
 - Help: `wiki help` or `wiki help --all`
 - Resume context: `wiki resume <project> --repo <path> --base <rev>`
+- Project setup: `wiki scaffold-project <project-slug>` creates a project with a canonical slug. Commands that write project artifacts, such as `wiki create-module` and `wiki onboard-plan --write`, require the project to already exist and must not be used to create projects implicitly.
 - Ask/search: `wiki ask <project> <question>`, `wiki search <query>`
 - Freshness/Git truth: `wiki checkpoint <project> --repo <path> --base <rev>`
 - Repair plan: `wiki maintain <project> --repo <path> --base <rev>`
@@ -51,6 +52,7 @@ If the installed `wiki` binary is unavailable while working inside this reposito
 - `wiki maintain` is the authoritative repair plan for freshness repair and reconciliation work.
 - `wiki resume` restores working context only; use it to recover orientation, not to override current freshness truth. If it reports a stale handover, re-anchor with `wiki checkpoint <project> --repo <path> --base HEAD --json` and `wiki forge status` / `wiki forge next` before acting.
 - Do not hand-edit freshness metadata or generated pages when a `wiki` command owns that surface.
+- Do not pass command words or nouns (`note`, `node`, `plan`, `status`, etc.) as project names. Use the canonical existing project slug from `projects/<project>/`; if it does not exist, run `wiki scaffold-project <project-slug>` intentionally first.
 - If git activity may have changed repo truth, use `wiki checkpoint`, `wiki maintain`, or `wiki refresh-from-git` instead of manually patching derived wiki state.
 - Keep wiki focused on knowledge-state operations. Use `/forge` for implementation planning, execution, amendment slices, review gates, and tracked SDLC workflow.
 - Do not use or advertise removed legacy lifecycle commands. They are absent from the runtime; use the `wiki forge ...` surface instead.
