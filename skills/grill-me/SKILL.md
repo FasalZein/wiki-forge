@@ -80,7 +80,7 @@ After grilling, update the relevant artifacts:
 
 **If pre-PRD:** feed the resolved decisions into `/write-a-prd`, unless the work should stay in the canonical forge path through `/domain-model`.
 
-**If research-worthy decisions emerged:** file them with `wiki research file <topic> [--project <project>] <title>`. For project-scoped work, use `wiki research file <project> --project <project> <title>`.
+**If research-worthy decisions emerged:** file project-scoped work with `wiki research file <topic> --project <project> <title>`. File reusable cross-project research only with `wiki research file <topic> --global <title>`. Do not omit both `--project` and `--global`.
 
 ## Integration with Forge
 

@@ -13,7 +13,7 @@ Do not use removed legacy PRD commands. Forge planning owns feature, PRD/spec, a
 
 ## Prerequisites
 
-1. Research should be filed when the problem space is not already understood. File it with `wiki research file <topic> [--project <project>] <title>` after using `/research`.
+1. Research should be filed when the problem space is not already understood. After using `/research`, file project-scoped research with `wiki research file <topic> --project <project> <title>`. Use `wiki research file <topic> --global <title>` only for reusable cross-project research. Do not omit both `--project` and `--global`.
 2. If domain modeling was needed, consume its wiki-native outputs before drafting:
    - `projects/<project>/decisions.md`
    - `projects/<project>/architecture/domain-language.md`

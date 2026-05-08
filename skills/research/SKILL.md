@@ -7,7 +7,7 @@ description: "Autonomous deep research on any topic. Combines Exa semantic searc
 
 Deep research on any topic — fully autonomous. Delegates search and scraping to subagents so the main context stays clean for synthesis.
 
-When research is for one project, file it under `projects/<project>/research/` using `wiki research file <topic> --project <project> <title>`. Use global `research/` only for reusable cross-project topics. Do not create or recommend `research/projects/<project>/...` paths.
+When research is for one project, file it under `projects/<project>/research/` using `wiki research file <topic> --project <project> <title>` or `wiki research ingest <topic> --project <project> <source...>`. Use global `research/` only for reusable cross-project topics and make that explicit with `--global`. Do not omit both `--project` and `--global`. Do not create or recommend `research/projects/<project>/...` paths.
 
 ## When to Use
 
