@@ -15,7 +15,12 @@ describe("skill manuals after legacy cutover", () => {
       expect(headings).toHaveLength(1);
       expect(sessionContextIndex).toBeGreaterThan(0);
       expect(sessionContextIndex).toBeLessThan(1500);
-      expect(manual).toContain("KNOWLEDGE_VAULT_ROOT");
+      const sessionContext = manual.slice(sessionContextIndex, manual.indexOf("\n# ", sessionContextIndex));
+
+      expect(sessionContext).toContain("KNOWLEDGE_VAULT_ROOT");
+      expect(sessionContext).toContain("wiki config --effective --repo <path>");
+      expect(sessionContext).not.toContain("/Users/tothemoon/Knowledge");
+      expect(sessionContext).not.toContain("~/Knowledge");
       expect(manual).toContain("Forge-tracked use");
       expect(manual).toContain("Standalone use");
       expect(manual).toContain("Do not create durable project memory markdown inside the code repo");
