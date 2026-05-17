@@ -7,6 +7,7 @@ import { buildPhaseSkillPacket, renderPhaseSkillPacket } from "./phase-skill-pac
 import { loadForgeProjectProjection, loadForgeSliceStatus } from "../vault/load-project";
 import { amendForgeSlice, checkForgeSliceClose, closeForgeSlice, releaseForgeSlice, startForgeSlice } from "../vault/slice-store";
 import { readForgeEvidence, recordForgeReviewEvidence, recordForgeStrictTddEvidence, recordForgeVerificationEvidence } from "../vault/evidence-store";
+import { completeForgeReviewSession, parseReviewSessionMode, startForgeReviewSession } from "../vault/review-session-store";
 import { evaluateTddGate } from "../lifecycle/tdd-gate";
 
 export { forgePlanCommand } from "./plan-command";
@@ -222,6 +223,23 @@ export async function forgeReviewCommand(args: string[]): Promise<void> {
   const json = args.includes("--json");
   const positional = args.filter((arg) => !arg.startsWith("--"));
   const subcommand = positional[0];
+  if (subcommand === "start") {
+    const project = positional[1];
+    const sliceId = positional[2];
+    requireValue(project, "project");
+    requireValue(sliceId, "slice-id");
+    const reviewer = readFlagValue(args, "--reviewer");
+    requireValue(reviewer, "--reviewer");
+    const session = await startForgeReviewSession({
+      project,
+      sliceId,
+      reviewer,
+      mode: parseReviewSessionMode(readFlagValue(args, "--mode")),
+    });
+    if (json) printJson(session);
+    else printLine(`started review session for ${sliceId}`);
+    return;
+  }
   if (subcommand !== "record") throw new Error(`unknown forge review subcommand: ${subcommand ?? ""}`);
   const project = positional[1];
   const sliceId = positional[2];
@@ -231,13 +249,15 @@ export async function forgeReviewCommand(args: string[]): Promise<void> {
   requireValue(reviewer, "--reviewer");
   const repo = readFlagValue(args, "--repo");
   const head = repo ? await gitHeadSha(repo) : undefined;
+  const verdict = parseReviewVerdict(readFlagValue(args, "--verdict") ?? "approved");
   const record = await recordForgeReviewEvidence({
     project,
     sliceId,
     reviewer,
-    verdict: parseReviewVerdict(readFlagValue(args, "--verdict") ?? "approved"),
+    verdict,
     ...(head ? { git: { head } } : {}),
   });
+  await completeForgeReviewSession({ project, sliceId, record });
   if (json) printJson(record);
   else printLine(`recorded review evidence for ${sliceId}`);
 }
