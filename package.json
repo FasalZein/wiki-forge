@@ -17,9 +17,11 @@
   },
   "scripts": {
     "wiki": "bun src/index.ts",
+    "wiki-dev": "bun src/index.ts",
     "sync:local": "bun scripts/sync-local.ts",
     "sync:wiki": "bun scripts/sync-local.ts --wiki-only",
     "sync:full": "bun scripts/sync-local.ts --full",
+    "sync:link-cli": "bun scripts/sync-local.ts --full --link-cli",
     "lint": "eslint src/",
     "check": "tsc --noEmit && eslint src/ --max-warnings 50",
     "test": "bun test",

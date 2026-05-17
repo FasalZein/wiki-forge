@@ -25,6 +25,7 @@ export type SyncOptions = {
   installSet: InstallSet;
   repoDir: string;
   installSkills: boolean;
+  linkCli: boolean;
 };
 
 if (import.meta.main) {
@@ -55,6 +56,7 @@ async function main(args: string[]) {
   printLine(`- install set: ${options.installSet}`);
   printLine(`- skills: ${options.installSkills ? "yes" : "no"}`);
   printLine(`- companion skills: ${shouldInstallCompanions(options) ? "yes" : "no"}`);
+  printLine(`- link global wiki cli: ${options.linkCli ? "yes" : "no"}`);
 
   for (const step of plan) {
     printLine(`- ${step.label}`);
@@ -74,6 +76,7 @@ export function parseSyncArgs(args: string[], repoDir = resolve(import.meta.dir,
     installSet,
     repoDir,
     installSkills: !args.includes("--skip-skills"),
+    linkCli: args.includes("--link-cli"),
   };
 }
 
@@ -98,7 +101,7 @@ export function buildSyncPlan(options: SyncOptions): SyncStep[] {
     : [];
 
   return [
-    { label: "link wiki cli", command: ["bun", "link"] },
+    ...(options.linkCli ? [{ label: "link wiki cli", command: ["bun", "link"] }] : []),
     { label: "install latest qmd", command: ["npm", "install", "-g", "@tobilu/qmd@latest", "--audit=false", "--fund=false"] },
     { label: "rebuild qmd native modules", command: ["npm", "rebuild", "-g", "@tobilu/qmd"] },
     ...repoSkills,
@@ -178,7 +181,7 @@ function ensureCommand(command: string, errorMessage: string) {
 
 function parseInstallSetArg(args: string[]): InstallSet {
   const unknown = args.filter((arg, index) => {
-    if (["--wiki-only", "--full", "--audit", "--skip-skills", "--with-companions"].includes(arg)) return false;
+    if (["--wiki-only", "--full", "--audit", "--skip-skills", "--with-companions", "--link-cli"].includes(arg)) return false;
     if (args[index - 1] === "--install-set") return false;
     return arg !== "--install-set";
   });

@@ -12,24 +12,22 @@ describe("sync-local", () => {
   test("builds the default local sync plan", () => {
     const repoDir = process.cwd();
     const plan = buildSyncPlan({ repoDir, includeCompanions: false, audit: false, installSet: "full", installSkills: true });
-    const repoSkillSteps = plan.slice(3, 3 + REPO_SKILLS.length * 2);
+    const repoSkillSteps = plan.slice(2, 2 + REPO_SKILLS.length * 2);
     const repoSkillLabels = REPO_SKILLS.flatMap((skill) => [
       `remove repo skill ${skill}`,
       `install repo skill ${skill}`,
     ]);
     const companionLabels = COMPANION_SKILLS.map((skill) => `install companion skill ${skill.split("/").pop()}`);
     expect(plan.map((step) => step.label)).toEqual([
-      "link wiki cli",
       "install latest qmd",
       "rebuild qmd native modules",
       ...repoSkillLabels,
       ...companionLabels,
     ]);
-    expect(plan[0]?.command).toEqual(["bun", "link"]);
-    expect(plan[1]?.command).toEqual(["npm", "install", "-g", "@tobilu/qmd@latest", "--audit=false", "--fund=false"]);
-    expect(plan[2]?.command).toEqual(["npm", "rebuild", "-g", "@tobilu/qmd"]);
-    expect(plan[3]?.command).toEqual(["npx", "skills@latest", "remove", REPO_SKILLS[0]!, "-g", "-y"]);
-    expect(plan[4]?.command[3]).toBe(`${repoDir}/skills/${REPO_SKILLS[0]}`);
+    expect(plan[0]?.command).toEqual(["npm", "install", "-g", "@tobilu/qmd@latest", "--audit=false", "--fund=false"]);
+    expect(plan[1]?.command).toEqual(["npm", "rebuild", "-g", "@tobilu/qmd"]);
+    expect(plan[2]?.command).toEqual(["npx", "skills@latest", "remove", REPO_SKILLS[0]!, "-g", "-y"]);
+    expect(plan[3]?.command[3]).toBe(`${repoDir}/skills/${REPO_SKILLS[0]}`);
     expect(repoSkillSteps.every((step) => step.command.includes("-g"))).toBe(true);
     expect(repoSkillSteps.filter((_, index) => index % 2 === 0).every((step) => step.command.includes("-y"))).toBe(true);
     expect(repoSkillSteps.filter((_, index) => index % 2 === 1).every((step) => step.command.includes("-y"))).toBe(true);
@@ -61,19 +59,19 @@ describe("sync-local", () => {
   });
 
   test("parses install set and with-companions flags", () => {
-    expect(parseSyncArgs([], "/repo/wiki-forge")).toEqual({ includeCompanions: true, audit: false, installSet: "full", repoDir: "/repo/wiki-forge", installSkills: true });
-    expect(parseSyncArgs(["--with-companions"], "/repo/wiki-forge")).toEqual({ includeCompanions: true, audit: false, installSet: "full", repoDir: "/repo/wiki-forge", installSkills: true });
-    expect(parseSyncArgs(["--audit"], "/repo/wiki-forge")).toEqual({ includeCompanions: true, audit: true, installSet: "full", repoDir: "/repo/wiki-forge", installSkills: true });
-    expect(parseSyncArgs(["--wiki-only"], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: false, installSet: "wiki-only", repoDir: "/repo/wiki-forge", installSkills: true });
-    expect(parseSyncArgs(["--install-set", "wiki-only"], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: false, installSet: "wiki-only", repoDir: "/repo/wiki-forge", installSkills: true });
-    expect(parseSyncArgs(["--wiki-only", "--skip-skills"], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: false, installSet: "wiki-only", repoDir: "/repo/wiki-forge", installSkills: false });
+    expect(parseSyncArgs([], "/repo/wiki-forge")).toEqual({ includeCompanions: true, audit: false, installSet: "full", repoDir: "/repo/wiki-forge", installSkills: true, linkCli: false });
+    expect(parseSyncArgs(["--with-companions"], "/repo/wiki-forge")).toEqual({ includeCompanions: true, audit: false, installSet: "full", repoDir: "/repo/wiki-forge", installSkills: true, linkCli: false });
+    expect(parseSyncArgs(["--audit"], "/repo/wiki-forge")).toEqual({ includeCompanions: true, audit: true, installSet: "full", repoDir: "/repo/wiki-forge", installSkills: true, linkCli: false });
+    expect(parseSyncArgs(["--link-cli"], "/repo/wiki-forge")).toEqual({ includeCompanions: true, audit: false, installSet: "full", repoDir: "/repo/wiki-forge", installSkills: true, linkCli: true });
+    expect(parseSyncArgs(["--wiki-only"], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: false, installSet: "wiki-only", repoDir: "/repo/wiki-forge", installSkills: true, linkCli: false });
+    expect(parseSyncArgs(["--install-set", "wiki-only"], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: false, installSet: "wiki-only", repoDir: "/repo/wiki-forge", installSkills: true, linkCli: false });
+    expect(parseSyncArgs(["--wiki-only", "--skip-skills"], "/repo/wiki-forge")).toEqual({ includeCompanions: false, audit: false, installSet: "wiki-only", repoDir: "/repo/wiki-forge", installSkills: false, linkCli: false });
   });
 
-  test("skip-skills keeps CLI and QMD setup but omits all agent skills", () => {
+  test("skip-skills keeps QMD setup but omits CLI relinking and agent skills", () => {
     const repoDir = process.cwd();
-    const plan = buildSyncPlan({ repoDir, includeCompanions: false, audit: false, installSet: "full", installSkills: false });
+    const plan = buildSyncPlan({ repoDir, includeCompanions: false, audit: false, installSet: "full", installSkills: false, linkCli: false });
     expect(plan.map((step) => step.label)).toEqual([
-      "link wiki cli",
       "install latest qmd",
       "rebuild qmd native modules",
     ]);
@@ -82,14 +80,29 @@ describe("sync-local", () => {
   test("wiki-only install set narrows repo skill selection to the wiki skill", () => {
     const repoDir = process.cwd();
     expect(selectRepoSkills(repoDir, "wiki-only")).toEqual([...WIKI_ONLY_SKILLS]);
-    const plan = buildSyncPlan({ repoDir, includeCompanions: false, audit: false, installSet: "wiki-only", installSkills: true });
+    const plan = buildSyncPlan({ repoDir, includeCompanions: false, audit: false, installSet: "wiki-only", installSkills: true, linkCli: false });
     expect(plan.map((step) => step.label)).toEqual([
-      "link wiki cli",
       "install latest qmd",
       "rebuild qmd native modules",
       "remove repo skill wiki",
       "install repo skill wiki",
     ]);
+  });
+
+  test("CLI relinking is explicit so development sync cannot replace the stable global wiki", () => {
+    const repoDir = process.cwd();
+    const defaultPlan = buildSyncPlan({ repoDir, includeCompanions: true, audit: false, installSet: "full", installSkills: true, linkCli: false });
+    const linkPlan = buildSyncPlan({ repoDir, includeCompanions: true, audit: false, installSet: "full", installSkills: true, linkCli: true });
+
+    expect(defaultPlan.map((step) => step.label)).not.toContain("link wiki cli");
+    expect(linkPlan[0]).toEqual({ label: "link wiki cli", command: ["bun", "link"] });
+  });
+
+  test("package scripts expose a dev wiki command without replacing the global wiki", () => {
+    const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as { scripts: Record<string, string> };
+    expect(packageJson.scripts["wiki-dev"]).toBe("bun src/index.ts");
+    expect(packageJson.scripts["sync:full"]).toBe("bun scripts/sync-local.ts --full");
+    expect(packageJson.scripts["sync:link-cli"]).toBe("bun scripts/sync-local.ts --full --link-cli");
   });
 
   test("audit detects missing and stale installed repo skills", () => {
