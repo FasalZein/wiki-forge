@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { DEFAULT_BENCH_COMMANDS } from "../../scripts/wiki-maintenance-bench";
 import { WIKI_COMMANDS, resolveWikiCommand } from "../../src/wiki";
 import { assertGeneratedProjectionReadAllowed, assertLifecycleMutationAllowed, getCommandSurfaceEntry, listCommandSurfaceEntries } from "../../src/wiki/runtime/command-surface";
 
@@ -45,6 +46,12 @@ describe("command surface registry", () => {
       expect(getCommandSurfaceEntry(command)).toBeUndefined();
       expect(WIKI_COMMANDS[command]).toBeUndefined();
       expect(resolveWikiCommand([command, "demo"])).toEqual({ command, args: ["demo"] });
+    }
+  });
+
+  test("maintenance benchmark does not invoke removed workflow commands", () => {
+    for (const command of DEFAULT_BENCH_COMMANDS) {
+      expect(REMOVED_COMMANDS).not.toContain(command);
     }
   });
 });

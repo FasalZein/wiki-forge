@@ -14,7 +14,6 @@ export const DEFAULT_BENCH_COMMANDS = [
   "maintain",
   "discover",
   "doctor",
-  "gate",
   "drift-check",
   "bind",
   "verify-page",
@@ -89,12 +88,6 @@ const BENCH_SPECS: Record<BenchName, BenchSpec> = {
     label: "wiki doctor",
     mutates: false,
     args: (options, baseRef) => ["doctor", options.project, "--repo", options.repo, "--base", baseRef],
-  },
-  gate: {
-    name: "gate",
-    label: "wiki gate",
-    mutates: false,
-    args: (options, baseRef) => ["gate", options.project, "--repo", options.repo, "--base", baseRef],
   },
   "drift-check": {
     name: "drift-check",
