@@ -77,10 +77,10 @@ if [ -z "$SKILL_MODE" ]; then
   echo "Agent skills:"
   if [ "$INSTALL_SET" = "wiki-only" ]; then
     echo "  1) install /wiki skill"
-    echo "  2) skip skills for now (CLI + QMD only)"
+    echo "  2) skip skills for now (qmd only)"
   else
-    echo "  1) install full workflow skills (/wiki + /forge stack + companions)"
-    echo "  2) skip skills for now (CLI + QMD only)"
+    echo "  1) install full workflow skills (/wiki + /forge stack + configured external companions)"
+    echo "  2) skip skills for now (qmd only)"
   fi
   read -rp "Install agent skills? [1]: " skill_choice
   case "${skill_choice:-1}" in

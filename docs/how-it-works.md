@@ -98,9 +98,10 @@ Rules of thumb:
 ## Install modes
 
 ```bash
-bun run sync:wiki                                             # wiki-only: CLI, QMD, /wiki skill
-bun run sync:full                                             # full: wiki + Forge workflow skills + desloppify companion
-bun run sync:local -- --install-set wiki-only --skip-skills   # CLI + QMD only
+bun run sync:wiki                                             # wiki-only: QMD + /wiki skill
+bun run sync:full                                             # full: QMD + wiki/Forge repo skills + configured external companions
+bun run sync:link-cli                                         # explicitly relink global wiki CLI to this checkout
+bun run sync:local -- --install-set wiki-only --skip-skills   # QMD only; no agent skills
 ```
 
 The installer exposes the same split:
@@ -108,7 +109,7 @@ The installer exposes the same split:
 ```bash
 ./install.sh --wiki-only
 ./install.sh --full
-./install.sh --wiki-only --skip-skills  # CLI + QMD only; no agent skills yet
+./install.sh --wiki-only --skip-skills  # qmd only; no agent skills yet
 ```
 
 ## Vault ownership

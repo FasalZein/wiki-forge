@@ -9,10 +9,10 @@ cd wiki-forge
 # or:
 ./install.sh --wiki-only
 ./install.sh --full
-./install.sh --wiki-only --skip-skills  # CLI + QMD only; install /wiki later if desired
+./install.sh --wiki-only --skip-skills  # qmd only; install /wiki later if desired
 ```
 
-The install script handles first-time bootstrap: bun, dependencies, local sync of the CLI/qmd/skills, shell config, vault directory, and skill installation. By default it creates `~/Knowledge` if it does not exist yet.
+The install script handles first-time bootstrap: bun, dependencies, qmd/skill sync, shell config, vault directory, and skill installation. By default it creates `~/Knowledge` if it does not exist yet.
 
 If you are using an agent, give it this first:
 
@@ -23,8 +23,8 @@ Read SETUP.md completely before running setup. Use wiki-only when I only want th
 Install modes:
 
 - `wiki-only`: installs only the `/wiki` second-brain layer
-- `full`: installs `/wiki`, the repo-owned `/forge` workflow stack, and the external `/desloppify` companion
-- `--skip-skills`: installs only the CLI/QMD setup now; you can install agent skills later with `bun run sync:wiki` or `bun run sync:full`
+- `full`: installs `/wiki` and the repo-owned `/forge` workflow stack; external optional skills remain outside the repository
+- `--skip-skills`: installs only qmd setup now; you can install agent skills later with `bun run sync:wiki` or `bun run sync:full`
 
 
 ## Forge operating rules
@@ -78,29 +78,34 @@ The CLI defaults to `~/Knowledge` and creates the minimal vault shape on first u
 
 ### 4. Install skills
 
-`sync:local` is the canonical install path. It relinks the CLI, refreshes qmd, installs the selected repo-owned skill set discovered under `skills/*/SKILL.md`, and in `full` mode adds the external `/desloppify` companion.
+`sync:local` is the canonical install path for qmd and skills. It does not relink the global `wiki` CLI by default; use `bun run sync:link-cli` when you intentionally want the global CLI to point at this checkout. `sync:local` refreshes qmd, installs the selected repo-owned skill set discovered under `skills/*/SKILL.md`, and in `full` mode installs configured external companions without bundling them into this repository.
 
 ```bash
 bun run sync:wiki                                             # wiki-only second-brain install set
 bun run sync:full                                             # full wiki+forge install set
 bun run sync:local -- --install-set wiki-only                 # equivalent explicit form
-bun run sync:local -- --install-set wiki-only --skip-skills   # CLI + QMD only
+bun run sync:local -- --install-set wiki-only --skip-skills   # qmd only; no agent skills
 ```
 
 Current full repo-owned skill set:
 
+- `diagnose`
 - `forge`
 - `grill-with-docs`
+- `handoff`
 - `improve-codebase-architecture`
 - `prd-to-slices`
-- `research`
 - `tdd`
 - `wiki`
 - `write-a-prd`
 
-External workflow companion:
+External optional skills:
 
-- `desloppify`
+- `research` for external investigation and evidence gathering
+- `prototype` for throwaway logic/UI exploration
+- `desloppify` for final code-quality scanning
+
+These remain external/on-demand skills. Do not re-add them under `skills/` as repo-owned bundled skills.
 
 `wiki-only` installs just:
 
@@ -110,11 +115,12 @@ If you want to install specific skills from your local checkout, use the repo-ow
 
 ```bash
 npx skills add FasalZein/desloppify
-npx skills@latest add ./skills/grill-with-docs -g
+npx skills@latest add ./skills/diagnose -g
 npx skills@latest add ./skills/forge -g
+npx skills@latest add ./skills/grill-with-docs -g
+npx skills@latest add ./skills/handoff -g
 npx skills@latest add ./skills/improve-codebase-architecture -g
 npx skills@latest add ./skills/prd-to-slices -g
-npx skills@latest add ./skills/research -g
 npx skills@latest add ./skills/tdd -g
 npx skills@latest add ./skills/wiki -g
 npx skills@latest add ./skills/write-a-prd -g
@@ -124,11 +130,12 @@ Or install them from GitHub:
 
 ```bash
 npx skills add FasalZein/desloppify
-npx skills@latest add FasalZein/wiki-forge/skills/grill-with-docs -g
+npx skills@latest add FasalZein/wiki-forge/skills/diagnose -g
 npx skills@latest add FasalZein/wiki-forge/skills/forge -g
+npx skills@latest add FasalZein/wiki-forge/skills/grill-with-docs -g
+npx skills@latest add FasalZein/wiki-forge/skills/handoff -g
 npx skills@latest add FasalZein/wiki-forge/skills/improve-codebase-architecture -g
 npx skills@latest add FasalZein/wiki-forge/skills/prd-to-slices -g
-npx skills@latest add FasalZein/wiki-forge/skills/research -g
 npx skills@latest add FasalZein/wiki-forge/skills/tdd -g
 npx skills@latest add FasalZein/wiki-forge/skills/wiki -g
 npx skills@latest add FasalZein/wiki-forge/skills/write-a-prd -g
@@ -137,7 +144,7 @@ npx skills@latest add FasalZein/wiki-forge/skills/write-a-prd -g
 Verify:
 
 ```bash
-npx skills list -g | grep -E "desloppify|forge|grill-with-docs|improve-codebase-architecture|prd-to-slices|research|tdd|wiki|write-a-prd"
+npx skills list -g | grep -E "desloppify|diagnose|forge|grill-with-docs|handoff|improve-codebase-architecture|prd-to-slices|tdd|wiki|write-a-prd"
 ```
 
 ### 5. Sync local updates
@@ -150,10 +157,11 @@ bun run sync:full  # wiki + forge workflow skills
 ```
 
 That refreshes:
-- the linked `wiki` CLI via `bun link`
 - the global `qmd` install plus native rebuild
 - repo-owned skills discovered from `skills/*/SKILL.md`
-- external workflow companions required by the full install set
+- configured external workflow companions for the full install set
+
+It does not relink the global `wiki` CLI by default. Run `bun run sync:link-cli` only when you intentionally want this checkout to own the global `wiki` command.
 
 `bun run sync:local -- --with-companions` is still accepted for compatibility, but today the default `full` install already includes the external workflow companion set.
 
@@ -225,15 +233,18 @@ After installing skills, Claude Code automatically picks them up. Start any non-
 /forge
 ```
 
-`/forge` expects these repo-owned workflow skills plus the external `/desloppify` companion to already be installed:
-- `/research`
+`/forge` expects the repo-owned workflow skills installed by `bun run sync:full`:
+- `/diagnose`
+- `/forge`
 - `/grill-with-docs`
+- `/handoff`
 - `/write-a-prd`
 - `/prd-to-slices`
 - `/tdd`
 - `/wiki`
 - `/improve-codebase-architecture`
-- `/desloppify`
+
+External optional skills such as `/research`, `/prototype`, and `/desloppify` can be loaded when the phase or task calls for them, but they are not repo-owned bundled skills.
 
 
 Layer contract:

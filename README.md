@@ -56,10 +56,10 @@ cd wiki-forge
 # or:
 ./install.sh --wiki-only
 ./install.sh --full
-./install.sh --wiki-only --skip-skills  # CLI + QMD only; install /wiki later if desired
+./install.sh --wiki-only --skip-skills  # qmd only; install /wiki later if desired
 ```
 
-The installer handles bun, dependencies, local sync of the CLI/qmd/skills, shell config, and the vault directory (`~/Knowledge`). `wiki-only` installs just the second-brain layer (`/wiki`). `full` installs the second-brain layer plus the Forge SDLC workflow stack (`/forge`, repo-owned workflow skills, and the external `/desloppify` companion).
+The installer handles bun, dependencies, qmd/skill sync, shell config, and the vault directory (`~/Knowledge`). `wiki-only` installs just the second-brain layer (`/wiki`). `full` installs the second-brain layer plus the repo-owned Forge SDLC workflow stack. External optional skills such as `research`, `prototype`, and `desloppify` stay outside the repository and can be installed on demand.
 
 Read next:
 
@@ -93,9 +93,10 @@ brew install sqlite   # macOS — required for Bun SDK hybrid retrieval
 ## Local Sync
 
 ```bash
-bun run sync:local                                      # relink CLI, refresh qmd, reinstall repo-owned skills, and add external workflow companions
-bun run sync:local -- --install-set wiki-only           # relink CLI/qmd and install only the wiki skill
-bun run sync:local -- --install-set wiki-only --skip-skills # relink CLI/qmd without installing agent skills
+bun run sync:local                                      # refresh qmd, reinstall repo-owned skills, and install configured external companions
+bun run sync:link-cli                                   # explicitly relink the global wiki CLI to this checkout
+bun run sync:local -- --install-set wiki-only           # refresh qmd and install only the wiki skill
+bun run sync:local -- --install-set wiki-only --skip-skills # refresh qmd without installing agent skills
 bun run sync:local -- --audit                           # audit the default full repo-owned skill set
 bun run sync:local -- --install-set wiki-only --audit   # audit only the wiki-only install set
 ```
@@ -400,34 +401,41 @@ Propagation rule:
 Repo-owned skills are installed via the local sync script and auto-discovered from `skills/*/SKILL.md`:
 
 ```bash
-bun run sync:local            # relink CLI, refresh qmd, install repo-owned skills, and add external workflow companions globally
+bun run sync:local            # refresh qmd, install repo-owned skills, and install configured external companions globally
+bun run sync:link-cli         # explicitly relink the global wiki CLI to this checkout
 bun run sync:local -- --audit # compare installed repo skills against the checked-out repo copies
 ```
 
 Current repo-owned skill set:
 
+- `diagnose`
 - `forge`
 - `grill-with-docs`
+- `handoff`
 - `improve-codebase-architecture`
 - `prd-to-slices`
-- `research`
 - `tdd`
 - `wiki`
 - `write-a-prd`
 
-External workflow companion:
+External optional skills:
 
-- `desloppify` via `npx skills add FasalZein/desloppify`
+- `research` for external investigation and evidence gathering
+- `prototype` for throwaway logic/UI exploration
+- `desloppify` for final code-quality scanning via `npx skills add FasalZein/desloppify`
+
+These skills are not bundled into this repository. Use the installed external skill when available; do not re-add it to `skills/` as a repo-owned skill.
 
 Or install any individual skill from GitHub:
 
 ```bash
 npx skills add FasalZein/desloppify
-npx skills@latest add FasalZein/wiki-forge/skills/grill-with-docs -g
+npx skills@latest add FasalZein/wiki-forge/skills/diagnose -g
 npx skills@latest add FasalZein/wiki-forge/skills/forge -g
+npx skills@latest add FasalZein/wiki-forge/skills/grill-with-docs -g
+npx skills@latest add FasalZein/wiki-forge/skills/handoff -g
 npx skills@latest add FasalZein/wiki-forge/skills/improve-codebase-architecture -g
 npx skills@latest add FasalZein/wiki-forge/skills/prd-to-slices -g
-npx skills@latest add FasalZein/wiki-forge/skills/research -g
 npx skills@latest add FasalZein/wiki-forge/skills/tdd -g
 npx skills@latest add FasalZein/wiki-forge/skills/wiki -g
 npx skills@latest add FasalZein/wiki-forge/skills/write-a-prd -g
