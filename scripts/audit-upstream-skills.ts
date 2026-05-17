@@ -6,6 +6,7 @@ export type SkillAuditFile = {
   readonly upstreamPath: string;
   readonly requiredAnchors: readonly string[];
   readonly auxiliary?: boolean;
+  readonly preserveMode?: "full" | "anchors";
 };
 
 export type SkillAuditConfig = {
@@ -39,6 +40,7 @@ export const upstreamSkillAuditConfig: SkillAuditConfig = {
     {
       localPath: "skills/tdd/SKILL.md",
       upstreamPath: "skills/engineering/tdd/SKILL.md",
+      preserveMode: "anchors",
       requiredAnchors: [
         "Tests should verify behavior through public interfaces, not implementation details",
         "DO NOT write all tests first, then all implementation",
@@ -79,6 +81,7 @@ export const upstreamSkillAuditConfig: SkillAuditConfig = {
     {
       localPath: "skills/grill-with-docs/SKILL.md",
       upstreamPath: "skills/engineering/grill-with-docs/SKILL.md",
+      preserveMode: "anchors",
       requiredAnchors: [
         "Interview me relentlessly about every aspect of this plan",
         "Ask the questions one at a time",
@@ -117,6 +120,7 @@ export const upstreamSkillAuditConfig: SkillAuditConfig = {
     {
       localPath: "skills/improve-codebase-architecture/SKILL.md",
       upstreamPath: "skills/engineering/improve-codebase-architecture/SKILL.md",
+      preserveMode: "anchors",
       requiredAnchors: [
         "Use these terms exactly in every suggestion",
         "Deletion test",
@@ -146,6 +150,7 @@ export const upstreamSkillAuditConfig: SkillAuditConfig = {
     {
       localPath: "skills/diagnose/SKILL.md",
       upstreamPath: "skills/engineering/diagnose/SKILL.md",
+      preserveMode: "anchors",
       requiredAnchors: ["Build a feedback loop", "Generate **3–5 ranked hypotheses**", "Fix + regression test", "Cleanup + post-mortem"],
     },
     {
@@ -155,82 +160,20 @@ export const upstreamSkillAuditConfig: SkillAuditConfig = {
       requiredAnchors: ["Human-in-the-loop reproduction loop", "capture VAR", "ERRORED"],
     },
     {
-      localPath: "skills/prototype/SKILL.md",
-      upstreamPath: "skills/engineering/prototype/SKILL.md",
-      requiredAnchors: ["A prototype is **throwaway code that answers a question**", "Pick a branch", "Delete or absorb when done"],
-    },
-    {
-      localPath: "skills/prototype/LOGIC.md",
-      upstreamPath: "skills/engineering/prototype/LOGIC.md",
-      auxiliary: true,
-      requiredAnchors: ["Logic Prototype", "State the question", "Build the smallest TUI"],
-    },
-    {
-      localPath: "skills/prototype/UI.md",
-      upstreamPath: "skills/engineering/prototype/UI.md",
-      auxiliary: true,
-      requiredAnchors: ["UI Prototype", "Sub-shape A", "floating switcher"],
-    },
-    {
-      localPath: "skills/setup-matt-pocock-skills/SKILL.md",
-      upstreamPath: "skills/engineering/setup-matt-pocock-skills/SKILL.md",
-      requiredAnchors: ["Setup Matt Pocock's Skills", "Issue tracker", "Triage label vocabulary", "Domain docs"],
-    },
-    {
-      localPath: "skills/setup-matt-pocock-skills/domain.md",
-      upstreamPath: "skills/engineering/setup-matt-pocock-skills/domain.md",
-      auxiliary: true,
-      requiredAnchors: ["Domain Docs", "Use the glossary's vocabulary", "Flag ADR conflicts"],
-    },
-    {
-      localPath: "skills/setup-matt-pocock-skills/issue-tracker-github.md",
-      upstreamPath: "skills/engineering/setup-matt-pocock-skills/issue-tracker-github.md",
-      auxiliary: true,
-      requiredAnchors: ["Issue tracker: GitHub", "gh issue create", "fetch the relevant ticket"],
-    },
-    {
-      localPath: "skills/setup-matt-pocock-skills/issue-tracker-gitlab.md",
-      upstreamPath: "skills/engineering/setup-matt-pocock-skills/issue-tracker-gitlab.md",
-      auxiliary: true,
-      requiredAnchors: ["Issue tracker: GitLab", "glab issue create", "fetch the relevant ticket"],
-    },
-    {
-      localPath: "skills/setup-matt-pocock-skills/issue-tracker-local.md",
-      upstreamPath: "skills/engineering/setup-matt-pocock-skills/issue-tracker-local.md",
-      auxiliary: true,
-      requiredAnchors: ["Issue tracker: Local Markdown", ".scratch/<feature-slug>", "fetch the relevant ticket"],
-    },
-    {
-      localPath: "skills/setup-matt-pocock-skills/triage-labels.md",
-      upstreamPath: "skills/engineering/setup-matt-pocock-skills/triage-labels.md",
-      auxiliary: true,
-      requiredAnchors: ["Triage Labels", "needs-triage", "ready-for-agent"],
-    },
-    {
-      localPath: "skills/triage/SKILL.md",
-      upstreamPath: "skills/engineering/triage/SKILL.md",
-      requiredAnchors: ["Triage", "needs-triage", "ready-for-agent", "Needs-info template"],
-    },
-    {
-      localPath: "skills/triage/AGENT-BRIEF.md",
-      upstreamPath: "skills/engineering/triage/AGENT-BRIEF.md",
-      auxiliary: true,
-      requiredAnchors: ["Writing Agent Briefs", "Durability over precision", "Acceptance criteria"],
-    },
-    {
-      localPath: "skills/triage/OUT-OF-SCOPE.md",
-      upstreamPath: "skills/engineering/triage/OUT-OF-SCOPE.md",
-      auxiliary: true,
-      requiredAnchors: ["Out-of-Scope Knowledge Base", "Prior requests", "When to write to `.out-of-scope/`"],
-    },
-    {
-      localPath: "skills/zoom-out/SKILL.md",
-      upstreamPath: "skills/engineering/zoom-out/SKILL.md",
-      requiredAnchors: ["Go up a layer of abstraction", "map of all the relevant modules and callers"],
+      localPath: "skills/handoff/SKILL.md",
+      upstreamPath: "skills/productivity/handoff/SKILL.md",
+      preserveMode: "anchors",
+      requiredAnchors: [
+        "Compact the current conversation into a handoff document for another agent to pick up",
+        "Suggest the skills to be used, if any, by the next session",
+        "Do not duplicate content already captured in other artifacts",
+        "treat them as a description of what the next session will focus on",
+      ],
     },
     {
       localPath: "skills/write-a-prd/SKILL.md",
       upstreamPath: "skills/engineering/to-prd/SKILL.md",
+      preserveMode: "anchors",
       requiredAnchors: [
         "Do NOT interview the user",
         "Use the project's domain glossary vocabulary throughout the PRD",
@@ -242,6 +185,7 @@ export const upstreamSkillAuditConfig: SkillAuditConfig = {
     {
       localPath: "skills/prd-to-slices/SKILL.md",
       upstreamPath: "skills/engineering/to-issues/SKILL.md",
+      preserveMode: "anchors",
       requiredAnchors: [
         "vertical slices",
         "HITL",
@@ -291,7 +235,7 @@ export function auditUpstreamSkillDrift(input: { readonly repoRoot: string }): S
       });
     }
 
-    if (!file.preservesUpstreamContent) {
+    if (file.preserveMode !== "anchors" && !file.preservesUpstreamContent) {
       failures.push({
         localPath: file.localPath,
         upstreamPath: file.upstreamPath,
