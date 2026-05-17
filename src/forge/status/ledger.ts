@@ -3,6 +3,7 @@ import { TEST_VERIFIED_LEVEL, VAULT_ROOT } from "../../constants";
 import {
   FORGE_PHASES,
   isForgePhaseSkippable,
+  normalizeForgePhase,
   normalizeForgeLedger,
   normalizeForgeWorkflowProfile,
   readForgeLedgerPhase,
@@ -57,7 +58,7 @@ export function buildAuthoredForgeStatusLedger(input: BuildAuthoredForgeStatusLe
     ...(input.parentPrd ? { parentPrd: input.parentPrd } : {}),
     ...(input.decisionRefs.length
       ? {
-          "domain-model": {
+          "grill-with-docs": {
             completedAt: input.decisionRefs[0].completedAt,
             decisionRefs: input.decisionRefs.map((entry) => entry.ref),
           },
@@ -107,7 +108,7 @@ export function readAuthoredHubLedger(value: unknown, project: string, sliceId: 
     out.workflowProfile = normalizeForgeWorkflowProfile(ledger.workflowProfile ?? ledger.workflow_profile);
   }
   for (const phase of FORGE_PHASES) {
-    const phaseValue = phase === "domain-model" ? ledger["domain-model"] ?? ledger.grill : ledger[phase];
+    const phaseValue = phase === "grill-with-docs" ? ledger["grill-with-docs"] ?? ledger["domain-model"] ?? ledger.grill : ledger[phase];
     if (phaseValue && typeof phaseValue === "object") {
       writeForgeLedgerPhase(out, phase, phaseValue);
     }
@@ -142,8 +143,8 @@ function coerceSkippedPhases(raw: unknown): SkippedPhaseRecord[] {
   for (const entry of raw) {
     if (!entry || typeof entry !== "object") continue;
     const rec = entry as Record<string, unknown>;
-    const phase = rec.phase;
-    if (typeof phase !== "string" || !isForgePhaseSkippable(phase as ForgePhase)) continue;
+    const phase = normalizeForgePhase(rec.phase);
+    if (!phase || !isForgePhaseSkippable(phase)) continue;
     const reason = typeof rec.reason === "string" ? rec.reason.trim() : "";
     if (!reason) continue;
     const skippedAt = typeof rec.skippedAt === "string" && rec.skippedAt.trim() ? rec.skippedAt : new Date(0).toISOString();

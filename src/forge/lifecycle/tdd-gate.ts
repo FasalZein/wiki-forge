@@ -30,8 +30,8 @@ export function evaluateTddGate(
     for (const green of greenRecords) {
       latestGreen = green;
       if (compareRecordedAt(red, green) >= 0) continue;
-      if (red.command !== green.command) {
-        invalidReason = "green TDD evidence must use the exact same command as the red evidence";
+      if (!isSameTddTarget(red, green)) {
+        invalidReason = "green TDD evidence must use the same command as the red evidence, or be recorded in the same TDD cycle";
         continue;
       }
       if (!hasSharedTestPath(red, green)) {
@@ -78,8 +78,8 @@ function compareRecordedAt(left: TddEvidenceRecord, right: TddEvidenceRecord) {
 
 function redRecovery(context?: { readonly project?: string; readonly sliceId?: string }): TddRecovery {
   return {
-    command: `${commandPrefix("red", context)} --test <path> --command "<failing test command>"`,
-    description: "Record the failing red step before implementing the fix.",
+    command: `${commandPrefix("cycle", context)} --test <path> --red-command "<failing test command>" --green-command "<passing test command>"`,
+    description: "Record the failing red step and later passing green step as one TDD cycle."
   };
 }
 
@@ -87,11 +87,16 @@ function greenRecovery(red: TddEvidenceRecord, context?: { readonly project?: st
   const test = normalizeTestPath(red.testPaths[0] ?? "<same-path>");
   return {
     command: `${commandPrefix("green", context)} --test ${test} --command ${JSON.stringify(red.command)}`,
-    description: "Record the passing green step using the same command and at least one same test path.",
+    description: "Record the passing green step using the same command, or use tdd cycle when the passing command differs but targets the same test."
   };
 }
 
-function commandPrefix(action: "red" | "green", context?: { readonly project?: string; readonly sliceId?: string }) {
+function isSameTddTarget(red: TddEvidenceRecord, green: TddEvidenceRecord) {
+  if (red.command === green.command) return true;
+  return Boolean(red.cycleId && red.cycleId === green.cycleId);
+}
+
+function commandPrefix(action: "red" | "green" | "cycle", context?: { readonly project?: string; readonly sliceId?: string }) {
   if (context?.project && context.sliceId) return `wiki forge tdd ${action} ${context.project} ${context.sliceId}`;
   return `wiki forge tdd ${action} <project> <slice-id>`;
 }

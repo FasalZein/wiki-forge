@@ -1,5 +1,7 @@
+import { readFileSync } from "node:fs";
 import { requireValue } from "../../cli-shared";
 import { printJson, printLine } from "../../lib/cli-output";
+import { buildPhaseSkillPacket, renderPhaseSkillPacket, type PhaseSkillPacket } from "./phase-skill-packet";
 import {
   addPlanningPrd,
   addPlanningSlice,
@@ -19,7 +21,7 @@ export async function forgePlanCommand(args: string[]): Promise<void> {
   if (parsed.action === "answer") {
     requireValue(parsed.skill, "--skill");
     requireValue(parsed.answerId, "--answer");
-    requireValue(parsed.response, "--response");
+    requireValue(parsed.response, "--response or --response-file");
     const session = await recordPlanningAnswer({
       project: parsed.project,
       featureName: parsed.featureName,
@@ -86,6 +88,36 @@ type ParsedPlanArgs = {
   readonly sliceTitle?: string;
 };
 
+const PLAN_VALUE_FLAGS = [
+  "--agent",
+  "--repo",
+  "--feature",
+  "--prd-name",
+  "--title",
+  "--slices",
+  "--answer",
+  "--plan-answer",
+  "--plan-answer-file",
+  "--response",
+  "--response-file",
+  "--skill",
+  "--recommendation",
+  "--prd",
+  "--slice",
+  "--torpathy-answer",
+  "--torpathy-answer-file",
+  "--grill-with-docs-answer",
+  "--grill-with-docs-answer-file",
+  "--domain-model-answer",
+  "--domain-model-answer-file",
+  "--prd-grill-answer",
+  "--prd-grill-answer-file",
+] as const;
+
+const PLAN_BOOLEAN_FLAGS = ["--json", "--create-artifacts", "--complete-session"] as const;
+
+const PLAN_KNOWN_FLAGS = new Set<string>([...PLAN_VALUE_FLAGS, ...PLAN_BOOLEAN_FLAGS]);
+
 type PlanningSessionRequiredPacket = {
   readonly status: "blocked";
   readonly project: string;
@@ -93,14 +125,15 @@ type PlanningSessionRequiredPacket = {
   readonly gate: "planning-session-required";
   readonly canCreatePrd: false;
   readonly canCreateSlices: false;
-  readonly requiredSequence: readonly ["torpathy", "domain-model", "grill-prd", "write-prd", "prd-to-slices"];
-  readonly requiredSkills: readonly ["torpathy", "domain-model", "grill-me", "write-a-prd", "prd-to-slices"];
+  readonly requiredSequence: readonly ["plan", "prd-candidate", "slice-breakdown"];
+  readonly requiredSkills: readonly ["forge", "grill-with-docs", "write-a-prd", "prd-to-slices"];
   readonly supportsMultiplePrds: true;
+  readonly phasePacket: PhaseSkillPacket;
   readonly missing: readonly string[];
   readonly session: PlanningSession | null;
   readonly nextQuestion: {
     readonly id: "plan-scope-boundary";
-    readonly skill: "domain-model";
+    readonly skill: "plan";
     readonly question: string;
     readonly recommendation: string;
   };
@@ -111,23 +144,37 @@ type PlanningSessionRequiredPacket = {
 };
 
 function parsePlanArgs(args: readonly string[]): ParsedPlanArgs {
-  const positional = readPositionalArgs(args, ["--agent", "--repo", "--feature", "--prd-name", "--title", "--slices", "--answer", "--response", "--skill", "--recommendation", "--prd", "--slice"]);
+  validateKnownPlanFlags(args);
+  const positional = readPositionalArgs(args, PLAN_VALUE_FLAGS);
   const project = positional[0];
   requireValue(project, "project");
   const featureName = positional.slice(1).join(" ").trim() || readFlagValue(args, "--feature") || readFlagValue(args, "--title") || "unnamed feature";
   if (args.includes("--create-artifacts")) return { project, featureName, action: "create-artifacts" };
   if (args.includes("--complete-session")) return { project, featureName, action: "complete-session" };
+  const convenienceAnswer = readConvenienceAnswer(args);
+  if (convenienceAnswer) {
+    return {
+      project,
+      featureName,
+      action: "answer",
+      answerId: convenienceAnswer.answerId,
+      response: convenienceAnswer.response,
+      skill: convenienceAnswer.skill,
+      recommendation: readFlagValue(args, "--recommendation"),
+      prdName: readFlagValue(args, "--prd"),
+    };
+  }
   const answerId = readFlagValue(args, "--answer");
   if (answerId) {
-    const response = readFlagValue(args, "--response");
-    requireValue(response, "--response");
+    const response = readResponseValue(args);
+    requireValue(response, "--response or --response-file");
     return {
       project,
       featureName,
       action: "answer",
       answerId,
       response,
-      skill: parsePlanningSkill(readFlagValue(args, "--skill") ?? "domain-model"),
+      skill: parsePlanningSkill(readFlagValue(args, "--skill") ?? "plan"),
       recommendation: readFlagValue(args, "--recommendation"),
       prdName: readFlagValue(args, "--prd"),
     };
@@ -140,8 +187,54 @@ function parsePlanArgs(args: readonly string[]): ParsedPlanArgs {
 }
 
 function parsePlanningSkill(value: string): PlanningSkill {
-  if (value === "torpathy" || value === "domain-model" || value === "grill-me") return value;
+  if (value === "plan" || value === "torpathy" || value === "grill-with-docs" || value === "grill-me") return value;
+  if (value === "domain-model") return "grill-with-docs";
   throw new Error(`invalid planning skill: ${value}`);
+}
+
+function validateKnownPlanFlags(args: readonly string[]): void {
+  for (const arg of args) {
+    if (!arg.startsWith("--")) continue;
+    if (PLAN_KNOWN_FLAGS.has(arg)) continue;
+    throw new Error(`unknown forge plan option: ${arg}`);
+  }
+}
+
+type ConvenienceAnswer = {
+  readonly answerId: string;
+  readonly skill: PlanningSkill;
+  readonly response: string;
+};
+
+function readConvenienceAnswer(args: readonly string[]): ConvenienceAnswer | null {
+  const plan = readFlagOrFile(args, "--plan-answer", "--plan-answer-file");
+  if (plan !== undefined) return { answerId: "plan", skill: "plan", response: plan };
+
+  const torpathy = readFlagOrFile(args, "--torpathy-answer", "--torpathy-answer-file");
+  if (torpathy !== undefined) return { answerId: "torpathy-boundary", skill: "torpathy", response: torpathy };
+
+  const grillWithDocs = readFlagOrFile(args, "--grill-with-docs-answer", "--grill-with-docs-answer-file")
+    ?? readFlagOrFile(args, "--domain-model-answer", "--domain-model-answer-file");
+  if (grillWithDocs !== undefined) return { answerId: "context-and-decisions", skill: "grill-with-docs", response: grillWithDocs };
+
+  const prdGrill = readFlagOrFile(args, "--prd-grill-answer", "--prd-grill-answer-file");
+  if (prdGrill !== undefined) return { answerId: "prd-grill", skill: "grill-me", response: prdGrill };
+
+  return null;
+}
+
+function readResponseValue(args: readonly string[]): string | undefined {
+  return readFlagOrFile(args, "--response", "--response-file");
+}
+
+function readFlagOrFile(args: readonly string[], valueFlag: string, fileFlag: string): string | undefined {
+  const inline = readFlagValue(args, valueFlag);
+  const filePath = readFlagValue(args, fileFlag);
+  if (inline !== undefined && filePath !== undefined) {
+    throw new Error(`use either ${valueFlag} or ${fileFlag}, not both`);
+  }
+  if (filePath !== undefined) return readFileSync(filePath, "utf8");
+  return inline;
 }
 
 function buildPlanningSessionRequiredPacket(project: string, featureName: string, session: PlanningSession | null, gate: PlanningSessionGate): PlanningSessionRequiredPacket {
@@ -152,29 +245,30 @@ function buildPlanningSessionRequiredPacket(project: string, featureName: string
     gate: "planning-session-required",
     canCreatePrd: false,
     canCreateSlices: false,
-    requiredSequence: ["torpathy", "domain-model", "grill-prd", "write-prd", "prd-to-slices"],
-    requiredSkills: ["torpathy", "domain-model", "grill-me", "write-a-prd", "prd-to-slices"],
+    requiredSequence: ["plan", "prd-candidate", "slice-breakdown"],
+    requiredSkills: ["forge", "grill-with-docs", "write-a-prd", "prd-to-slices"],
     supportsMultiplePrds: true,
+    phasePacket: buildPhaseSkillPacket("plan", { project, featureName }),
     missing: gate.missing,
     session,
     nextQuestion: {
       id: "plan-scope-boundary",
-      skill: "domain-model",
+      skill: "plan",
       question: "What precise user-visible outcome should the first PRD under this feature deliver, and what is explicitly out of scope?",
-      recommendation: "Define one narrow PRD outcome first, record the terms/decisions in the domain model, then grill that PRD before creating slices.",
+      recommendation: "Answer once with the user-visible outcome, non-goals, context/decisions, PRD acceptance criteria, and initial slice breakdown; Forge will fan that plan into wiki/Forge artifacts.",
     },
     recovery: [
       {
-        command: `Start a Torpathy + domain-model planning session for ${project}`,
-        description: "Resolve the feature boundary, terminology, and ownership before PRD creation.",
+        command: `wiki forge plan ${project} ${JSON.stringify(featureName)} --plan-answer-file <path>`,
+        description: "Record one plan packet covering outcome, non-goals, context/decisions, PRD criteria, and slice breakdown.",
       },
       {
-        command: "Run one grill session per PRD candidate",
-        description: "A feature may contain multiple PRDs, but each PRD needs its own challenged scope and acceptance criteria.",
+        command: `wiki forge plan ${project} ${JSON.stringify(featureName)} --prd <name> --slice <title>`,
+        description: "Add PRD and slice candidates from the same plan packet; repeat --slice for thin tracer bullets.",
       },
       {
-        command: "Create PRD(s), then decompose approved PRD(s) into slices",
-        description: "Do not create implementation slices until the relevant PRD session is complete.",
+        command: `wiki forge plan ${project} ${JSON.stringify(featureName)} --complete-session && wiki forge plan ${project} ${JSON.stringify(featureName)} --create-artifacts`,
+        description: "Complete and create artifacts after the one Plan packet has PRD and slice candidates.",
       },
     ],
   };
@@ -194,6 +288,8 @@ function renderPlanningSessionRequiredPacket(packet: PlanningSessionRequiredPack
   printLine(`next question: ${packet.nextQuestion.question}`);
   printLine(`recommendation: ${packet.nextQuestion.recommendation}`);
   printLine(`required sequence: ${packet.requiredSequence.join(" -> ")}`);
+  printLine("");
+  printLine(renderPhaseSkillPacket(packet.phasePacket));
 }
 
 function renderPlanMutation(payload: { readonly status: "recorded" | "ready-for-artifacts" | "artifacts-created"; readonly session: PlanningSession }, json: boolean): void {

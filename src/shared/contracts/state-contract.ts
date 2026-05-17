@@ -3,7 +3,7 @@ import type { FrontmatterData } from "./frontmatter";
 export const STATE_FIELD_AUTHORITIES = ["authored", "computed", "evidence"] as const;
 export type StateFieldAuthority = (typeof STATE_FIELD_AUTHORITIES)[number];
 
-export const RECONCILER_SCOPES = ["slice", "project", "history", "protocol"] as const;
+export const RECONCILER_SCOPES = ["slice", "project", "history", "orientation"] as const;
 export type ReconcilerScope = (typeof RECONCILER_SCOPES)[number];
 
 export type StateContractId =
@@ -13,7 +13,7 @@ export type StateContractId =
   | "slice-index"
   | "slice-plan"
   | "slice-test-plan"
-  | "protocol-surface"
+  | "orientation-surface"
   | "session-handover";
 
 export type StateContract = {
@@ -43,9 +43,9 @@ export const RECONCILER_WRITE_SCOPE_CONTRACTS: Record<ReconcilerScope, { frontma
     frontmatter: ["updated"],
     body: ["append-only-history"],
   },
-  protocol: {
-    frontmatter: ["updated", "protocol_version"],
-    body: ["managed-protocol-block"],
+  orientation: {
+    frontmatter: ["updated", "orientation_version"],
+    body: ["managed-orientation-block"],
   },
 };
 
@@ -54,7 +54,7 @@ const STATE_CONTRACTS: Record<StateContractId, StateContract> = {
     id: "project-summary",
     scope: "project",
     frontmatter: {
-      authored: ["title", "type", "project", "status", "repo", "base", "code_paths", "agents", "protocol_scopes"],
+      authored: ["title", "type", "project", "status", "repo", "base", "code_paths", "agents", "orientation_scopes"],
       computed: ["updated", "computed_status"],
       evidence: ["verification_level", "verified_against", "previous_level", "stale_since"],
     },
@@ -110,15 +110,15 @@ const STATE_CONTRACTS: Record<StateContractId, StateContract> = {
     },
     writePolicy: RECONCILER_WRITE_SCOPE_CONTRACTS.slice,
   },
-  "protocol-surface": {
-    id: "protocol-surface",
-    scope: "protocol",
+  "orientation-surface": {
+    id: "orientation-surface",
+    scope: "orientation",
     frontmatter: {
       authored: ["project", "scope", "applies_to"],
-      computed: ["managed_by", "protocol_version", "updated"],
+      computed: ["managed_by", "orientation_version", "updated"],
       evidence: [],
     },
-    writePolicy: RECONCILER_WRITE_SCOPE_CONTRACTS.protocol,
+    writePolicy: RECONCILER_WRITE_SCOPE_CONTRACTS.orientation,
   },
   "session-handover": {
     id: "session-handover",
@@ -139,7 +139,7 @@ export function getStateContract(id: StateContractId): StateContract {
 export function resolveStateContract(relPath: string, data: FrontmatterData): StateContract | null {
   const normalized = relPath.replaceAll("\\", "/").replace(/^\.\//u, "");
   if (normalized === "_summary.md" && data.type === "project") return STATE_CONTRACTS["project-summary"];
-  if ((normalized === "AGENTS.md" || normalized === "CLAUDE.md") && typeof data.managed_by === "string") return STATE_CONTRACTS["protocol-surface"];
+  if ((normalized === "AGENTS.md" || normalized === "CLAUDE.md") && typeof data.managed_by === "string") return STATE_CONTRACTS["orientation-surface"];
   if (/^handovers\/[^/]+\.md$/u.test(normalized) && data.type === "handover") return STATE_CONTRACTS["session-handover"];
   if (/^specs\/features\/FEAT-\d{3,}-[^/]+\.md$/u.test(normalized) && data.spec_kind === "feature") return STATE_CONTRACTS.feature;
   if (/^specs\/prds\/PRD-\d{3,}-[^/]+\.md$/u.test(normalized) && data.spec_kind === "prd") return STATE_CONTRACTS.prd;

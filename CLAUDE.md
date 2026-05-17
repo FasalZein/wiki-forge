@@ -1,22 +1,29 @@
 ---
 managed_by: wiki-forge
-protocol_version: 2
+orientation_version: 2
 project: wiki-forge
 scope: root
 applies_to: .
+vault_root: /Users/tothemoon/Knowledge
+project_wiki_root: projects/wiki-forge
+updated: 2026-05-15T20:59:26.952Z
 ---
-<!-- wiki-forge:agent-protocol:start -->
-# Agent Protocol
+<!-- wiki-forge:orientation:start -->
+# Wiki Project Orientation
 
 > Managed by wiki-forge. Keep local repo-specific notes below the managed block.
-> `AGENTS.md` and `CLAUDE.md` carry the same sync-managed protocol block. Do not treat them as separate policy sources.
+> `AGENTS.md` and `CLAUDE.md` carry the same wiki-managed orientation block. Do not treat them as separate policy sources.
 
 Scope: repo root
+Knowledge vault root: `/Users/tothemoon/Knowledge`
+Project wiki root: `/Users/tothemoon/Knowledge/projects/wiki-forge`
+
+Do not create wiki pages under the repository unless the repository itself is the configured Knowledge vault. Use the `wiki` CLI so paths resolve through `KNOWLEDGE_VAULT_ROOT`.
 
 Use `/forge` for non-trivial implementation work.
 Use `/wiki` for retrieval, refresh, drift, verification, and closeout review.
 If slash-skill aliases are unavailable, run the equivalent `wiki` CLI lifecycle directly.
-`wiki protocol sync` only syncs this managed block; it does not enforce behavior or sync skill policy.
+Use `wiki init <project> --repo <path>` for repo/vault orientation; AGENTS.md and CLAUDE.md updates are wiki-owned internals, not operator commands.
 
 ## Code Quality
 
@@ -24,7 +31,7 @@ Codex (GPT-5-class reviewer) reviews every change before it merges. Write as if 
 - Smaller, more focused diffs. Every changed line should trace to the task.
 - Honest names. No `foo`, no `handleStuff`, no vague `utils`.
 - Tight types. No `any`, no unchecked casts, no silent `as unknown as T`.
-- Real error handling. No bare `catch {}`, no swallowed promises, no `throw new Error("TODO")`.
+- Real error handling. No bare `catch {}`, no swallowed promises, no placeholder throw sites.
 - Tests that describe behavior, not implementation. Delete shallow tests you replace.
 - Match the surrounding style even when you'd design differently.
 
@@ -38,7 +45,7 @@ The skills define all available commands. This block enforces the contract, not 
 Agent surface (3 commands): `wiki forge plan wiki-forge <feature-name>`, `wiki forge run wiki-forge [slice-id] --repo <path>`, `wiki forge next wiki-forge`
 Session start: `wiki resume wiki-forge --repo <path> --base <rev>`
 
-<!-- wiki-forge:agent-protocol:end -->
+<!-- wiki-forge:orientation:end -->
 
 # CLAUDE
 
@@ -64,4 +71,4 @@ export KNOWLEDGE_VAULT_ROOT=~/Knowledge
 ## Notes
 
 - `wiki` is globally available on PATH.
-- `AGENTS.md` is sync-managed from the same protocol source as `CLAUDE.md`; do not treat them as separate workflow policies.
+- `AGENTS.md` is sync-managed from the same wiki orientation source as `CLAUDE.md`; do not treat them as separate workflow policies.

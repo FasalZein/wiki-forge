@@ -16,13 +16,16 @@ export function phaseRecommendation(project: string, sliceId: string, nextPhase:
           `hand off accepted findings into project truth, then bridge the slice with wiki research bridge <research-page> --project ${project} --slice ${sliceId}`,
         loadSkill: skill,
       };
-    case "domain-model":
+    case "grill-with-docs":
       return {
-        kind: "needs-domain-model",
-        reason: "workflow ledger shows the domain-model phase is incomplete",
+        kind: "needs-grill-with-docs",
+        reason: "workflow ledger shows the grill-with-docs phase is incomplete",
         command:
-          `${skill} — sharpen terms, append durable decisions to projects/${project}/decisions.md, ` +
-          `update projects/${project}/architecture/domain-language.md, and surface ambiguities before PRD authoring`,
+          `${skill} — ask one question at a time; read code/wiki before asking; ` +
+          `write context to projects/${project}/architecture/domain-language.md or projects/${project}/architecture/contexts/<context>.md ` +
+          `indexed by projects/${project}/architecture/context-map.md; ` +
+          `write ADR bodies under projects/${project}/adrs/ and maintain projects/${project}/decisions.md as an index; ` +
+          `prefer wiki forge grill record ${project} for stable refs`,
         loadSkill: skill,
       };
     case "prd":

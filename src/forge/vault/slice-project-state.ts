@@ -1,24 +1,28 @@
 import matter from "gray-matter";
 import { VAULT_ROOT } from "../../constants";
 import type { ForgeProjectState } from "../lifecycle/types";
-import { parseVaultDocument } from "./frontmatter-codec";
 import { readProjectSliceDocuments } from "./load-project";
-import { decodeForgeRecord } from "./records";
+import { decodeForgeRecord, parseVaultDocument } from "./records";
 
 export async function loadForgeProjectState(project: string, vaultRoot = VAULT_ROOT): Promise<ForgeProjectState> {
   const documents = await readProjectSliceDocuments(project, vaultRoot);
+  const sliceStatuses: Record<string, "draft" | "ready" | "in-progress" | "done" | "cancelled"> = {};
+  const activeSlices = documents.flatMap((document) => {
+    const decoded = decodeForgeRecord(parseVaultDocument(document.path, document.markdown));
+    if (decoded.status !== "valid" || decoded.record.kind !== "slice") return [];
+    sliceStatuses[decoded.record.taskId] = decoded.record.status;
+    if (decoded.record.status !== "in-progress") return [];
+    const claimedBy = readClaimedBy(document.markdown);
+    return [{
+      project,
+      sliceId: decoded.record.taskId,
+      ...(claimedBy ? { claimedBy } : {}),
+    }];
+  });
   return {
     project,
-    activeSlices: documents.flatMap((document) => {
-      const decoded = decodeForgeRecord(parseVaultDocument(document.path, document.markdown));
-      if (decoded.status !== "valid" || decoded.record.kind !== "slice" || decoded.record.status !== "in-progress") return [];
-      const claimedBy = readClaimedBy(document.markdown);
-      return [{
-        project,
-        sliceId: decoded.record.taskId,
-        ...(claimedBy ? { claimedBy } : {}),
-      }];
-    }),
+    activeSlices,
+    sliceStatuses,
   };
 }
 

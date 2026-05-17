@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { parse as parseJsonc, printParseErrorCode, type ParseError } from "jsonc-parser";
 import { printError } from "../cli-output";
-type ForgePhase = "research" | "domain-model" | "prd" | "slices" | "tdd" | "verify";
+type ForgePhase = "research" | "grill-with-docs" | "prd" | "slices" | "tdd" | "verify";
 
 export type ConfigSource = "default" | "system" | "project";
 
@@ -22,7 +22,7 @@ export interface ResolvedConfig {
   workflow: {
     phaseSkills: {
       research: ConfigLeaf<string>;
-      domainModel: ConfigLeaf<string>;
+      grillWithDocs: ConfigLeaf<string>;
       prd: ConfigLeaf<string>;
       slices: ConfigLeaf<string>;
       tdd: ConfigLeaf<string>;
@@ -48,6 +48,7 @@ const KNOWN_LEAF_PATHS = new Set([
   "vault.root",
   "repo.ignore",
   "workflow.phaseSkills.research",
+  "workflow.phaseSkills.grillWithDocs",
   "workflow.phaseSkills.domainModel",
   "workflow.phaseSkills.prd",
   "workflow.phaseSkills.slices",
@@ -77,7 +78,7 @@ const DEFAULT_CONFIG: ResolvedConfig = {
   workflow: {
     phaseSkills: {
       research: { value: "/research", source: "default" },
-      domainModel: { value: "/domain-model", source: "default" },
+      grillWithDocs: { value: "/grill-with-docs", source: "default" },
       prd: { value: "/write-a-prd", source: "default" },
       slices: { value: "/prd-to-slices", source: "default" },
       tdd: { value: "/tdd", source: "default" },
@@ -97,7 +98,7 @@ function defaultConfig(): ResolvedConfig {
     workflow: {
       phaseSkills: {
         research: { value: DEFAULT_CONFIG.workflow.phaseSkills.research.value, source: "default" },
-        domainModel: { value: DEFAULT_CONFIG.workflow.phaseSkills.domainModel.value, source: "default" },
+        grillWithDocs: { value: DEFAULT_CONFIG.workflow.phaseSkills.grillWithDocs.value, source: "default" },
         prd: { value: DEFAULT_CONFIG.workflow.phaseSkills.prd.value, source: "default" },
         slices: { value: DEFAULT_CONFIG.workflow.phaseSkills.slices.value, source: "default" },
         tdd: { value: DEFAULT_CONFIG.workflow.phaseSkills.tdd.value, source: "default" },
@@ -204,7 +205,11 @@ function applyLayer(
         );
       }
       const key = path.slice("workflow.phaseSkills.".length);
-      if (key === "research" || key === "domainModel" || key === "prd" || key === "slices" || key === "tdd" || key === "verify") {
+      if (key === "domainModel") {
+        config.workflow.phaseSkills.grillWithDocs = { value, source };
+        return;
+      }
+      if (key === "research" || key === "grillWithDocs" || key === "prd" || key === "slices" || key === "tdd" || key === "verify") {
         config.workflow.phaseSkills[key] = { value, source };
         return;
       }
@@ -245,7 +250,7 @@ export function ignorePatterns(config: ResolvedConfig): string[] {
 }
 
 function phaseSkillKey(phase: ForgePhase): keyof ResolvedConfig["workflow"]["phaseSkills"] {
-  return phase === "domain-model" ? "domainModel" : phase;
+  return phase === "grill-with-docs" ? "grillWithDocs" : phase;
 }
 
 export function phaseSkill(config: ResolvedConfig, phase: ForgePhase): ConfigLeaf<string> {

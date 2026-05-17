@@ -6,12 +6,14 @@ import {
   renderProtocolSurface,
 } from "../src/wiki/protocol/source";
 
-describe("protocol source library", () => {
+describe("orientation source library", () => {
   test("defines the canonical policy model and renderer", () => {
     const source = buildCanonicalProtocolSource("demo", { path: ".", scope: "root" });
     const rendered = renderProtocolSurface("demo", { path: ".", scope: "root" });
 
     expect(source.workflowLines).toContain("Use `/forge` for non-trivial implementation work.");
+    expect(rendered).toContain("# Wiki Project Orientation");
+    expect(rendered).toContain("orientation_version: 2");
     expect(rendered).toContain("## Workflow Enforcement");
     expect(rendered).toContain("`wiki forge plan demo <feature-name>`");
     expect(rendered).toContain("`wiki forge run demo [slice-id] --repo <path>`");

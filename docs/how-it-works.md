@@ -82,8 +82,7 @@ or:
 For closeout, Forge requires explicit evidence:
 
 ```bash
-wiki forge tdd red my-app MY-APP-001 --test tests/foo.test.ts --command "bun test tests/foo.test.ts" --note "expected failure before implementation"
-wiki forge tdd green my-app MY-APP-001 --test tests/foo.test.ts --command "bun test tests/foo.test.ts" --note "same command now passes"
+wiki forge tdd cycle my-app MY-APP-001 --test tests/foo.test.ts --red-command "bun test tests/foo.test.ts" --green-command "bun test tests/foo.test.ts" --note "red failed before implementation; green passes after"
 wiki forge evidence my-app MY-APP-001 verify --command "bun test tests/foo.test.ts && bun run check"
 wiki forge review record my-app MY-APP-001 --verdict approved --reviewer codex
 wiki forge run my-app MY-APP-001 --repo ~/Dev/my-app

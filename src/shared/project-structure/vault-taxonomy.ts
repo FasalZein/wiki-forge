@@ -32,9 +32,10 @@ const PROJECT_PATTERN = new RegExp(`^${PROJECT_SEGMENT}$`, "u");
 const PROJECT_RESEARCH_PATTERN = new RegExp(`^projects/(${PROJECT_SEGMENT})/research/${TOPIC_PATH}/(?:_overview|${SLUG})\\.md$`, "u");
 const CROSS_PROJECT_RESEARCH_PATTERN = new RegExp(`^research/${TOPIC_PATH}/(?:_overview|${SLUG})\\.md$`, "u");
 const PROJECT_ZONE_PATTERN = new RegExp(`^projects/(${PROJECT_SEGMENT})/(architecture|code-map|contracts|data|changes|runbooks|verification)/.+\\.md$`, "u");
+const PROJECT_BUG_PATTERN = new RegExp(`^projects/(${PROJECT_SEGMENT})/bugs/BUG-\\d{4}-${SLUG}\\.md$`, "u");
 const PROJECT_MODULE_SPEC_PATTERN = new RegExp(`^projects/(${PROJECT_SEGMENT})/modules/${PROJECT_SEGMENT}/spec\\.md$`, "u");
 const PROJECT_FORGE_PATTERN = new RegExp(`^projects/(${PROJECT_SEGMENT})/forge/(features|prds|slices|evidence|sessions|handovers)/.+\\.md$`, "u");
-const PROJECT_ROOT_DOC_PATTERN = new RegExp(`^projects/(${PROJECT_SEGMENT})/(_summary|decisions|learnings)\\.md$`, "u");
+const PROJECT_ROOT_DOC_PATTERN = new RegExp(`^projects/(${PROJECT_SEGMENT})/(_summary|context|decisions|learnings)\\.md$`, "u");
 const PROJECT_GENERATED_PATTERN = new RegExp(`^projects/(${PROJECT_SEGMENT})/(backlog|status|resume|handover)\\.md$`, "u");
 const PROJECT_SPECS_INDEX_PATTERN = new RegExp(`^projects/(${PROJECT_SEGMENT})/specs(?:/(features|prds|slices|archive))?/index\\.md$`, "u");
 const PROJECT_LEGACY_PATTERN = new RegExp(`^projects/(${PROJECT_SEGMENT})/(legacy|specs/archive)(?:/.*)?$`, "u");
@@ -90,6 +91,11 @@ export function classifyVaultFolderPath(path: VaultPath, options: VaultFolderTax
     return classification("canonical-project-knowledge", rel, "canonical project knowledge zone", { project: zoneProject, canonical: true, writableByDefault: true, lifecycleAuthority: false });
   }
 
+  const bugProject = matchProject(rel, PROJECT_BUG_PATTERN);
+  if (bugProject) {
+    return classification("canonical-project-knowledge", rel, "canonical project bug artifact", { project: bugProject, canonical: true, writableByDefault: true, lifecycleAuthority: false });
+  }
+
   const forgeProject = matchProject(rel, PROJECT_FORGE_PATTERN);
   if (forgeProject) {
     return classification("canonical-project-knowledge", rel, "canonical Forge lifecycle record", { project: forgeProject, canonical: true, writableByDefault: true, lifecycleAuthority: true });
@@ -126,7 +132,7 @@ export function isGeneratedVaultProjectionPath(path: VaultPath, options?: VaultF
 
 export function describeVaultFolderTaxonomy(): readonly string[] {
   return [
-    "canonical-project-knowledge: projects/<project>/_summary.md, decisions.md, learnings.md, modules/<module>/spec.md, architecture/**, contracts/**, forge/**",
+    "canonical-project-knowledge: projects/<project>/_summary.md, projects/<project>/context.md, decisions.md, learnings.md, modules/<module>/spec.md, architecture/**, contracts/**, bugs/BUG-NNNN-slug.md, forge/**",
     "project-bound-research: projects/<project>/research/<topic>/_overview.md; projects/<project>/research/<topic>/<slug>.md",
     "cross-project-research: research/<topic>/_overview.md; research/<topic>/<slug>.md",
     "generated-projection: index.md, projects/_dashboard.md, projects/<project>/backlog.md, status.md, resume.md, handover.md, specs/**/index.md",

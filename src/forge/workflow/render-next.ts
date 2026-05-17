@@ -1,5 +1,6 @@
 import type { ForgeNextProjection } from "./status-projection";
 import { renderKernelRejectionText } from "./render-rejection";
+import { renderPhaseSkillPacket } from "./phase-skill-packet";
 
 export function renderForgeNextText(projection: ForgeNextProjection): string {
   const body = renderForgeNextBody(projection);
@@ -21,8 +22,12 @@ function renderForgeNextBody(projection: ForgeNextProjection): string {
           `  start after release: ${slice.commands.startAfterRelease}`,
         ]),
       ].join("\n");
+    case "planning-session":
+      return projection.nextAction === "create-planning-artifacts"
+        ? `${projection.project}: create artifacts for planning session ${projection.featureName}`
+        : `${projection.project}: continue planning session ${projection.featureName}`;
     case "empty":
-      return `${projection.project}: no ready slice; plan next slice`;
+      return `${projection.project}: no open Forge slices; project is complete unless the user wants more scope`;
     case "conflict":
       return renderKernelRejectionText(projection.rejection);
     case "needs-repair":
@@ -36,8 +41,9 @@ function withRepeatedActionableGuidance(body: string, projection: ForgeNextProje
     : projection.noSafeCommandReason
       ? `No safe command: ${projection.noSafeCommandReason}`
       : null;
-  if (!guidance) return body;
-  return [guidance, body, "", guidance].join("\n");
+  const phasePacket = projection.phasePacket ? renderPhaseSkillPacket(projection.phasePacket) : null;
+  const parts = [guidance, body, phasePacket, guidance].filter((part): part is string => Boolean(part));
+  return parts.join("\n\n");
 }
 
 export function renderForgeNextJson(projection: ForgeNextProjection): string {

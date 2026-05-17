@@ -28,8 +28,8 @@ export type CanonicalProtocolSource = {
 };
 
 export const PROTOCOL_FILES = ["AGENTS.md", "CLAUDE.md"] as const;
-export const START_MARKER = "<!-- wiki-forge:agent-protocol:start -->";
-export const END_MARKER = "<!-- wiki-forge:agent-protocol:end -->";
+export const START_MARKER = "<!-- wiki-forge:orientation:start -->";
+export const END_MARKER = "<!-- wiki-forge:orientation:end -->";
 export const PROTOCOL_VERSION = 2;
 
 export function buildCanonicalProtocolSource(project: string, scope: ProtocolScope): CanonicalProtocolSource {
@@ -49,7 +49,7 @@ export function buildCanonicalProtocolSource(project: string, scope: ProtocolSco
       "Use `/forge` for non-trivial implementation work.",
       "Use `/wiki` for retrieval, refresh, drift, verification, and closeout review.",
       "If slash-skill aliases are unavailable, run the equivalent `wiki` CLI lifecycle directly.",
-      "`wiki protocol sync` only syncs this managed block; it does not enforce behavior or sync skill policy.",
+      "Use `wiki init <project> --repo <path>` for repo/vault orientation; AGENTS.md and CLAUDE.md updates are wiki-owned internals, not operator commands.",
     ],
     codeQualityIntro: "Codex (GPT-5-class reviewer) reviews every change before it merges. Write as if a stricter reviewer is watching:",
     codeQualityRules: [
@@ -70,14 +70,14 @@ export function renderProtocolSurface(project: string, scope: ProtocolScope, opt
   const source = buildCanonicalProtocolSource(project, scope);
   const data = orderFrontmatter({
     managed_by: source.managedBy,
-    protocol_version: source.protocolVersion,
+    orientation_version: source.protocolVersion,
     project,
     scope: scope.scope,
     applies_to: scope.path,
     vault_root: VAULT_ROOT,
     project_wiki_root: `projects/${project}`,
     ...(options.updated ? { updated: options.updated } : {}),
-  }, ["managed_by", "protocol_version", "project", "scope", "applies_to", "vault_root", "project_wiki_root", "updated"]);
+  }, ["managed_by", "orientation_version", "project", "scope", "applies_to", "vault_root", "project_wiki_root", "updated"]);
   const frontmatter = [
     "---",
     ...Object.entries(data).flatMap(([key, value]) => Array.isArray(value)
@@ -92,10 +92,10 @@ export function renderProtocolSurface(project: string, scope: ProtocolScope, opt
 export function renderManagedProtocolBlock(source: CanonicalProtocolSource, project = "<project>") {
   return [
     START_MARKER,
-    "# Agent Protocol",
+    "# Wiki Project Orientation",
     "",
     "> Managed by wiki-forge. Keep local repo-specific notes below the managed block.",
-    "> `AGENTS.md` and `CLAUDE.md` carry the same sync-managed protocol block. Do not treat them as separate policy sources.",
+    "> `AGENTS.md` and `CLAUDE.md` carry the same wiki-managed orientation block. Do not treat them as separate policy sources.",
     "",
     source.scopeLine,
     `Knowledge vault root: \`${VAULT_ROOT}\``,

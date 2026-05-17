@@ -177,6 +177,7 @@ export async function amendForgeSlice(input: AmendSliceInput): Promise<AmendSlic
   let startedAt: string | undefined;
   if (input.start) {
     const agent = input.agent?.trim() || "agent";
+    await releaseForgeSlice({ project: input.project, sliceId: amendmentSliceId, vaultRoot });
     const result = await startForgeSlice({ project: input.project, sliceId: amendmentSliceId, agent, now, vaultRoot });
     if (result.status === "rejected") throw new Error(result.rejection.reason);
     startedAt = now;

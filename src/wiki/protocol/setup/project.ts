@@ -243,7 +243,7 @@ async function renderOnboardingPlan(project: string, repo?: string) {
       `- [ ] Run \`/research\` for any net-new investigation or option comparison`,
       `- [ ] File high-signal findings into the vault with \`wiki research file <topic> --project ${project} <title>\``,
       `- [ ] Link research pages to relevant module specs and PRDs`,
-      `- [ ] Record research-driven decisions in \`projects/${project}/decisions.md\``,
+      `- [ ] Record research-driven decisions as ADRs under \`projects/${project}/adrs/\` and keep \`projects/${project}/decisions.md\` as the index`,
     );
   }
   const body = [`# ${project} Onboarding Plan`, "", "> [!summary]", "> Canonical onboarding plan for this project. Use it to map repo structure into maintained wiki modules and verification pages.", "", `Project-specific execution plan for onboarding \`${project}\` into the Knowledge vault using the canonical [[wiki/concepts/project-onboarding-playbook|Project Onboarding Playbook]].`, "", "## Inputs", "", `- Project: \`${project}\``, `- Repo: \`${repo ?? "TODO"}\``, "- Maintained wiki root: `~/Knowledge/projects/`", "- Source of truth: code", "", "## Phases", "", "### Phase 1: Prepare", "", "- [ ] Confirm project name and repo path", "- [ ] Read `index.md` and check for an existing project entry", `- [ ] Run \`wiki onboard ${project}${repo ? ` --repo ${repo}` : " --repo <path>"}\` if the project scaffold is missing`, "- [ ] Decide whether to onboard the whole repo or the highest-signal modules first", "", "### Phase 2: Parallel Exploration Slices", "", ...slices, ""].join("\n");

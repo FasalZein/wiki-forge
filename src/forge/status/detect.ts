@@ -6,7 +6,7 @@
  * risk of side effects on the vault state.
  *
  * Design decisions:
- * - "Within the slice's lifetime" for domain-model detection uses the slice hub's
+ * - "Within the slice's lifetime" for grill-with-docs detection uses the slice hub's
  *   `created_at` field (falling back to `started_at`) as the lower bound and
  *   the current time as the upper bound.
  * - "Recent" for forge-verify log detection: STALE_UNVERIFIED_DAYS (30 days)
@@ -30,7 +30,7 @@ import { safeMatter } from "../../cli-shared";
 import { appendText, ensureDir, exists, readText } from "../../lib/fs";
 import { FORGE_PHASES, readForgeLedgerPhase, writeForgeLedgerPhase, type ForgeWorkflowLedger, type ForgePhase } from "./workflow-ledger";
 import {
-  detectDomainModelRefs,
+  detectGrillWithDocsRefs,
   detectPrdRefs,
   detectResearchRefs,
   detectSlicesPhase,
@@ -133,15 +133,15 @@ async function _derive(project: string, sliceId: string, vaultRoot: string): Pro
   }
 
   // -------------------------------------------------------------------
-  // Phase: domain-model
+  // Phase: grill-with-docs
   // Rule: decisions.md contains a line tagged [PRD-<id>] or [<sliceId>]
   // authored within the slice's lifetime.
   // -------------------------------------------------------------------
-  const domainModelResult = await detectDomainModelRefs(project, sliceId, parentPrd, sliceCreatedAt, vaultRoot);
-  if (domainModelResult.decisionRefs.length > 0) {
-    writeForgeLedgerPhase(patch, "domain-model", {
+  const grillWithDocsResult = await detectGrillWithDocsRefs(project, sliceId, parentPrd, sliceCreatedAt, vaultRoot);
+  if (grillWithDocsResult.decisionRefs.length > 0) {
+    writeForgeLedgerPhase(patch, "grill-with-docs", {
       completedAt: new Date().toISOString(),
-      decisionRefs: domainModelResult.decisionRefs,
+      decisionRefs: grillWithDocsResult.decisionRefs,
     });
   }
 

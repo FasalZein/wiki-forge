@@ -19,7 +19,7 @@ Forge is the SDLC lifecycle layer. Forge owns non-trivial feature implementation
 
 Kernel = truth; projections = help. Backlogs, status text, resume packets, handovers, and indexes support humans, but lifecycle decisions come from typed Forge kernel records, results, changesets, rejections, and evidence gates.
 
-Explicit TDD = workflow proof. Forge does not infer TDD from a passing suite: record a failed red step, then a later green step with the exact same command and at least one same test path.
+Explicit TDD = workflow proof. Forge does not infer TDD from a passing suite: record a failed red step and a later green step, preferably with one `wiki forge tdd cycle` command that shares the same test path.
 
 Targeted tests = slice proof; full suite = release gate. Normal slices run their targeted test plan plus `bun run check`; full `bun test` is reserved for explicit production release gates.
 
@@ -34,16 +34,15 @@ TDD evidence is intentionally explicit and low-friction:
 
 ```bash
 wiki forge tdd status <project> <slice-id> --json
-wiki forge tdd red <project> <slice-id> --test tests/foo.test.ts --command "bun test tests/foo.test.ts" --note "expected failure before implementation"
-wiki forge tdd green <project> <slice-id> --test tests/foo.test.ts --command "bun test tests/foo.test.ts" --note "same command now passes"
+wiki forge tdd cycle <project> <slice-id> --test tests/foo.test.ts --red-command "bun test tests/foo.test.ts" --green-command "bun test tests/foo.test.ts" --note "red failed before implementation; green passes after"
 ```
 
-**Not RAG.** The wiki is a compiled artifact that grows over time, not a retrieval layer that re-derives answers from scratch each query. Code is always the source of truth — the wiki is compiled memory that makes code navigable across sessions. The conceptual delivery chain is `wiki research -> /domain-model` (+ `/torpathy` when design tradeoffs remain) `-> /write-a-prd -> /prd-to-slices -> /tdd -> /desloppify`. `wiki forge plan|run|next` is the compact operator surface over that chain, not a different workflow.
+**Not RAG.** The wiki is a compiled artifact that grows over time, not a retrieval layer that re-derives answers from scratch each query. Code is always the source of truth — the wiki is compiled memory that makes code navigable across sessions. The conceptual delivery chain is `investigate -> plan -> build -> review/close`. `wiki forge plan` is the single planning loop that can use grill-with-docs, PRD, and slice helpers without re-interviewing the user. `wiki forge plan|run|next` is the compact operator surface over that chain, not a different workflow.
 
 ```
 Sources (code, research, docs)
   ├── Wiki  (knowledge layer — maintained markdown in ~/Knowledge)
-  └── Forge (workflow layer — domain-model → PRD → slices → TDD, with wiki research as input)
+  └── Forge (workflow layer — grill-with-docs → PRD → slices → TDD, with wiki research as input)
                                           ↓
                                         You
 ```
@@ -67,6 +66,7 @@ Read next:
 - [SETUP.md](SETUP.md) — install, manual setup, Obsidian, troubleshooting, and copy/paste agent prompts
 - [How wiki-forge works](docs/how-it-works.md) — Wiki/QMD retrieval path and Forge next-command workflow
 - [Production Operator Guide](docs/production-operator-guide.md) — operating Forge on real project work
+- [Artifact Routing](docs/artifact-routing.md) — where research, grill context, decisions, PRDs, slices, reviews, and handovers belong
 
 For production operation, see [Production Operator Guide](docs/production-operator-guide.md).
 
@@ -105,7 +105,7 @@ Use this after pulling repo changes or editing `skills/*/SKILL.md`. Restart the 
 `/wiki` and `/forge` stay separate:
 
 - `/wiki` = second-brain layer: retrieval, maintenance, verification, filing, drift
-- `/forge` = SDLC layer over `wiki research -> /domain-model -> /write-a-prd -> /prd-to-slices -> /tdd -> /desloppify`
+- `/forge` = SDLC layer over `investigate -> plan -> build -> review/close`
 - `full` install gives you both layers
 - `wiki-only` keeps the install in second-brain mode with no forge workflow stack
 
@@ -119,9 +119,10 @@ Scaffold a project, discover its structure, and create module specs — all wire
 
 ```bash
 wiki scaffold-project my-app                              # create vault structure
-wiki onboard my-app --repo ~/Dev/my-app                    # scaffold + onboarding plan + root protocol sync
+wiki init my-app --repo ~/Dev/my-app                       # print repo/vault orientation + next commands
+wiki onboard my-app --repo ~/Dev/my-app                    # scaffold + onboarding plan + root orientation sync
 wiki onboard-plan my-app --repo ~/Dev/my-app --write      # generate onboarding plan
-wiki protocol sync my-app --repo ~/Dev/my-app              # sync AGENTS.md / CLAUDE.md (and nested scopes)
+wiki sync my-app --repo ~/Dev/my-app --write               # refresh AGENTS.md / CLAUDE.md orientation files
 wiki discover my-app --tree                                # find module candidates
 wiki create-module my-app auth --source src/auth/          # create bound module spec
 ```
@@ -202,8 +203,7 @@ Internal / repair (debugging only):
 
 ```bash
 wiki forge status my-app MY-APP-001 --repo ~/Dev/my-app
-wiki forge tdd red my-app MY-APP-001 --test tests/foo.test.ts --command "bun test tests/foo.test.ts"
-wiki forge tdd green my-app MY-APP-001 --test tests/foo.test.ts --command "bun test tests/foo.test.ts"
+wiki forge tdd cycle my-app MY-APP-001 --test tests/foo.test.ts --red-command "bun test tests/foo.test.ts" --green-command "bun test tests/foo.test.ts"
 wiki forge evidence my-app MY-APP-001 verify --command "bun test ..."
 wiki forge review record my-app MY-APP-001 --verdict approved --reviewer <name>
 wiki resume my-app --repo ~/Dev/my-app --base main
@@ -242,7 +242,7 @@ wiki note my-app "left off at parser" --slice MY-APP-001 # durable agent-to-agen
 wiki commit-check my-app --repo ~/Dev/my-app              # staged-file freshness check for local commits
 wiki checkpoint my-app --repo ~/Dev/my-app                # git-independent freshness check against current worktree mtimes
 wiki lint-repo my-app --repo ~/Dev/my-app                 # flag ad hoc repo markdown outside the allowed set
-wiki protocol audit my-app --repo ~/Dev/my-app            # detect missing/stale managed AGENTS.md / CLAUDE.md files
+wiki sync my-app --repo ~/Dev/my-app --json               # report missing/stale managed AGENTS.md / CLAUDE.md orientation files
 wiki install-git-hook my-app --repo ~/Dev/my-app          # writes a pre-commit hook that runs commit-check
 wiki refresh-on-merge my-app --repo ~/Dev/my-app --base main --verbose
 wiki dependency-graph my-app --write                       # writes verification/dependency-graph.canvas
@@ -283,14 +283,14 @@ Use this mental model:
 - **`/wiki` skill** = knowledge/verification layer
 - **`/forge` skill** = delivery workflow layer
 - **`wiki` CLI** = shared command surface both skills rely on
-- **Agent Protocol** = managed repo instruction block in `AGENTS.md` / `CLAUDE.md`
-- **Wiki Protocol** = mandatory `wiki ...` command sequence inside that agent protocol
+- **Wiki orientation** = managed repo orientation block in `AGENTS.md` / `CLAUDE.md`
+- **Forge steering** = `wiki resume` / `wiki forge next` / `wiki forge status` packets that tell agents which skill and phase to use
 
 Compact map:
 
 | Area | Main commands |
 |------|---------------|
-| Protocol | `wiki protocol sync`, `wiki protocol audit` |
+| Orientation | `wiki init`, `wiki sync --write`, `wiki sync --json` |
 | Planning | `wiki forge plan`, `wiki forge next`, `wiki forge status` |
 | Hierarchy/admin views | `wiki feature-status`, `wiki update-index`, `wiki dependency-graph` |
 | Lifecycle | `wiki forge plan/run/next/start/check/close/status/release/evidence/review` |
@@ -305,7 +305,7 @@ Compact map:
 |-------|-----------|-------------|
 | **Wiki** | Maintained project memory in `~/Knowledge` | `wiki` CLI |
 | **Research** | Filed evidence and source-backed notes under `research/` and `raw/` | `/research` skill + `wiki research` commands |
-| **Forge** | Optional workflow layer over `wiki research -> /domain-model -> /write-a-prd -> /prd-to-slices -> /tdd -> /desloppify`; agent surface is `wiki forge plan/run/next` | `/forge` skill |
+| **Forge** | Optional workflow layer over `investigate -> plan -> build -> review/close`; agent surface is `wiki forge plan/run/next` | `/forge` skill |
 
 These are separate concerns. The wiki is the knowledge store. Research is evidence. Forge is the software-development workflow layer over that memory.
 
@@ -324,8 +324,7 @@ When source code changes after verification, `drift-check` demotes the page to `
 Tracked implementation closes through Forge evidence and close gates:
 
 ```bash
-wiki forge tdd red <project> <slice> --test <path> --command "<failing test command>"
-wiki forge tdd green <project> <slice> --test <same path> --command "<same command>"
+wiki forge tdd cycle <project> <slice> --test <path> --red-command "<failing test command>" --green-command "<passing test command>"
 wiki forge evidence <project> <slice> verify --command "<targeted command>"
 wiki forge review record <project> <slice> --verdict approved --reviewer <name>
 wiki forge run <project> <slice> --repo <path>
@@ -407,9 +406,8 @@ bun run sync:local -- --audit # compare installed repo skills against the checke
 
 Current repo-owned skill set:
 
-- `domain-model`
 - `forge`
-- `grill-me` (optional compatibility skill; forge now routes through `domain-model`)
+- `grill-with-docs`
 - `improve-codebase-architecture`
 - `prd-to-slices`
 - `research`
@@ -425,9 +423,8 @@ Or install any individual skill from GitHub:
 
 ```bash
 npx skills add FasalZein/desloppify
-npx skills@latest add FasalZein/wiki-forge/skills/domain-model -g
+npx skills@latest add FasalZein/wiki-forge/skills/grill-with-docs -g
 npx skills@latest add FasalZein/wiki-forge/skills/forge -g
-npx skills@latest add FasalZein/wiki-forge/skills/grill-me -g
 npx skills@latest add FasalZein/wiki-forge/skills/improve-codebase-architecture -g
 npx skills@latest add FasalZein/wiki-forge/skills/prd-to-slices -g
 npx skills@latest add FasalZein/wiki-forge/skills/research -g
@@ -444,14 +441,13 @@ npx skills@latest add FasalZein/wiki-forge/skills/write-a-prd -g
 |-------|--------|-------------|-------------|
 | **research** | `/research` | Investigates external evidence and produces research artifacts that can be filed into the wiki | When a feature, refactor, or architecture decision needs outside evidence |
 | **wiki** | `/wiki` | Knowledge-layer operations: research, retrieval, maintenance, drift, verification, gates | When no non-trivial product behavior is being planned or changed |
-| **forge** | `/forge` | Software-development workflow over `wiki research -> /domain-model -> /write-a-prd -> /prd-to-slices -> /tdd -> /desloppify` | Non-trivial implementation work, new features, cross-module changes, or existing slice continuation |
-| **prd-to-slices** | `/prd-to-slices` | Breaks a PRD/spec into Forge-planned vertical slices | After writing a PRD/spec, before implementation |
-| **write-a-prd** | `/write-a-prd` | Drafts PRD/spec content for `wiki forge plan` | When you need formal project intent |
-| **domain-model** | `/domain-model` | Sharpens terms, records decisions in the wiki, and surfaces ambiguities before PRD authoring | Before writing a PRD |
+| **forge** | `/forge` | Software-development workflow over `investigate -> plan -> build -> review/close` | Non-trivial implementation work, new features, cross-module changes, or existing slice continuation |
+| **prd-to-slices** | `/prd-to-slices` | Breaks PRD/spec content into Forge-planned vertical slices | Helper inside the Forge Plan phase |
+| **write-a-prd** | `/write-a-prd` | Drafts PRD/spec content for `wiki forge plan` | Helper inside the Forge Plan phase |
+| **grill-with-docs** | `/grill-with-docs` | Grills a plan against code/wiki docs, records context and ADR-style decisions, and surfaces ambiguities before PRD authoring | Before writing a PRD |
 | **tdd** | `/tdd` | Red-green-refactor with vertical slices — no code without tests, ever | During implementation |
 | **improve-codebase-architecture** | `/improve-codebase-architecture` | Finds deeper-module and boundary-refactor candidates and turns them into tracked follow-up work | At cadence boundaries or after shipping a batch |
 | **desloppify** | `/desloppify` | Scans for AI-introduced anti-patterns, triages, fixes, verifies | Final quality gate after Forge close |
-| **grill-me** | `/grill-me` | Optional interview-style stress test for a plan when you explicitly want adversarial questioning | Compatibility path outside the main forge happy path |
 
 ### When to Use What
 
@@ -497,7 +493,7 @@ Rule of thumb:
 For non-trivial work, forge orchestrates the full pipeline:
 
 ```
-wiki research  ->  /domain-model (+ /torpathy when needed)  ->  /write-a-prd  ->  /prd-to-slices  ->  /tdd  ->  /desloppify
+investigate  ->  plan  ->  build  ->  review/close
 ```
 
 ```bash
@@ -505,8 +501,8 @@ wiki research  ->  /domain-model (+ /torpathy when needed)  ->  /write-a-prd  ->
 /research "topic title"
 wiki research file my-app "topic title"
 
-# 2. Stress-test the plan
-/domain-model
+# 2. Stress-test the plan against docs and code
+/grill-with-docs
 
 # 3. Create the parent feature + PRD
 wiki forge plan my-app "feature name" --repo ~/Dev/my-app

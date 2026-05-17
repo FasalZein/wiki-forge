@@ -1,14 +1,25 @@
 ---
 name: wiki
 description: >
-  Second brain for knowledge capture, retrieval, verification, research filing, and freshness repair. Use the `wiki` CLI for wiki-layer work only. For tracked implementation workflow, use the `forge` skill.
+  Second brain / Knowledge vault for project memory, wiki retrieval, context filing,
+  research, decisions, handovers, verification, freshness repair, and vault/root
+  orientation. Use when the user says wiki, knowledge repository, vault, second
+  brain, project memory, retrieve context, refresh wiki, file context, or asks
+  where project knowledge lives. Use the `wiki` CLI for wiki-layer work only.
+  For tracked implementation workflow, use the `forge` skill.
 ---
 
 # Wiki
 
 Wiki is the second-brain memory layer. It owns durable vault memory: research, notes, decisions, handovers, source bindings, page verification levels, drift/freshness checks, and recall. Wiki remembers; Forge executes lifecycle.
 
-The wiki vault is not assumed to be the current repository. Resolve it through the `wiki` CLI; it reads `vault.root` from `~/.config/wiki-forge/config.jsonc` or `KNOWLEDGE_VAULT_ROOT`. Do not create `projects/`, `research/`, `AGENTS.md`, or `CLAUDE.md` under the repo just because the user says "wiki". In this project setup the expected external vault is usually `~/Knowledge`, with project pages under `~/Knowledge/projects/<project>/`.
+## Trigger and vault orientation
+
+Use this skill whenever the user says **wiki**, **knowledge repository**, **vault**, **second brain**, **project memory**, **retrieve context**, **refresh wiki**, **file context**, or asks where project knowledge lives.
+
+The wiki vault is not assumed to be the current repository. Resolve it through the `wiki` CLI; it reads `vault.root` from `~/.config/wiki-forge/config.jsonc` or `KNOWLEDGE_VAULT_ROOT`. Do not create `projects/`, `wiki/`, or `forge/` folders under the repo just because the user says "wiki" or "forge". Also do not create repo-local `research/`, `AGENTS.md`, or `CLAUDE.md` unless the repository is explicitly the configured vault. In this project setup the expected external vault is usually `~/Knowledge`, with project pages under `~/Knowledge/projects/<project>/` and Forge artifacts under `~/Knowledge/projects/<project>/forge/`.
+
+When orientation is unclear, run `wiki init <project> --repo <path>` first to print repo/vault/project roots and next commands; use `wiki config --effective --repo <path>` or `wiki resume <project> --repo <path> --base HEAD` before writing existing project memory. The right project memory root is `$KNOWLEDGE_VAULT_ROOT/projects/<project>/`, not `<repo>/projects/<project>/`, unless the configured vault root is explicitly the repository.
 
 Project-specific research belongs in `projects/<project>/research/`. Global `research/` is only for reusable cross-project topics. Do not file or recommend project-bound research under `research/projects/<project>/...` or top-level `research/<project>/...`.
 
@@ -25,11 +36,15 @@ Use Wiki for project Q&A, research filing, source binding, drift repair, checkpo
 - `wiki forge status` is workflow truth; it must not be treated as freshness repair.
 - Old lifecycle commands are gone from the runtime surface. Tracked implementation closes through `wiki forge run` or explicit `wiki forge check` / `wiki forge close`.
 
+## Phase packet contract
+
+Wiki can orient, refresh, and retrieve context, but it does not supersede Forge phase packets. If a Forge `phasePacket` is present, do not override it with wiki-layer guesses. Use wiki commands only to satisfy the packet's context/freshness needs, then return to the listed Forge command and required skill chain.
+
 ## Commands
 
 - Help: `wiki help` or `wiki help --all`
 - Resume context: `wiki resume <project> --repo <path> --base <rev>`
-- Project setup: `wiki scaffold-project <project-slug>` creates a project with a canonical slug. Commands that write project artifacts, such as `wiki create-module` and `wiki onboard-plan --write`, require the project to already exist and must not be used to create projects implicitly.
+- Project orientation/setup: `wiki init <project> --repo <path>` is the canonical repo/vault orientation entrypoint. `wiki scaffold-project <project-slug>` creates a project with a canonical slug. Commands that write project artifacts, such as `wiki create-module` and `wiki onboard-plan --write`, require the project to already exist and must not be used to create projects implicitly.
 - Ask/search: `wiki ask <project> <question>`, `wiki search <query>`
 - Freshness/Git truth: `wiki checkpoint <project> --repo <path> --base <rev>`
 - Repair plan: `wiki maintain <project> --repo <path> --base <rev>`

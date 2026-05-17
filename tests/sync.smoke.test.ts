@@ -20,6 +20,6 @@ describe("wiki sync smoke", () => {
     expect(typeof json.reportOnly).toBe("boolean");
     expect(Array.isArray(json.dirtyPages)).toBe(true);
     expect(Array.isArray(json.navigation.staleTargets)).toBe(true);
-    expect(Array.isArray(json.protocol.targets)).toBe(true);
+    expect(Array.isArray(json.orientation.targets)).toBe(true);
   });
 });

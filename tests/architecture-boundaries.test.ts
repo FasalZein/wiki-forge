@@ -42,11 +42,6 @@ const TRANSITION_EXCEPTIONS = {
     },
     {
       importer: "src/wiki/memory/handover/store.ts",
-      importee: "src/forge/vault/frontmatter-codec.ts",
-      reason: "Wiki handover storage still uses Forge frontmatter codecs until handover storage contracts move to src/shared.",
-    },
-    {
-      importer: "src/wiki/memory/handover/store.ts",
       importee: "src/forge/vault/records.ts",
       reason: "Wiki handover storage still decodes Forge records until the handover record contract moves to src/shared.",
     },

@@ -1,6 +1,6 @@
 export const FORGE_PHASES = [
   "research",
-  "domain-model",
+  "grill-with-docs",
   "spec",
   "slices",
   "ownership",
@@ -14,7 +14,7 @@ export const FORGE_PHASES = [
 
 export type ForgePhase = (typeof FORGE_PHASES)[number];
 
-export const Forge_SKIPPABLE_PHASES = ["research", "domain-model", "spec", "slices"] as const satisfies readonly ForgePhase[];
+export const Forge_SKIPPABLE_PHASES = ["research", "grill-with-docs", "spec", "slices"] as const satisfies readonly ForgePhase[];
 export type ForgeSkippablePhase = (typeof Forge_SKIPPABLE_PHASES)[number];
 
 export type ForgePhaseDefinition = {

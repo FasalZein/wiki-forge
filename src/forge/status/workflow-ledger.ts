@@ -1,15 +1,26 @@
-export const FORGE_PHASES = ["research", "domain-model", "prd", "slices", "tdd", "verify"] as const;
+export const FORGE_PHASES = ["research", "grill-with-docs", "prd", "slices", "tdd", "verify"] as const;
 export type ForgePhase = (typeof FORGE_PHASES)[number];
 export const FORGE_WORKFLOW_PROFILES = ["full", "bootstrap"] as const;
 export type ForgeWorkflowProfile = (typeof FORGE_WORKFLOW_PROFILES)[number];
 
 // Only these phases may be skipped via `wiki forge skip` or `wiki forge run --skip-phase`.
 // tdd and verify are the code-level enforcement floor for PRD-082 and cannot be waived by a reason string.
-export const SKIPPABLE_FORGE_PHASES = ["research", "domain-model", "prd", "slices"] as const;
+export const SKIPPABLE_FORGE_PHASES = ["research", "grill-with-docs", "prd", "slices"] as const;
 export type SkippableForgePhase = (typeof SKIPPABLE_FORGE_PHASES)[number];
+export type LegacyForgePhase = "domain-model";
 
 export function isForgePhaseSkippable(phase: ForgePhase): phase is SkippableForgePhase {
   return (SKIPPABLE_FORGE_PHASES as readonly ForgePhase[]).includes(phase);
+}
+
+export function normalizeForgePhase(value: unknown): ForgePhase | null {
+  if (value === "domain-model") return "grill-with-docs";
+  return (FORGE_PHASES as readonly unknown[]).includes(value) ? value as ForgePhase : null;
+}
+
+export function normalizeSkippableForgePhase(value: unknown): SkippableForgePhase | null {
+  const phase = normalizeForgePhase(value);
+  return phase && isForgePhaseSkippable(phase) ? phase : null;
 }
 
 export type SkippedPhaseRecord = {
@@ -34,11 +45,15 @@ export type ForgeWorkflowLedger = {
     completedAt?: string;
     researchRefs?: string[];
   };
+  "grill-with-docs"?: {
+    completedAt?: string;
+    decisionRefs?: string[];
+  };
+  // Legacy storage keys retained for historical authored ledgers.
   "domain-model"?: {
     completedAt?: string;
     decisionRefs?: string[];
   };
-  // Legacy storage key retained for historical authored ledgers.
   grill?: {
     completedAt?: string;
     decisionRefs?: string[];
@@ -76,15 +91,15 @@ export type ForgeWorkflowValidation = {
   statuses: ForgePhaseStatus[];
 };
 
-type ForgeLedgerPhaseKey = "research" | "domain-model" | "prd" | "slices" | "tdd" | "verify";
+type ForgeLedgerPhaseKey = "research" | "grill-with-docs" | "prd" | "slices" | "tdd" | "verify";
 
 export function forgeLedgerPhaseKey(phase: ForgePhase): ForgeLedgerPhaseKey {
-  return phase === "domain-model" ? "domain-model" : phase;
+  return phase;
 }
 
 export function readForgeLedgerPhase(ledger: Partial<ForgeWorkflowLedger>, phase: ForgePhase) {
-  if (phase === "domain-model") {
-    return (ledger["domain-model"] ?? ledger.grill) as Record<string, unknown> | undefined;
+  if (phase === "grill-with-docs") {
+    return (ledger["grill-with-docs"] ?? ledger["domain-model"] ?? ledger.grill) as Record<string, unknown> | undefined;
   }
   return ledger[forgeLedgerPhaseKey(phase)] as Record<string, unknown> | undefined;
 }
@@ -92,15 +107,19 @@ export function readForgeLedgerPhase(ledger: Partial<ForgeWorkflowLedger>, phase
 export function writeForgeLedgerPhase(target: Partial<ForgeWorkflowLedger>, phase: ForgePhase, value: unknown) {
   const ledger = target as Record<string, unknown>;
   ledger[forgeLedgerPhaseKey(phase)] = value;
-  if (phase === "domain-model") delete ledger.grill;
+  if (phase === "grill-with-docs") {
+    delete ledger["domain-model"];
+    delete ledger.grill;
+  }
 }
 
 export function normalizeForgeLedger(ledger: Partial<ForgeWorkflowLedger>): Partial<ForgeWorkflowLedger> {
   const normalized: Partial<ForgeWorkflowLedger> = { ...ledger };
-  const domainModel = readForgeLedgerPhase(ledger, "domain-model");
-  if (domainModel) {
-    normalized["domain-model"] = domainModel as ForgeWorkflowLedger["domain-model"];
+  const grillWithDocs = readForgeLedgerPhase(ledger, "grill-with-docs");
+  if (grillWithDocs) {
+    normalized["grill-with-docs"] = grillWithDocs as ForgeWorkflowLedger["grill-with-docs"];
   }
+  delete (normalized as Record<string, unknown>)["domain-model"];
   delete (normalized as Record<string, unknown>).grill;
   return normalized;
 }
@@ -120,11 +139,11 @@ const PHASE_REQUIREMENTS: Record<ForgePhase, (ledger: ForgeWorkflowLedger) => st
     if (!ledger.research?.researchRefs?.length) missing.push("research.researchRefs");
     return missing;
   },
-  "domain-model": (ledger) => {
-    const domainModel = readForgeLedgerPhase(ledger, "domain-model");
+  "grill-with-docs": (ledger) => {
+    const grillWithDocs = readForgeLedgerPhase(ledger, "grill-with-docs");
     const missing: string[] = [];
-    if (!domainModel?.completedAt) missing.push("domain-model.completedAt");
-    if (!Array.isArray(domainModel?.decisionRefs) || domainModel.decisionRefs.length === 0) missing.push("domain-model.decisionRefs");
+    if (!grillWithDocs?.completedAt) missing.push("grill-with-docs.completedAt");
+    if (!Array.isArray(grillWithDocs?.decisionRefs) || grillWithDocs.decisionRefs.length === 0) missing.push("grill-with-docs.decisionRefs");
     return missing;
   },
   prd: (ledger) => {
@@ -159,8 +178,8 @@ export function validateForgeWorkflowLedger(ledger: ForgeWorkflowLedger): ForgeW
   const requiredPhases = new Set(requiredForgePhases(workflowProfile));
   const skippedPhases = new Set(
     (ledger.skippedPhases ?? [])
-      .map((entry) => entry?.phase)
-      .filter((phase): phase is SkippableForgePhase => typeof phase === "string" && isForgePhaseSkippable(phase as ForgePhase)),
+      .map((entry) => normalizeSkippableForgePhase(entry?.phase))
+      .filter((phase): phase is SkippableForgePhase => phase !== null),
   );
   const statuses: ForgePhaseStatus[] = [];
   let previousIncomplete: ForgePhase[] = [];

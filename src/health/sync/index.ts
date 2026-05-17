@@ -19,7 +19,7 @@ type DirtyAuthoredPage = {
   lastModified: string;
 };
 
-type ProtocolTarget = {
+type OrientationTarget = {
   scope: string;
   file: string;
   path: string;
@@ -34,13 +34,13 @@ type SyncPlan = {
   navigation: {
     staleTargets: string[];
   };
-  protocol: {
-    targets: ProtocolTarget[];
+  orientation: {
+    targets: OrientationTarget[];
   };
   repoChanges: Awaited<ReturnType<typeof collectRefreshFromWorktree>>;
   writes: {
     navigationTargets: string[];
-    protocolTargets: string[];
+    orientationTargets: string[];
     projectTargets: string[];
     total: number;
   };
@@ -63,16 +63,16 @@ export async function collectSyncPlan(project: string, explicitRepo?: string, op
   const snapshot = await loadProjectSnapshot(project, repo);
   const dirtyPages = collectDirtyAuthoredPages(snapshot);
   const staleTargets = await collectStaleIndexTargets(project);
-  const protocolTargets = await collectProtocolTargets(project, repo);
+  const orientationTargets = await collectOrientationTargets(project, repo);
   const repoChanges = await collectRefreshFromWorktree(project, repo, snapshot);
 
   const navigationTargets = staleTargets;
-  const protocolWriteTargets = protocolTargets.filter((target) => target.status !== "ok").map((target) => target.path);
+  const orientationWriteTargets = orientationTargets.filter((target) => target.status !== "ok").map((target) => target.path);
   const projectWriteTargets = collectProjectWriteTargets(repoChanges);
 
   if (options.write) {
     if (navigationTargets.length) await writeNamedNavigationTargets(project, navigationTargets);
-    if (protocolWriteTargets.length) await writeProtocolTargets(project, repo, protocolTargets.filter((target) => target.status !== "ok"));
+    if (orientationWriteTargets.length) await writeOrientationTargets(project, repo, orientationTargets.filter((target) => target.status !== "ok"));
     if (projectWriteTargets.includes("_summary.md")) await writeProjectSummary(project, repoChanges);
   }
 
@@ -82,13 +82,13 @@ export async function collectSyncPlan(project: string, explicitRepo?: string, op
     reportOnly: !options.write,
     dirtyPages,
     navigation: { staleTargets },
-    protocol: { targets: protocolTargets },
+    orientation: { targets: orientationTargets },
     repoChanges,
     writes: {
       navigationTargets,
-      protocolTargets: protocolWriteTargets,
+      orientationTargets: orientationWriteTargets,
       projectTargets: projectWriteTargets,
-      total: navigationTargets.length + protocolWriteTargets.length + projectWriteTargets.length,
+      total: navigationTargets.length + orientationWriteTargets.length + projectWriteTargets.length,
     },
   };
 }
@@ -114,9 +114,9 @@ function collectDirtyAuthoredPages(snapshot: Awaited<ReturnType<typeof loadProje
   return dirty.sort((left, right) => left.page.localeCompare(right.page));
 }
 
-async function collectProtocolTargets(project: string, repo: string): Promise<ProtocolTarget[]> {
+async function collectOrientationTargets(project: string, repo: string): Promise<OrientationTarget[]> {
   const scopes = await readProtocolScopes(project);
-  const rows: ProtocolTarget[] = [];
+  const rows: OrientationTarget[] = [];
   for (const scope of scopes) {
     for (const file of PROTOCOL_FILES) {
       const path = relative(repo, protocolFilePath(repo, scope.path, file)).replaceAll("\\", "/") || file;
@@ -139,7 +139,7 @@ async function readProtocolScopes(project: string): Promise<ProtocolScope[]> {
   scopes.set(".", { path: ".", scope: "root" });
   if (!await exists(summaryPath)) return [...scopes.values()];
   const parsed = safeMatter(relative(VAULT_ROOT, summaryPath), await readText(summaryPath), { silent: true });
-  const rawScopes = parsed?.data.protocol_scopes;
+  const rawScopes = parsed?.data.orientation_scopes;
   if (!Array.isArray(rawScopes)) return [...scopes.values()];
   for (const entry of rawScopes) {
     const value = typeof entry === "string"
@@ -155,7 +155,7 @@ async function readProtocolScopes(project: string): Promise<ProtocolScope[]> {
   return [...scopes.values()];
 }
 
-async function writeProtocolTargets(project: string, repo: string, targets: ProtocolTarget[]) {
+async function writeOrientationTargets(project: string, repo: string, targets: OrientationTarget[]) {
   const scopeMap = new Map<string, ProtocolScope>();
   for (const scope of await readProtocolScopes(project)) scopeMap.set(scope.scope, scope);
   for (const target of targets) {
@@ -199,7 +199,7 @@ async function writeProjectSummary(project: string, repoChanges: Awaited<ReturnT
         ...parsed.data,
         updated: nowIso(),
       },
-      ["title", "type", "project", "repo", "code_paths", "source_paths", "updated", "status", "verification_level", "protocol_scopes"],
+      ["title", "type", "project", "repo", "code_paths", "source_paths", "updated", "status", "verification_level", "orientation_scopes"],
     ),
   );
 }
@@ -287,12 +287,12 @@ function renderSyncPlan(plan: SyncPlan) {
   printLine(`- repo: ${plan.repo}`);
   printLine(`- dirty authored pages: ${plan.dirtyPages.length}`);
   printLine(`- navigation targets: ${plan.writes.navigationTargets.length}`);
-  printLine(`- protocol targets: ${plan.writes.protocolTargets.length}`);
+  printLine(`- orientation targets: ${plan.writes.orientationTargets.length}`);
   printLine(`- project targets: ${plan.writes.projectTargets.length}`);
   printLine(`- repo changed files: ${plan.repoChanges.changedFiles.length}`);
   printLine(`- repo impacted pages: ${plan.repoChanges.impactedPages.length}`);
   for (const page of plan.dirtyPages.slice(0, 10)) printLine(`  - dirty: ${page.page} [${page.contractId}]`);
   for (const target of plan.writes.navigationTargets.slice(0, 10)) printLine(`  - nav: ${target}`);
-  for (const target of plan.protocol.targets.filter((row) => row.status !== "ok").slice(0, 10)) printLine(`  - protocol: ${target.status} ${target.path}`);
+  for (const target of plan.orientation.targets.filter((row) => row.status !== "ok").slice(0, 10)) printLine(`  - orientation: ${target.status} ${target.path}`);
   for (const target of plan.writes.projectTargets.slice(0, 10)) printLine(`  - project: ${target}`);
 }

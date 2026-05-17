@@ -41,7 +41,7 @@ export async function syncProtocol(args: string[]) {
   const payload = { project, repo, ok: true, scopes: scopes.map((scope) => scope.scope), files: results };
   if (json) printJson(payload);
   else {
-    printLine(`protocol sync for ${project}:`);
+    printLine(`orientation sync for ${project}:`);
     for (const row of results) printLine(`- ${row.updated ? "updated" : "ok"}: ${row.path}`);
   }
 }
@@ -80,11 +80,11 @@ export async function auditProtocol(args: string[]) {
   };
   if (json) printJson(payload);
   else {
-    printLine(`protocol audit for ${project}: ${payload.ok ? "PASS" : "FAIL"}`);
+    printLine(`orientation audit for ${project}: ${payload.ok ? "PASS" : "FAIL"}`);
     for (const row of rows) printLine(`- ${row.status}: ${row.path}`);
   }
   if (!payload.ok) {
-    const error = new Error(`protocol audit failed for ${project}`) as Error & { exitCode: number };
+    const error = new Error(`orientation audit failed for ${project}`) as Error & { exitCode: number };
     error.exitCode = 1;
     throw error;
   }
@@ -100,7 +100,7 @@ async function readProtocolScopes(project: string): Promise<ProtocolScope[]> {
   scopes.set(".", { path: ".", scope: "root" });
   if (!await exists(summaryPath)) return [...scopes.values()];
   const parsed = safeMatter(relative(VAULT_ROOT, summaryPath), await readText(summaryPath), { silent: true });
-  const rawScopes = parsed?.data.protocol_scopes;
+  const rawScopes = parsed?.data.orientation_scopes;
   if (!Array.isArray(rawScopes)) return [...scopes.values()];
   for (const entry of rawScopes) {
     if (typeof entry === "string") {

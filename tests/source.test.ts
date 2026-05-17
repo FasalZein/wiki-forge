@@ -6,20 +6,22 @@ import {
   renderProtocolSurface,
 } from "../src/wiki/protocol/source";
 
-describe("protocol source", () => {
-  test("renders managed protocol surfaces from one canonical source", () => {
+describe("orientation source", () => {
+  test("renders managed orientation surfaces from one canonical source", () => {
     const source = buildCanonicalProtocolSource("demo", { path: ".", scope: "root" });
     const rendered = renderProtocolSurface("demo", { path: ".", scope: "root" });
 
     expect(source.managedBy).toBe("wiki-forge");
     expect(source.protocolVersion).toBe(2);
     expect(rendered).toContain("managed_by: wiki-forge");
+    expect(rendered).toContain("orientation_version: 2");
+    expect(rendered).toContain("# Wiki Project Orientation");
     expect(rendered).toContain(source.workflowLines[0]);
     expect(rendered).toContain("Agent surface (3 commands): `wiki forge plan demo <feature-name>`, `wiki forge run demo [slice-id] --repo <path>`, `wiki forge next demo`");
     expect(rendered).toContain("Workflow Enforcement");
   });
 
-  test("prompt and handover adapters reuse canonical protocol guidance", () => {
+  test("prompt and handover adapters reuse canonical orientation guidance", () => {
     const reminders = renderPromptProtocolReminders("demo");
     const handoverReminder = renderHandoverAlignmentReminder("demo");
 

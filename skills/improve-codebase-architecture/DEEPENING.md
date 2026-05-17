@@ -12,7 +12,7 @@ Pure computation, in-memory state, no I/O. Always deepenable — merge the modul
 
 ### 2. Local-substitutable
 
-Dependencies that have local test stand-ins (PGLite for Postgres, in-memory filesystem, ephemeral git repos via the test helpers already in `tests/test-helpers.ts`). Deepenable if the stand-in exists. The deepened module is tested with the stand-in running in the test suite. The seam is internal; no port at the module's external interface.
+Dependencies that have local test stand-ins (PGLite for Postgres, in-memory filesystem). Deepenable if the stand-in exists. The deepened module is tested with the stand-in running in the test suite. The seam is internal; no port at the module's external interface.
 
 ### 3. Remote but owned (Ports & Adapters)
 
@@ -22,7 +22,7 @@ Recommendation shape: *"Define a port at the seam, implement an HTTP adapter for
 
 ### 4. True external (Mock)
 
-Third-party services (Stripe, Twilio, the actual `git` binary against a real remote, etc.) you don't control. The deepened module takes the external dependency as an injected port; tests provide a mock adapter.
+Third-party services (Stripe, Twilio, etc.) you don't control. The deepened module takes the external dependency as an injected port; tests provide a mock adapter.
 
 ## Seam discipline
 
@@ -31,9 +31,7 @@ Third-party services (Stripe, Twilio, the actual `git` binary against a real rem
 
 ## Testing strategy: replace, don't layer
 
-- Old unit tests on shallow modules become waste once tests at the deepened module's interface exist — delete them as part of the refactor slice's TDD red-green-refactor cycle.
+- Old unit tests on shallow modules become waste once tests at the deepened module's interface exist — delete them.
 - Write new tests at the deepened module's interface. The **interface is the test surface**.
 - Tests assert on observable outcomes through the interface, not internal state.
 - Tests should survive internal refactors — they describe behaviour, not implementation. If a test has to change when the implementation changes, it's testing past the interface.
-
-For wiki-forge specifically, prefer the CLI-integration style already in `tests/cli-smoke.test.ts` and `tests/automation.test.ts` when the interface is a user-facing command. Prefer the plain-import style in `tests/structure.test.ts` or `tests/maintenance.test.ts` when the interface is a pure function or internal helper.

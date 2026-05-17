@@ -2,7 +2,7 @@ import type { KernelJsonValue } from "./changeset";
 
 export const LIFECYCLE_PHASES = [
   "research",
-  "domain-model",
+  "grill-with-docs",
   "prd",
   "slices",
   "start",

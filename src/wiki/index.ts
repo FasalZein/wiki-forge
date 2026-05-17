@@ -15,7 +15,7 @@ import { lintRepo } from "../health/lint-repo";
 import { maintainProject } from "../health/maintain";
 import { refreshFromGit, refreshOnMerge, refreshProject } from "../health/refresh";
 import { syncProject } from "../health/sync";
-import { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeModule, pruneEmptyProjectDirs, syncProtocol, auditProtocol, obsidianCommand, setupShell } from "./protocol";
+import { scaffoldProject, onboardProject, onboardPlan, createModule, normalizeModule, pruneEmptyProjectDirs, obsidianCommand, setupShell } from "./protocol";
 import { scaffoldResearch, researchStatus, ingestResearch, ingestSource, lintResearch, auditResearch, handoffResearch, bridgeResearch, migrateProjectResearch } from "./research";
 import { askProject, fileAnswer, fileResearch } from "./retrieval/answers";
 import { qmdEmbed, qmdSetup, qmdStatus, qmdUpdate, queryVault, searchVault } from "./retrieval/qmd-commands";
@@ -24,11 +24,12 @@ import { exportPromptCommand, handoverCommand, logCommand, noteCommand, resumeCo
 import { acknowledgeImpact } from "./verification/acknowledge-impact";
 import { bindSourcePaths, verifyPage } from "./verification/verification-pages";
 import { cacheClear, lintProject, lintSemanticProject, verifyProject } from "./verification/linting";
-import { configCommand } from "./config";
+import { configCommand, initCommand } from "./config";
 import { schemaCommand } from "./schema";
 
 export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   help: (args) => printHelp(args),
+  init: (args) => initCommand(args),
   "scaffold-project": (args) => scaffoldProject(args[0]),
   "create-module": (args) => createModule(args),
   onboard: (args) => onboardProject(args),
@@ -41,8 +42,6 @@ export const WIKI_COMMANDS: Record<string, CommandHandler> = {
   "refresh-on-merge": (args) => refreshOnMerge(args),
   checkpoint: (args) => checkpoint(args),
   "lint-repo": (args) => lintRepo(args),
-  "protocol:sync": (args) => syncProtocol(args),
-  "protocol:audit": (args) => auditProtocol(args),
   "dependency-graph": (args) => dependencyGraph(args),
   handover: (args) => handoverCommand(args),
   "agent-handover": (args) => handoverCommand(args),
@@ -124,16 +123,6 @@ export function resolveWikiCommand(rawArgs: string[]) {
       ingest: "source:ingest",
     }[subcommand as "ingest"];
     if (!mapped) throw new Error(`unknown source subcommand: ${subcommand}. Run 'wiki help' for usage.`);
-    return { command: mapped, args: subArgs };
-  }
-  if (command === "protocol") {
-    const [subcommand, ...subArgs] = rest;
-    if (!subcommand || subcommand === "help") throw new Error("missing protocol subcommand. Run 'wiki help' for usage.");
-    const mapped = {
-      sync: "protocol:sync",
-      audit: "protocol:audit",
-    }[subcommand as "sync" | "audit"];
-    if (!mapped) throw new Error(`unknown protocol subcommand: ${subcommand}. Run 'wiki help' for usage.`);
     return { command: mapped, args: subArgs };
   }
   if (command === "handover" || command === "agent-handover") return { command: "handover", args: rest };

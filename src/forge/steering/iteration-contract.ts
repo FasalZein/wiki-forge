@@ -41,7 +41,7 @@ type BuildIterationContractInput = {
 
 const PHASE_TO_CONCEPT: Record<ForgePhase, string> = {
   research: "research",
-  "domain-model": "domain-model",
+  "grill-with-docs": "grill-with-docs",
   prd: "write-a-prd",
   slices: "prd-to-slices",
   tdd: "tdd",
@@ -50,7 +50,7 @@ const PHASE_TO_CONCEPT: Record<ForgePhase, string> = {
 
 const CONCEPTUAL_CHAIN = [
   "research",
-  "domain-model",
+  "grill-with-docs",
   "write-a-prd",
   "prd-to-slices",
   "tdd",
@@ -158,8 +158,8 @@ function noReviewPasses(): ForgeSubagentPolicy["reviewPasses"] {
 function chainWithDesignPressure(designPressure: boolean): string[] {
   if (!designPressure) return [...CONCEPTUAL_CHAIN];
   const chain: string[] = [...CONCEPTUAL_CHAIN];
-  const domainModelIndex = chain.indexOf("domain-model");
-  if (domainModelIndex === -1) return chain;
-  chain.splice(domainModelIndex + 1, 0, "torpathy");
+  const grillWithDocsIndex = chain.indexOf("grill-with-docs");
+  if (grillWithDocsIndex === -1) return chain;
+  chain.splice(grillWithDocsIndex + 1, 0, "torpathy");
   return chain;
 }

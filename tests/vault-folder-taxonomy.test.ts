@@ -10,6 +10,13 @@ describe("vault folder taxonomy", () => {
       writableByDefault: true,
       lifecycleAuthority: false,
     });
+    expect(classifyVaultFolderPath("projects/wiki-forge/context.md")).toMatchObject({
+      kind: "canonical-project-knowledge",
+      project: "wiki-forge",
+      canonical: true,
+      writableByDefault: true,
+      lifecycleAuthority: false,
+    });
     expect(classifyVaultFolderPath("projects/wiki-forge/modules/retrieval/spec.md")).toMatchObject({
       kind: "canonical-project-knowledge",
       project: "wiki-forge",
@@ -19,6 +26,13 @@ describe("vault folder taxonomy", () => {
       kind: "canonical-project-knowledge",
       project: "wiki-forge",
       canonical: true,
+    });
+    expect(classifyVaultFolderPath("projects/wiki-forge/bugs/BUG-0001-cli-crash.md")).toMatchObject({
+      kind: "canonical-project-knowledge",
+      project: "wiki-forge",
+      canonical: true,
+      writableByDefault: true,
+      lifecycleAuthority: false,
     });
     expect(classifyVaultFolderPath("projects/wiki-forge/forge/slices/WIKI-FORGE-246/index.md")).toMatchObject({
       kind: "canonical-project-knowledge",
@@ -118,6 +132,8 @@ describe("vault folder taxonomy", () => {
     ]) {
       expect(summary).toContain(kind);
     }
+    expect(summary).toContain("projects/<project>/context.md");
+    expect(summary).toContain("bugs/BUG-NNNN-slug.md");
     expect(summary).toContain("projects/<project>/research/<topic>/<slug>.md");
     expect(summary).toContain("research/<topic>/<slug>.md");
   });

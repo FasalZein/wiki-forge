@@ -28,14 +28,18 @@ describe("forge next projection", () => {
       nextAction: "continue-active-slice",
       nextCommand: "wiki forge status wiki-forge WIKI-FORGE-217 --json",
       reason: "Active slice exists; inspect slice status and continue its gates.",
+      phasePacket: {
+        kind: "phase-skill-packet",
+        phase: "implementation",
+        requiredSkills: ["forge", "tdd"],
+      },
       source: "canonical-records",
     });
-    expect(renderForgeNextText(projection)).toBe([
-      "Next command: wiki forge status wiki-forge WIKI-FORGE-217 --json",
-      "wiki-forge: continue WIKI-FORGE-217",
-      "",
-      "Next command: wiki forge status wiki-forge WIKI-FORGE-217 --json",
-    ].join("\n"));
+    const rendered = renderForgeNextText(projection);
+    expect(rendered).toContain("Next command: wiki forge status wiki-forge WIKI-FORGE-217 --json");
+    expect(rendered).toContain("wiki-forge: continue WIKI-FORGE-217");
+    expect(rendered).toContain("Required skills: /forge -> /tdd");
+    expect(rendered).toContain("red TDD evidence");
   });
 
   test("no active slice returns first ready slice or none", () => {
@@ -64,14 +68,14 @@ describe("forge next projection", () => {
     })).toMatchObject({
       status: "empty",
       project: "wiki-forge",
-      nextAction: "plan-next-slice",
-      noSafeCommandReason: "No active, ready, or draft Forge slices exist; create or complete a planning session first.",
-      reason: "No startable or releasable Forge slice exists.",
+      nextAction: "project-complete-or-plan-more-scope",
+      noSafeCommandReason: "No open Forge slices exist. Stop here unless the user wants more scope; then run wiki forge plan to create the next slice.",
+      reason: "No active, ready, or draft Forge slices exist; current Forge slice set is complete or empty.",
       source: "canonical-records",
     });
   });
 
-  test("draft-only project returns release guidance instead of plan-next-slice", () => {
+  test("draft-only project returns release guidance instead of project-complete guidance", () => {
     const projection = evaluateForgeNext({
       project: "wiki-forge",
       slices: [
@@ -127,6 +131,46 @@ describe("forge next projection", () => {
     expect(text).toContain("start after release: wiki forge start wiki-forge WIKI-FORGE-024");
     expect(text.trimEnd().endsWith("Next command: wiki forge release wiki-forge WIKI-FORGE-024")).toBe(true);
     expect(JSON.parse(renderForgeNextJson(projection))).toEqual(projection);
+  });
+
+  test("planning sessions are surfaced when no open slices exist", () => {
+    const draftProjection = evaluateForgeNext({
+      project: "wiki-forge",
+      slices: [{ ...readySlice, taskId: "WIKI-FORGE-218", status: "done" }],
+      planningSessions: [
+        { project: "wiki-forge", featureName: "Safer deploy", sessionId: "safer-deploy", status: "draft" },
+      ],
+    });
+
+    expect(draftProjection).toMatchObject({
+      status: "planning-session",
+      project: "wiki-forge",
+      featureName: "Safer deploy",
+      sessionId: "safer-deploy",
+      nextAction: "continue-planning-session",
+      nextCommand: "wiki forge plan wiki-forge 'Safer deploy' --json",
+      reason: "A Forge planning session exists and needs completion before artifact creation.",
+      phasePacket: {
+        kind: "phase-skill-packet",
+        phase: "plan",
+        requiredSkills: ["grill-with-docs", "forge"],
+      },
+      source: "canonical-records",
+    });
+    expect(renderForgeNextText(draftProjection)).toContain("wiki-forge: continue planning session Safer deploy");
+    expect(renderForgeNextText(draftProjection)).toContain("Required skills: /grill-with-docs -> /forge");
+
+    expect(evaluateForgeNext({
+      project: "wiki-forge",
+      slices: [],
+      planningSessions: [
+        { project: "wiki-forge", featureName: "Safer deploy", sessionId: "safer-deploy", status: "ready-for-artifacts" },
+      ],
+    })).toMatchObject({
+      status: "planning-session",
+      nextAction: "create-planning-artifacts",
+      nextCommand: "wiki forge plan wiki-forge 'Safer deploy' --create-artifacts",
+    });
   });
 
   test("multiple active slices return typed conflict and recovery", () => {

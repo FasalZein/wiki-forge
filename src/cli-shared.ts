@@ -29,6 +29,7 @@ Research:
   wiki research migrate-projects [--project <legacy-project>] [--to-project <project>] [--write] [--json]
 
 Second-brain management:
+  wiki init <project> [--repo <path>]
   wiki scaffold-project <project>
   wiki prune-empty-dirs <project> [--write] [--json]
   wiki prune-ghost-projects [--write] [--json]
@@ -53,15 +54,18 @@ const FULL_HELP_CATALOG = `Session:
   wiki prune-ghost-projects [--write] [--json]
 
 Workflow / Forge:
-  wiki forge plan <project> <feature-name> [--repo <path>]
+  wiki forge plan <project> <feature-name> [--repo <path>] [--plan-answer-file <path>]
   wiki forge run <project> [slice-id] --repo <path>
   wiki forge next <project>
+  wiki forge improve <project> [--json]
+  wiki forge grill record <project> [--context-file <path> [--context <name>]] [--decision-title <title> --decision-file <path>] [--tag <id> ...] [--json]
 
 Internal / Repair:
   wiki forge start <project> [slice-id] [--agent <name>] [--repo <path>] [--json]
   wiki forge check <project> [slice-id] [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
   wiki forge close <project> [slice-id] [--repo <path>] [--base <rev>] [--worktree] [--dry-run] [--json]
   wiki forge tdd status <project> <slice-id> [--json]
+  wiki forge tdd cycle <project> <slice-id> --test <path> --red-command <cmd> --green-command <cmd> [--note <text>] [--json]
   wiki forge tdd red <project> <slice-id> --test <path> --command <cmd> [--note <text>] [--json]
   wiki forge tdd green <project> <slice-id> --test <path> --command <cmd> [--note <text>] [--json]
   wiki forge evidence <project> <slice-id> verify --command <cmd> [--verification-type targeted|full-suite] [--result passed|failed] [--json]
@@ -102,13 +106,14 @@ Verification & Drift:
   wiki acknowledge-impact <project> <page...> [--repo <path>] [--json]
 
 Project Setup:
+  wiki init <project> [--repo <path>]
   wiki scaffold-project <project>
   wiki onboard <project> [--repo <path>]
   wiki onboard-plan <project> [--repo <path>] [--write]
   wiki create-module <project> <module> [--source <path...>]
   wiki normalize-module <project> <module> [--write]
-  wiki protocol sync <project> [--repo <path>] [--json]
-  wiki protocol audit <project> [--repo <path>] [--json]
+  wiki sync <project> [--repo <path>] [--write] [--json]
+  wiki init <project> [--repo <path>]
   wiki scaffold-layer <name>
   wiki create-layer-page <layer> <title...>
   wiki lint-vault [--json]
@@ -149,7 +154,8 @@ Utility:
   wiki schema <kind> | --list
 
 Environment:
-  ${VAULT_ROOT_ENV}    vault root when CLI is installed outside the vault repo
+  default vault     ~/Knowledge (created on first use when no override/detected vault exists)
+  ${VAULT_ROOT_ENV}    override vault root; must point to an existing vault path
   WIKI_SESSION_ID      group activity tracking entries by session (defaults to ppid+date)
   WIKI_AGENT_NAME      identify the agent in activity tracking (defaults to USER)
   QMD_INDEX_NAME       route wiki/qmd commands to a named qmd index
@@ -238,7 +244,9 @@ export function findTableSpacingProblems(content: string): string[] {
 export function scaffoldFile(project: string, file: (typeof PROJECT_FILES)[number]) {
   switch (file) {
     case "_summary.md":
-      return `---\ntitle: "${project}"\ntype: project\nproject: ${project}\nupdated: ${today()}\nstatus: scaffold\nverification_level: scaffold\n---\n\n# ${project}\n\n> [!summary]\n> Canonical project hub for \`${project}\`. Keep this note aligned with code, active slices, and research.\n\n## Current Focus\n\n- \n\n## Cross Links\n\n- [[projects/${project}/backlog]]\n- [[projects/${project}/decisions]]\n- [[projects/${project}/learnings]]\n- [[projects/${project}/specs/index]]\n`;
+      return `---\ntitle: "${project}"\ntype: project\nproject: ${project}\nupdated: ${today()}\nstatus: scaffold\nverification_level: scaffold\n---\n\n# ${project}\n\n> [!summary]\n> Canonical project hub for \`${project}\`. Keep this note aligned with code, active slices, and research.\n\n## Current Focus\n\n- \n\n## Cross Links\n\n- [[projects/${project}/context]]\n- [[projects/${project}/backlog]]\n- [[projects/${project}/decisions]]\n- [[projects/${project}/learnings]]\n- [[projects/${project}/specs/index]]\n`;
+    case "context.md":
+      return `---\ntitle: "${project} context"\ntype: project-context\nproject: ${project}\nupdated: ${today()}\nstatus: scaffold\n---\n\n# ${project} context\n\n> [!summary]\n> Canonical project context index for \`${project}\`. Keep durable tradeoff context in ADRs and use this page as the operator entrypoint.\n\n## Current Architecture\n\n- \n\n## Active Work\n\n- \n\n## Decisions and ADRs\n\n- [[projects/${project}/decisions]]\n\n## Bugs\n\nUse \`projects/${project}/bugs/BUG-NNNN-slug.md\` for durable bug artifacts. Each bug should capture Symptoms, Reproduction / Evidence, Related Artifacts, Related ADRs, and Follow-up Forge Slices.\n\n- [[projects/${project}/bugs/BUG-0001-example|BUG-0001]] — replace this example with the project bug index or active bug links.\n\n## Cross Links\n\n- [[projects/${project}/_summary]]\n- [[projects/${project}/forge/features/index]]\n- [[projects/${project}/forge/prds/index]]\n- [[projects/${project}/forge/slices/index]]\n`;
     case "backlog.md":
       return `# Backlog\n\n> [!todo]\n> Active task tracker for this project. Move slices through the sections instead of creating ad hoc task notes.\n\n## In Progress\n\n## Todo\n\n## Backlog\n\n## Done\n\n## Cancelled\n\n## Cross Links\n\n- [[projects/${project}/_summary]]\n- [[projects/${project}/specs/index]]\n`;
     case "decisions.md":

@@ -95,10 +95,10 @@ describe("Forge vault artifact primitives", () => {
       answers: {},
       prds: [{ name: "Vault primitives", slices: ["WIKI-FORGE-044"] }],
       artifacts: {},
-    }, { missing: ["domain-model", "prd"] });
+    }, { missing: ["grill-with-docs", "prd"] });
 
     expect(body).toContain("Status: draft");
-    expect(body).toContain("Missing: domain-model, prd");
+    expect(body).toContain("Missing: grill-with-docs, prd");
     expect(body).toContain("- Vault primitives");
     expect(body).toContain("  - Slice: WIKI-FORGE-044");
   });
@@ -141,6 +141,10 @@ describe("Forge vault artifact primitives", () => {
     await expect(loadForgeProjectState("wiki-forge", vault)).resolves.toEqual({
       project: "wiki-forge",
       activeSlices: [{ project: "wiki-forge", sliceId: "WIKI-FORGE-044", claimedBy: "codex" }],
+      sliceStatuses: {
+        "WIKI-FORGE-043": "done",
+        "WIKI-FORGE-044": "in-progress",
+      },
     });
   });
 

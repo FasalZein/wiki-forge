@@ -1,49 +1,117 @@
 ---
 name: tdd
-description: >
-  Test-driven development with a strict red-green-refactor loop, integrated with the wiki slice lifecycle. Use when building features, fixing bugs, implementing slices, or doing behavior-preserving refactors through characterization tests.
+description: Test-driven development with red-green-refactor loop. Use when user wants to build features or fix bugs using TDD, mentions "red-green-refactor", wants integration tests, or asks for test-first development.
 ---
 
 # Test-Driven Development
 
-TDD turns planned or existing behavior into verified implementation through red-green-refactor loops.
+## Philosophy
 
-Tests must describe observable behavior through public interfaces. Avoid implementation-coupled tests, private-method checks, and mocks of code you own.
+**Core principle**: Tests should verify behavior through public interfaces, not implementation details. Code can change entirely; tests shouldn't.
 
-For new behavior or bug fixes, start with a failing behavior test that demonstrates the desired outcome.
+**Good tests** are integration-style: they exercise real code paths through public APIs. They describe _what_ the system does, not _how_ it does it. A good test reads like a specification - "user can checkout with valid cart" tells you exactly what capability exists. These tests survive refactors because they don't care about internal structure.
 
-For behavior-preserving refactors, first capture current externally visible behavior with characterization tests through public interfaces, then use those tests to drive safe refactoring. Characterization is for preserving and understanding current behavior, not for skipping the red phase when changing behavior or adding capability.
+**Bad tests** are coupled to implementation. They mock internal collaborators, test private methods, or verify through external means (like querying a database directly instead of using the interface). The warning sign: your test breaks when you refactor, but behavior hasn't changed. If you rename an internal function and tests fail, those tests were testing implementation, not behavior.
 
-## Loop
+See [tests.md](tests.md) for examples and [mocking.md](mocking.md) for mocking guidelines.
 
-1. Read the slice `plan.md`, `test-plan.md`, and current Forge steering packet.
-2. If the packet requires subagent-vs-linear evaluation, record the subagent-vs-linear decision with conflict rationale before implementation edits, covering file ownership, shared state/migration risk, coordination cost, and hidden context/artifact handoff risk.
-3. Pick one behavior.
-4. Write one failing test for the next change. If refactoring existing behavior, write or extend a characterization test that demonstrates the current behavior first, then make the next change in small verified steps.
-5. Implement the smallest code change that passes the current test.
-6. Refactor only while green.
-7. Repeat until the slice acceptance criteria are covered.
-8. Run the verification commands from the test plan.
-9. Record TDD and targeted verification evidence, then return to `wiki forge run <project> <slice> --repo <path>` for check/review/close orchestration.
+## Anti-Pattern: Horizontal Slices
 
-## Commands
+**DO NOT write all tests first, then all implementation.** This is "horizontal slicing" - treating RED as "write all tests" and GREEN as "write all code."
 
-- Inspect workflow: `wiki forge status <project> <slice> --repo <path>`
-- Record TDD red: `wiki forge tdd red <project> <slice> --test <path> --command "<failing command>" --note "<why this fails>"`
-- Record TDD green: `wiki forge tdd green <project> <slice> --test <same path> --command "<same command>" --note "<what now passes>"`
-- Record targeted verification: `wiki forge evidence <project> <slice> verify --command "<targeted command>" --repo <path>`
-- Continue/close tracked work: `wiki forge run <project> <slice> --repo <path>`
-- Do not use removed legacy commands. Record verification with `wiki forge evidence`, then continue with `wiki forge run`.
-- Full command details: `wiki help` or `wiki help --all`
+This produces **crap tests**:
 
-## Rules
+- Tests written in bulk test _imagined_ behavior, not _actual_ behavior
+- You end up testing the _shape_ of things (data structures, function signatures) rather than user-facing behavior
+- Tests become insensitive to real changes - they pass when behavior breaks, fail when behavior is fine
+- You outrun your headlights, committing to test structure before understanding the implementation
 
-No code without a behavior test. When a behavior is only provable through broader verification, record that behavior evidence explicitly.
+**Correct approach**: Vertical slices via tracer bullets. One test → one implementation → repeat. Each test responds to what you learned from the previous cycle. Because you just wrote the code, you know exactly what behavior matters and how to verify it.
 
-Do not batch all tests first and all implementation second. Use tracer bullets: one red test, one green implementation, then refactor.
+```
+WRONG (horizontal):
+  RED:   test1, test2, test3, test4, test5
+  GREEN: impl1, impl2, impl3, impl4, impl5
 
-Red and green evidence must use the exact same command string. The green record must reuse the exact same `--command` string as red and at least one same `--test` path. If you change the command while fixing the test, record a new red first; otherwise Forge will reject close evidence as an invalid TDD pair.
+RIGHT (vertical):
+  RED→GREEN: test1→impl1
+  RED→GREEN: test2→impl2
+  RED→GREEN: test3→impl3
+  ...
+```
 
-Do not use characterization as a bypass for implementation work: when changing behavior, add a failing test for the new outcome before making the code pass.
+## Workflow
 
-After editing repo skill files, run `bun run sync:full` for the full workflow install or `bun run sync:wiki` for wiki-only, optionally audit with `bun run sync:local -- --audit`, then restart the agent session.
+### 1. Planning
+
+When exploring the codebase, use the project's domain glossary so that test names and interface vocabulary match the project's language, and respect ADRs in the area you're touching.
+
+Before writing any code:
+
+- [ ] Confirm with user what interface changes are needed
+- [ ] Confirm with user which behaviors to test (prioritize)
+- [ ] Identify opportunities for [deep modules](deep-modules.md) (small interface, deep implementation)
+- [ ] Design interfaces for [testability](interface-design.md)
+- [ ] List the behaviors to test (not implementation steps)
+- [ ] Get user approval on the plan
+
+Ask: "What should the public interface look like? Which behaviors are most important to test?"
+
+**You can't test everything.** Confirm with the user exactly which behaviors matter most. Focus testing effort on critical paths and complex logic, not every possible edge case.
+
+### 2. Tracer Bullet
+
+Write ONE test that confirms ONE thing about the system:
+
+```
+RED:   Write test for first behavior → test fails
+GREEN: Write minimal code to pass → test passes
+```
+
+This is your tracer bullet - proves the path works end-to-end.
+
+### 3. Incremental Loop
+
+For each remaining behavior:
+
+```
+RED:   Write next test → fails
+GREEN: Minimal code to pass → passes
+```
+
+Rules:
+
+- One test at a time
+- Only enough code to pass current test
+- Don't anticipate future tests
+- Keep tests focused on observable behavior
+
+### 4. Refactor
+
+After all tests pass, look for [refactor candidates](refactoring.md):
+
+- [ ] Extract duplication
+- [ ] Deepen modules (move complexity behind simple interfaces)
+- [ ] Apply SOLID principles where natural
+- [ ] Consider what new code reveals about existing code
+- [ ] Run tests after each refactor step
+
+**Never refactor while RED.** Get to GREEN first.
+
+## Checklist Per Cycle
+
+```
+[ ] Test describes behavior, not implementation
+[ ] Test uses public interface only
+[ ] Test would survive internal refactor
+[ ] Code is minimal for this test
+[ ] No speculative features added
+```
+
+## Wiki/Forge adapter
+
+For wiki-forge projects, keep the upstream TDD workflow. Add only these lifecycle rules: read Wiki domain language/ADRs before naming tests; record red/green with `wiki forge tdd cycle`; record targeted verification with `wiki forge evidence`; close through `wiki forge run` and review gates.
+
+### Forge lifecycle details
+
+Load this skill when the phase packet lists `tdd`. Do not use removed legacy commands. Record each red/green pair with `wiki forge tdd cycle <project> <slice>`, and record targeted verification with `wiki forge evidence <project> <slice> verify`.

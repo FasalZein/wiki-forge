@@ -4,8 +4,7 @@ import { VAULT_ROOT } from "../../../constants";
 import { renderForgeHandoverMarkdown } from "./render";
 import type { ForgeHandoverRecord } from "./schema";
 import { forgeHandoverPath, forgeProjectDir } from "../../../forge/vault/forge-paths";
-import { parseVaultDocument } from "../../../forge/vault/frontmatter-codec";
-import { decodeForgeRecord } from "../../../forge/vault/records";
+import { decodeForgeRecord, parseVaultDocument } from "../../../forge/vault/records";
 
 export type WriteHandoverInput = {
   readonly project: string;

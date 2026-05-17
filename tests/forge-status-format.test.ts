@@ -22,12 +22,12 @@ describe("forge status format helpers", () => {
         },
         validation: {
           ok: false,
-          nextPhase: "domain-model",
+          nextPhase: "grill-with-docs",
           statuses: [{
-            phase: "domain-model",
+            phase: "grill-with-docs",
             completed: false,
             ready: true,
-            missing: ["domain-model.decisionRefs"],
+            missing: ["grill-with-docs.decisionRefs"],
             blockedBy: [],
           }],
         },
@@ -48,25 +48,25 @@ describe("forge status format helpers", () => {
         hasSliceDocs: true,
       } as never,
       triage: {
-        kind: "needs-domain-model",
-        reason: "domain model missing",
+        kind: "needs-grill-with-docs",
+        reason: "grill-with-docs missing",
         command: "wiki forge status demo DEMO-001",
       },
       steering: {
         lane: "domain-work",
-        phase: "domain-model",
+        phase: "grill-with-docs",
         nextCommand: "wiki forge status demo DEMO-001",
-        why: "domain model missing",
-        loadSkill: "/domain-model",
+        why: "grill-with-docs missing",
+        loadSkill: "/grill-with-docs",
       },
     });
 
-    expect(payload.workflow.ledger["domain-model"]).toEqual({
+    expect(payload.workflow.ledger["grill-with-docs"]).toEqual({
       completedAt: "2026-04-20T00:00:00.000Z",
       decisionRefs: ["projects/demo/decisions.md#current-decisions"],
     });
     expect((payload.workflow.ledger as Record<string, unknown>).grill).toBeUndefined();
-    expect(payload.workflow.validation.statuses[0].unmet).toEqual(["domain-model.decisionRefs"]);
+    expect(payload.workflow.validation.statuses[0].unmet).toEqual(["grill-with-docs.decisionRefs"]);
     expect(payload.context).toEqual({
       id: "DEMO-001",
       title: "status slice",

@@ -3,6 +3,7 @@ import { hasPassedTargetedVerification } from "../lifecycle/verification-gate";
 import { evaluateTddGate } from "../lifecycle/tdd-gate";
 import type { ForgeEvidenceRecord } from "../lifecycle/evidence";
 import type { KernelRejection } from "../kernel/rejection";
+import { buildPhaseSkillPacket, type PhaseSkillPacket } from "./phase-skill-packet";
 import type { SliceRecord, ForgeDiagnostic, ForgeRecordStatus } from "../vault/document";
 
 export type SliceProjectionRecord = {
@@ -27,11 +28,19 @@ export type ForgeActionableCandidate = {
   readonly nextCommand: string;
 };
 
+export type PlanningSessionProjectionRecord = {
+  readonly project: string;
+  readonly featureName: string;
+  readonly sessionId: string;
+  readonly status: "draft" | "ready-for-artifacts" | "artifacts-created";
+};
+
 type ForgeActionableFields = {
   readonly reason: string;
   readonly nextCommand?: string;
   readonly noSafeCommandReason?: string;
   readonly candidates?: readonly ForgeActionableCandidate[];
+  readonly phasePacket?: PhaseSkillPacket;
 };
 
 export type ForgeNextProjection =
@@ -57,9 +66,18 @@ export type ForgeNextProjection =
     readonly source: "canonical-records";
   } & ForgeActionableFields)
   | ({
+    readonly status: "planning-session";
+    readonly project: string;
+    readonly featureName: string;
+    readonly sessionId: string;
+    readonly planningStatus: "draft" | "ready-for-artifacts";
+    readonly nextAction: "continue-planning-session" | "create-planning-artifacts";
+    readonly source: "canonical-records";
+  } & ForgeActionableFields)
+  | ({
     readonly status: "empty";
     readonly project: string;
-    readonly nextAction: "plan-next-slice";
+    readonly nextAction: "project-complete-or-plan-more-scope";
     readonly source: "canonical-records";
   } & ForgeActionableFields)
   | ({
@@ -78,6 +96,7 @@ export type ForgeNextProjection =
 export type ForgeNextInput = {
   readonly project: string;
   readonly slices: readonly SliceProjectionRecord[];
+  readonly planningSessions?: readonly PlanningSessionProjectionRecord[];
   readonly generatedProjectionActiveSliceId?: string;
 };
 
@@ -127,6 +146,7 @@ export type SliceStatusProjection =
     readonly evidence: SliceEvidenceSummary;
     readonly closeGate: SliceCloseGate;
     readonly nextAction: "finish-planning-or-release" | "forge-start" | "record-tdd-evidence" | "record-targeted-verification" | "record-review-evidence" | "address-review-feedback" | "forge-close" | "none";
+    readonly phasePacket?: PhaseSkillPacket;
     readonly source: "canonical-records";
   };
 
@@ -163,6 +183,7 @@ export function projectSliceToStatus(input: SliceStatusInput): SliceStatusProjec
     evidence,
     closeGate,
     nextAction: resolveNextAction(input.record.status, closeGate),
+    ...(input.record.status === "in-progress" ? { phasePacket: buildPhaseSkillPacket("implementation", { project: input.project, sliceId: input.sliceId }) } : {}),
     source: "canonical-records",
   };
 }

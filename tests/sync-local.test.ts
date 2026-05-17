@@ -106,10 +106,33 @@ describe("sync-local", () => {
     const audit = auditInstalledRepoSkills({ repoDir, installSet: "full" }, installRoot);
     expect(audit.ok).toBe(false);
     expect(audit.rows).toEqual([
-      { skill: "forge", status: "stale", installedSkillPath: join(installRoot, "forge", "SKILL.md") },
-      { skill: "wiki", status: "missing", installedSkillPath: join(installRoot, "wiki", "SKILL.md") },
+      { skill: "forge", status: "stale", installedSkillPath: join(installRoot, "forge", "SKILL.md"), details: [`stale ${join(installRoot, "forge", "SKILL.md")}`] },
+      { skill: "wiki", status: "missing", installedSkillPath: join(installRoot, "wiki", "SKILL.md"), details: [`missing directory ${join(installRoot, "wiki")}`] },
     ]);
 
+  });
+
+  test("audit detects stale companion reference files inside installed skills", () => {
+    const repoDir = tempDir("sync-local-repo");
+    const installRoot = tempDir("sync-local-install");
+
+    mkdirSync(join(repoDir, "skills", "grill-with-docs"), { recursive: true });
+    mkdirSync(join(installRoot, "grill-with-docs"), { recursive: true });
+    writeFileSync(join(repoDir, "skills", "grill-with-docs", "SKILL.md"), "# skill\n", "utf8");
+    writeFileSync(join(installRoot, "grill-with-docs", "SKILL.md"), "# skill\n", "utf8");
+    writeFileSync(join(repoDir, "skills", "grill-with-docs", "ADR-FORMAT.md"), "repo adr\n", "utf8");
+    writeFileSync(join(installRoot, "grill-with-docs", "ADR-FORMAT.md"), "stale adr\n", "utf8");
+
+    const audit = auditInstalledRepoSkills({ repoDir, installSet: "full" }, installRoot);
+    expect(audit.ok).toBe(false);
+    expect(audit.rows).toEqual([
+      {
+        skill: "grill-with-docs",
+        status: "stale",
+        installedSkillPath: join(installRoot, "grill-with-docs", "SKILL.md"),
+        details: [`stale ${join(installRoot, "grill-with-docs", "ADR-FORMAT.md")}`],
+      },
+    ]);
   });
 
   test("post-install verification fails loudly when repo-owned installed skills stay stale", () => {
@@ -174,7 +197,7 @@ describe("sync-local", () => {
     const audit = auditInstalledRepoSkills({ repoDir, installSet: "wiki-only" }, installRoot);
     expect(audit.ok).toBe(true);
     expect(audit.rows).toEqual([
-      { skill: "wiki", status: "ok", installedSkillPath: join(installRoot, "wiki", "SKILL.md") },
+      { skill: "wiki", status: "ok", installedSkillPath: join(installRoot, "wiki", "SKILL.md"), details: [] },
     ]);
   });
 });

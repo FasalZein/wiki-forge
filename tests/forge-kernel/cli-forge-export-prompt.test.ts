@@ -53,7 +53,7 @@ describe("Forge export prompt", () => {
     expect(result.json().prompt).toContain("We are continuing demo.");
     expect(result.json().prompt).toContain("Next action: start-ready-slice");
     expect(result.json().prompt).toContain("Ready slice: DEMO-001");
-    expect(result.json().prompt).toContain("Previous handover prompt:");
+    expect(result.json().prompt).toContain("Operator prompt from latest handover:");
     expect(result.json().prompt).toContain("Continue demo Forge.");
   });
 
@@ -70,7 +70,7 @@ describe("Forge export prompt", () => {
     const packet = result.json();
     expect(packet.handoverStaleness).toMatchObject({ status: "stale", promptHead: oldHead, currentHead });
     expect(packet.recoveryPrompt).toContain(`current HEAD ${currentHead}`);
-    expect(packet.prompt).toContain("Previous handover prompt (stale; context only):");
+    expect(packet.prompt).toContain("Operator prompt from latest handover (stale; context only):");
     expect(packet.prompt).toContain(`Continue demo from clean HEAD ${oldHead}.`);
     expect(packet.prompt).toContain("Current recovery prompt:");
     expect(packet.prompt).toContain(`current HEAD ${currentHead}`);

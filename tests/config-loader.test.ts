@@ -30,7 +30,7 @@ describe("loadConfig — zero-config baseline", () => {
     expect(config.repo.ignore.value).toContain(".venv/**");
     expect(config.repo.ignore.source).toBe("default");
     expect(config.workflow.phaseSkills.research.value).toBe("/research");
-    expect(config.workflow.phaseSkills.domainModel.value).toBe("/domain-model");
+    expect(config.workflow.phaseSkills.grillWithDocs.value).toBe("/grill-with-docs");
     expect(config.workflow.phaseSkills.verify.value).toBe("/desloppify");
     expect(config.workflow.phaseSkills.research.source).toBe("default");
   });

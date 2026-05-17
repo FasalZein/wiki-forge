@@ -50,7 +50,7 @@ describe("forge evidence/review command adapters", () => {
     const result = runWiki(["forge", "evidence", "demo", sliceId, "tdd", "--command", "bun test tests/forge-kernel/x.test.ts", "--result", "passed", "--json"], { vault });
 
     expect(result.exitCode).not.toBe(0);
-    expect(result.stderr.toString()).toContain("Use 'verify' for targeted verification or 'wiki forge tdd red/green' for TDD evidence");
+    expect(result.stderr.toString()).toContain("Use 'verify' for targeted verification or 'wiki forge tdd cycle' for TDD evidence");
     expect(evidence(vault)).toBeUndefined();
   });
 

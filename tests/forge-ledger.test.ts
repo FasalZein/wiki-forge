@@ -10,7 +10,7 @@ import {
 
 describe("forge workflow ledger", () => {
   test("keeps the forge phase chain in canonical order", () => {
-    expect(FORGE_PHASES).toEqual(["research", "domain-model", "prd", "slices", "tdd", "verify"]);
+    expect(FORGE_PHASES).toEqual(["research", "grill-with-docs", "prd", "slices", "tdd", "verify"]);
   });
 
   test("reports research as the next missing phase for an empty ledger", () => {
@@ -21,13 +21,13 @@ describe("forge workflow ledger", () => {
     expect(validation.statuses[0].missing).toContain("research.researchRefs");
   });
 
-  test("blocks domain-model until research evidence exists", () => {
+  test("blocks grill-with-docs until research evidence exists", () => {
     const gate = canAdvanceForgePhase(
       {
         project: "wiki-forge",
         sliceId: "WIKI-FORGE-124",
       },
-      "domain-model",
+      "grill-with-docs",
     );
     expect(gate.ok).toBe(false);
     expect(gate.blockedBy).toEqual(["research"]);
@@ -38,7 +38,7 @@ describe("forge workflow ledger", () => {
       project: "wiki-forge",
       sliceId: "WIKI-FORGE-124",
       research: { completedAt: "2026-04-17T00:00:00Z", researchRefs: ["research/projects/wiki-forge/redesign.md"] },
-      "domain-model": { completedAt: "2026-04-17T00:10:00Z", decisionRefs: ["projects/wiki-forge/decisions.md#redesign"] },
+      "grill-with-docs": { completedAt: "2026-04-17T00:10:00Z", decisionRefs: ["projects/wiki-forge/decisions.md#redesign"] },
       prd: { completedAt: "2026-04-17T00:20:00Z", prdRef: "PRD-044" },
     };
 
@@ -53,7 +53,7 @@ describe("forge workflow ledger", () => {
       sliceId: "WIKI-FORGE-124",
       parentPrd: "PRD-044",
       research: { completedAt: "2026-04-17T00:00:00Z", researchRefs: ["research/projects/wiki-forge/redesign.md"] },
-      "domain-model": { completedAt: "2026-04-17T00:10:00Z", decisionRefs: ["projects/wiki-forge/decisions.md#redesign"] },
+      "grill-with-docs": { completedAt: "2026-04-17T00:10:00Z", decisionRefs: ["projects/wiki-forge/decisions.md#redesign"] },
       prd: { completedAt: "2026-04-17T00:20:00Z", prdRef: "PRD-044", parentPrd: "PRD-044" },
       slices: { completedAt: "2026-04-17T00:30:00Z", sliceRefs: ["WIKI-FORGE-124"] },
       tdd: { completedAt: "2026-04-17T00:40:00Z", tddEvidence: [] },
@@ -71,7 +71,7 @@ describe("forge workflow ledger", () => {
       sliceId: "WIKI-FORGE-124",
       parentPrd: "PRD-044",
       research: { completedAt: "2026-04-17T00:00:00Z", researchRefs: ["research/projects/wiki-forge/redesign.md"] },
-      "domain-model": { completedAt: "2026-04-17T00:10:00Z", decisionRefs: ["projects/wiki-forge/decisions.md#redesign"] },
+      "grill-with-docs": { completedAt: "2026-04-17T00:10:00Z", decisionRefs: ["projects/wiki-forge/decisions.md#redesign"] },
       prd: { completedAt: "2026-04-17T00:20:00Z", prdRef: "PRD-044", parentPrd: "PRD-044" },
       slices: { completedAt: "2026-04-17T00:30:00Z", sliceRefs: ["WIKI-FORGE-124"] },
       tdd: { completedAt: "2026-04-17T00:40:00Z", tddEvidence: ["bun test tests/forge-ledger.test.ts"] },
@@ -84,10 +84,10 @@ describe("forge workflow ledger", () => {
     expect(validation.statuses.every((status) => status.completed)).toBe(true);
   });
 
-  test("exposes the skippable-phase floor: research, domain-model, prd, slices only", () => {
-    expect([...SKIPPABLE_FORGE_PHASES].sort()).toEqual(["domain-model", "prd", "research", "slices"]);
+  test("exposes the skippable-phase floor: research, grill-with-docs, prd, slices only", () => {
+    expect([...SKIPPABLE_FORGE_PHASES].sort()).toEqual(["grill-with-docs", "prd", "research", "slices"]);
     expect(isForgePhaseSkippable("research")).toBe(true);
-    expect(isForgePhaseSkippable("domain-model")).toBe(true);
+    expect(isForgePhaseSkippable("grill-with-docs")).toBe(true);
     expect(isForgePhaseSkippable("prd")).toBe(true);
     expect(isForgePhaseSkippable("slices")).toBe(true);
     expect(isForgePhaseSkippable("tdd")).toBe(false);
@@ -106,7 +106,7 @@ describe("forge workflow ledger", () => {
     const validation = validateForgeWorkflowLedger(ledger);
     const research = validation.statuses.find((status) => status.phase === "research");
     expect(research).toMatchObject({ completed: true, ready: true, missing: [], blockedBy: [] });
-    expect(validation.nextPhase).toBe("domain-model");
+    expect(validation.nextPhase).toBe("grill-with-docs");
   });
 
   test("skipping a phase unblocks subsequent phases in the same ledger", () => {
@@ -115,7 +115,7 @@ describe("forge workflow ledger", () => {
       sliceId: "WIKI-FORGE-197",
       skippedPhases: [
         { phase: "research", reason: "spike", skippedAt: "2026-04-23T18:00:00Z" },
-        { phase: "domain-model", reason: "spike", skippedAt: "2026-04-23T18:00:00Z" },
+        { phase: "grill-with-docs", reason: "spike", skippedAt: "2026-04-23T18:00:00Z" },
       ],
     };
 
@@ -132,7 +132,7 @@ describe("forge workflow ledger", () => {
       parentPrd: "PRD-082",
       skippedPhases: [
         { phase: "research", reason: "spike", skippedAt: "2026-04-23T18:00:00Z" },
-        { phase: "domain-model", reason: "spike", skippedAt: "2026-04-23T18:00:00Z" },
+        { phase: "grill-with-docs", reason: "spike", skippedAt: "2026-04-23T18:00:00Z" },
       ],
       prd: { completedAt: "2026-04-23T18:10:00Z", prdRef: "PRD-082", parentPrd: "PRD-082" },
       slices: { completedAt: "2026-04-23T18:20:00Z", sliceRefs: ["WIKI-FORGE-197"] },
@@ -159,7 +159,7 @@ describe("forge workflow ledger", () => {
     expect(tdd?.missing).toContain("tdd.completedAt");
   });
 
-  test("bootstrap profile skips research and domain-model requirements", () => {
+  test("bootstrap profile skips research and grill-with-docs requirements", () => {
     const ledger: ForgeWorkflowLedger = {
       project: "wiki-forge",
       sliceId: "WIKI-FORGE-189",
@@ -178,7 +178,7 @@ describe("forge workflow ledger", () => {
       missing: [],
       blockedBy: [],
     });
-    expect(validation.statuses.find((status) => status.phase === "domain-model")).toMatchObject({
+    expect(validation.statuses.find((status) => status.phase === "grill-with-docs")).toMatchObject({
       completed: true,
       missing: [],
       blockedBy: [],

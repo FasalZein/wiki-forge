@@ -8,7 +8,7 @@ import {
 } from "../src/forge/status/ledger";
 
 describe("forge status ledger helpers", () => {
-  test("readAuthoredHubLedger normalizes legacy grill storage to domain-model", () => {
+  test("readAuthoredHubLedger normalizes legacy grill storage to grill-with-docs", () => {
     const ledger = readAuthoredHubLedger({
       grill: {
         completedAt: "2026-04-20T00:00:00.000Z",
@@ -16,7 +16,7 @@ describe("forge status ledger helpers", () => {
       },
     }, "demo", "DEMO-001");
 
-    expect(ledger["domain-model"]).toEqual({
+    expect(ledger["grill-with-docs"]).toEqual({
       completedAt: "2026-04-20T00:00:00.000Z",
       decisionRefs: ["projects/demo/decisions.md#current-decisions"],
     });
@@ -109,7 +109,7 @@ describe("forge status ledger helpers", () => {
       project: "demo",
       sliceId: "DEMO-001",
       research: { completedAt: "2026-04-20T00:00:00.000Z", researchRefs: ["research/demo.md"] },
-      "domain-model": { completedAt: "2026-04-20T00:00:01.000Z", decisionRefs: ["projects/demo/decisions.md#current-decisions"] },
+      "grill-with-docs": { completedAt: "2026-04-20T00:00:01.000Z", decisionRefs: ["projects/demo/decisions.md#current-decisions"] },
       prd: { completedAt: "2026-04-20T00:00:02.000Z", prdRef: "PRD-001", parentPrd: "PRD-001" },
       slices: { completedAt: "2026-04-20T00:00:03.000Z", sliceRefs: ["DEMO-001"] },
       tdd: { completedAt: "2026-04-20T00:00:04.000Z", tddEvidence: ["projects/demo/specs/slices/DEMO-001/test-plan.md#red-tests"] },

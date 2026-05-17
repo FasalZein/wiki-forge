@@ -63,13 +63,13 @@ describe("state contract", () => {
     expect(testPlan?.frontmatter.evidence).toContain("verification_level");
   });
 
-  test("resolves protocol and handover contracts with dedicated scopes", () => {
-    const protocol = resolveStateContract("AGENTS.md", { managed_by: "wiki-forge" });
+  test("resolves orientation and handover contracts with dedicated scopes", () => {
+    const orientation = resolveStateContract("AGENTS.md", { managed_by: "wiki-forge" });
     const handover = resolveStateContract("handovers/2026-04-17-session.md", { type: "handover" });
 
-    expect(protocol?.id).toBe("protocol-surface");
-    expect(protocol?.scope).toBe("protocol");
-    expect(protocol?.frontmatter.computed).toContain("protocol_version");
+    expect(orientation?.id).toBe("orientation-surface");
+    expect(orientation?.scope).toBe("orientation");
+    expect(orientation?.frontmatter.computed).toContain("orientation_version");
     expect(handover?.id).toBe("session-handover");
     expect(handover?.scope).toBe("history");
     expect(handover?.writePolicy.body).toContain("append-only-history");
@@ -86,6 +86,6 @@ describe("state contract", () => {
     ]);
     expect(RECONCILER_WRITE_SCOPE_CONTRACTS.project.body).toContain("generated-index-sections");
     expect(RECONCILER_WRITE_SCOPE_CONTRACTS.history.body).toEqual(["append-only-history"]);
-    expect(RECONCILER_WRITE_SCOPE_CONTRACTS.protocol.body).toEqual(["managed-protocol-block"]);
+    expect(RECONCILER_WRITE_SCOPE_CONTRACTS.orientation.body).toEqual(["managed-orientation-block"]);
   });
 });

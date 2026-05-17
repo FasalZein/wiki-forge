@@ -1,28 +1,10 @@
-# ADR / Decision Log Format
+# ADR Format
 
-For wiki-managed projects, the canonical default is an appended entry in `projects/<project>/decisions.md`. Treat "ADR" as a decision-record content shape, not as a required repo path.
-
-Default wiki-native shape:
-
-```md
-## Current Decisions
-
-- [PRD-059] The domain-model phase writes durable trade-offs to the wiki decision log so PRD authoring can consume them directly instead of recreating them from chat history.
-```
-
-Keep entries short. One or two sentences is usually enough when the surrounding project pages already carry the deeper context. Add PRD or slice tags when they help future retrieval.
-
-Do not create repo-local `docs/adr/` unless the project explicitly wants repo-owned ADR files.
-
-## Repo-local fallback
-
-If the project explicitly keeps ADRs in-repo, they live in `docs/adr/` and use sequential numbering: `0001-slug.md`, `0002-slug.md`, etc.
+ADRs live in `docs/adr/` and use sequential numbering: `0001-slug.md`, `0002-slug.md`, etc.
 
 Create the `docs/adr/` directory lazily — only when the first ADR is needed.
 
 ## Template
-
-For a repo-local ADR file:
 
 ```md
 # {Short title of the decision}
@@ -42,7 +24,7 @@ Only include these when they add genuine value. Most ADRs won't need them.
 
 ## Numbering
 
-For repo-local ADRs, scan `docs/adr/` for the highest existing number and increment by one.
+Scan `docs/adr/` for the highest existing number and increment by one.
 
 ## When to offer an ADR
 
@@ -63,3 +45,7 @@ If a decision is easy to reverse, skip it — you'll just reverse it. If it's no
 - **Deliberate deviations from the obvious path.** "We're using manual SQL instead of an ORM because X." Anything where a reasonable reader would assume the opposite. These stop the next engineer from "fixing" something that was deliberate.
 - **Constraints not visible in the code.** "We can't use AWS because of compliance requirements." "Response times must be under 200ms because of the partner API contract."
 - **Rejected alternatives when the rejection is non-obvious.** If you considered GraphQL and picked REST for subtle reasons, record it — otherwise someone will suggest GraphQL again in six months.
+
+## Wiki/Forge adapter
+
+For wiki-forge projects, ADR bodies live in `projects/<project>/adrs/` and `projects/<project>/decisions.md` remains the index. Keep the upstream ADR threshold: only record hard-to-reverse, surprising, real trade-off decisions.

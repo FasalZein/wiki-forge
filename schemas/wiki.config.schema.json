@@ -8,12 +8,12 @@
   "properties": {
     "vault": {
       "type": "object",
-      "description": "Knowledge vault location. Set this once globally so wiki commands resolve the external second-brain vault without agents passing KNOWLEDGE_VAULT_ROOT.",
+      "description": "Knowledge vault location. Default is ~/Knowledge; set this only when intentionally overriding the canonical external second-brain vault.",
       "additionalProperties": true,
       "properties": {
         "root": {
           "type": "string",
-          "description": "Absolute path, or ~/path, to the Knowledge vault root containing AGENTS.md, index.md, and projects/.",
+          "description": "Absolute path, or ~/path, to the Knowledge vault root containing AGENTS.md, index.md, and projects/. Override paths must exist; the default ~/Knowledge is created on first use.",
           "examples": [
             "~/Knowledge",
             "/Users/me/Knowledge"
@@ -70,11 +70,18 @@
                 "/research"
               ]
             },
+            "grillWithDocs": {
+              "type": "string",
+              "description": "Skill alias to recommend when the grill-with-docs phase is next.",
+              "examples": [
+                "/grill-with-docs"
+              ]
+            },
             "domainModel": {
               "type": "string",
-              "description": "Skill alias to recommend when the domain-model phase is next.",
+              "description": "Legacy alias for grillWithDocs.",
               "examples": [
-                "/domain-model"
+                "/grill-with-docs"
               ]
             },
             "prd": {

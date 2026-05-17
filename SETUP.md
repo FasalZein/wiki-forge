@@ -31,7 +31,7 @@ Install modes:
 
 Wiki = memory; Forge = lifecycle; Kernel = truth; projections = help. Skills provide guidance, but CLI/kernel invariants enforce lifecycle truth.
 
-For normal slice work, record TDD explicitly before closeout: `wiki forge tdd red ...` captures the failed test command, then `wiki forge tdd green ...` captures the later passing run with the exact same command and at least one same `--test` path. Forge does not silently infer TDD from passing tests.
+For normal slice work, record TDD explicitly before closeout: `wiki forge tdd cycle ...` captures the failed red observation and later passing green observation with at least one same `--test` path. Forge does not silently infer TDD from passing tests.
 
 Use targeted verification from the slice test plan plus `bun run check`. Run full `bun test` only for the production Forge release gate, not for normal per-slice closeout.
 
@@ -63,7 +63,7 @@ brew install sqlite
 ### 3. Set your vault path
 
 ```bash
-wiki setup-shell              # auto-detects shell, adds KNOWLEDGE_VAULT_ROOT=~/Knowledge
+wiki setup-shell              # optional: pins KNOWLEDGE_VAULT_ROOT=~/Knowledge for shells that need an explicit override
 wiki setup-shell ~/my-vault   # or specify a custom path
 source ~/.zshrc               # reload
 ```
@@ -74,7 +74,7 @@ Or manually add to your shell config:
 export KNOWLEDGE_VAULT_ROOT="$HOME/Knowledge"
 ```
 
-The CLI auto-detects `~/Knowledge` if the env var is unset.
+The CLI defaults to `~/Knowledge` and creates the minimal vault shape on first use if no override or parent vault is detected.
 
 ### 4. Install skills
 
@@ -89,9 +89,8 @@ bun run sync:local -- --install-set wiki-only --skip-skills   # CLI + QMD only
 
 Current full repo-owned skill set:
 
-- `domain-model`
 - `forge`
-- `grill-me` (optional compatibility skill; forge now routes through `domain-model`)
+- `grill-with-docs`
 - `improve-codebase-architecture`
 - `prd-to-slices`
 - `research`
@@ -111,9 +110,8 @@ If you want to install specific skills from your local checkout, use the repo-ow
 
 ```bash
 npx skills add FasalZein/desloppify
-npx skills@latest add ./skills/domain-model -g
+npx skills@latest add ./skills/grill-with-docs -g
 npx skills@latest add ./skills/forge -g
-npx skills@latest add ./skills/grill-me -g
 npx skills@latest add ./skills/improve-codebase-architecture -g
 npx skills@latest add ./skills/prd-to-slices -g
 npx skills@latest add ./skills/research -g
@@ -126,9 +124,8 @@ Or install them from GitHub:
 
 ```bash
 npx skills add FasalZein/desloppify
-npx skills@latest add FasalZein/wiki-forge/skills/domain-model -g
+npx skills@latest add FasalZein/wiki-forge/skills/grill-with-docs -g
 npx skills@latest add FasalZein/wiki-forge/skills/forge -g
-npx skills@latest add FasalZein/wiki-forge/skills/grill-me -g
 npx skills@latest add FasalZein/wiki-forge/skills/improve-codebase-architecture -g
 npx skills@latest add FasalZein/wiki-forge/skills/prd-to-slices -g
 npx skills@latest add FasalZein/wiki-forge/skills/research -g
@@ -140,7 +137,7 @@ npx skills@latest add FasalZein/wiki-forge/skills/write-a-prd -g
 Verify:
 
 ```bash
-npx skills list -g | grep -E "desloppify|domain-model|forge|grill-me|improve-codebase-architecture|prd-to-slices|research|tdd|wiki|write-a-prd"
+npx skills list -g | grep -E "desloppify|forge|grill-with-docs|improve-codebase-architecture|prd-to-slices|research|tdd|wiki|write-a-prd"
 ```
 
 ### 5. Sync local updates
@@ -230,7 +227,7 @@ After installing skills, Claude Code automatically picks them up. Start any non-
 
 `/forge` expects these repo-owned workflow skills plus the external `/desloppify` companion to already be installed:
 - `/research`
-- `/domain-model`
+- `/grill-with-docs`
 - `/write-a-prd`
 - `/prd-to-slices`
 - `/tdd`
@@ -238,7 +235,6 @@ After installing skills, Claude Code automatically picks them up. Start any non-
 - `/improve-codebase-architecture`
 - `/desloppify`
 
-`/grill-me` remains available as an optional compatibility skill, but the default forge happy path routes through `/domain-model`.
 
 Layer contract:
 
@@ -252,9 +248,8 @@ Or use individual skills directly:
 ```
 /wiki          # CLI operations reference
 /research      # investigate and file evidence
-/domain-model  # sharpen terminology and decisions before the PRD
-/write-a-prd   # create the PRD
-/prd-to-slices # break a PRD into backlog items
+wiki forge plan <project> "feature name" --plan-answer-file <path>
+# The Plan packet can include grill-with-docs context, PRD content, and initial slices.
 /tdd           # implement via red-green-refactor
 /improve-codebase-architecture # capture deeper refactor candidates
 /desloppify    # final code-quality pass (installed externally)
@@ -276,12 +271,12 @@ First read this project's SETUP.md and docs/how-it-works.md. Then onboard the ta
 2. Run: wiki onboard <project-name> --repo <path-to-repo>
 3. Read the generated onboarding plan at projects/<project-name>/specs/onboarding-plan.md
 4. Set repo: and code_paths: in projects/<project-name>/_summary.md
-5. Optional: add protocol_scopes: [...] in projects/<project-name>/_summary.md for nested package/app instructions
+5. Optional: add orientation_scopes: [...] in projects/<project-name>/_summary.md for nested package/app instructions
 6. Run: wiki discover <project-name> --tree
 7. For each module candidate, read the code and run:
    wiki create-module <project-name> <module> --source <paths...>
 8. Fill in each module spec from the code
-9. Run: wiki protocol audit <project-name> --repo <path-to-repo>
+9. Run: wiki sync <project-name> --repo <path-to-repo> --json
 10. Run: wiki lint <project-name>
 11. Run: wiki update-index <project-name> --write
 
@@ -298,7 +293,7 @@ If you prefer to drive the process yourself:
 # 1. Scaffold
 wiki scaffold-project my-app
 wiki onboard my-app --repo ~/Dev/my-app
-wiki protocol audit my-app --repo ~/Dev/my-app
+wiki sync my-app --repo ~/Dev/my-app --json
 
 # 2. Explore
 wiki discover my-app --tree
@@ -321,9 +316,9 @@ wiki maintain my-app
 
 Run `bun run sync:local` from the wiki-forge directory, then `source ~/.zshrc`.
 
-### `KNOWLEDGE_VAULT_ROOT not set`
+### Where is my vault?
 
-Run `wiki setup-shell` or manually export it. The CLI also auto-detects `~/Knowledge`.
+Default is `~/Knowledge`; the CLI creates it on first use if no override or parent vault is detected. Set `KNOWLEDGE_VAULT_ROOT` only when you intentionally use a different vault. If the override points to a missing path, create that path or unset the override.
 
 ### `qmd` fails with `better-sqlite3` bindings errors
 

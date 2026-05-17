@@ -7,13 +7,27 @@ import { buildAnswerBrief } from "./answer-brief";
 import { fileAnswerBrief } from "./answer-filing";
 import { parseAskOptions } from "./answer-request";
 import { renderAnswerBrief } from "./answer-rendering";
-import { printLine } from "../../lib/cli-output";
+import { printJson, printLine } from "../../lib/cli-output";
 
 export { DEFAULT_ASK_MAX_RESULTS, resolveAnswerRetrievalStrategy, resolveAskCandidateLimit } from "./answer-brief";
 
 export async function askProject(args: string[]) {
   const options = parseAskOptions(args);
   const brief = await buildAnswerBrief(options);
+  if (options.json) {
+    printJson({
+      project: brief.project,
+      question: brief.question,
+      projectTitle: brief.projectTitle,
+      retrievalMode: brief.retrievalMode,
+      retrievalQuery: brief.retrievalQuery,
+      answer: renderAnswerBrief(brief, { verbose: options.verbose }),
+      sources: serializeAnswerSources(brief.answerSources.length ? brief.answerSources : [...brief.primarySources, ...brief.supportingSources]),
+      primarySources: serializeAnswerSources(brief.primarySources),
+      supportingSources: serializeAnswerSources(brief.supportingSources),
+    });
+    return;
+  }
   printLine(renderAnswerBrief(brief, { verbose: options.verbose }));
 }
 
@@ -23,6 +37,18 @@ export async function fileAnswer(args: string[]) {
   const filed = await fileAnswerBrief(brief, options.slug);
   printLine(`${filed.existed ? "updated" : "created"} ${filed.relativePath}`);
   printLine(renderAnswerBrief(brief, { verbose: options.verbose }));
+}
+
+function serializeAnswerSources(sources: import("../../types").AnswerSource[]) {
+  return sources.map((source) => ({
+    title: source.result.title,
+    vaultPath: source.vaultPath,
+    markdownPath: source.markdownPath,
+    scope: source.scope,
+    score: source.result.score,
+    adjustedScore: source.adjustedScore,
+    evidence: source.evidence,
+  }));
 }
 
 export async function fileResearch(args: string[]) {

@@ -1,12 +1,4 @@
-# Domain Language / CONTEXT Format
-
-For wiki-managed projects, treat this as a content shape, not a required repo file path. The canonical glossary/context artifact should live in the wiki, for example `projects/<project>/architecture/domain-language.md`, unless the project explicitly keeps `CONTEXT.md` in the repo.
-
-Wiki-native default:
-
-- write glossary, relationships, and ambiguities into `projects/<project>/architecture/domain-language.md`
-- keep durable trade-offs in `projects/<project>/decisions.md`
-- let `write-a-prd` consume both surfaces before it writes requirements
+# CONTEXT.md Format
 
 ## Structure
 
@@ -18,7 +10,7 @@ Wiki-native default:
 ## Language
 
 **Order**:
-A customer's request to purchase one or more items.
+{A concise description of the term}
 _Avoid_: Purchase, transaction
 
 **Invoice**:
@@ -56,7 +48,7 @@ _Avoid_: Client, buyer, account
 
 ## Single vs multi-context repos
 
-**Single context (most repos):** One context surface. For wiki-managed projects this is usually `projects/<project>/architecture/domain-language.md`; for repo-local fallback it is `CONTEXT.md` at the repo root.
+**Single context (most repos):** One `CONTEXT.md` at the repo root.
 
 **Multiple contexts:** A `CONTEXT-MAP.md` at the repo root lists the contexts, where they live, and how they relate to each other:
 
@@ -83,3 +75,7 @@ The skill infers which structure applies:
 - If neither exists, create a root `CONTEXT.md` lazily when the first term is resolved
 
 When multiple contexts exist, infer which one the current topic relates to. If unclear, ask.
+
+## Wiki/Forge adapter
+
+For wiki-forge projects this is a content shape, not a repo path. Use `projects/<project>/architecture/domain-language.md` for a single/default context. Use `projects/<project>/architecture/context-map.md` to index multiple contexts, with per-context pages at `projects/<project>/architecture/contexts/<context>.md`. Do not force large projects into one giant glossary file.

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
 import { resolveWikiCommand } from "../../src/wiki";
@@ -9,6 +9,9 @@ afterEach(() => cleanupTempPaths());
 function createVault() {
   const vault = tempDir("wiki-memory-vault");
   initVault(vault);
+  const projectDir = join(vault, "projects", "demo");
+  mkdirSync(projectDir, { recursive: true });
+  writeFileSync(join(projectDir, "_summary.md"), "---\nproject: demo\nstatus: current\n---\n# Demo\n", "utf8");
   return vault;
 }
 

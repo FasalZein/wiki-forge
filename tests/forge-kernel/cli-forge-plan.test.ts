@@ -1,14 +1,16 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import matter from "gray-matter";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
 import { resolveForgeCommand } from "../../src/forge";
+import { createPlanningSessionAggregate } from "../../src/forge/vault/planning-session-aggregate";
+import { writePlanningArtifacts } from "../../src/forge/vault/planning-artifact-writer";
+import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
 
 afterEach(() => cleanupTempPaths());
 
 describe("Forge plan", () => {
-  test("explicit Forge plan returns a gated planning-session packet instead of scaffolding", () => {
+  test("explicit Forge plan returns a single Plan-phase packet instead of scaffolding", () => {
     const vault = tempDir("wiki-plan-vault");
     initVault(vault);
 
@@ -22,29 +24,35 @@ describe("Forge plan", () => {
       gate: "planning-session-required",
       canCreatePrd: false,
       canCreateSlices: false,
-      requiredSequence: ["torpathy", "domain-model", "grill-prd", "write-prd", "prd-to-slices"],
-      requiredSkills: ["torpathy", "domain-model", "grill-me", "write-a-prd", "prd-to-slices"],
+      requiredSequence: ["plan", "prd-candidate", "slice-breakdown"],
+      requiredSkills: ["forge", "grill-with-docs", "write-a-prd", "prd-to-slices"],
+      phasePacket: {
+        kind: "phase-skill-packet",
+        phase: "plan",
+        requiredSkills: ["grill-with-docs", "forge"],
+        requiredOutputs: expect.arrayContaining(["resolved context and decisions", "feature", "PRD", "slices"]),
+      },
       supportsMultiplePrds: true,
-      missing: ["torpathy-answer", "domain-model-answer", "prd-candidate", "prd-grill", "slice-breakdown"],
+      missing: ["plan-answer", "prd-candidate", "slice-breakdown"],
       session: null,
       nextQuestion: {
         id: "plan-scope-boundary",
-        skill: "domain-model",
+        skill: "plan",
         question: "What precise user-visible outcome should the first PRD under this feature deliver, and what is explicitly out of scope?",
-        recommendation: "Define one narrow PRD outcome first, record the terms/decisions in the domain model, then grill that PRD before creating slices.",
+        recommendation: "Answer once with the user-visible outcome, non-goals, context/decisions, PRD acceptance criteria, and initial slice breakdown; Forge will fan that plan into wiki/Forge artifacts.",
       },
       recovery: [
         {
-          command: "Start a Torpathy + domain-model planning session for demo",
-          description: "Resolve the feature boundary, terminology, and ownership before PRD creation.",
+          command: "wiki forge plan demo \"safer deployment flow\" --plan-answer-file <path>",
+          description: "Record one plan packet covering outcome, non-goals, context/decisions, PRD criteria, and slice breakdown.",
         },
         {
-          command: "Run one grill session per PRD candidate",
-          description: "A feature may contain multiple PRDs, but each PRD needs its own challenged scope and acceptance criteria.",
+          command: "wiki forge plan demo \"safer deployment flow\" --prd <name> --slice <title>",
+          description: "Add PRD and slice candidates from the same plan packet; repeat --slice for thin tracer bullets.",
         },
         {
-          command: "Create PRD(s), then decompose approved PRD(s) into slices",
-          description: "Do not create implementation slices until the relevant PRD session is complete.",
+          command: "wiki forge plan demo \"safer deployment flow\" --complete-session && wiki forge plan demo \"safer deployment flow\" --create-artifacts",
+          description: "Complete and create artifacts after the one Plan packet has PRD and slice candidates.",
         },
       ],
     });
@@ -64,27 +72,25 @@ describe("Forge plan", () => {
       status: "blocked",
       gate: "planning-session-required",
       featureName: "new onboarding",
-      requiredSkills: ["torpathy", "domain-model", "grill-me", "write-a-prd", "prd-to-slices"],
+      requiredSkills: ["forge", "grill-with-docs", "write-a-prd", "prd-to-slices"],
     });
     expect(existsSync(join(vault, "projects", "demo", "forge", "slices"))).toBe(false);
   });
 
-  test("persists planning-session answers and blocks completion until every PRD is grilled and sliced", () => {
+  test("persists one Plan answer and blocks completion until every PRD is sliced", () => {
     const vault = tempDir("wiki-plan-session-vault");
     initVault(vault);
 
-    const torpathy = runWiki(["forge", "plan", "demo", "safer deploy", "--answer", "torpathy-boundary", "--skill", "torpathy", "--response", "Runtime contract owns the gate", "--json"], { vault });
-    expect(torpathy.exitCode).toBe(0);
-    expect(torpathy.json()).toMatchObject({ status: "recorded", session: { status: "draft", answers: [{ skill: "torpathy" }] } });
+    const plan = runWiki(["forge", "plan", "demo", "safer deploy", "--answer", "plan", "--skill", "plan", "--response", "Runtime contract owns the gate", "--json"], { vault });
+    expect(plan.exitCode).toBe(0);
+    expect(plan.json()).toMatchObject({ status: "recorded", session: { status: "draft", answers: [{ skill: "plan" }] } });
 
-    expect(runWiki(["forge", "plan", "demo", "safer deploy", "--answer", "domain-language", "--skill", "domain-model", "--response", "Planning session is canonical lifecycle input", "--json"], { vault }).exitCode).toBe(0);
     expect(runWiki(["forge", "plan", "demo", "safer deploy", "--prd", "Deployment safety PRD", "--json"], { vault }).exitCode).toBe(0);
 
     const incomplete = runWiki(["forge", "plan", "demo", "safer deploy", "--complete-session", "--json"], { vault });
     expect(incomplete.exitCode).toBe(1);
-    expect(incomplete.json()).toMatchObject({ status: "blocked", missing: ["prd-grill:Deployment safety PRD", "slice-breakdown:Deployment safety PRD"] });
+    expect(incomplete.json()).toMatchObject({ status: "blocked", missing: ["slice-breakdown:Deployment safety PRD"] });
 
-    expect(runWiki(["forge", "plan", "demo", "safer deploy", "--answer", "grill-deploy", "--skill", "grill-me", "--prd", "Deployment safety PRD", "--response", "Scope is only the first deployment gate", "--json"], { vault }).exitCode).toBe(0);
     expect(runWiki(["forge", "plan", "demo", "safer deploy", "--prd", "Deployment safety PRD", "--slice", "Block unsafe deploy until checks pass", "--json"], { vault }).exitCode).toBe(0);
 
     const complete = runWiki(["forge", "plan", "demo", "safer deploy", "--complete-session", "--json"], { vault });
@@ -94,18 +100,138 @@ describe("Forge plan", () => {
     const sessionPath = join(vault, "projects", "demo", "forge", "sessions", "safer-deploy.md");
     const sessionDoc = matter(readFileSync(sessionPath, "utf8"));
     expect(sessionDoc.data.status).toBe("ready-for-artifacts");
-    expect(sessionDoc.data.answers.map((answer: { skill: string }) => answer.skill)).toEqual(["torpathy", "domain-model", "grill-me"]);
+    expect(sessionDoc.data.answers.map((answer: { skill: string }) => answer.skill)).toEqual(["plan"]);
   });
 
-  test("creates feature PRD and slices only after the planning session is complete", () => {
+  test("records multiline Plan answers from files without shell heredocs", () => {
+    const vault = tempDir("wiki-plan-answer-file-vault");
+    initVault(vault);
+    const answerPath = join(vault, "plan-answer.md");
+    writeFileSync(answerPath, "Outcome line one\n\n- explicit non-goal\n", "utf8");
+
+    const result = runWiki(["forge", "plan", "demo", "financial metrics", "--plan-answer-file", answerPath, "--json"], { vault });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.json()).toMatchObject({
+      status: "recorded",
+      session: {
+        featureName: "financial metrics",
+        answers: [{ skill: "plan", response: "Outcome line one\n\n- explicit non-goal\n" }],
+      },
+    });
+  });
+
+  test("keeps convenience answer values out of the feature name", () => {
+    const vault = tempDir("wiki-plan-inline-answer-vault");
+    initVault(vault);
+
+    const result = runWiki(["forge", "plan", "demo", "financial metrics", "--plan-answer", "Outcome must be server-owned metrics", "--json"], { vault });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.json()).toMatchObject({
+      status: "recorded",
+      session: {
+        featureName: "financial metrics",
+        answers: [{ skill: "plan", response: "Outcome must be server-owned metrics" }],
+      },
+    });
+  });
+
+  test("rejects unknown planning flags instead of folding their values into the feature name", () => {
+    const vault = tempDir("wiki-plan-unknown-flag-vault");
+    initVault(vault);
+
+    const result = runWiki(["forge", "plan", "demo", "financial metrics", "--typo-answer", "do not become feature name", "--json"], { vault });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr.toString()).toContain("unknown forge plan option: --typo-answer");
+  });
+
+  test("accepts legacy domain-model answers as grill-with-docs answers", () => {
+    const vault = tempDir("wiki-plan-legacy-domain-vault");
+    initVault(vault);
+
+    const result = runWiki(["forge", "plan", "demo", "safer deploy", "--answer", "domain-language", "--skill", "domain-model", "--response", "Legacy answer is normalized", "--json"], { vault });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.json()).toMatchObject({ status: "recorded", session: { answers: [{ skill: "grill-with-docs" }] } });
+  });
+
+  test("planning artifact writer creates feature, PRD, and slice docs", async () => {
+    const vault = tempDir("wiki-planning-writer-vault");
+    initVault(vault);
+    const aggregate = createPlanningSessionAggregate({ project: "demo", featureName: "safer deploy", vaultRoot: vault });
+    await aggregate.recordPlan({ response: "Runtime contract owns the gate." });
+    await aggregate.addPrd("Deployment safety PRD");
+    await aggregate.addSlice("Deployment safety PRD", "Block unsafe deploy until checks pass");
+    const { session } = await aggregate.complete();
+
+    const artifacts = await writePlanningArtifacts({
+      vaultRoot: vault,
+      project: "demo",
+      featureName: "safer deploy",
+      session,
+      now: "2026-05-15T00:00:00.000Z",
+    });
+
+    expect(artifacts).toMatchObject({ featureId: "FEAT-001", prds: [{ prdId: "PRD-001", slices: ["DEMO-001"] }] });
+    expect(existsSync(join(vault, "projects", "demo", "forge", "features", "FEAT-001-safer-deploy.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "demo", "forge", "prds", "PRD-001-deployment-safety-prd.md"))).toBe(true);
+    expect(existsSync(join(vault, "projects", "demo", "forge", "slices", "DEMO-001", "index.md"))).toBe(true);
+
+    const inspected = await aggregate.inspect();
+    expect(inspected.session?.status).toBe("ready-for-artifacts");
+  });
+
+  test("aggregate facade records, completes, inspects, and creates artifacts", async () => {
+    const vault = tempDir("wiki-plan-aggregate-vault");
+    initVault(vault);
+    const aggregate = createPlanningSessionAggregate({ project: "demo", featureName: "safer deploy", vaultRoot: vault });
+
+    const recorded = await aggregate.recordPlan({
+      answerId: "plan",
+      response: "Runtime contract owns the gate. Planning aggregate is the entrypoint.",
+    });
+    expect(recorded.status).toBe("draft");
+    expect(recorded.answers).toHaveLength(1);
+
+    await aggregate.addPrd("Deployment safety PRD");
+    await aggregate.addSlice("Deployment safety PRD", "Block unsafe deploy until checks pass");
+
+    const ready = await aggregate.complete();
+    expect(ready.gate).toEqual({ status: "ready", missing: [] });
+    expect(ready.session.status).toBe("ready-for-artifacts");
+
+    const artifacts = await aggregate.createArtifacts();
+    expect(artifacts.artifacts).toMatchObject({ featureId: "FEAT-001", prds: [{ prdId: "PRD-001", slices: ["DEMO-001"] }] });
+
+    const inspected = await aggregate.inspect();
+    expect(inspected.session?.status).toBe("artifacts-created");
+    expect(inspected.gate).toEqual({ status: "ready", missing: [] });
+  });
+
+  test("keeps legacy prd-grill answers readable without advertising grill-me", () => {
+    const vault = tempDir("wiki-plan-legacy-prd-grill-vault");
+    initVault(vault);
+
+    const base = ["forge", "plan", "demo", "legacy planning"];
+    expect(runWiki([...base, "--plan-answer", "One plan answer"], { vault }).exitCode).toBe(0);
+    expect(runWiki([...base, "--prd", "Legacy PRD", "--slice", "Legacy slice"], { vault }).exitCode).toBe(0);
+    const legacy = runWiki([...base, "--answer", "prd-grill", "--skill", "grill-me", "--prd", "Legacy PRD", "--response", "Old planning-session note"], { vault });
+    expect(legacy.exitCode).toBe(0);
+
+    const complete = runWiki([...base, "--complete-session", "--json"], { vault });
+    expect(complete.exitCode).toBe(0);
+    expect(complete.json()).toMatchObject({ status: "ready-for-artifacts" });
+  });
+
+  test("creates feature PRD and slices after the one Plan answer is complete", () => {
     const vault = tempDir("wiki-plan-artifacts-vault");
     initVault(vault);
 
     const base = ["forge", "plan", "demo", "safer deploy"];
-    expect(runWiki([...base, "--answer", "torpathy-boundary", "--skill", "torpathy", "--response", "Runtime contract owns the gate"], { vault }).exitCode).toBe(0);
-    expect(runWiki([...base, "--answer", "domain-language", "--skill", "domain-model", "--response", "Planning session is canonical lifecycle input"], { vault }).exitCode).toBe(0);
+    expect(runWiki([...base, "--answer", "plan", "--skill", "plan", "--response", "Runtime contract owns the gate. Planning session is canonical lifecycle input"], { vault }).exitCode).toBe(0);
     expect(runWiki([...base, "--prd", "Deployment safety PRD"], { vault }).exitCode).toBe(0);
-    expect(runWiki([...base, "--answer", "grill-deploy", "--skill", "grill-me", "--prd", "Deployment safety PRD", "--response", "Scope is only the first deployment gate"], { vault }).exitCode).toBe(0);
     expect(runWiki([...base, "--prd", "Deployment safety PRD", "--slice", "Block unsafe deploy until checks pass"], { vault }).exitCode).toBe(0);
 
     const blockedCreate = runWiki([...base, "--create-artifacts", "--json"], { vault });

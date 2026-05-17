@@ -6,7 +6,7 @@ import { resolveForgeCommand } from "../../src/forge";
 
 afterEach(() => cleanupTempPaths());
 
-function createVaultWithSlices(slices: readonly { id: string; status: "ready" | "in-progress"; claimedBy?: string }[]) {
+function createVaultWithSlices(slices: readonly { id: string; status: "draft" | "ready" | "in-progress"; claimedBy?: string }[]) {
   const vault = tempDir("wiki-start-vault");
   initVault(vault);
   for (const slice of slices) {
@@ -51,6 +51,23 @@ describe("forge start/release command adapters", () => {
     expect(slice).toContain("status: in-progress");
     expect(slice).toContain("claimed_by: codex");
     expect(slice).toContain("claimed_at:");
+  });
+
+  test("forge start rejects draft slices until they are released", () => {
+    const vault = createVaultWithSlices([{ id: "DEMO-001", status: "draft" }]);
+    const before = readSlice(vault, "DEMO-001");
+    const result = runWiki(["forge", "start", "demo", "DEMO-001", "--agent", "codex", "--json"], { vault });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.json()).toMatchObject({
+      status: "rejected",
+      rejection: {
+        code: "DraftSliceNotReleased",
+        invariant: "draft-slice-release-before-start",
+        recovery: [{ command: "wiki forge release demo DEMO-001 --reason \"release draft before start\"" }],
+      },
+    });
+    expect(readSlice(vault, "DEMO-001")).toBe(before);
   });
 
   test("forge start rejects when another slice is active and does not mutate requested slice", () => {

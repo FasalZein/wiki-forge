@@ -15,7 +15,7 @@ export type SkillChainPacket = {
 
 const DEFAULT_SKILL_CHAIN: readonly SkillChainEntry[] = [
   { phase: "research", skill: "/research", required: true },
-  { phase: "domain-model", skill: "/domain-model", required: true },
+  { phase: "grill-with-docs", skill: "/grill-with-docs", required: true },
   { phase: "spec", skill: "/write-a-prd", required: true },
   { phase: "slices", skill: "/prd-to-slices", required: true },
   { phase: "ownership", skill: "wiki forge start", required: true },

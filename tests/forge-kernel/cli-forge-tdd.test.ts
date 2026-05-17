@@ -58,6 +58,32 @@ describe("forge tdd command adapters", () => {
     ]);
   });
 
+  test("cycle records red and green in one lower-friction command", () => {
+    const vault = createVaultWithSlice();
+
+    const result = runWiki([
+      "forge", "tdd", "cycle", "demo", sliceId,
+      "--test", "tests/forge-kernel/x.test.ts",
+      "--red-command", "bun test --filter failing-behavior",
+      "--green-command", "bun test tests/forge-kernel/x.test.ts",
+      "--note", "red failed before implementation; green passes after",
+      "--json",
+    ], { vault });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.json()).toMatchObject({ status: "recorded", red: { kind: "tdd", phase: "red", result: "failed" }, green: { kind: "tdd", phase: "green", result: "passed" } });
+    const records = evidence(vault);
+    expect(records).toMatchObject([
+      { kind: "tdd", phase: "red", command: "bun test --filter failing-behavior", testPaths: ["tests/forge-kernel/x.test.ts"], result: "failed" },
+      { kind: "tdd", phase: "green", command: "bun test tests/forge-kernel/x.test.ts", testPaths: ["tests/forge-kernel/x.test.ts"], result: "passed" },
+    ]);
+    expect(records[0].cycleId).toBe(records[1].cycleId);
+
+    const passed = runWiki(["forge", "tdd", "status", "demo", sliceId, "--json"], { vault });
+    expect(passed.exitCode).toBe(0);
+    expect(passed.json()).toMatchObject({ status: "passed" });
+  });
+
   test("status exits non-zero until red and green are both present", () => {
     const vault = createVaultWithSlice();
     const blocked = runWiki(["forge", "tdd", "status", "demo", sliceId, "--json"], { vault });

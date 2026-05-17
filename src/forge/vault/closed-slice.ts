@@ -1,8 +1,7 @@
 import { evaluateReviewGate } from "../lifecycle/review-gate";
 import { hasPassedTargetedVerification, hasPassedTddEvidence } from "../lifecycle/verification-gate";
-import { parseVaultDocument } from "./frontmatter-codec";
 import { readForgeEvidence } from "./evidence-store";
-import { decodeForgeRecord } from "./records";
+import { decodeForgeRecord, parseVaultDocument } from "./records";
 import { readSliceHub } from "./slice-repository";
 
 export async function readClosedForgeSliceHub(project: string, sliceId: string, vaultRoot: string) {

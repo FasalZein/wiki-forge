@@ -1,7 +1,33 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { loadConfigDetailed, projectConfigPath, type ConfigLeaf, type ResolvedConfig } from "../../lib/config";
 import { printError, printJson, printLine } from "../../lib/cli-output";
+import { VAULT_ROOT } from "../../constants";
+
+export async function initCommand(args: string[]): Promise<void> {
+  const project = args[0];
+  if (!project) throw new Error("missing project. Usage: wiki init <project> --repo <path>");
+  const rest = args.slice(1);
+  const repo = repoFromArgs(rest);
+  const configPath = projectConfigPath(repo);
+  if (!existsSync(configPath)) {
+    mkdirSync(dirname(configPath), { recursive: true });
+    writeFileSync(configPath, configFileForVaultRoot(VAULT_ROOT), "utf8");
+    printLine(`wrote ${configPath}`);
+  } else {
+    printLine(`config exists ${configPath}`);
+  }
+
+  printLine(`wiki init: ${project}`);
+  printLine(`Repo root: ${repo}`);
+  printLine(`Knowledge vault root: ${VAULT_ROOT}`);
+  printLine(`Project wiki root: ${join(VAULT_ROOT, "projects", project)}`);
+  printLine("Do not create repo-local `projects/`, `wiki/`, or `forge/` folders unless this repo is the configured Knowledge vault.");
+  printLine("Next commands:");
+  printLine(`  wiki resume ${project} --repo ${JSON.stringify(repo)} --base HEAD`);
+  printLine(`  wiki forge next ${project} --repo ${JSON.stringify(repo)}`);
+  printLine(`  wiki config --effective --repo ${JSON.stringify(repo)}`);
+}
 
 export async function configCommand(args: string[]): Promise<void> {
   const command = args[0];
@@ -87,11 +113,16 @@ function positionalArgs(args: string[]): string[] {
   return values;
 }
 
+function configFileForVaultRoot(vaultRoot: string): string {
+  return DEFAULT_CONFIG_FILE.replace('"root": "~/Knowledge"', `"root": ${JSON.stringify(vaultRoot)}`);
+}
+
 function getLeaf(config: ResolvedConfig, key: string): ConfigLeaf<unknown> | undefined {
   if (key === "vault.root") return config.vault.root;
   if (key === "repo.ignore") return config.repo.ignore;
   if (key === "workflow.phaseSkills.research") return config.workflow.phaseSkills.research;
-  if (key === "workflow.phaseSkills.domainModel") return config.workflow.phaseSkills.domainModel;
+  if (key === "workflow.phaseSkills.grillWithDocs") return config.workflow.phaseSkills.grillWithDocs;
+  if (key === "workflow.phaseSkills.domainModel") return config.workflow.phaseSkills.grillWithDocs;
   if (key === "workflow.phaseSkills.prd") return config.workflow.phaseSkills.prd;
   if (key === "workflow.phaseSkills.slices") return config.workflow.phaseSkills.slices;
   if (key === "workflow.phaseSkills.tdd") return config.workflow.phaseSkills.tdd;
@@ -114,7 +145,7 @@ const DEFAULT_CONFIG_FILE = `{
   "workflow": {
     "phaseSkills": {
       "research": "/research",
-      "domainModel": "/domain-model",
+      "grillWithDocs": "/grill-with-docs",
       "prd": "/write-a-prd",
       "slices": "/prd-to-slices",
       "tdd": "/tdd",
@@ -135,7 +166,7 @@ function serialize(config: ResolvedConfig) {
     workflow: {
       phaseSkills: {
         research: { value: config.workflow.phaseSkills.research.value, source: config.workflow.phaseSkills.research.source },
-        domainModel: { value: config.workflow.phaseSkills.domainModel.value, source: config.workflow.phaseSkills.domainModel.source },
+        grillWithDocs: { value: config.workflow.phaseSkills.grillWithDocs.value, source: config.workflow.phaseSkills.grillWithDocs.source },
         prd: { value: config.workflow.phaseSkills.prd.value, source: config.workflow.phaseSkills.prd.source },
         slices: { value: config.workflow.phaseSkills.slices.value, source: config.workflow.phaseSkills.slices.source },
         tdd: { value: config.workflow.phaseSkills.tdd.value, source: config.workflow.phaseSkills.tdd.source },
@@ -152,7 +183,7 @@ function printText(config: ResolvedConfig): void {
   const value = ignore.value.length ? `[${ignore.value.map((p) => JSON.stringify(p)).join(", ")}]` : "[]";
   printLine(`  repo.ignore = ${value}  (source: ${ignore.source})`);
   printLine(`  workflow.phaseSkills.research = ${JSON.stringify(config.workflow.phaseSkills.research.value)}  (source: ${config.workflow.phaseSkills.research.source})`);
-  printLine(`  workflow.phaseSkills.domainModel = ${JSON.stringify(config.workflow.phaseSkills.domainModel.value)}  (source: ${config.workflow.phaseSkills.domainModel.source})`);
+  printLine(`  workflow.phaseSkills.grillWithDocs = ${JSON.stringify(config.workflow.phaseSkills.grillWithDocs.value)}  (source: ${config.workflow.phaseSkills.grillWithDocs.source})`);
   printLine(`  workflow.phaseSkills.prd = ${JSON.stringify(config.workflow.phaseSkills.prd.value)}  (source: ${config.workflow.phaseSkills.prd.source})`);
   printLine(`  workflow.phaseSkills.slices = ${JSON.stringify(config.workflow.phaseSkills.slices.value)}  (source: ${config.workflow.phaseSkills.slices.source})`);
   printLine(`  workflow.phaseSkills.tdd = ${JSON.stringify(config.workflow.phaseSkills.tdd.value)}  (source: ${config.workflow.phaseSkills.tdd.source})`);

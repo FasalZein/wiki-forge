@@ -45,22 +45,23 @@ describe("memory command CLI output", () => {
     expect(result.exitCode).toBe(0);
     const stdout = result.stdout.toString();
 
-    // Written path is printed
-    expect(stdout).toMatch(/wrote\s+/);
-
-    // Summary preview or confirmation of rich summary
-    expect(stdout).toContain("Refactored");
-
-    // User-facing prompt block separates refresh, summary, next action, and operator prompt.
-    expect(stdout).toContain("Next-session prompt for the user:");
+    // User-facing prompt is primary and points at durable handover/Forge truth.
+    expect(stdout.startsWith("ACTION REQUIRED: give the user this copy/paste prompt for the next agent session.")).toBe(true);
+    expect(stdout).toContain("Copy/paste prompt for the next agent session:");
     expect(stdout).toContain("```text");
-    expect(stdout).toContain("Context refresh");
-    expect(stdout).toContain("wiki query --bm25");
-    expect(stdout).toContain("Session summary:");
+    expect(stdout).toContain("Do not reconstruct the prior conversation");
+    expect(stdout).toContain("Minimal refresh:");
+    expect(stdout).toContain("wiki checkpoint demo-project");
+    expect(stdout).toContain("wiki forge next demo-project");
+    expect(stdout).not.toContain("wiki query --bm25");
+    expect(stdout).not.toContain("Session summary:");
     expect(stdout).toContain("Next action:");
-    expect(stdout).toContain("Operator prompt:");
+    expect(stdout).toContain("Operator intent:");
     expect(stdout).toContain("Continue from HEAD abc1234");
     expect(stdout).toContain("```");
+    expect(stdout).toMatch(/wrote\s+/);
+    expect(stdout).toContain("Refactored");
+    expect(stdout).toContain("Do not stop at 'handover written'; paste the prompt above back to the user.");
   });
 
   test("JSON mode still prints full structured result", () => {
@@ -84,11 +85,19 @@ describe("memory command CLI output", () => {
     expect(parsed.status).toBe("written");
     expect(parsed.handover.summary).toBe("Summary text.");
     expect(parsed.handover.copyPastePrompt).toBe("Continue.");
-    expect(parsed.nextSessionPrompt).toContain("Context refresh");
-    expect(parsed.nextSessionPrompt).toContain("wiki query --bm25 'demo-project latest decisions architecture handover'");
-    expect(parsed.nextSessionPrompt).toContain("Session summary:\nSummary text.");
+    expect(parsed.nextSessionPrompt).toContain("Do not reconstruct the prior conversation");
+    expect(parsed.handoff).toMatchObject({
+      requiresUserCopyPaste: true,
+      label: "Copy/paste prompt for the next agent session",
+      prompt: parsed.nextSessionPrompt,
+      instruction: "Return this prompt to the user verbatim in a fenced text block; do not only summarize the handover path.",
+    });
+    expect(parsed.nextSessionPrompt).toContain("Minimal refresh:");
+    expect(parsed.nextSessionPrompt).toContain("projects/demo-project/forge/handovers/");
+    expect(parsed.nextSessionPrompt).not.toContain("wiki query --bm25");
+    expect(parsed.nextSessionPrompt).not.toContain("Session summary:\nSummary text.");
     expect(parsed.nextSessionPrompt).toContain("Next action:\nNext.");
-    expect(parsed.nextSessionPrompt).toContain("Operator prompt:\nContinue.");
+    expect(parsed.nextSessionPrompt).toContain("Operator intent:\nContinue.");
     expect(parsed.handover.nextAction).toBe("Next.");
   });
 

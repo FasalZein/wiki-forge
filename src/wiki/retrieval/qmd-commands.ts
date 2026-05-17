@@ -12,6 +12,7 @@ export async function searchVault(args: string[]) {
     throw new Error("missing query");
   }
 
+  await refreshKnowledgeIndex();
   const mode = resolveSearchRetrievalMode({ hybrid, sdkHybridAvailable: await sdkHybridAvailable() });
   if (mode === "sdk-bm25") {
     const results = await searchKnowledgeLexicalSdk(query);
@@ -36,6 +37,7 @@ export async function queryVault(args: string[]) {
   }
   process.stderr.write("note: 'wiki query' returns raw hits across the vault. For a project-scoped answer brief with sources, use 'wiki ask <project> <question>'.\n");
 
+  await refreshKnowledgeIndex();
   const mode = resolveRetrievalMode(query, { expand, bm25: useBm25, sdkHybridAvailable: await sdkHybridAvailable() });
   if (mode === "expand") {
     const results = await searchKnowledgeExpandedSdk(query, { maxResults: 5, cacheKeyPrefix: "query:sdk-expand" });
@@ -57,7 +59,7 @@ export async function queryVault(args: string[]) {
 }
 
 export async function qmdStatus() {
-  const store = await getQmdStore({ dbPath: QMD_INDEX_PATH });
+  const { store } = await refreshKnowledgeIndex();
   const status = await store.getStatus();
   const contexts = await store.listContexts();
   printLine("QMD Status");

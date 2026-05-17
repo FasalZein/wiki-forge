@@ -5,7 +5,10 @@ export type ActiveSliceClaim = {
   readonly claimedAt?: string;
 };
 
+export type ForgeSliceLifecycleStatus = "draft" | "ready" | "in-progress" | "done" | "cancelled";
+
 export type ForgeProjectState = {
   readonly project: string;
   readonly activeSlices: readonly ActiveSliceClaim[];
+  readonly sliceStatuses?: Readonly<Record<string, ForgeSliceLifecycleStatus>>;
 };

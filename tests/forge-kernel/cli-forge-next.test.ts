@@ -22,6 +22,15 @@ function createVaultWithDraftSlices() {
   return vault;
 }
 
+function createVaultWithPlanningSession() {
+  const vault = tempDir("wiki-next-planning-vault");
+  initVault(vault);
+  const sessionsDir = join(vault, "projects", "demo", "forge", "sessions");
+  mkdirSync(sessionsDir, { recursive: true });
+  writeFileSync(join(sessionsDir, "safer-deploy.md"), `---\ntitle: Planning session — Safer deploy\ntype: planning-session\nproject: demo\nfeature_name: Safer deploy\nsession_id: safer-deploy\nstatus: ready-for-artifacts\ncreated_at: '2026-05-15T00:00:00.000Z'\nupdated_at: '2026-05-15T00:00:00.000Z'\nanswers: []\nprds: []\n---\n# Planning session\n`, "utf8");
+  return vault;
+}
+
 function writeSlice(vault: string, sliceId: string, title: string, status: "draft" | "ready") {
   const sliceDir = join(vault, "projects", "demo", "forge", "slices", sliceId);
   mkdirSync(sliceDir, { recursive: true });
@@ -47,6 +56,25 @@ describe("Forge top-level next", () => {
       reason: "A released slice is ready to start.",
       source: "canonical-records",
     });
+  });
+
+  test("surfaces planning sessions when no open slices exist", () => {
+    const vault = createVaultWithPlanningSession();
+    const next = runWiki(["next", "demo", "--json"], { vault });
+    const status = runWiki(["forge", "status", "demo", "--json"], { vault });
+
+    for (const result of [next, status]) {
+      expect(result.exitCode).toBe(0);
+      expect(result.json()).toMatchObject({
+        status: "planning-session",
+        project: "demo",
+        featureName: "Safer deploy",
+        sessionId: "safer-deploy",
+        planningStatus: "ready-for-artifacts",
+        nextAction: "create-planning-artifacts",
+        nextCommand: "wiki forge plan demo 'Safer deploy' --create-artifacts",
+      });
+    }
   });
 
   test("surfaces draft slice release commands from next and project status", () => {

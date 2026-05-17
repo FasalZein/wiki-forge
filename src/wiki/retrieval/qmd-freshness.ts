@@ -38,7 +38,11 @@ export async function embedKnowledgeIndex() {
 
 export async function ensureKnowledgeCollection(store: Awaited<ReturnType<typeof getQmdStore>>) {
   const collections = await store.listCollections();
-  if (!collections.some((collection) => collection.name === KNOWLEDGE_COLLECTION)) {
+  const knowledge = collections.find((collection) => collection.name === KNOWLEDGE_COLLECTION);
+  if (!knowledge) {
+    await store.addCollection(KNOWLEDGE_COLLECTION, { path: VAULT_ROOT, pattern: "**/*.md" });
+  } else if (knowledge.pwd !== VAULT_ROOT) {
+    await store.removeCollection(KNOWLEDGE_COLLECTION);
     await store.addCollection(KNOWLEDGE_COLLECTION, { path: VAULT_ROOT, pattern: "**/*.md" });
   }
   const contexts = await store.listContexts();

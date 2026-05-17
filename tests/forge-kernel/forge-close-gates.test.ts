@@ -69,7 +69,7 @@ describe("forge close evidence gates", () => {
     expect(result.status).toBe("rejected");
     if (result.status !== "rejected") throw new Error("expected rejection");
     expect(result.rejection.code).toBe("MissingTddEvidence");
-    expect(result.rejection.recovery[0]?.command).toBe("wiki forge tdd red wiki-forge WIKI-FORGE-218 --test <path> --command \"<failing test command>\"");
+    expect(result.rejection.recovery[0]?.command).toBe("wiki forge tdd cycle wiki-forge WIKI-FORGE-218 --test <path> --red-command \"<failing test command>\" --green-command \"<passing test command>\"");
   });
 
   test("close rejects missing targeted verification evidence", () => {

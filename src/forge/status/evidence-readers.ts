@@ -61,7 +61,7 @@ export async function detectResearchRefs(
   return { refs: [...new Set(refs)] };
 }
 
-export async function detectDomainModelRefs(
+export async function detectGrillWithDocsRefs(
   project: string,
   sliceId: string,
   parentPrd: string | undefined,
@@ -98,6 +98,11 @@ export async function detectDomainModelRefs(
   const lines = content.split("\n");
   for (const line of lines) {
     if (line.includes(sliceTag) || (prdTag && line.includes(prdTag))) {
+      const wikiLinkMatch = line.match(/\[\[(projects\/[^|\]]+)(?:\|[^\]]+)?\]\]/u);
+      if (wikiLinkMatch?.[1]) {
+        refs.push(wikiLinkMatch[1].endsWith(".md") ? wikiLinkMatch[1] : `${wikiLinkMatch[1]}.md`);
+        continue;
+      }
       const headingMatch = line.match(/^#{1,6}\s+(.+)/u);
       if (headingMatch) {
         const anchor = headingMatch[1].toLowerCase().replace(/[^\w\s-]/gu, "").replace(/\s+/gu, "-");

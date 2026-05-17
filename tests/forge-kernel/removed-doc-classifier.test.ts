@@ -2,8 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { repoRoot } from "../_helpers/wiki-subprocess";
-import { decodeForgeRecord } from "../../src/forge/vault/records";
-import { parseVaultDocument } from "../../src/forge/vault/frontmatter-codec";
+import { decodeForgeRecord, parseVaultDocument } from "../../src/forge/vault/records";
 
 const oldSpecsSliceMarkdown = `---
 title: WIKI-FORGE-213 old specs slice

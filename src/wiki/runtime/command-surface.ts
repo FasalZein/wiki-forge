@@ -11,7 +11,7 @@ export type CommandSurfaceEntry = {
 
 const COMMAND_SURFACE = [
   entry(["help"], "admin-view", "Help renders command documentation."),
-  entry(["scaffold-project", "onboard", "onboard-plan", "create-module", "normalize-module", "prune-empty-dirs", "prune-ghost-projects", "protocol", "protocol:sync", "protocol:audit", "obsidian", "setup-shell", "config", "schema"], "admin-view", "Setup/configuration commands; not workflow authority."),
+  entry(["init", "scaffold-project", "onboard", "onboard-plan", "create-module", "normalize-module", "prune-empty-dirs", "prune-ghost-projects", "obsidian", "setup-shell", "config", "schema"], "admin-view", "Setup/configuration commands; not workflow authority."),
   entry(["search", "query", "ask", "file-answer", "research", "research:scaffold", "research:status", "research:ingest", "research:file", "research:lint", "research:audit", "research:handoff", "research:bridge", "research:migrate-projects", "source", "source:ingest", "qmd-status", "qmd-update", "qmd-embed", "qmd-setup"], "wiki-memory", "Wiki memory and retrieval commands."),
   entry(["handover", "agent-handover"], "wiki-memory", "Typed handover memory object and user-facing next-session prompt.", { handler: "handover" }),
   entry(["resume"], "wiki-memory", "Typed resume packet from handover memory and Forge status truth.", { handler: "resume" }),

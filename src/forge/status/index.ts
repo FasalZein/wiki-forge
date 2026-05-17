@@ -133,7 +133,7 @@ export {
 export { buildForgeTriage } from "./triage";
 export { applyDerivedLedger, deriveForgeLedgerFromArtifacts, mergeDerivedForgeLedger } from "./detect";
 export {
-  detectDomainModelRefs,
+  detectGrillWithDocsRefs,
   detectPrdRefs,
   detectResearchRefs,
   detectSlicesPhase,

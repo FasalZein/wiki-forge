@@ -1,4 +1,5 @@
 import { validateSingleActiveSlice } from "./active-slice-invariant";
+import { buildPhaseSkillPacket } from "../workflow/phase-skill-packet";
 import type { ForgeNextInput, ForgeNextProjection } from "../workflow/status-projection";
 
 function shellArg(value: string): string {
@@ -37,6 +38,7 @@ export function evaluateForgeNext(input: ForgeNextInput): ForgeNextProjection {
       nextAction: "continue-active-slice",
       nextCommand: `wiki forge status ${shellArg(input.project)} ${shellArg(activeSlice.taskId)} --json`,
       reason: "Active slice exists; inspect slice status and continue its gates.",
+      phasePacket: buildPhaseSkillPacket("implementation", { project: input.project, sliceId: activeSlice.taskId }),
       source: "canonical-records",
     };
   }
@@ -80,12 +82,43 @@ export function evaluateForgeNext(input: ForgeNextInput): ForgeNextProjection {
     };
   }
 
+  const planningSession = input.planningSessions?.find((session) => session.status === "ready-for-artifacts")
+    ?? input.planningSessions?.find((session) => session.status === "draft");
+  if (planningSession?.status === "ready-for-artifacts") {
+    return {
+      status: "planning-session",
+      project: input.project,
+      featureName: planningSession.featureName,
+      sessionId: planningSession.sessionId,
+      planningStatus: planningSession.status,
+      nextAction: "create-planning-artifacts",
+      nextCommand: `wiki forge plan ${shellArg(input.project)} ${shellArg(planningSession.featureName)} --create-artifacts`,
+      reason: "A Forge planning session is ready to create feature, PRD, and slice artifacts.",
+      phasePacket: buildPhaseSkillPacket("plan", { project: input.project, featureName: planningSession.featureName }),
+      source: "canonical-records",
+    };
+  }
+  if (planningSession?.status === "draft") {
+    return {
+      status: "planning-session",
+      project: input.project,
+      featureName: planningSession.featureName,
+      sessionId: planningSession.sessionId,
+      planningStatus: planningSession.status,
+      nextAction: "continue-planning-session",
+      nextCommand: `wiki forge plan ${shellArg(input.project)} ${shellArg(planningSession.featureName)} --json`,
+      reason: "A Forge planning session exists and needs completion before artifact creation.",
+      phasePacket: buildPhaseSkillPacket("plan", { project: input.project, featureName: planningSession.featureName }),
+      source: "canonical-records",
+    };
+  }
+
   return {
     status: "empty",
     project: input.project,
-    nextAction: "plan-next-slice",
-    reason: "No startable or releasable Forge slice exists.",
-    noSafeCommandReason: "No active, ready, or draft Forge slices exist; create or complete a planning session first.",
+    nextAction: "project-complete-or-plan-more-scope",
+    reason: "No active, ready, or draft Forge slices exist; current Forge slice set is complete or empty.",
+    noSafeCommandReason: "No open Forge slices exist. Stop here unless the user wants more scope; then run wiki forge plan to create the next slice.",
     source: "canonical-records",
   };
 }

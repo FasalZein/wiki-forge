@@ -1,5 +1,7 @@
 # Production Operator Guide
 
+If you are unsure where an artifact belongs, use [Artifact Routing](artifact-routing.md) before writing files.
+
 Use this guide when applying wiki-forge to a real project. It is the practical loop; the CLI/kernel remain workflow truth.
 
 ## Mental model
@@ -27,7 +29,7 @@ When `wiki forge next` returns `plan-next-slice`, create or continue a Forge pla
 wiki forge plan <project> <feature-name> --repo <path>
 ```
 
-Answer the planning packet in order: torpathy/domain-model scope, PRD candidate, PRD grill, then slice breakdown. Keep the first PRD narrow and explicitly list what is out of scope.
+Answer one Forge Plan packet: user-visible outcome, explicit non-goals, context/ADR decisions, PRD acceptance criteria, and initial slice breakdown. Keep the first PRD narrow and do not run separate re-interview loops unless a specific field is still unresolved.
 
 ## Superseding priorities
 
@@ -47,18 +49,17 @@ wiki forge status <project> <slice-id> --repo <path> --json
 wiki forge start <project> <slice-id> --repo <path> --agent <agent>
 ```
 
-Only one slice should be active unless the Forge packet explicitly grants non-overlapping parallel ownership.
+Only one mutating slice should be active per vault. File non-overlap is not sufficient for parallel implementation because Forge also owns shared lifecycle state. Parallelize read-only scouting/review, or use isolated worktrees/vaults for truly parallel implementation. Do not formally start one slice while mutating other slices in the same vault.
 
 ## TDD red/green
 
 Record TDD evidence explicitly. Forge does not infer TDD from a passing suite.
 
 ```bash
-wiki forge tdd red <project> <slice-id> --test <test-path> --command "<failing command>" --note "why this fails before the change"
-wiki forge tdd green <project> <slice-id> --test <same-test-path> --command "<same command>" --note "what now passes"
+wiki forge tdd cycle <project> <slice-id> --test <test-path> --red-command "<failing command>" --green-command "<passing command>" --note "behavior proven red-to-green"
 ```
 
-The red and green records must use the exact same command string and at least one same test path.
+If you need to stop after red, use separate `wiki forge tdd red` and `wiki forge tdd green` commands. Red and green records must share at least one same test path; separate records must also use the same command string, while `tdd cycle` may capture different red/green commands under one cycle id.
 
 ## Targeted verification and review
 
@@ -99,7 +100,7 @@ wiki agent-handover <project> --repo <path> --base <rev> \
   --slice <slice-id> --prd <prd-id>
 ```
 
-`wiki agent-handover` is an alias for `wiki handover` that makes the handoff intent explicit. The generated next-session prompt is printed to the user for copy/paste into a fresh agent session; it is not the durable wiki handover body. The wiki handover stores facts, base revision, operator intent, and optional runbook commands. The printed prompt intentionally separates context refresh, summary, next action, runbook commands, and operator prompt. The next model must read the `wiki query` hits and Forge status before following handover text; if they disagree, current wiki/Forge truth wins.
+`wiki agent-handover` is an alias for `wiki handover` that makes the handoff intent explicit. The generated next-session prompt is printed first as an action-required copy/paste block for a fresh agent session; it is not the durable wiki handover body. In JSON mode, `handoff.requiresUserCopyPaste: true` means the agent must return `handoff.prompt` to the user verbatim. The wiki handover stores facts, base revision, operator intent, and optional runbook commands. The printed prompt intentionally separates context refresh, summary, next action, runbook commands, and operator prompt. The next model must read the referenced handover and Forge status before following handover text; if they disagree, current wiki/Forge truth wins.
 
 If resume reports a stale handover, do not follow the old prompt blindly. Re-anchor on current truth:
 

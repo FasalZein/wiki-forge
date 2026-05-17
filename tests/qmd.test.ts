@@ -193,6 +193,7 @@ describe("answer request parsing", () => {
       expand: false,
       bm25: true,
       verbose: true,
+      json: false,
       maxResults: 7,
       slug: "prd-locations",
     });

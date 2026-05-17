@@ -4,8 +4,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { VAULT_ROOT } from "../../constants";
 import { nowIso, writeNormalizedPage } from "../../cli-shared";
 import { forgePlanningSessionPath, forgeProjectDir } from "./forge-paths";
-import { absoluteVaultPath, currentMaxSequenceNumber, forgeArtifactDirectory, forgeArtifactPath, forgeArtifactSlug, forgeSequenceId, forgeSliceDocumentPaths, nextForgeSequenceId } from "./forge-artifacts";
-import { renderFeatureBody, renderPrdBody, renderSliceHubBody, renderSlicePlanBody, renderSliceTestPlanBody } from "./planning-artifact-templates";
+import { absoluteVaultPath, forgeArtifactSlug } from "./forge-artifacts";
+import { writePlanningArtifacts } from "./planning-artifact-writer";
 import { orderForgeFrontmatter, renderPlanningSessionBody } from "./planning-session-rendering";
 import type { PlanningAnswer, PlanningArtifacts, PlanningPrdCandidate, PlanningSession, PlanningSkill } from "./planning-types";
 
@@ -128,67 +128,20 @@ export async function createPlanningArtifacts(input: PlanningArtifactsInput): Pr
   if (session.status !== "ready-for-artifacts" || gate.status === "blocked") {
     throw new Error(`planning session is not complete: ${gate.missing.join(", ") || "run --complete-session first"}`);
   }
-  const featureId = await nextForgeSequenceId(vaultRoot, input.project, "feature");
-  const featureSlug = forgeArtifactSlug(input.featureName);
-  const featurePath = absoluteVaultPath(vaultRoot, forgeArtifactPath(input.project, "feature", featureId, featureSlug));
-  await mkdir(absoluteVaultPath(vaultRoot, forgeArtifactDirectory(input.project, "feature")), { recursive: true });
-  writeNormalizedPage(featurePath, renderFeatureBody(session), orderForgeFrontmatter({
-    title: input.featureName,
-    type: "forge-feature",
-    project: input.project,
-    feature_id: featureId,
-    status: "draft",
-    created_at: now,
-    updated: now,
-    planning_session: session.sessionId,
-  }));
-
-  const prdArtifacts: {
-    prdId: string;
-    name: string;
-    slices: string[];
-  }[] = [];
-  let prdCounter = await currentMaxSequenceNumber(vaultRoot, input.project, "prd");
-  let sliceCounter = await currentMaxSequenceNumber(vaultRoot, input.project, "slice");
-  await mkdir(absoluteVaultPath(vaultRoot, forgeArtifactDirectory(input.project, "prd")), { recursive: true });
-  for (const candidate of session.prds) {
-    prdCounter += 1;
-    const prdId = `PRD-${String(prdCounter).padStart(3, "0")}`;
-    const prdPath = absoluteVaultPath(vaultRoot, forgeArtifactPath(input.project, "prd", prdId, forgeArtifactSlug(candidate.name)));
-    writeNormalizedPage(prdPath, renderPrdBody(session, candidate), orderForgeFrontmatter({
-      title: candidate.name,
-      type: "forge-prd",
-      project: input.project,
-      prd_id: prdId,
-      parent_feature: featureId,
-      status: "draft",
-      created_at: now,
-      updated: now,
-      planning_session: session.sessionId,
-    }));
-
-    const sliceIds: string[] = [];
-    for (const sliceTitle of candidate.slices) {
-      sliceCounter += 1;
-      const sliceId = forgeSequenceId(input.project, "slice", sliceCounter);
-      await writePlannedSlice({ vaultRoot, project: input.project, featureId, prdId, sliceId, title: sliceTitle, now, sessionId: session.sessionId });
-      sliceIds.push(sliceId);
-    }
-    prdArtifacts.push({ prdId, name: candidate.name, slices: sliceIds });
-  }
-  const artifacts: PlanningArtifacts = { featureId, prds: prdArtifacts };
+  const artifacts = await writePlanningArtifacts({ vaultRoot, project: input.project, featureName: input.featureName, session, now });
   const updated = await writePlanningSession({ ...session, status: "artifacts-created", artifacts, updatedAt: now }, vaultRoot);
   return { session: updated, artifacts };
 }
 
 export function evaluatePlanningSessionGate(session: PlanningSession | null): PlanningSessionGate {
-  if (!session) return { status: "blocked", missing: ["torpathy-answer", "domain-model-answer", "prd-candidate", "prd-grill", "slice-breakdown"] };
+  if (!session) return { status: "blocked", missing: ["plan-answer", "prd-candidate", "slice-breakdown"] };
   const missing: string[] = [];
-  if (!session.answers.some((answer) => answer.skill === "torpathy")) missing.push("torpathy-answer");
-  if (!session.answers.some((answer) => answer.skill === "domain-model")) missing.push("domain-model-answer");
+  const hasUnifiedPlan = session.answers.some((answer) => answer.skill === "plan");
+  const hasLegacyPlanInputs = session.answers.some((answer) => answer.skill === "torpathy")
+    && session.answers.some((answer) => answer.skill === "grill-with-docs");
+  if (!hasUnifiedPlan && !hasLegacyPlanInputs) missing.push("plan-answer");
   if (session.prds.length === 0) missing.push("prd-candidate");
   for (const prd of session.prds) {
-    if (!session.answers.some((answer) => answer.skill === "grill-me" && answer.prdName === prd.name)) missing.push(`prd-grill:${prd.name}`);
     if (prd.slices.length === 0) missing.push(`slice-breakdown:${prd.name}`);
   }
   return missing.length === 0 ? { status: "ready", missing: [] } : { status: "blocked", missing };
@@ -230,38 +183,6 @@ async function writePlanningSession(session: PlanningSession, vaultRoot: string)
   return session;
 }
 
-type PlannedSliceInput = {
-  readonly vaultRoot: string;
-  readonly project: string;
-  readonly featureId: string;
-  readonly prdId: string;
-  readonly sliceId: string;
-  readonly title: string;
-  readonly now: string;
-  readonly sessionId: string;
-};
-
-async function writePlannedSlice(input: PlannedSliceInput): Promise<void> {
-  const paths = forgeSliceDocumentPaths(input.vaultRoot, input.project, input.sliceId);
-  const dir = paths.dir;
-  await mkdir(dir, { recursive: true });
-  const baseFrontmatter = {
-    title: `${input.sliceId} ${input.title}`,
-    type: "forge-slice",
-    project: input.project,
-    task_id: input.sliceId,
-    parent_prd: input.prdId,
-    parent_feature: input.featureId,
-    planning_session: input.sessionId,
-    created_at: input.now,
-    updated: input.now,
-    status: "draft",
-  };
-  writeNormalizedPage(paths.indexPath, renderSliceHubBody(input), orderForgeFrontmatter({ ...baseFrontmatter, review_policy: { required_approvals: 1 } }));
-  writeNormalizedPage(paths.planPath, renderSlicePlanBody(input), orderForgeFrontmatter({ ...baseFrontmatter, type: "forge-slice-plan" }));
-  writeNormalizedPage(paths.testPlanPath, renderSliceTestPlanBody(input), orderForgeFrontmatter({ ...baseFrontmatter, type: "forge-slice-test-plan" }));
-}
-
 function planningSessionPath(vaultRoot: string, project: string, featureName: string): string {
   return absoluteVaultPath(vaultRoot, forgePlanningSessionPath(project, planningSessionId(featureName)));
 }
@@ -296,7 +217,7 @@ function readSessionStatus(value: unknown): PlanningSession["status"] {
 
 function readAnswers(value: unknown): readonly PlanningAnswer[] {
   if (!Array.isArray(value)) return [];
-  return value.flatMap((entry) => isPlanningAnswer(entry) ? [entry] : []);
+  return value.flatMap((entry) => normalizePlanningAnswer(entry));
 }
 
 function readPrds(value: unknown): readonly PlanningPrdCandidate[] {
@@ -304,13 +225,19 @@ function readPrds(value: unknown): readonly PlanningPrdCandidate[] {
   return value.flatMap((entry) => isPlanningPrdCandidate(entry) ? [entry] : []);
 }
 
-function isPlanningAnswer(value: unknown): value is PlanningAnswer {
-  if (typeof value !== "object" || value === null) return false;
+function normalizePlanningAnswer(value: unknown): PlanningAnswer[] {
+  if (typeof value !== "object" || value === null) return [];
   const record = value as Record<string, unknown>;
-  return typeof record.id === "string"
-    && (record.skill === "torpathy" || record.skill === "domain-model" || record.skill === "grill-me")
-    && typeof record.response === "string"
-    && typeof record.recordedAt === "string";
+  if (typeof record.id !== "string" || typeof record.response !== "string" || typeof record.recordedAt !== "string") return [];
+  if (record.skill !== "plan" && record.skill !== "torpathy" && record.skill !== "grill-with-docs" && record.skill !== "domain-model" && record.skill !== "grill-me") return [];
+  return [{
+    id: record.id,
+    skill: record.skill === "domain-model" ? "grill-with-docs" : record.skill,
+    response: record.response,
+    ...(typeof record.recommendation === "string" ? { recommendation: record.recommendation } : {}),
+    ...(typeof record.prdName === "string" ? { prdName: record.prdName } : {}),
+    recordedAt: record.recordedAt,
+  }];
 }
 
 function isPlanningPrdCandidate(value: unknown): value is PlanningPrdCandidate {

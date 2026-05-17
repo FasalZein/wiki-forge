@@ -19,6 +19,7 @@ export type RecordStrictTddEvidenceInput = RecordTddEvidenceInput & {
   readonly phase: "red" | "green";
   readonly testPaths: readonly string[];
   readonly note?: string;
+  readonly cycleId?: string;
 };
 
 export type RecordVerificationEvidenceInput = RecordTddEvidenceInput & {
@@ -42,6 +43,7 @@ export async function recordForgeStrictTddEvidence(input: RecordStrictTddEvidenc
     testPaths: input.testPaths.map((path) => path.replaceAll("\\", "/")),
     result: input.result,
     ...(input.note ? { note: input.note } : {}),
+    ...(input.cycleId ? { cycleId: input.cycleId } : {}),
     recordedAt: input.recordedAt ?? new Date().toISOString(),
   };
   await appendForgeEvidence(input.project, input.sliceId, record, input.vaultRoot);

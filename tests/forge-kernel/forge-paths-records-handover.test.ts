@@ -12,7 +12,7 @@ import {
   forgeSliceTestPlanPath,
   isForgePath,
 } from "../../src/forge/vault/forge-paths";
-import { parseVaultDocument } from "../../src/forge/vault/frontmatter-codec";
+import { parseVaultDocument } from "../../src/forge/vault/records";
 import { renderForgeHandoverMarkdown } from "../../src/wiki/memory/handover/render";
 import type { ForgeHandoverRecord } from "../../src/wiki/memory/handover/schema";
 
@@ -89,14 +89,18 @@ describe("forge handover rendering", () => {
     expect(markdown).toContain("type: forge-handover");
     expect(markdown).toContain("related_features:");
     expect(markdown).toContain('base_revision: "abc1234"');
-    expect(markdown).toContain("## Context refresh required");
-    expect(markdown).toContain("wiki query --bm25 'wiki-forge latest decisions architecture handover'");
-    expect(markdown).toContain("wiki query --bm25 'wiki-forge WIKI-FORGE-001'");
-    expect(markdown).toContain("wiki query --bm25 'wiki-forge PRD-001'");
+    expect(markdown).toContain('operator_intent: "Continue Forge. Do not add fallback."');
+    expect(markdown).toContain("## Resume contract");
+    expect(markdown).toContain("Do not reconstruct the prior conversation");
+    expect(markdown).toContain("## Minimal refresh");
+    expect(markdown).toContain("wiki checkpoint wiki-forge --repo . --base 'abc1234'");
+    expect(markdown).toContain("wiki forge next wiki-forge --repo .");
+    expect(markdown).toContain("wiki forge status wiki-forge WIKI-FORGE-001 --repo . --json");
+    expect(markdown).not.toContain("wiki query --bm25");
     expect(markdown).toContain("## Runbook commands");
     expect(markdown).toContain("wiki forge status wiki-forge WIKI-FORGE-001 --repo . --json");
-    expect(markdown).toContain("## Operator prompt");
-    expect(markdown).toContain("Continue Forge. Do not add fallback.");
+    expect(markdown).not.toContain("## Operator prompt");
+    expect(markdown).not.toContain("\nContinue Forge. Do not add fallback.");
     expect(markdown).not.toContain("## Copy/paste prompt for next session");
   });
 });

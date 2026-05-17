@@ -25,8 +25,9 @@ describe("forge dogfood release gate", () => {
   test("skills name lifecycle chain and subagent policy but defer enforcement to CLI/kernel", () => {
     expect(docs.wikiSkill).toContain("Wiki remembers; Forge executes lifecycle.");
     expect(docs.forgeSkill).toContain("The CLI and Forge kernel own phase ordering, invariants, and close gates.");
-    expect(docs.forgeSkill).toContain("Use subagents only after the plan identifies non-overlapping files or artifacts.");
-    expect(docs.forgeSkill).toContain("research -> domain-model -> spec -> slices -> ownership -> implementation -> tdd -> verification -> review -> close");
+    expect(docs.forgeSkill).toContain("File non-overlap alone is not enough");
+    expect(docs.forgeSkill).toContain("one active mutating slice per vault");
+    expect(docs.forgeSkill).toContain("forge plan -> build -> TDD/EDD -> verify -> review -> close");
   });
 
   test("Forge dogfood fixture runs through next status and run/close with targeted verification", () => {
@@ -76,7 +77,7 @@ describe("forge dogfood release gate", () => {
       "wiki checkpoint <project> --repo <path> --base <rev>",
       "wiki forge plan <project> <feature-name> --repo <path>",
       "wiki forge start <project> <slice-id> --repo <path> --agent <agent>",
-      "wiki forge tdd red <project> <slice-id>",
+      "wiki forge tdd cycle <project> <slice-id>",
       "wiki forge evidence <project> <slice-id> verify",
       "wiki forge review record <project> <slice-id>",
       "wiki forge run <project> <slice-id> --repo <path>",
@@ -96,6 +97,6 @@ describe("forge dogfood release gate", () => {
     expect(docs.readme).toContain("For production operation, see [Production Operator Guide](docs/production-operator-guide.md).");
     expect(docs.wikiSkill).toContain("For real-project operation, follow `docs/production-operator-guide.md`");
     expect(docs.forgeSkill).toContain("Real-project operator loop");
-    expect(docs.tddSkill).toContain("Red and green evidence must use the exact same command string");
+    expect(docs.tddSkill).toContain("the preferred `tdd cycle` command may use different red and green commands");
   });
 });

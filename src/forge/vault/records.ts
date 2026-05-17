@@ -1,5 +1,6 @@
+import matter from "gray-matter";
 import type { ForgeHandoverRecord } from "../../shared/contracts/handover";
-import type { FrontmatterValue, RecordDecodeResult, ForgeDiagnostic, ForgeRecordStatus, VaultDocument } from "./document";
+import type { FrontmatterMap, FrontmatterValue, RecordDecodeResult, ForgeDiagnostic, ForgeRecordStatus, VaultDocument } from "./document";
 import { isForgeEvidencePath, isForgeFeaturePath, isForgeHandoverPath, isForgePath, isForgePrdPath, isForgeSlicePath } from "./forge-paths";
 import type { VaultPath } from "./path";
 import { inferProjectFromPath } from "./path";
@@ -62,6 +63,15 @@ export type ForgeEvidencePageRecord = {
 };
 
 const VALID_RECORD_STATUSES = ["draft", "ready", "in-progress", "done", "cancelled"] as const satisfies readonly ForgeRecordStatus[];
+
+export function parseVaultDocument(path: string, markdown: string): VaultDocument {
+  const parsed = matter(markdown) as { readonly content: string; readonly data: Record<string, unknown> };
+  return {
+    path,
+    frontmatter: normalizeFrontmatter(parsed.data),
+    body: parsed.content,
+  };
+}
 
 export function decodeForgeRecord(document: VaultDocument): RecordDecodeResult<ForgeRecord> {
   if (!isForgePath(document.path)) return quarantine("document path is outside Forge/** layout");
@@ -158,6 +168,7 @@ function decodeHandoverRecord(document: VaultDocument): RecordDecodeResult<Forge
   const createdAt = readString(document.frontmatter.created_at);
   const agent = readString(document.frontmatter.agent);
   const nextAction = readString(document.frontmatter.next_action);
+  const operatorIntent = readString(document.frontmatter.operator_intent);
   const baseRevision = readString(document.frontmatter.base_revision);
   if (!project) diagnostics.push(missingRequiredField("project", "handover record"));
   else if (pathProject && project !== pathProject) diagnostics.push(projectMismatch(project, pathProject));
@@ -182,7 +193,7 @@ function decodeHandoverRecord(document: VaultDocument): RecordDecodeResult<Forge
       relatedSlices: readStringArray(document.frontmatter.related_slices),
       summary: readFirstSection(document.body, "Summary"),
       nextAction,
-      copyPastePrompt: readHandoverPrompt(document.body),
+      copyPastePrompt: operatorIntent ?? readHandoverPrompt(document.body),
       ...(baseRevision ? { baseRevision } : {}),
       ...readRunbookCommands(document.body),
     },
@@ -210,6 +221,26 @@ function readCommonFields(document: VaultDocument, recordLabel: string): { reado
   if (!status) diagnostics.push(invalidFieldType("status", `${recordLabel} status must be draft, ready, in-progress, done, or cancelled`));
   if (diagnostics.length > 0 || !project || !title || !status) return { diagnostics, record: null };
   return { diagnostics, record: { path: document.path, title, project, status, createdAt: createdAt ?? "", updatedAt: updatedAt ?? "" } };
+}
+
+function normalizeFrontmatter(data: Record<string, unknown>): FrontmatterMap {
+  const normalized: Record<string, FrontmatterValue | undefined> = {};
+  for (const [key, value] of Object.entries(data)) {
+    normalized[key] = normalizeFrontmatterValue(value);
+  }
+  return normalized;
+}
+
+function normalizeFrontmatterValue(value: unknown): FrontmatterValue | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean" || value instanceof Date) return value;
+  if (Array.isArray(value)) return value.map((entry) => normalizeFrontmatterValue(entry) ?? null);
+  if (typeof value === "object") {
+    const normalized: Record<string, FrontmatterValue> = {};
+    for (const [key, entry] of Object.entries(value)) normalized[key] = normalizeFrontmatterValue(entry) ?? null;
+    return normalized;
+  }
+  return String(value);
 }
 
 function readString(value: FrontmatterValue | undefined): string | null {

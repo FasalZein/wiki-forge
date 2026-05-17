@@ -5,7 +5,7 @@ export function renderFeatureBody(session: PlanningSession): string {
     `# ${session.featureName}`,
     "",
     "> [!summary]",
-    "> Created from a completed Forge Forge planning session.",
+    "> Created from a completed Forge planning session.",
     "",
     "## Planning Session",
     "",
@@ -26,12 +26,12 @@ export function renderFeatureBody(session: PlanningSession): string {
     "## Handover Hints",
     "",
     "- Use `wiki forge status` for lifecycle truth.",
-    "- Keep follow-up scope in Forge Forge artifacts, not legacy specs/backlog files.",
+    "- Keep follow-up scope in Forge artifacts, not legacy specs/backlog files.",
   ].join("\n");
 }
 
 export function renderPrdBody(session: PlanningSession, prd: PlanningPrdCandidate): string {
-  const grillAnswers = session.answers.filter((answer) => answer.skill === "grill-me" && answer.prdName === prd.name);
+  const planAnswers = session.answers.filter((answer) => answer.skill === "plan" || (answer.skill === "grill-me" && answer.prdName === prd.name));
   return [
     `# ${prd.name}`,
     "",
@@ -75,9 +75,9 @@ export function renderPrdBody(session: PlanningSession, prd: PlanningPrdCandidat
     "",
     ...planningDecisionLines(session),
     "",
-    "## Grill Session",
+    "## Plan Notes",
     "",
-    ...(grillAnswers.length ? grillAnswers.map((answer) => `- ${answer.response}`) : ["- Completed; see planning session."]),
+    ...(planAnswers.length ? planAnswers.map((answer) => `- ${answer.response}`) : ["- Completed; see planning session."]),
     "",
     "## Handover Hints",
     "",

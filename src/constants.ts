@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { parse as parseJsonc } from "jsonc-parser";
@@ -18,10 +18,11 @@ export const PROJECT_DIRS = [
   "changes",
   "runbooks",
   "verification",
+  "bugs",
   "specs",
 ] as const;
 
-export const PROJECT_FILES = ["_summary.md", "backlog.md", "decisions.md", "learnings.md"] as const;
+export const PROJECT_FILES = ["_summary.md", "context.md", "backlog.md", "decisions.md", "learnings.md"] as const;
 
 export const MODULE_REQUIRED_HEADINGS = [
   "## Highlights",
@@ -60,7 +61,7 @@ function resolveVaultRoot() {
   if (envRoot) {
     const resolved = resolve(envRoot);
     if (!existsSync(resolved)) {
-      throw new Error(`${VAULT_ROOT_ENV} points to non-existent path: ${resolved}`);
+      throw new Error(`${VAULT_ROOT_ENV} points to non-existent path: ${resolved}. Recovery: create the directory first (mkdir -p ${JSON.stringify(resolved)}) or unset ${VAULT_ROOT_ENV} to use the canonical ~/Knowledge vault.`);
     }
     return resolved;
   }
@@ -73,13 +74,7 @@ function resolveVaultRoot() {
     return detected;
   }
 
-  // Fallback: ~/Knowledge is the conventional vault location
-  const homeVault = join(homedir(), "Knowledge");
-  if (looksLikeVaultRoot(homeVault)) {
-    return homeVault;
-  }
-
-  return resolve(import.meta.dir, "..", "..", "..");
+  return ensureCanonicalVaultRoot(join(homedir(), "Knowledge"));
 }
 
 function readConfiguredVaultRoot(cwd: string): string | null {
@@ -94,7 +89,7 @@ function readConfiguredVaultRoot(cwd: string): string | null {
     const vault = parsed.vault;
     if (!isRecord(vault) || typeof vault.root !== "string" || !vault.root.trim()) continue;
     const resolved = resolve(vault.root.replace(/^~/u, homedir()));
-    if (!existsSync(resolved)) throw new Error(`vault.root in ${path} points to non-existent path: ${resolved}`);
+    if (!existsSync(resolved)) throw new Error(`vault.root in ${path} points to non-existent path: ${resolved}. Recovery: create the directory first or remove the override to use the canonical ~/Knowledge vault.`);
     return resolved;
   }
   return null;
@@ -116,6 +111,15 @@ function findVaultRoot(start: string) {
     }
     current = parent;
   }
+}
+
+function ensureCanonicalVaultRoot(path: string) {
+  mkdirSync(join(path, "projects"), { recursive: true });
+  const indexPath = join(path, "index.md");
+  if (!existsSync(indexPath)) writeFileSync(indexPath, "# Knowledge\n", "utf8");
+  const agentsPath = join(path, "AGENTS.md");
+  if (!existsSync(agentsPath)) writeFileSync(agentsPath, "# Knowledge Vault\n\nUse the `wiki` CLI so project artifacts resolve under this canonical vault.\n", "utf8");
+  return path;
 }
 
 function looksLikeVaultRoot(path: string) {

@@ -4,6 +4,7 @@ import type { LifecyclePhase } from "./intent";
 export const KERNEL_REJECTION_CODES = [
   "AnotherSliceActive",
   "MultipleActiveSlices",
+  "DraftSliceNotReleased",
   "MissingTddEvidence",
   "MissingVerificationEvidence",
   "ReviewGateMissing",
@@ -15,6 +16,7 @@ export type KernelRejectionCode = (typeof KERNEL_REJECTION_CODES)[number];
 
 export const KERNEL_INVARIANTS = [
   "single-active-slice",
+  "draft-slice-release-before-start",
   "required-phase-order",
   "required-evidence-before-close",
   "review-before-close",

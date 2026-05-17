@@ -13,7 +13,7 @@ afterEach(() => {
   cleanupTempPaths();
 });
 
-describe("wiki protocol commands", () => {
+describe("wiki project orientation commands", () => {
   test("scaffold-project rejects non-canonical project names and duplicate slugs", () => {
     const { vault } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
@@ -52,6 +52,11 @@ describe("wiki protocol commands", () => {
 
     expect(result.exitCode).toBe(0);
     expect(readFileSync(join(vault, "projects", "demo", "_summary.md"), "utf8")).toContain("title:");
+    const context = readFileSync(join(vault, "projects", "demo", "context.md"), "utf8");
+    expect(context).toContain("Canonical project context index");
+    expect(context).toContain("[[projects/demo/bugs/BUG-0001-example|BUG-0001]]");
+    expect(context).toContain("Symptoms");
+    expect(context).toContain("Related Artifacts");
     expect(existsSync(join(vault, "projects", "demo", "modules"))).toBe(false);
     expect(existsSync(join(vault, "projects", "demo", "runbooks"))).toBe(false);
   });
@@ -92,7 +97,7 @@ describe("wiki protocol commands", () => {
     expect(existsSync(join(vault, "projects", "demo", "runbooks"))).toBe(false);
   });
 
-  test("protocol sync installs root files and preserves local notes below the managed block", () => {
+  test("onboard installs root orientation files and preserves local notes below the managed block", () => {
     const { vault, repo } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
 
@@ -100,17 +105,13 @@ describe("wiki protocol commands", () => {
     setRepoFrontmatter(vault, repo);
     writeFileSync(join(repo, "AGENTS.md"), "# Local Notes\n\nKeep this section.\n", "utf8");
 
-    const result = runWiki(["protocol", "sync", "demo", "--repo", repo, "--json"], env);
+    const result = runWiki(["onboard", "demo", "--repo", repo], env);
     expect(result.exitCode).toBe(0);
-    const json = JSON.parse(result.stdout.toString());
-    expect(json.files.some((row: { path: string }) => row.path === "AGENTS.md")).toBe(true);
-    expect(json.files.some((row: { path: string }) => row.path === "CLAUDE.md")).toBe(true);
-
     const agents = readFileSync(join(repo, "AGENTS.md"), "utf8");
     const claude = readFileSync(join(repo, "CLAUDE.md"), "utf8");
     expect(agents).toContain("managed_by: wiki-forge");
-    expect(agents).toContain("protocol_version: 2");
-    expect(agents).toContain("# Agent Protocol");
+    expect(agents).toContain("orientation_version: 2");
+    expect(agents).toContain("# Wiki Project Orientation");
     expect(agents).toContain("Do not treat them as separate policy sources");
     expect(agents).toContain("## Code Quality");
     expect(agents).toContain("Codex (GPT-5-class reviewer) reviews every change before it merges");
@@ -120,15 +121,27 @@ describe("wiki protocol commands", () => {
     expect(agents).toContain("Workflow Enforcement");
     expect(agents).toContain("# Local Notes");
     expect(claude).toContain("managed_by: wiki-forge");
-    expect(claude).toContain("protocol_version: 2");
+    expect(claude).toContain("orientation_version: 2");
     expect(claude).toContain("## Code Quality");
     expect(claude).toContain("`wiki forge plan demo <feature-name>`");
     expect(claude).toContain("`wiki forge run demo [slice-id] --repo <path>`");
     expect(claude).toContain("`wiki forge next demo`");
-    expect(claude).toContain("wiki protocol sync");
+    expect(claude).toContain("wiki init <project> --repo <path>");
   });
 
-  test("protocol sync and audit support nested scopes declared in _summary frontmatter", () => {
+  test("wiki protocol command surface is removed", () => {
+    const { vault, repo } = setupVaultAndRepo();
+    const env = { KNOWLEDGE_VAULT_ROOT: vault };
+
+    expect(runWiki(["scaffold-project", "demo"], env).exitCode).toBe(0);
+    setRepoFrontmatter(vault, repo);
+
+    const sync = runWiki(["protocol", "sync", "demo", "--repo", repo], env);
+    expect(sync.exitCode).toBe(1);
+    expect(sync.stderr.toString()).toContain("Unknown command: protocol");
+  });
+
+  test("sync supports nested orientation scopes declared in _summary frontmatter", () => {
     const { vault, repo } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
 
@@ -136,21 +149,20 @@ describe("wiki protocol commands", () => {
     setRepoFrontmatter(vault, repo);
     mkdirSync(join(repo, "apps", "api"), { recursive: true });
     const summaryPath = join(vault, "projects", "demo", "_summary.md");
-    writeFileSync(summaryPath, readFileSync(summaryPath, "utf8").replace("verification_level: scaffold\n", "verification_level: scaffold\nprotocol_scopes:\n  - apps/api\n"), "utf8");
+    writeFileSync(summaryPath, readFileSync(summaryPath, "utf8").replace("verification_level: scaffold\n", "verification_level: scaffold\norientation_scopes:\n  - apps/api\n"), "utf8");
 
-    expect(runWiki(["protocol", "sync", "demo", "--repo", repo], env).exitCode).toBe(0);
+    expect(runWiki(["sync", "demo", "--repo", repo, "--write"], env).exitCode).toBe(0);
     expect(readFileSync(join(repo, "apps", "api", "AGENTS.md"), "utf8")).toContain("scope: apps/api");
     expect(readFileSync(join(repo, "apps", "api", "CLAUDE.md"), "utf8")).toContain("Scope: apps/api");
 
-    const auditOk = runWiki(["protocol", "audit", "demo", "--repo", repo, "--json"], env);
-    expect(auditOk.exitCode).toBe(0);
-    expect(JSON.parse(auditOk.stdout.toString()).ok).toBe(true);
+    const syncOk = runWiki(["sync", "demo", "--repo", repo, "--json"], env);
+    expect(syncOk.exitCode).toBe(0);
+    expect(syncOk.json<{ orientation: { targets: Array<{ path: string; status: string }> } }>().orientation.targets.every((row) => row.status === "ok")).toBe(true);
 
     unlinkSync(join(repo, "apps", "api", "CLAUDE.md"));
-    const auditFail = runWiki(["protocol", "audit", "demo", "--repo", repo, "--json"], env);
-    expect(auditFail.exitCode).toBe(1);
-    const auditJson = JSON.parse(auditFail.stdout.toString());
-    expect(auditJson.missing.some((row: { path: string }) => row.path === "apps/api/CLAUDE.md")).toBe(true);
+    const syncReport = runWiki(["sync", "demo", "--repo", repo, "--json"], env);
+    expect(syncReport.exitCode).toBe(0);
+    expect(syncReport.json<{ orientation: { targets: Array<{ path: string; status: string }> } }>().orientation.targets).toContainEqual(expect.objectContaining({ path: "apps/api/CLAUDE.md", status: "missing" }));
   });
 
   test("onboarding plan does not seed a project legacy folder", () => {
@@ -166,7 +178,7 @@ describe("wiki protocol commands", () => {
     expect(plan).not.toContain("projects/demo/legacy");
   });
 
-  test("onboard with --repo syncs root protocol files", () => {
+  test("onboard with --repo syncs root orientation files", () => {
     const { vault, repo } = setupVaultAndRepo();
     const env = { KNOWLEDGE_VAULT_ROOT: vault };
 
@@ -177,13 +189,14 @@ describe("wiki protocol commands", () => {
   });
 });
 
-describe("canonical protocol source", () => {
-  test("renders managed protocol surfaces from one canonical source", () => {
+describe("canonical orientation source", () => {
+  test("renders managed orientation surfaces from one canonical source", () => {
     const source = buildCanonicalProtocolSource("demo", { path: ".", scope: "root" });
     const rendered = renderProtocolSurface("demo", { path: ".", scope: "root" });
 
     expect(source.managedBy).toBe("wiki-forge");
     expect(source.protocolVersion).toBe(2);
+    expect(rendered).toContain("orientation_version: 2");
     expect(rendered).toContain("managed_by: wiki-forge");
     expect(rendered).toContain(source.workflowLines[0]);
     expect(rendered).toContain("`wiki forge plan demo <feature-name>`");
@@ -192,7 +205,7 @@ describe("canonical protocol source", () => {
     expect(rendered).toContain("Workflow Enforcement");
   });
 
-  test("prompt and handover adapters reuse canonical protocol guidance", () => {
+  test("prompt and handover adapters reuse canonical orientation guidance", () => {
     const reminders = renderPromptProtocolReminders("demo");
     const handoverReminder = renderHandoverAlignmentReminder("demo");
 

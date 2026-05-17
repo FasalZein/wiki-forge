@@ -2,15 +2,27 @@ import { printJson, printLine } from "../../lib/cli-output";
 import { requireValue } from "../../cli-shared";
 import { renderForgeNextJson, renderForgeNextText } from "./render-next";
 import { renderForgeSliceStatusText } from "./render-slice-status";
+import { buildPhaseSkillPacket, renderPhaseSkillPacket } from "./phase-skill-packet";
 import { loadForgeProjectProjection, loadForgeSliceStatus } from "../vault/load-project";
 import { amendForgeSlice, checkForgeSliceClose, closeForgeSlice, releaseForgeSlice, startForgeSlice } from "../vault/slice-store";
 import { readForgeEvidence, recordForgeReviewEvidence, recordForgeStrictTddEvidence, recordForgeVerificationEvidence } from "../vault/evidence-store";
 import { evaluateTddGate } from "../lifecycle/tdd-gate";
 
 export { forgePlanCommand } from "./plan-command";
+export { forgeGrillCommand } from "./grill-command";
 
 export async function forgeNextCommand(args: string[]): Promise<void> {
   await renderForgeProjection(args);
+}
+
+export async function forgeImproveCommand(args: string[]): Promise<void> {
+  const json = args.includes("--json");
+  const positional = args.filter((arg) => !arg.startsWith("--"));
+  const project = positional[0];
+  requireValue(project, "project");
+  const phasePacket = buildPhaseSkillPacket("improvement-review", { project });
+  if (json) printJson({ status: "ok", project, phasePacket });
+  else printLine([`forge improve for ${project}: improvement-review`, "", renderPhaseSkillPacket(phasePacket)].join("\n"));
 }
 
 export async function forgeStatusCommand(args: string[]): Promise<void> {
@@ -113,7 +125,7 @@ export async function forgeRunCommand(args: string[]): Promise<void> {
 
 export async function forgeTddCommand(args: string[]): Promise<void> {
   const json = args.includes("--json");
-  const positional = readPositionalArgs(args, ["--test", "--command", "--note"]);
+  const positional = readPositionalArgs(args, ["--test", "--command", "--red-command", "--green-command", "--note"]);
   const parsed = parseTddArgs(positional);
   const { action, project, sliceId } = parsed;
   requireValue(project, "project");
@@ -127,11 +139,47 @@ export async function forgeTddCommand(args: string[]): Promise<void> {
     return;
   }
 
+  const testPaths = readRepeatedFlagValues(args, "--test");
+  if (testPaths.length === 0) throw new Error("missing --test");
+
+  if (action === "cycle") {
+    const redCommand = readFlagValue(args, "--red-command");
+    requireValue(redCommand, "--red-command");
+    const greenCommand = readFlagValue(args, "--green-command");
+    requireValue(greenCommand, "--green-command");
+    const cycleId = `cycle-${Date.now().toString(36)}`;
+    const redRecordedAt = new Date().toISOString();
+    const greenRecordedAt = new Date(Date.parse(redRecordedAt) + 1).toISOString();
+    const red = await recordForgeStrictTddEvidence({
+      project,
+      sliceId,
+      phase: "red",
+      command: redCommand,
+      testPaths,
+      result: "failed",
+      note: readFlagValue(args, "--note"),
+      cycleId,
+      recordedAt: redRecordedAt,
+    });
+    const green = await recordForgeStrictTddEvidence({
+      project,
+      sliceId,
+      phase: "green",
+      command: greenCommand,
+      testPaths,
+      result: "passed",
+      note: readFlagValue(args, "--note"),
+      cycleId,
+      recordedAt: greenRecordedAt,
+    });
+    if (json) printJson({ status: "recorded", cycleId, red, green });
+    else printLine(`recorded TDD cycle evidence for ${sliceId}`);
+    return;
+  }
+
   if (action !== "red" && action !== "green") throw new Error(`unknown forge tdd subcommand: ${action}`);
   const command = readFlagValue(args, "--command");
   requireValue(command, "--command");
-  const testPaths = readRepeatedFlagValues(args, "--test");
-  if (testPaths.length === 0) throw new Error("missing --test");
   const record = await recordForgeStrictTddEvidence({
     project,
     sliceId,
@@ -156,7 +204,7 @@ export async function forgeEvidenceCommand(args: string[]): Promise<void> {
   requireValue(kind, "evidence kind");
   const command = readFlagValue(args, "--command");
   requireValue(command, "--command");
-  if (kind !== "verify" && kind !== "verification") throw new Error(`unknown forge evidence kind: ${kind}. Use 'verify' for targeted verification or 'wiki forge tdd red/green' for TDD evidence.`);
+  if (kind !== "verify" && kind !== "verification") throw new Error(`unknown forge evidence kind: ${kind}. Use 'verify' for targeted verification or 'wiki forge tdd cycle' for TDD evidence.`);
   const result = parseEvidenceResult(readFlagValue(args, "--result") ?? "passed");
   const record = await recordForgeVerificationEvidence({
     project,
@@ -191,7 +239,7 @@ export async function forgeReviewCommand(args: string[]): Promise<void> {
 }
 
 function parseTddArgs(positional: readonly string[]) {
-  if (positional[0] === "status" || positional[0] === "red" || positional[0] === "green") {
+  if (positional[0] === "status" || positional[0] === "red" || positional[0] === "green" || positional[0] === "cycle") {
     return { action: positional[0], project: positional[1], sliceId: positional[2] };
   }
   return { action: positional[2] ?? "status", project: positional[0], sliceId: positional[1] };

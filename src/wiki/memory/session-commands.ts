@@ -136,17 +136,6 @@ export async function handoverCommand(args: string[]): Promise<void> {
   const base = readFlagValue(args, "--base") ?? "HEAD";
   const runbookCommands = readRepeatedFlagValues(args, "--command");
   const resolvedBase = await resolveHandoverBase(repo, base);
-  const nextSessionPrompt = renderStructuredHandoverPrompt({
-    project,
-    summary,
-    nextAction,
-    operatorPrompt,
-    relatedPrds,
-    relatedSlices,
-    runbookCommands,
-    repo,
-    base: resolvedBase,
-  });
   const result = await writeForgeHandover({
     project,
     sessionId,
@@ -160,15 +149,36 @@ export async function handoverCommand(args: string[]): Promise<void> {
     relatedPrds,
     relatedSlices,
   });
-  if (json) printJson({ ...result, nextSessionPrompt });
+  const nextSessionPrompt = renderStructuredHandoverPrompt({
+    project,
+    summary,
+    nextAction,
+    operatorPrompt,
+    relatedPrds,
+    relatedSlices,
+    runbookCommands,
+    repo,
+    base: resolvedBase,
+    handoverPath: result.path,
+  });
+  const handoff = {
+    requiresUserCopyPaste: true,
+    label: "Copy/paste prompt for the next agent session",
+    prompt: nextSessionPrompt,
+    instruction: "Return this prompt to the user verbatim in a fenced text block; do not only summarize the handover path.",
+  };
+  if (json) printJson({ ...result, nextSessionPrompt, handoff });
   else {
-    printLine(`wrote ${result.path}`);
-    const preview = result.handover.summary.split("\n")[0]?.trim() ?? "";
-    if (preview) printLine(`summary: ${preview}`);
-    printLine("Next-session prompt for the user:");
+    printLine("ACTION REQUIRED: give the user this copy/paste prompt for the next agent session.");
+    printLine("Copy/paste prompt for the next agent session:");
     printLine("```text");
     printLine(nextSessionPrompt);
     printLine("```");
+    printLine(`wrote ${result.path}`);
+    const preview = result.handover.summary.split("\n")[0]?.trim() ?? "";
+    if (preview) printLine(`summary: ${preview}`);
+    printLine("Do not stop at 'handover written'; paste the prompt above back to the user.");
+    return;
   }
 }
 

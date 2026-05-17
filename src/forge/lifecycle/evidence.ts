@@ -7,6 +7,7 @@ export type TddEvidenceRecord = {
   readonly testPaths: readonly string[];
   readonly result: ForgeEvidenceResult;
   readonly note?: string;
+  readonly cycleId?: string;
   readonly recordedAt: string;
 };
 

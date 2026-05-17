@@ -32,8 +32,8 @@ describe("forge TDD gate", () => {
     expect(evaluateTddGate([], { project: "wiki-forge", sliceId: "WIKI-FORGE-001" })).toEqual({
       status: "missing-red",
       recovery: {
-        command: "wiki forge tdd red wiki-forge WIKI-FORGE-001 --test <path> --command \"<failing test command>\"",
-        description: "Record the failing red step before implementing the fix.",
+        command: "wiki forge tdd cycle wiki-forge WIKI-FORGE-001 --test <path> --red-command \"<failing test command>\" --green-command \"<passing test command>\"",
+        description: "Record the failing red step and later passing green step as one TDD cycle.",
       },
     });
   });
@@ -44,7 +44,7 @@ describe("forge TDD gate", () => {
       red,
       recovery: {
         command: "wiki forge tdd green wiki-forge WIKI-FORGE-001 --test tests/forge-kernel/tdd-gate.test.ts --command \"bun test tests/forge-kernel/tdd-gate.test.ts\"",
-        description: "Record the passing green step using the same command and at least one same test path.",
+        description: "Record the passing green step using the same command, or use tdd cycle when the passing command differs but targets the same test.",
       },
     });
   });
@@ -60,16 +60,23 @@ describe("forge TDD gate", () => {
     expect(hasPassedTddEvidence([red, green])).toBe(true);
   });
 
-  test("different command blocks with actionable invalid-sequence reason", () => {
+  test("different command blocks unless records belong to the same TDD cycle", () => {
     const mismatchedGreen: TddEvidenceRecord = { ...green, command: "bun test tests/other.test.ts" };
     expect(evaluateTddGate([red, mismatchedGreen])).toEqual({
       status: "invalid-sequence",
-      reason: "green TDD evidence must use the exact same command as the red evidence",
+      reason: "green TDD evidence must use the same command as the red evidence, or be recorded in the same TDD cycle",
       recovery: {
         command: "wiki forge tdd green <project> <slice-id> --test tests/forge-kernel/tdd-gate.test.ts --command \"bun test tests/forge-kernel/tdd-gate.test.ts\"",
-        description: "Record the passing green step using the same command and at least one same test path.",
+        description: "Record the passing green step using the same command, or use tdd cycle when the passing command differs but targets the same test.",
       },
     });
+  });
+
+  test("paired cycle records can use different commands while sharing the same test", () => {
+    const cycleRed: TddEvidenceRecord = { ...red, cycleId: "cycle-1" };
+    const cycleGreen: TddEvidenceRecord = { ...green, command: "bun test --filter tdd", cycleId: "cycle-1" };
+
+    expect(evaluateTddGate([cycleRed, cycleGreen])).toEqual({ status: "passed", red: cycleRed, green: cycleGreen });
   });
 
   test("no shared test path blocks the gate", () => {

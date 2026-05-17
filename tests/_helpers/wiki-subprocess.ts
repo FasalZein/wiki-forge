@@ -23,7 +23,7 @@ export function runWiki(args: string[], envOrConfig: WikiEnv | WikiRunConfig = {
     ...(config.vault ? { KNOWLEDGE_VAULT_ROOT: config.vault } : {}),
     ...(config.env ?? {}),
   };
-  const result = Bun.spawnSync([process.execPath, "src/index.ts", ...args], {
+  const result = Bun.spawnSync([process.execPath, `${repoRoot}/src/index.ts`, ...args], {
     cwd: config.cwd ?? repoRoot,
     env,
     stdout: "pipe",

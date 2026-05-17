@@ -139,7 +139,7 @@ Durable architectural guidance that is NOT coupled to current file paths:
 
 - Feature: `[[projects/<project>/specs/features/FEAT-<nnn>-<slug>]]`
 - PRD: `[[projects/<project>/specs/prds/PRD-<nnn>-<slug>]]`
-- Slices: filled in after `/prd-to-slices` runs.
+- Slices: filled in by the same Forge Plan packet.
 - External issue (optional): `<GH issue URL>`
 
 ## Cross Links

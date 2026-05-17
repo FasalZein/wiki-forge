@@ -31,6 +31,7 @@ export type AskOptions = {
   expand: boolean;
   bm25: boolean;
   verbose: boolean;
+  json?: boolean;
   maxResults: number;
   slug?: string;
 };

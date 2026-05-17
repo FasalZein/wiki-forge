@@ -10,11 +10,16 @@ describe("forge status triage adapter", () => {
       planStatus: "ready",
       testPlanStatus: "ready",
       verificationLevel: null,
-      nextPhase: "domain-model",
+      nextPhase: "grill-with-docs",
     });
 
-    expect(triage.kind).toBe("needs-domain-model");
-    expect(triage.loadSkill).toBe("/domain-model");
+    expect(triage.kind).toBe("needs-grill-with-docs");
+    expect(triage.loadSkill).toBe("/grill-with-docs");
+    expect(triage.command).toContain("wiki forge grill record demo");
+    expect(triage.command).toContain("projects/demo/architecture/domain-language.md");
+    expect(triage.command).toContain("projects/demo/architecture/context-map.md");
+    expect(triage.command).toContain("projects/demo/architecture/contexts/<context>.md");
+    expect(triage.command).toContain("projects/demo/adrs/");
     expect(triage.command).toContain("projects/demo/decisions.md");
   });
 

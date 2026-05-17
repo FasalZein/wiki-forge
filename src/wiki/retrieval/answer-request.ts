@@ -6,6 +6,7 @@ export function parseAskOptions(args: string[]): AskOptions {
   let expand = false;
   let useBm25 = false;
   let verbose = false;
+  let json = false;
   let maxResults = DEFAULT_ASK_MAX_RESULTS;
   let slug: string | undefined;
   let project: string | undefined;
@@ -23,6 +24,10 @@ export function parseAskOptions(args: string[]): AskOptions {
     }
     if (arg === "--verbose") {
       verbose = true;
+      continue;
+    }
+    if (arg === "--json") {
+      json = true;
       continue;
     }
     if (arg === "-n" || arg === "--max-results") {
@@ -49,7 +54,7 @@ export function parseAskOptions(args: string[]): AskOptions {
   if (!project) throw new Error("missing project");
   const question = questionParts.join(" ").trim().replace(/\s+/g, " ");
   if (!question) throw new Error("missing question");
-  return { project, question, expand, bm25: useBm25, verbose, maxResults, slug };
+  return { project, question, expand, bm25: useBm25, verbose, json, maxResults, slug };
 }
 
 function parsePositiveInteger(value: string, label: string) {

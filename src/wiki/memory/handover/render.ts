@@ -10,6 +10,7 @@ export type HandoverPromptInput = {
   readonly runbookCommands?: readonly string[];
   readonly repo?: string;
   readonly base?: string;
+  readonly handoverPath?: string;
 };
 
 export function renderForgeHandoverMarkdown(handover: ForgeHandoverRecord): string {
@@ -26,6 +27,7 @@ export function renderForgeHandoverMarkdown(handover: ForgeHandoverRecord): stri
     renderStringList("related_slices", handover.relatedSlices),
     ...(handover.baseRevision ? [`base_revision: ${quoteScalar(handover.baseRevision)}`] : []),
     `next_action: ${quoteScalar(handover.nextAction)}`,
+    `operator_intent: ${quoteScalar(handover.copyPastePrompt)}`,
     "---",
     `# ${handover.title}`,
     "",
@@ -37,15 +39,19 @@ export function renderForgeHandoverMarkdown(handover: ForgeHandoverRecord): stri
     "",
     ...renderRelatedWorkflow(handover),
     "",
-    "## Context refresh required",
+    "## Resume contract",
     "",
-    "Before following the next action, use wiki query to re-anchor on current durable memory, then confirm Forge workflow truth:",
+    "Do not reconstruct the prior conversation. Treat this record as a routing packet, then use current Forge truth and explicitly related artifacts as the source of truth.",
+    "",
+    "## Minimal refresh",
+    "",
+    "Run targeted freshness and Forge status checks before changing files. Use broad wiki queries only if this handover is stale or a referenced artifact is missing.",
     "",
     "```bash",
-    ...renderWikiQueryCommands({
+    ...renderMinimalRefreshCommands({
       project: handover.project,
-      relatedPrds: handover.relatedPrds,
       relatedSlices: handover.relatedSlices,
+      base: handover.baseRevision,
     }),
     "```",
     "",
@@ -54,32 +60,25 @@ export function renderForgeHandoverMarkdown(handover: ForgeHandoverRecord): stri
     handover.nextAction,
     "",
     ...renderRunbookSection(handover.runbookCommands),
-    "## Operator prompt",
-    "",
-    handover.copyPastePrompt,
   ].join("\n");
 }
 
 export function renderStructuredHandoverPrompt(input: HandoverPromptInput): string {
   return [
-    `Continue ${input.project} from this handover, but treat it as a starting hypothesis until refreshed.`,
+    `Continue ${input.project} from the Forge handover${input.handoverPath ? ` at ${input.handoverPath}` : ""}.`,
     "",
-    "Context refresh — run these first and read the hits before changing files:",
-    ...renderWikiQueryCommands(input).map((command) => `- ${command}`),
+    "Do not reconstruct the prior conversation. Read the handover record, current Forge truth, and explicitly referenced artifacts only. Run broad wiki queries only if the handover is stale or references are missing.",
+    "",
+    "Minimal refresh:",
     `- wiki checkpoint ${input.project} --repo ${quoteShell(input.repo ?? ".")} --base ${quoteShell(input.base ?? "HEAD")}`,
     `- wiki forge next ${input.project} --repo ${quoteShell(input.repo ?? ".")}`,
     ...renderStatusCommands(input).map((command) => `- ${command}`),
     ...renderRunbookPromptCommands(input.runbookCommands),
     "",
-    "If wiki query results or Forge status disagree with this handover, trust the latest wiki/Forge truth and update the handover or lifecycle state before implementation.",
-    "",
-    "Session summary:",
-    input.summary,
-    "",
     "Next action:",
     input.nextAction,
     "",
-    "Operator prompt:",
+    "Operator intent:",
     input.operatorPrompt,
   ].join("\n");
 }
@@ -108,13 +107,11 @@ function renderRelatedWorkflow(handover: ForgeHandoverRecord): readonly string[]
   return entries.length > 0 ? entries : ["- None recorded."];
 }
 
-function renderWikiQueryCommands(input: Pick<HandoverPromptInput, "project" | "relatedPrds" | "relatedSlices">): readonly string[] {
-  const sliceTerms = input.relatedSlices.length > 0 ? input.relatedSlices.join(" ") : "Forge slices active ready in-progress handover";
-  const prdTerms = input.relatedPrds.length > 0 ? input.relatedPrds.join(" ") : "Forge PRD requirements latest";
+function renderMinimalRefreshCommands(input: Pick<HandoverPromptInput, "project" | "relatedSlices"> & { readonly base?: string }): readonly string[] {
   return [
-    `wiki query --bm25 ${quoteShell(`${input.project} latest decisions architecture handover`)}`,
-    `wiki query --bm25 ${quoteShell(`${input.project} ${sliceTerms}`)}`,
-    `wiki query --bm25 ${quoteShell(`${input.project} ${prdTerms}`)}`,
+    `wiki checkpoint ${input.project} --repo . --base ${quoteShell(input.base ?? "HEAD")}`,
+    `wiki forge next ${input.project} --repo .`,
+    ...input.relatedSlices.map((slice) => `wiki forge status ${input.project} ${slice} --repo . --json`),
   ];
 }
 

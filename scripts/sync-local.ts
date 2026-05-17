@@ -120,14 +120,38 @@ export function selectRepoSkills(repoDir: string, installSet: InstallSet): strin
   return discovered.filter((skill) => WIKI_ONLY_SKILLS.includes(skill as typeof WIKI_ONLY_SKILLS[number]));
 }
 
+function listSkillFiles(skillDir: string, prefix = ""): string[] {
+  return readdirSync(resolve(skillDir, prefix), { withFileTypes: true })
+    .flatMap((entry) => {
+      const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) return listSkillFiles(skillDir, relativePath);
+      return entry.isFile() ? [relativePath] : [];
+    })
+    .sort((left, right) => left.localeCompare(right));
+}
+
 export function auditInstalledRepoSkills(options: Pick<SyncOptions, "repoDir" | "installSet">, installRoot = resolve(process.env.HOME || "~", ".agents", "skills")) {
   const rows = selectRepoSkills(options.repoDir, options.installSet).map((skill) => {
-    const repoSkillPath = resolve(options.repoDir, "skills", skill, "SKILL.md");
-    const installedSkillPath = resolve(installRoot, skill, "SKILL.md");
-    if (!existsSync(installedSkillPath)) return { skill, status: "missing", installedSkillPath } as const;
-    const repoSkill = readFileSync(repoSkillPath, "utf8");
-    const installedSkill = readFileSync(installedSkillPath, "utf8");
-    return { skill, status: repoSkill === installedSkill ? "ok" : "stale", installedSkillPath } as const;
+    const repoSkillDir = resolve(options.repoDir, "skills", skill);
+    const installedSkillDir = resolve(installRoot, skill);
+    const repoFiles = listSkillFiles(repoSkillDir);
+    if (!existsSync(installedSkillDir)) {
+      return { skill, status: "missing", installedSkillPath: resolve(installedSkillDir, "SKILL.md"), details: [`missing directory ${installedSkillDir}`] } as const;
+    }
+    const details: string[] = [];
+    for (const relativePath of repoFiles) {
+      const repoSkillPath = resolve(repoSkillDir, relativePath);
+      const installedSkillPath = resolve(installedSkillDir, relativePath);
+      if (!existsSync(installedSkillPath)) {
+        details.push(`missing ${installedSkillPath}`);
+        continue;
+      }
+      const repoSkill = readFileSync(repoSkillPath, "utf8");
+      const installedSkill = readFileSync(installedSkillPath, "utf8");
+      if (repoSkill !== installedSkill) details.push(`stale ${installedSkillPath}`);
+    }
+    const status = details.some((detail) => detail.startsWith("missing ")) ? "missing" : details.length > 0 ? "stale" : "ok";
+    return { skill, status, installedSkillPath: resolve(installedSkillDir, "SKILL.md"), details } as const;
   });
   return { installRoot, rows, ok: rows.every((row) => row.status === "ok") };
 }
@@ -137,7 +161,7 @@ export function assertInstalledRepoSkillsFresh(options: Pick<SyncOptions, "repoD
   if (audit.ok) return audit;
   const failures = audit.rows
     .filter((row) => row.status !== "ok")
-    .map((row) => `${row.skill}: ${row.status} (${row.installedSkillPath})`)
+    .map((row) => `${row.skill}: ${row.status} (${row.details.length ? row.details.join("; ") : row.installedSkillPath})`)
     .join(", ");
   throw new Error(
     `sync:local finished but installed repo skill copies are still stale under ${audit.installRoot}: ${failures}`,

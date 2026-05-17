@@ -6,7 +6,7 @@ import { validatePhaseCompletion, validatePhaseTransition } from "../../src/forg
 describe("forge skill chain gates", () => {
   test("phase validator blocks review before verification", () => {
     const gate = validatePhaseTransition({
-      completedPhases: ["research", "domain-model", "spec", "slices", "ownership", "implementation", "tdd"],
+      completedPhases: ["research", "grill-with-docs", "spec", "slices", "ownership", "implementation", "tdd"],
       requestedPhase: "review",
       reviewPolicy: { required: true },
     });
@@ -20,7 +20,7 @@ describe("forge skill chain gates", () => {
 
   test("phase validator blocks close before review when review policy requires it", () => {
     const gate = validatePhaseTransition({
-      completedPhases: ["research", "domain-model", "spec", "slices", "ownership", "implementation", "tdd", "verification"],
+      completedPhases: ["research", "grill-with-docs", "spec", "slices", "ownership", "implementation", "tdd", "verification"],
       requestedPhase: "close",
       reviewPolicy: { required: true },
     });
@@ -34,7 +34,7 @@ describe("forge skill chain gates", () => {
 
   test("review can be policy-optional but tdd verification and close are never skippable", () => {
     const gate = validatePhaseTransition({
-      completedPhases: ["research", "domain-model", "spec", "slices", "ownership", "implementation", "tdd", "verification"],
+      completedPhases: ["research", "grill-with-docs", "spec", "slices", "ownership", "implementation", "tdd", "verification"],
       requestedPhase: "close",
       reviewPolicy: { required: false },
     });
@@ -45,9 +45,9 @@ describe("forge skill chain gates", () => {
     expect(isPhaseSkippable("close")).toBe(false);
   });
 
-  test("research/domain/spec/slices can be skipped only with audit reason", () => {
+  test("research/grill-with-docs/spec/slices can be skipped only with audit reason", () => {
     expect(validatePhaseCompletion({ phase: "research", skipped: true, auditReason: "covered by PRD-090" })).toEqual({ status: "valid" });
-    expect(validatePhaseCompletion({ phase: "domain-model", skipped: true, auditReason: "covered by domain decision" })).toEqual({ status: "valid" });
+    expect(validatePhaseCompletion({ phase: "grill-with-docs", skipped: true, auditReason: "covered by decision record" })).toEqual({ status: "valid" });
     expect(validatePhaseCompletion({ phase: "spec", skipped: true, auditReason: "pre-existing PRD" })).toEqual({ status: "valid" });
     expect(validatePhaseCompletion({ phase: "slices", skipped: true, auditReason: "pre-existing slices" })).toEqual({ status: "valid" });
     expect(validatePhaseCompletion({ phase: "research", skipped: true })).toEqual({
@@ -62,7 +62,7 @@ describe("forge skill chain gates", () => {
 
   test("skill chain packet names required next skill and phase", () => {
     const packet = buildSkillChainPacket({
-      completedPhases: ["research", "domain-model", "spec", "slices", "ownership", "implementation"],
+      completedPhases: ["research", "grill-with-docs", "spec", "slices", "ownership", "implementation"],
       reviewPolicy: { required: true },
     });
 

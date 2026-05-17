@@ -1,4 +1,4 @@
-export type PlanningSkill = "torpathy" | "domain-model" | "grill-me";
+export type PlanningSkill = "plan" | "torpathy" | "grill-with-docs" | "grill-me";
 
 export type PlanningAnswer = {
   readonly id: string;

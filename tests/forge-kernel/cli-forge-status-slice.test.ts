@@ -88,6 +88,12 @@ describe("forge slice-specific forge status", () => {
         missing: ["tdd", "targeted-verification", "review"],
       },
       nextAction: "record-tdd-evidence",
+      phasePacket: {
+        kind: "phase-skill-packet",
+        phase: "implementation",
+        requiredSkills: ["forge", "tdd"],
+        requiredOutputs: expect.arrayContaining(["red TDD evidence", "green TDD evidence", "targeted verification", "review evidence"]),
+      },
     });
   });
 
