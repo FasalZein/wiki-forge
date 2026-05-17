@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { FORGE_WORKFLOW_LEDGER_PHASES, SKIPPABLE_FORGE_WORKFLOW_LEDGER_PHASES } from "../src/forge/lifecycle/phase";
 import {
   FORGE_PHASES,
   SKIPPABLE_FORGE_PHASES,
@@ -9,7 +10,8 @@ import {
 } from "../src/forge/status/workflow-ledger";
 
 describe("forge workflow ledger", () => {
-  test("keeps the forge phase chain in canonical order", () => {
+  test("keeps the legacy workflow ledger phase chain sourced from lifecycle phase definitions", () => {
+    expect(FORGE_PHASES).toBe(FORGE_WORKFLOW_LEDGER_PHASES);
     expect(FORGE_PHASES).toEqual(["research", "grill-with-docs", "prd", "slices", "tdd", "verify"]);
   });
 
@@ -84,7 +86,8 @@ describe("forge workflow ledger", () => {
     expect(validation.statuses.every((status) => status.completed)).toBe(true);
   });
 
-  test("exposes the skippable-phase floor: research, grill-with-docs, prd, slices only", () => {
+  test("exposes the skippable-phase floor from lifecycle phase definitions", () => {
+    expect(SKIPPABLE_FORGE_PHASES).toBe(SKIPPABLE_FORGE_WORKFLOW_LEDGER_PHASES);
     expect([...SKIPPABLE_FORGE_PHASES].sort()).toEqual(["grill-with-docs", "prd", "research", "slices"]);
     expect(isForgePhaseSkippable("research")).toBe(true);
     expect(isForgePhaseSkippable("grill-with-docs")).toBe(true);

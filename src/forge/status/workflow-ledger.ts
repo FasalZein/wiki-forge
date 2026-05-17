@@ -1,21 +1,30 @@
-export const FORGE_PHASES = ["research", "grill-with-docs", "prd", "slices", "tdd", "verify"] as const;
-export type ForgePhase = (typeof FORGE_PHASES)[number];
+import {
+  FORGE_WORKFLOW_LEDGER_PHASES,
+  SKIPPABLE_FORGE_WORKFLOW_LEDGER_PHASES,
+  isForgeWorkflowLedgerPhase,
+  isForgeWorkflowLedgerPhaseSkippable,
+  type ForgeWorkflowLedgerPhase,
+  type SkippableForgeWorkflowLedgerPhase,
+} from "../lifecycle/phase";
+
+export const FORGE_PHASES = FORGE_WORKFLOW_LEDGER_PHASES;
+export type ForgePhase = ForgeWorkflowLedgerPhase;
 export const FORGE_WORKFLOW_PROFILES = ["full", "bootstrap"] as const;
 export type ForgeWorkflowProfile = (typeof FORGE_WORKFLOW_PROFILES)[number];
 
 // Only these phases may be skipped via `wiki forge skip` or `wiki forge run --skip-phase`.
 // tdd and verify are the code-level enforcement floor for PRD-082 and cannot be waived by a reason string.
-export const SKIPPABLE_FORGE_PHASES = ["research", "grill-with-docs", "prd", "slices"] as const;
-export type SkippableForgePhase = (typeof SKIPPABLE_FORGE_PHASES)[number];
+export const SKIPPABLE_FORGE_PHASES = SKIPPABLE_FORGE_WORKFLOW_LEDGER_PHASES;
+export type SkippableForgePhase = SkippableForgeWorkflowLedgerPhase;
 export type LegacyForgePhase = "domain-model";
 
 export function isForgePhaseSkippable(phase: ForgePhase): phase is SkippableForgePhase {
-  return (SKIPPABLE_FORGE_PHASES as readonly ForgePhase[]).includes(phase);
+  return isForgeWorkflowLedgerPhaseSkippable(phase);
 }
 
 export function normalizeForgePhase(value: unknown): ForgePhase | null {
   if (value === "domain-model") return "grill-with-docs";
-  return (FORGE_PHASES as readonly unknown[]).includes(value) ? value as ForgePhase : null;
+  return isForgeWorkflowLedgerPhase(value) ? value : null;
 }
 
 export function normalizeSkippableForgePhase(value: unknown): SkippableForgePhase | null {
