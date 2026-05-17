@@ -24,6 +24,7 @@ export type ReviewEvidenceRecord = {
   readonly reviewer: string;
   readonly verdict: "approved" | "needs-changes" | "approved-with-followups";
   readonly recordedAt: string;
+  readonly git?: { readonly head: string };
 };
 
 export type ClosureEvidenceRecord = {

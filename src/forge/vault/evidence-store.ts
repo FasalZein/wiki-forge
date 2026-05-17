@@ -32,6 +32,7 @@ export type RecordReviewEvidenceInput = {
   readonly reviewer: string;
   readonly verdict: "approved" | "needs-changes" | "approved-with-followups";
   readonly recordedAt?: string;
+  readonly git?: { readonly head: string };
   readonly vaultRoot?: string;
 };
 
@@ -67,6 +68,7 @@ export async function recordForgeReviewEvidence(input: RecordReviewEvidenceInput
     kind: "review",
     reviewer: input.reviewer,
     verdict: input.verdict,
+    ...(input.git ? { git: input.git } : {}),
     recordedAt: input.recordedAt ?? new Date().toISOString(),
   };
   await appendForgeEvidence(input.project, input.sliceId, record, input.vaultRoot);

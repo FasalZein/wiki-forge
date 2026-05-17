@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { runGit } from "../test-helpers";
 import matter from "gray-matter";
 import { cleanupTempPaths, initVault, runWiki, tempDir } from "../test-helpers";
 import { resolveForgeCommand } from "../../src/forge";
@@ -76,5 +77,23 @@ describe("forge evidence/review command adapters", () => {
     ]);
     const raw = readFileSync(join(vault, "projects", "demo", "forge", "slices", sliceId, "index.md"), "utf8");
     expect(raw).toContain("status: in-progress");
+  });
+
+  test("forge review record with repo persists the reviewed git head", () => {
+    const vault = createVaultWithSlice();
+    const repo = tempDir("wiki-review-repo");
+    mkdirSync(repo, { recursive: true });
+    writeFileSync(join(repo, "README.md"), "# demo\n", "utf8");
+    runGit(repo, ["init", "-q"]);
+    runGit(repo, ["add", "."]);
+    runGit(repo, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
+    const head = runGit(repo, ["rev-parse", "HEAD"]).stdout.toString().trim();
+
+    const result = runWiki(["forge", "review", "record", "demo", sliceId, "--verdict", "approved", "--reviewer", "reviewer", "--repo", repo, "--json"], { vault });
+
+    expect(result.exitCode).toBe(0);
+    expect(evidence(vault)).toMatchObject([
+      { kind: "review", reviewer: "reviewer", verdict: "approved", git: { head } },
+    ]);
   });
 });

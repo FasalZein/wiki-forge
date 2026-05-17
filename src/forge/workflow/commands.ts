@@ -1,5 +1,6 @@
 import { printJson, printLine } from "../../lib/cli-output";
 import { requireValue } from "../../cli-shared";
+import { gitHeadSha } from "../../git-utils";
 import { renderForgeNextJson, renderForgeNextText } from "./render-next";
 import { renderForgeSliceStatusText } from "./render-slice-status";
 import { buildPhaseSkillPacket, renderPhaseSkillPacket } from "./phase-skill-packet";
@@ -228,11 +229,14 @@ export async function forgeReviewCommand(args: string[]): Promise<void> {
   requireValue(sliceId, "slice-id");
   const reviewer = readFlagValue(args, "--reviewer");
   requireValue(reviewer, "--reviewer");
+  const repo = readFlagValue(args, "--repo");
+  const head = repo ? await gitHeadSha(repo) : undefined;
   const record = await recordForgeReviewEvidence({
     project,
     sliceId,
     reviewer,
     verdict: parseReviewVerdict(readFlagValue(args, "--verdict") ?? "approved"),
+    ...(head ? { git: { head } } : {}),
   });
   if (json) printJson(record);
   else printLine(`recorded review evidence for ${sliceId}`);

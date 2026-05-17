@@ -1,9 +1,11 @@
-import { relative } from "node:path";
+import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../../constants";
-import { nowIso, orderFrontmatter, safeMatter, writeNormalizedPage } from "../../cli-shared";
+import { safeMatter } from "../../cli-shared";
 import { gitHeadSha } from "../../git-utils";
 import { exists, readText } from "../../lib/fs";
-import { projectTaskHubPath } from "../../lib/structure";
+import { forgeSlicePath } from "../vault/forge-paths";
+import { readForgeEvidence, recordForgeReviewEvidence } from "../vault/evidence-store";
+import type { ReviewEvidenceRecord } from "../lifecycle/evidence";
 
 export const REVIEW_VERDICTS = ["approved", "needs_changes", "approved_with_followups"] as const;
 export type ReviewVerdict = typeof REVIEW_VERDICTS[number];
@@ -40,53 +42,35 @@ export type RecordReviewInput = {
   repo?: string;
 };
 
-const HUB_FRONTMATTER_ORDER = [
-  "title", "type", "spec_kind", "project", "source_paths", "assignee", "task_id", "depends_on",
-  "parent_prd", "parent_feature", "claimed_by", "claimed_at", "claim_paths", "created_at", "updated",
-  "started_at", "completed_at", "status", "verification_level", "workflow_profile", "review_policy",
-  "forge_review_evidence", "forge_workflow_ledger",
-];
-
 export function isReviewVerdict(value: string): value is ReviewVerdict {
   return (REVIEW_VERDICTS as readonly string[]).includes(value);
 }
 
 export async function recordForgeReview(input: RecordReviewInput): Promise<ForgeReviewEvidence> {
-  const indexPath = projectTaskHubPath(input.project, input.sliceId);
-  if (!(await exists(indexPath))) throw new Error(`slice index not found: ${input.sliceId}`);
-  const matter = safeMatter(relative(VAULT_ROOT, indexPath), await readText(indexPath), { silent: true });
-  if (!matter) throw new Error(`could not parse slice index: ${input.sliceId}`);
-
-  const evidence: ForgeReviewEvidence = {
-    verdict: input.verdict,
+  const head = input.repo ? await gitHeadSha(input.repo) : undefined;
+  const recorded = await recordForgeReviewEvidence({
+    project: input.project,
+    sliceId: input.sliceId,
     reviewer: input.reviewer,
-    completedAt: nowIso(),
-    blockers: input.blockers,
-    ...(input.model ? { model: input.model } : {}),
-    ...(input.artifact ? { artifact: input.artifact } : {}),
-    ...(input.repo ? { git: { head: await gitHeadSha(input.repo) } } : {}),
-  };
-  const existing = readReviewEvidence(matter.data.forge_review_evidence);
-  const nextData = orderFrontmatter(
-    { ...matter.data, forge_review_evidence: [...existing, evidence], updated: evidence.completedAt },
-    HUB_FRONTMATTER_ORDER,
-  );
-  writeNormalizedPage(indexPath, matter.content, nextData);
-  return evidence;
+    verdict: toEvidenceVerdict(input.verdict),
+    ...(head ? { git: { head } } : {}),
+  });
+  return toGateEvidence(recorded);
 }
 
 export async function collectReviewGateStatus(project: string, sliceId: string, repo?: string): Promise<ReviewGateStatus> {
-  const indexPath = projectTaskHubPath(project, sliceId);
+  const indexPath = forgeSliceIndexPath(project, sliceId);
   if (!(await exists(indexPath))) throw new Error(`slice index not found: ${sliceId}`);
   const matter = safeMatter(relative(VAULT_ROOT, indexPath), await readText(indexPath), { silent: true });
   if (!matter) throw new Error(`could not parse slice index: ${sliceId}`);
+  const evidence = await readForgeEvidence(project, sliceId);
   const currentHead = repo ? await gitHeadSha(repo) : undefined;
-  return reviewGateStatus(matter.data, project, sliceId, currentHead);
+  return reviewGateStatus({ ...matter.data, forge_evidence: evidence }, project, sliceId, currentHead);
 }
 
 export function reviewGateStatus(data: Record<string, unknown>, project: string, sliceId: string, currentHead?: string): ReviewGateStatus {
   const requiredApprovals = readRequiredApprovals(data.review_policy);
-  const evidence = readReviewEvidence(data.forge_review_evidence);
+  const evidence = readReviewEvidence(data.forge_evidence);
   const relevantEvidence = currentHead ? evidence.filter((entry) => !entry.git || entry.git.head === currentHead) : evidence;
   const staleEvidence = currentHead ? evidence.filter((entry) => entry.git && entry.git.head !== currentHead) : [];
   const approvals = relevantEvidence.filter((entry) => entry.verdict === "approved" || entry.verdict === "approved_with_followups").length;
@@ -117,15 +101,40 @@ function readReviewEvidence(value: unknown): ForgeReviewEvidence[] {
   return value.flatMap((entry) => {
     if (!entry || typeof entry !== "object") return [];
     const record = entry as Record<string, unknown>;
-    if (typeof record.verdict !== "string" || !isReviewVerdict(record.verdict) || typeof record.reviewer !== "string" || typeof record.completedAt !== "string") return [];
-    return [{
-      verdict: record.verdict,
+    if (record.kind !== "review" || typeof record.verdict !== "string" || typeof record.reviewer !== "string" || typeof record.recordedAt !== "string") return [];
+    const verdict = toReviewVerdict(record.verdict);
+    if (!verdict) return [];
+    return [toGateEvidence({
+      kind: "review",
+      verdict: toEvidenceVerdict(verdict),
       reviewer: record.reviewer,
-      completedAt: record.completedAt,
-      blockers: Array.isArray(record.blockers) ? record.blockers.filter((blocker): blocker is string => typeof blocker === "string") : [],
-      ...(typeof record.model === "string" ? { model: record.model } : {}),
-      ...(typeof record.artifact === "string" ? { artifact: record.artifact } : {}),
-      ...(record.git && typeof record.git === "object" && typeof (record.git as Record<string, unknown>).head === "string" ? { git: { head: String((record.git as Record<string, unknown>).head) } } : {}),
-    }];
+      recordedAt: record.recordedAt,
+      ...(record.git && typeof record.git === "object" && typeof (record.git as Record<string, unknown>).head === "string"
+        ? { git: { head: String((record.git as Record<string, unknown>).head) } }
+        : {}),
+    })];
   });
+}
+
+function toReviewVerdict(value: string): ReviewVerdict | null {
+  const normalized = value.replaceAll("-", "_");
+  return isReviewVerdict(normalized) ? normalized : null;
+}
+
+function toEvidenceVerdict(value: ReviewVerdict): ReviewEvidenceRecord["verdict"] {
+  return value.replaceAll("_", "-") as ReviewEvidenceRecord["verdict"];
+}
+
+function toGateEvidence(record: ReviewEvidenceRecord): ForgeReviewEvidence {
+  return {
+    verdict: toReviewVerdict(record.verdict) ?? "needs_changes",
+    reviewer: record.reviewer,
+    completedAt: record.recordedAt,
+    blockers: [],
+    ...(record.git ? { git: record.git } : {}),
+  };
+}
+
+function forgeSliceIndexPath(project: string, sliceId: string): string {
+  return join(VAULT_ROOT, forgeSlicePath(project, sliceId));
 }
