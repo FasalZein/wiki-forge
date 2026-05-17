@@ -3,6 +3,15 @@ name: write-a-prd
 description: Turn the current conversation context into a PRD and publish it to the project issue tracker. Use when user wants to create a PRD from the current context.
 ---
 
+## Wiki/Forge session context
+
+For wiki-forge projects:
+
+- Resolve the vault through `KNOWLEDGE_VAULT_ROOT`; if unset, run `wiki config --effective --repo <path>` or `wiki init <project> --repo <path>`.
+- Do not create durable project memory markdown inside the code repo unless the repo itself is the configured vault.
+- Forge-tracked use: obey the active Forge phase packet, its required skills, artifact owner, allowed writes, and next command.
+- Standalone use: this skill can run without Forge; when durable memory is needed, route it through Wiki under `${KNOWLEDGE_VAULT_ROOT}/projects/<project>/`.
+
 This skill takes the current conversation context and codebase understanding and produces a PRD. Do NOT interview the user — just synthesize what you already know.
 
 The issue tracker and triage label vocabulary should have been provided to you — run `/setup-matt-pocock-skills` if not.

@@ -3,6 +3,15 @@ name: diagnose
 description: Disciplined diagnosis loop for hard bugs and performance regressions. Reproduce → minimise → hypothesise → instrument → fix → regression-test. Use when user says "diagnose this" / "debug this", reports a bug, says something is broken/throwing/failing, or describes a performance regression.
 ---
 
+## Wiki/Forge session context
+
+For wiki-forge projects:
+
+- Resolve the vault through `KNOWLEDGE_VAULT_ROOT`; if unset, run `wiki config --effective --repo <path>` or `wiki init <project> --repo <path>`.
+- Do not create durable project memory markdown inside the code repo unless the repo itself is the configured vault.
+- Forge-tracked use: obey the active Forge phase packet, its required skills, artifact owner, allowed writes, and next command.
+- Standalone use: this skill can run without Forge; when durable memory is needed, route it through Wiki under `${KNOWLEDGE_VAULT_ROOT}/projects/<project>/`.
+
 # Diagnose
 
 A discipline for hard bugs. Skip phases only when explicitly justified.

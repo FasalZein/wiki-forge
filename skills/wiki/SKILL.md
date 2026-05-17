@@ -9,6 +9,15 @@ description: >
   For tracked implementation workflow, use the `forge` skill.
 ---
 
+## Wiki/Forge session context
+
+For wiki-forge projects:
+
+- Resolve the vault through `KNOWLEDGE_VAULT_ROOT`; if unset, run `wiki config --effective --repo <path>` or `wiki init <project> --repo <path>`.
+- Do not create durable project memory markdown inside the code repo unless the repo itself is the configured vault.
+- Forge-tracked use: obey the active Forge phase packet, its required skills, artifact owner, allowed writes, and next command.
+- Standalone use: this skill can run without Forge; when durable memory is needed, route it through Wiki under `${KNOWLEDGE_VAULT_ROOT}/projects/<project>/`.
+
 # Wiki
 
 Wiki is the second-brain memory layer. It owns durable vault memory: research, notes, decisions, handovers, source bindings, page verification levels, drift/freshness checks, and recall. Wiki remembers; Forge executes lifecycle.

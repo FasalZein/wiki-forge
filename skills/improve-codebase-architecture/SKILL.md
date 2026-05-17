@@ -3,6 +3,15 @@ name: improve-codebase-architecture
 description: Find deepening opportunities in a codebase, informed by the domain language in CONTEXT.md and the decisions in docs/adr/. Use when the user wants to improve architecture, find refactoring opportunities, consolidate tightly-coupled modules, or make a codebase more testable and AI-navigable.
 ---
 
+## Wiki/Forge session context
+
+For wiki-forge projects:
+
+- Resolve the vault through `KNOWLEDGE_VAULT_ROOT`; if unset, run `wiki config --effective --repo <path>` or `wiki init <project> --repo <path>`.
+- Do not create durable project memory markdown inside the code repo unless the repo itself is the configured vault.
+- Forge-tracked use: obey the active Forge phase packet, its required skills, artifact owner, allowed writes, and next command.
+- Standalone use: this skill can run without Forge; when durable memory is needed, route it through Wiki under `${KNOWLEDGE_VAULT_ROOT}/projects/<project>/`.
+
 # Improve Codebase Architecture
 
 Surface architectural friction and propose **deepening opportunities** — refactors that turn shallow modules into deep ones. The aim is testability and AI-navigability.

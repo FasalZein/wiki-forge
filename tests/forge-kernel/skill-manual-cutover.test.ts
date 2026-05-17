@@ -4,6 +4,24 @@ import { readFileSync } from "node:fs";
 const skill = (name: string) => readFileSync(`skills/${name}/SKILL.md`, "utf8");
 
 describe("skill manuals after legacy cutover", () => {
+  test("core skills start with Wiki/Forge session context and environment vault orientation", () => {
+    const coreSkills = ["wiki", "forge", "grill-with-docs", "write-a-prd", "prd-to-slices", "tdd", "diagnose", "improve-codebase-architecture"];
+
+    for (const name of coreSkills) {
+      const manual = skill(name);
+      const sessionContextIndex = manual.indexOf("## Wiki/Forge session context");
+      const headings = manual.match(/^## Wiki\/Forge session context$/gm) ?? [];
+
+      expect(headings).toHaveLength(1);
+      expect(sessionContextIndex).toBeGreaterThan(0);
+      expect(sessionContextIndex).toBeLessThan(1500);
+      expect(manual).toContain("KNOWLEDGE_VAULT_ROOT");
+      expect(manual).toContain("Forge-tracked use");
+      expect(manual).toContain("Standalone use");
+      expect(manual).toContain("Do not create durable project memory markdown inside the code repo");
+    }
+  });
+
   test("Forge skill names the stable lifecycle chain and rejects legacy commands", () => {
     const forge = skill("forge");
     expect(forge).toContain("wiki forge plan");

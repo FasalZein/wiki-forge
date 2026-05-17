@@ -4,6 +4,15 @@ description: >
   Forge workflow for tracked implementation work: feature/PRD/slice planning, active slice ownership, release/start/close, TDD evidence, targeted verification, review gates, handovers, amendments, and `wiki forge ...` commands. Trigger when the user says forge, continue wiki-forge, feature, PRD, slice, active slice, release/start/close, handover, TDD evidence, review gate, or tracked implementation workflow.
 ---
 
+## Wiki/Forge session context
+
+For wiki-forge projects:
+
+- Resolve the vault through `KNOWLEDGE_VAULT_ROOT`; if unset, run `wiki config --effective --repo <path>` or `wiki init <project> --repo <path>`.
+- Do not create durable project memory markdown inside the code repo unless the repo itself is the configured vault.
+- Forge-tracked use: obey the active Forge phase packet, its required skills, artifact owner, allowed writes, and next command.
+- Standalone use: this skill can run without Forge; when durable memory is needed, route it through Wiki under `${KNOWLEDGE_VAULT_ROOT}/projects/<project>/`.
+
 # Forge
 
 Forge is the SDLC lifecycle layer for tracked implementation work. It owns workflow state, slice ownership, Git boundaries, verification evidence, review evidence, handover continuity, and close readiness. Wiki remains the second-brain memory layer; Forge decides whether implementation may proceed or close. Project-specific research belongs under `projects/<project>/research/`; global `research/` is only for reusable cross-project topics.
