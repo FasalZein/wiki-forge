@@ -28,14 +28,21 @@ describe("command surface registry", () => {
 
   test("classifies Forge workflow commands as Forge-owned", () => {
     expect(getCommandSurfaceEntry("next")).toMatchObject({ domain: "forge-workflow", handler: "forge:next", mayMutateLifecycle: false });
-    expect(getCommandSurfaceEntry("forge")).toMatchObject({ domain: "forge-workflow", handler: "forge:*" });
+    expect(getCommandSurfaceEntry("forge")).toMatchObject({ domain: "forge-workflow", handler: "forge:*", mayMutateLifecycle: false });
+    expect(getCommandSurfaceEntry("forge:next")).toMatchObject({ domain: "forge-workflow", mayMutateLifecycle: false });
+    expect(getCommandSurfaceEntry("forge:status")).toMatchObject({ domain: "forge-workflow", mayMutateLifecycle: false });
+    expect(getCommandSurfaceEntry("forge:improve")).toMatchObject({ domain: "forge-workflow", mayMutateLifecycle: false });
+    expect(getCommandSurfaceEntry("forge:start")).toMatchObject({ domain: "forge-workflow", mayMutateLifecycle: true });
+    expect(getCommandSurfaceEntry("forge:evidence")).toMatchObject({ domain: "forge-workflow", mayMutateLifecycle: true });
   });
 
   test("enforces lifecycle mutation and generated projection boundaries", () => {
     expect(() => assertLifecycleMutationAllowed("handover")).toThrow("cannot mutate Forge lifecycle");
     expect(() => assertLifecycleMutationAllowed("search")).toThrow("cannot mutate Forge lifecycle");
     expect(() => assertLifecycleMutationAllowed("status")).toThrow("unclassified command");
-    expect(() => assertLifecycleMutationAllowed("forge")).not.toThrow();
+    expect(() => assertLifecycleMutationAllowed("forge")).toThrow("cannot mutate Forge lifecycle");
+    expect(() => assertLifecycleMutationAllowed("forge:next")).toThrow("cannot mutate Forge lifecycle");
+    expect(() => assertLifecycleMutationAllowed("forge:start")).not.toThrow();
 
     expect(() => assertGeneratedProjectionReadAllowed("search")).toThrow("cannot read generated projections as authority");
     expect(() => assertGeneratedProjectionReadAllowed("dashboard")).not.toThrow();

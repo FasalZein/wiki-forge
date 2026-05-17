@@ -23,10 +23,16 @@ Retrieval:
   wiki qmd-status
 
 Research:
+  wiki research scaffold <topic>
   wiki research file <topic> --project <project> <title>
   wiki research status [topic] [--project <project>] [--json]
   wiki research ingest <topic> --project <project> <source-url-or-path...>
+  wiki research lint [topic] [--json]
+  wiki research audit [topic] [--json]
+  wiki research handoff <research-page> <projects/<project>/decisions|projects/<project>/architecture/domain-language>
+  wiki research bridge <research-page> --project <project> --slice <slice-id> [--json]
   wiki research migrate-projects [--project <legacy-project>] [--to-project <project>] [--write] [--json]
+  wiki source ingest <path-or-url...> [--topic <topic>] [--title <title>] [--bucket <name>]
 
 Second-brain management:
   wiki init <project> [--repo <path>]
@@ -34,7 +40,6 @@ Second-brain management:
   wiki prune-empty-dirs <project> [--write] [--json]
   wiki prune-ghost-projects [--write] [--json]
   wiki summary <project> [--repo <path>] [--json]
-  wiki status [project] [--json]
   wiki resume <project> [--repo <path>] [--base <rev>] [--json]
 
 Optional workflow:
@@ -95,7 +100,6 @@ Planning & Hierarchy:
   wiki summary <project> [--repo <path>] [--json]
 
 Verification & Drift:
-  wiki status [project] [--json]
   wiki lint <project> [--json]
   wiki lint-semantic <project> [--json]
   wiki verify <project> [--json]
