@@ -1,6 +1,6 @@
 import type { ProjectTaskContext } from "../../shared/contracts/project-task-read-model";
 import { classifyWorkflowSteeringTriage } from "../steering/triage";
-import { type ForgePhase } from "./workflow-ledger";
+import { type ForgePhase } from "../lifecycle/workflow-ledger";
 import { type ForgeTriage } from "../steering/triage-types";
 
 type TaskDocState = ProjectTaskContext["planStatus"];

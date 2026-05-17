@@ -1,5 +1,5 @@
 import type { ProjectTaskContext } from "../../shared/contracts/project-task-read-model";
-import { normalizeForgeLedger, type ForgeWorkflowLedger, type ForgeWorkflowValidation } from "./workflow-ledger";
+import { normalizeForgeLedger, type ForgeWorkflowLedger, type ForgeWorkflowValidation } from "../lifecycle/workflow-ledger";
 
 type CompactableForgeStatus = {
   context: ProjectTaskContext | null;

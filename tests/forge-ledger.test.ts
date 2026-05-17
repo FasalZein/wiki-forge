@@ -5,14 +5,19 @@ import {
   SKIPPABLE_FORGE_PHASES,
   canAdvanceForgePhase,
   isForgePhaseSkippable,
+  normalizeForgePhase,
   type ForgeWorkflowLedger,
   validateForgeWorkflowLedger,
-} from "../src/forge/status/workflow-ledger";
+} from "../src/forge/lifecycle/workflow-ledger";
 
 describe("forge workflow ledger", () => {
-  test("keeps the legacy workflow ledger phase chain sourced from lifecycle phase definitions", () => {
+  test("keeps the workflow ledger phase chain sourced from lifecycle phase definitions", () => {
     expect(FORGE_PHASES).toBe(FORGE_WORKFLOW_LEDGER_PHASES);
     expect(FORGE_PHASES).toEqual(["research", "grill-with-docs", "prd", "slices", "tdd", "verify"]);
+  });
+
+  test("rejects removed legacy phase aliases", () => {
+    expect(normalizeForgePhase("domain-model")).toBeNull();
   });
 
   test("reports research as the next missing phase for an empty ledger", () => {

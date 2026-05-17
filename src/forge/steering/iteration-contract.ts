@@ -1,4 +1,4 @@
-import type { ForgePhase } from "../status/workflow-ledger";
+import type { ForgePhase } from "../lifecycle/workflow-ledger";
 import type { ForgeTriage } from "./triage-types";
 
 export type ForgeSubagentPolicy = {

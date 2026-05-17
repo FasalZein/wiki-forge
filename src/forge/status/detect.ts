@@ -28,7 +28,7 @@ import { join, relative } from "node:path";
 import { VAULT_ROOT } from "../../constants";
 import { safeMatter } from "../../cli-shared";
 import { appendText, ensureDir, exists, readText } from "../../lib/fs";
-import { FORGE_PHASES, readForgeLedgerPhase, writeForgeLedgerPhase, type ForgeWorkflowLedger, type ForgePhase } from "./workflow-ledger";
+import { FORGE_PHASES, readForgeLedgerPhase, writeForgeLedgerPhase, type ForgeWorkflowLedger, type ForgePhase } from "../lifecycle/workflow-ledger";
 import {
   detectGrillWithDocsRefs,
   detectPrdRefs,

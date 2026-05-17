@@ -15,7 +15,7 @@ describe("forge status format helpers", () => {
         ledger: {
           project: "demo",
           sliceId: "DEMO-001",
-          grill: {
+          "grill-with-docs": {
             completedAt: "2026-04-20T00:00:00.000Z",
             decisionRefs: ["projects/demo/decisions.md#current-decisions"],
           },
@@ -65,7 +65,6 @@ describe("forge status format helpers", () => {
       completedAt: "2026-04-20T00:00:00.000Z",
       decisionRefs: ["projects/demo/decisions.md#current-decisions"],
     });
-    expect((payload.workflow.ledger as Record<string, unknown>).grill).toBeUndefined();
     expect(payload.workflow.validation.statuses[0].unmet).toEqual(["grill-with-docs.decisionRefs"]);
     expect(payload.context).toEqual({
       id: "DEMO-001",

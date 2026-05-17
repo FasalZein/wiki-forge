@@ -1,6 +1,6 @@
 import { TEST_VERIFIED_LEVEL } from "../../constants";
 import type { ProjectBacklogFocus, ProjectTaskContext } from "../../shared/contracts/project-task-read-model";
-import { type ForgePhase } from "../status/workflow-ledger";
+import { type ForgePhase } from "../lifecycle/workflow-ledger";
 import { phaseRecommendation } from "./phase-commands";
 import { type ForgeTriage } from "./triage-types";
 

@@ -13,7 +13,7 @@ import {
   type SkippedPhaseRecord,
   type ForgeWorkflowLedger,
   type ForgeWorkflowValidation,
-} from "./workflow-ledger";
+} from "../lifecycle/workflow-ledger";
 import { extractMarkdownSection, readMatterDoc, type MatterDoc } from "./evidence";
 import { applyDerivedLedger } from "./detect";
 import type { ProjectTaskContext } from "../../shared/contracts/project-task-read-model";
@@ -108,7 +108,7 @@ export function readAuthoredHubLedger(value: unknown, project: string, sliceId: 
     out.workflowProfile = normalizeForgeWorkflowProfile(ledger.workflowProfile ?? ledger.workflow_profile);
   }
   for (const phase of FORGE_PHASES) {
-    const phaseValue = phase === "grill-with-docs" ? ledger["grill-with-docs"] ?? ledger["domain-model"] ?? ledger.grill : ledger[phase];
+    const phaseValue = ledger[phase];
     if (phaseValue && typeof phaseValue === "object") {
       writeForgeLedgerPhase(out, phase, phaseValue);
     }

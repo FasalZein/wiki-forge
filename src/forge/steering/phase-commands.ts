@@ -1,5 +1,5 @@
 import { loadConfig, phaseSkill } from "../../lib/config";
-import type { ForgePhase } from "../status/workflow-ledger";
+import type { ForgePhase } from "../lifecycle/workflow-ledger";
 import type { ForgeTriage, PrePhaseTriageKind } from "./triage-types";
 
 export type PhaseRecommendation = ForgeTriage & { kind: PrePhaseTriageKind };
@@ -19,41 +19,36 @@ export function phaseRecommendation(project: string, sliceId: string, nextPhase:
     case "grill-with-docs":
       return {
         kind: "needs-grill-with-docs",
-        reason: "workflow ledger shows the grill-with-docs phase is incomplete",
-        command:
-          `${skill} — ask one question at a time; read code/wiki before asking; ` +
-          `write context to projects/${project}/architecture/domain-language.md or projects/${project}/architecture/contexts/<context>.md ` +
-          `indexed by projects/${project}/architecture/context-map.md; ` +
-          `write ADR bodies under projects/${project}/adrs/ and maintain projects/${project}/decisions.md as an index; ` +
-          `prefer wiki forge grill record ${project} for stable refs`,
+        reason: "workflow ledger shows grill-with-docs phase is incomplete",
+        command: `${skill} — resolve domain language and decisions, then record with wiki forge grill record ${project} --tag ${sliceId}. Writes: projects/${project}/architecture/domain-language.md, projects/${project}/architecture/context-map.md, projects/${project}/architecture/contexts/<context>.md, projects/${project}/adrs/, projects/${project}/decisions.md`,
         loadSkill: skill,
       };
     case "prd":
       return {
         kind: "needs-prd",
         reason: "workflow ledger shows PRD phase is incomplete",
-        command: `${skill} — create or complete the PRD for this feature`,
+        command: `${skill} — create or update the parent PRD, then record the PRD reference in the workflow ledger`,
         loadSkill: skill,
       };
     case "slices":
       return {
         kind: "needs-slices",
-        reason: "workflow ledger shows slice planning is incomplete",
-        command: `${skill} — break the PRD into vertical slices`,
+        reason: "workflow ledger shows slice breakdown is incomplete",
+        command: `${skill} — create child slices, then record slice refs in the workflow ledger`,
         loadSkill: skill,
       };
     case "tdd":
       return {
         kind: "needs-tdd",
-        reason: "workflow ledger shows TDD phase is incomplete",
-        command: `update projects/${project}/specs/slices/${sliceId}/test-plan.md with red tests`,
+        reason: "workflow ledger shows TDD evidence is incomplete",
+        command: `${skill} — create or update tests and record red/green evidence for ${sliceId}`,
         loadSkill: skill,
       };
     case "verify":
       return {
         kind: "needs-verify",
-        reason: "workflow ledger shows verification phase is incomplete",
-        command: `wiki forge run ${project} ${sliceId} --repo <path>`,
+        reason: "workflow ledger shows verification evidence is incomplete",
+        command: `run targeted verification for ${sliceId}, then record it with wiki forge evidence ${project} ${sliceId} verify --command "<cmd>"`,
         loadSkill: skill,
       };
   }

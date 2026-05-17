@@ -9,7 +9,7 @@ import {
 } from "../../wiki/project-views";
 import { buildForgeSteering } from "../steering/packet";
 import { extractMarkdownSection, readMatterDoc, readPlanningDoc } from "./evidence";
-import { validateForgeWorkflowLedger } from "./workflow-ledger";
+import { validateForgeWorkflowLedger } from "../lifecycle/workflow-ledger";
 import {
   buildAuthoredForgeStatusLedger,
   collectDecisionRefs,
@@ -152,7 +152,7 @@ export {
   readForgeLedgerPhase,
   validateForgeWorkflowLedger,
   writeForgeLedgerPhase,
-} from "./workflow-ledger";
+} from "../lifecycle/workflow-ledger";
 export type { MatterDoc } from "./evidence";
 export type { DerivedForgeLedger } from "./detect";
 export type { DetectionFinding } from "./evidence-readers";
@@ -164,4 +164,4 @@ export type {
   ForgeWorkflowValidation,
   SkippableForgePhase,
   SkippedPhaseRecord,
-} from "./workflow-ledger";
+} from "../lifecycle/workflow-ledger";

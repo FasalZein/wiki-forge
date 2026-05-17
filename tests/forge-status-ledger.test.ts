@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { validateForgeWorkflowLedger, type ForgeWorkflowLedger } from "../src/forge/status/workflow-ledger";
+import { validateForgeWorkflowLedger, type ForgeWorkflowLedger } from "../src/forge/lifecycle/workflow-ledger";
 import {
   isSliceDocsReady,
   mergeAuthoredLedgers,
@@ -8,11 +8,19 @@ import {
 } from "../src/forge/status/ledger";
 
 describe("forge status ledger helpers", () => {
-  test("readAuthoredHubLedger normalizes legacy grill storage to grill-with-docs", () => {
+  test("readAuthoredHubLedger reads only canonical grill-with-docs storage", () => {
     const ledger = readAuthoredHubLedger({
-      grill: {
+      "grill-with-docs": {
         completedAt: "2026-04-20T00:00:00.000Z",
         decisionRefs: ["projects/demo/decisions.md#current-decisions"],
+      },
+      grill: {
+        completedAt: "2026-04-19T00:00:00.000Z",
+        decisionRefs: ["legacy.md"],
+      },
+      "domain-model": {
+        completedAt: "2026-04-18T00:00:00.000Z",
+        decisionRefs: ["legacy-domain.md"],
       },
     }, "demo", "DEMO-001");
 
@@ -20,7 +28,8 @@ describe("forge status ledger helpers", () => {
       completedAt: "2026-04-20T00:00:00.000Z",
       decisionRefs: ["projects/demo/decisions.md#current-decisions"],
     });
-    expect(ledger.grill).toBeUndefined();
+    expect((ledger as Record<string, unknown>).grill).toBeUndefined();
+    expect((ledger as Record<string, unknown>)["domain-model"]).toBeUndefined();
   });
 
   test("readAuthoredHubLedger carries skippedPhases through snake_case and camelCase fields", () => {

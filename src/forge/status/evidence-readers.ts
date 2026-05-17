@@ -4,7 +4,7 @@ import { STALE_UNVERIFIED_DAYS } from "../../constants";
 import { safeMatter } from "../../cli-shared";
 import { extractMarkdownSection, readPlanningDoc } from "./evidence";
 import { exists, readText } from "../../lib/fs";
-import type { ForgePhase } from "./workflow-ledger";
+import type { ForgePhase } from "../lifecycle/workflow-ledger";
 import { normalizePath, stripMarkdownExtension, walkMarkdown } from "../../lib/vault";
 import { extractVerificationSpecsFromTestPlan } from "../../shared/verification/specs";
 
