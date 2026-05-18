@@ -89,6 +89,13 @@ describe("forge next projection", () => {
     expect(text).toContain("Minimal refresh:");
     expect(text).toContain("wiki checkpoint wiki-forge --repo <path> --base HEAD --json");
     expect(text).toContain("Forbidden context:");
+    expect(text).toContain("New-scope workflow:");
+    expect(text).toContain("1. Confirm the user wants more scope.");
+    expect(text).toContain("2. Write one plan-answer file with outcome, non-goals, context/decisions, PRD criteria, and slice breakdown.");
+    expect(text).toContain("3. Run: wiki forge plan wiki-forge <feature-name> --repo <path> --plan-answer-file <file>");
+    expect(text).toContain("4. Add PRD/slice candidates, complete the session, create artifacts, then run wiki forge next.");
+    expect(text).toContain("Do not release/start anything until Forge creates draft slices for that new scope.");
+    expect(text).not.toContain("wiki forge release wiki-forge <slice>");
     if (emptyProjection.status !== "empty") throw new Error("expected empty projection");
     for (const forbidden of emptyProjection.continuation.forbiddenContext) expect(text).toContain(`- ${forbidden}`);
   });

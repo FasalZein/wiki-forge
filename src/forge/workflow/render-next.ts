@@ -36,7 +36,12 @@ function renderForgeNextBody(projection: ForgeNextProjection): string {
         ...projection.continuation.allowedContext.map((item) => `- ${item}`),
         "Forbidden context:",
         ...projection.continuation.forbiddenContext.map((item) => `- ${item}`),
-        `Plan more scope: ${projection.continuation.nextScopeCommand}`,
+        "New-scope workflow:",
+        "1. Confirm the user wants more scope.",
+        "2. Write one plan-answer file with outcome, non-goals, context/decisions, PRD criteria, and slice breakdown.",
+        `3. Run: ${projection.continuation.nextScopeCommand} --plan-answer-file <file>`,
+        "4. Add PRD/slice candidates, complete the session, create artifacts, then run wiki forge next.",
+        "Do not release/start anything until Forge creates draft slices for that new scope.",
       ].join("\n");
     case "conflict":
       return renderKernelRejectionText(projection.rejection);
