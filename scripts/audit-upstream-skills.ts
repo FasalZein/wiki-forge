@@ -269,7 +269,7 @@ function normalizeSkillText(text: string): string {
 
 function printResult(result: SkillAuditResult): void {
   if (result.ok) {
-    console.log(`upstream skill drift audit passed (${result.checkedFiles} files)`);
+    process.stdout.write(`upstream skill drift audit passed (${result.checkedFiles} files)\n`);
     return;
   }
 

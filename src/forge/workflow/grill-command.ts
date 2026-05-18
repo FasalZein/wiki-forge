@@ -79,7 +79,7 @@ export function recordGrillArtifacts(input: {
     const existing = existsSync(decisionsPath) ? readFileSync(decisionsPath, "utf8") : "# Decisions\n";
     const nextNumber = nextAdrNumber(existing);
     const adrId = `ADR-${String(nextNumber).padStart(4, "0")}`;
-    const tags = normalizeTags(input.tags ?? []);
+    const tags = normalizeTags(input.tags);
     const tagSuffix = formatTags(tags);
     const adrSlug = `${adrId}-${slugify(decisionTitle, "decision")}`;
     const adrPath = join(adrsDir, `${adrSlug}.md`);
@@ -109,7 +109,8 @@ function nextAdrNumber(content: string): number {
   return matches.length === 0 ? 1 : Math.max(...matches) + 1;
 }
 
-function normalizeTags(tags: readonly string[]): readonly string[] {
+function normalizeTags(tags: readonly string[] | undefined): readonly string[] {
+  if (!tags) return [];
   return tags.map((tag) => tag.trim()).filter(Boolean);
 }
 

@@ -153,10 +153,16 @@ export function auditInstalledRepoSkills(options: Pick<SyncOptions, "repoDir" | 
       const installedSkill = readFileSync(installedSkillPath, "utf8");
       if (repoSkill !== installedSkill) details.push(`stale ${installedSkillPath}`);
     }
-    const status = details.some((detail) => detail.startsWith("missing ")) ? "missing" : details.length > 0 ? "stale" : "ok";
+    const status = repoSkillAuditStatus(details);
     return { skill, status, installedSkillPath: resolve(installedSkillDir, "SKILL.md"), details } as const;
   });
   return { installRoot, rows, ok: rows.every((row) => row.status === "ok") };
+}
+
+function repoSkillAuditStatus(details: readonly string[]): "missing" | "stale" | "ok" {
+  if (details.some((detail) => detail.startsWith("missing "))) return "missing";
+  if (details.length > 0) return "stale";
+  return "ok";
 }
 
 export function assertInstalledRepoSkillsFresh(options: Pick<SyncOptions, "repoDir" | "installSet">, installRoot = resolve(process.env.HOME || "~", ".agents", "skills")) {

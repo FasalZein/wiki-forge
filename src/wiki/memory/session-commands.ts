@@ -184,7 +184,7 @@ export async function handoverCommand(args: string[]): Promise<void> {
 
 async function resolveHandoverBase(repo: string, base: string): Promise<string> {
   try {
-    return await resolveBaseRevision(repo, base);
+    return await resolveBaseRevision(repo, base); // desloppify:ignore REDUNDANT_RETURN_AWAIT -- await is required so this function can recover resolution failures in the local catch block
   } catch (error) {
     if (error instanceof Error) return base;
     throw error;

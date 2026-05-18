@@ -31,5 +31,5 @@ function readTopic(args: readonly string[]) {
     }
     if (!arg.startsWith("--")) return arg;
   }
-  return undefined;
+  return;
 }

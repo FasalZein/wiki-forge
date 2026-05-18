@@ -10,7 +10,7 @@ describe("skill manuals after legacy cutover", () => {
     for (const name of coreSkills) {
       const manual = skill(name);
       const sessionContextIndex = manual.indexOf("## Wiki/Forge session context");
-      const headings = manual.match(/^## Wiki\/Forge session context$/gm) ?? [];
+      const headings = Array.from(manual.matchAll(/^## Wiki\/Forge session context$/gm));
 
       expect(headings).toHaveLength(1);
       expect(sessionContextIndex).toBeGreaterThan(0);

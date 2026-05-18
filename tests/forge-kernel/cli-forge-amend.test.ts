@@ -82,9 +82,6 @@ describe("Forge amend", () => {
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr.toString()).toContain("slice is not closed in Forge lifecycle truth");
   });
-
-  test("cutover predicate keeps amend on stable Forge", () => {
-  });
 });
 
 type SliceFixture = {

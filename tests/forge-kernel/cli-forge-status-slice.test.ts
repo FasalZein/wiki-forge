@@ -53,9 +53,6 @@ function passingEvidence() {
 }
 
 describe("forge slice-specific forge status", () => {
-  test("slice-specific status routes to Forge", () => {
-  });
-
   test("reports draft slices from canonical Forge truth", () => {
     const vault = createVaultWithSlice({ status: "draft" });
     const result = runWiki(["forge", "status", "demo", sliceId, "--json"], { vault });
