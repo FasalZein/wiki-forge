@@ -37,6 +37,19 @@ Codex (GPT-5-class reviewer) reviews every change before it merges. Write as if 
 
 Sloppy code costs a review round-trip. Writing it right the first time is faster than arguing with a reviewer.
 
+## Skill Routing
+
+- When the user says "wiki" in any context → load `/wiki` skill.
+- When the user says "forge", "feature", "slice", or "PRD" → load `/forge` skill.
+- When implementing, building, or fixing non-trivial work → load `/forge` skill.
+- All project artifacts (PRDs, slices, handovers, research) are created through the `wiki` CLI, never by writing markdown files directly.
+
+## Vault Guardrails
+
+- NEVER create `projects/`, `wiki/`, `forge/`, or `research/` folders under the code repository.
+- All project memory lives under `/Users/tothemoon/Knowledge/projects/wiki-forge/`.
+- Use the `wiki` CLI to create and manage vault artifacts. Direct file writes to the vault are forbidden unless the CLI delegates them.
+
 ## Workflow Enforcement
 
 Load `/forge` for tracked slice work. Load `/wiki` for knowledge-layer work.
@@ -51,17 +64,12 @@ Session start: `wiki resume wiki-forge --repo <path> --base <rev>`
 
 ## Required workflow
 
-**ALWAYS load a skill when the user mentions wiki or forge:**
-- User says "wiki" in any context → load `/wiki`
-- User says "forge", "feature", "slice", "PRD" → load `/forge`
-- User says "implement", "build", "fix" on non-trivial work → load `/forge`
+Load `/forge` for the full workflow. Load `/wiki` for knowledge-layer work.
 
-Decision rule for which skill:
+Decision rule:
 - changing runtime/product behavior → `/forge`
 - researching, retrieving, documenting, verifying → `/wiki`
 - research as part of a larger feature/refactor/perf effort → `/forge` (research as phase 1)
-
-**NEVER create project files under the repo.** All project memory, PRDs, slices, handovers, and forge artifacts go under `$KNOWLEDGE_VAULT_ROOT/projects/<project>/` (usually `~/Knowledge/projects/wiki-forge/`). Use the `wiki` CLI to create artifacts — do not write markdown files directly.
 
 Do not silently skip missing skills. If a required skill is unavailable, say so explicitly.
 
