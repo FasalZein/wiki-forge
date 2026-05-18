@@ -117,10 +117,8 @@ After all tests pass, look for [refactor candidates](refactoring.md):
 [ ] No speculative features added
 ```
 
-## Wiki/Forge adapter
-
-For wiki-forge projects, keep the upstream TDD workflow. Add only these lifecycle rules: read Wiki domain language/ADRs before naming tests; record red/green with `wiki forge tdd cycle`; record targeted verification with `wiki forge evidence`; close through `wiki forge run` and review gates.
-
-### Forge lifecycle details
+## Forge integration
 
 Load this skill when the phase packet lists `tdd`. Record each red/green pair with `wiki forge tdd cycle <project> <slice>`, and record targeted verification with `wiki forge evidence <project> <slice> verify`. Note: the preferred `tdd cycle` command may use different red and green commands as long as they share at least one `--test` path.
+
+**After TDD completes:** return to `/forge` — run `wiki forge next` to get the next phase (usually verify → review → close).

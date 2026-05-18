@@ -96,10 +96,8 @@ If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](
 
 </supporting-info>
 
-## Wiki/Forge adapter
+## Forge integration
 
-Storage mapping is the adapter; the grilling workflow above remains upstream. `CONTEXT.md` maps to `projects/<project>/architecture/domain-language.md`; `CONTEXT-MAP.md` maps to `projects/<project>/architecture/context-map.md`; per-context `CONTEXT.md` maps to `projects/<project>/architecture/contexts/<context>.md`; `docs/adr/` maps to `projects/<project>/adrs/` with `projects/<project>/decisions.md` as the index. Prefer `wiki forge grill record <project> --context-file <path> --context <name> --decision-title <title> --decision-file <path> --tag <id> --json` for stable refs.
+Load this skill when the phase packet lists `grill-with-docs`. Storage mapping: `CONTEXT.md` → `projects/<project>/architecture/domain-language.md`; `docs/adr/` → `projects/<project>/adrs/` with `projects/<project>/decisions.md` as the index. Use `wiki forge grill record` to persist decisions.
 
-### Forge phase packet details
-
-Load this skill when the phase packet lists `grill-with-docs`. CONTEXT.md → projects/<project>/architecture/domain-language.md. docs/adr/ → projects/<project>/adrs/ with projects/<project>/decisions.md as the index.
+**After grilling completes:** return to `/forge` — run `wiki forge next` to advance (usually to PRD creation via `/write-a-prd`).

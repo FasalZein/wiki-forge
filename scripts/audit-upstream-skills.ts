@@ -89,7 +89,7 @@ export const upstreamSkillAuditConfig: SkillAuditConfig = {
         "Update CONTEXT.md inline",
         "Offer ADRs sparingly",
         "If a `CONTEXT-MAP.md` exists at the root",
-        "Storage mapping is the adapter",
+        "Forge integration",
       ],
     },
     {

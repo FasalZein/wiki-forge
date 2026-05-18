@@ -95,9 +95,9 @@ describe("skill manuals after legacy cutover", () => {
     expect(grill).toContain("Ask the questions one at a time, waiting for feedback on each question before continuing");
     expect(grill).toContain("If a question can be answered by exploring the codebase, explore the codebase instead");
     expect(grill).toContain("Update CONTEXT.md inline");
-    expect(grill).toContain("CONTEXT.md → projects/<project>/architecture/domain-language.md");
-    expect(grill).toContain("docs/adr/ → projects/<project>/adrs/ with projects/<project>/decisions.md as the index");
-    expect(grill).toContain("wiki forge grill record <project>");
+    expect(grill).toContain("projects/<project>/architecture/domain-language.md");
+    expect(grill).toContain("projects/<project>/adrs/");
+    expect(grill).toContain("wiki forge grill record");
 
     expect(architecture).toContain("## Glossary");
     expect(architecture).toContain("Use these terms exactly in every suggestion");

@@ -20,11 +20,11 @@ describe("grill-with-docs upstream parity", () => {
     expect(text).toContain("### Update CONTEXT.md inline");
     expect(text).toContain("### Offer ADRs sparingly");
 
-    expect(text).toContain("Storage mapping is the adapter; the grilling workflow above remains upstream");
-    expect(text).toContain("`CONTEXT.md` maps to `projects/<project>/architecture/domain-language.md`");
-    expect(text).toContain("`CONTEXT-MAP.md` maps to `projects/<project>/architecture/context-map.md`");
-    expect(text).toContain("projects/<project>/architecture/contexts/<context>.md");
-    expect(text).toContain("`docs/adr/` maps to `projects/<project>/adrs/` with `projects/<project>/decisions.md` as the index");
+    expect(text).toContain("## Forge integration");
+    expect(text).toContain("projects/<project>/architecture/domain-language.md");
+    expect(text).toContain("projects/<project>/adrs/");
+    expect(text).toContain("wiki forge grill record");
+    expect(text).toContain("After grilling completes");
   });
 
   test("documents scalable Wiki context pages instead of a giant context map", () => {

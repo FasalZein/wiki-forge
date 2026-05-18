@@ -20,6 +20,8 @@ export type CanonicalProtocolSource = {
   scope: ProtocolScope;
   scopeLine: string;
   workflowLines: string[];
+  skillRoutingLines: string[];
+  vaultGuardrailLines: string[];
   codeQualityIntro: string;
   codeQualityRules: string[];
   codeQualitySummary: string;
@@ -50,6 +52,17 @@ export function buildCanonicalProtocolSource(project: string, scope: ProtocolSco
       "Use `/wiki` for retrieval, refresh, drift, verification, and closeout review.",
       "If slash-skill aliases are unavailable, run the equivalent `wiki` CLI lifecycle directly.",
       "Use `wiki init <project> --repo <path>` for repo/vault orientation; AGENTS.md and CLAUDE.md updates are wiki-owned internals, not operator commands.",
+    ],
+    skillRoutingLines: [
+      'When the user says "wiki" in any context → load `/wiki` skill.',
+      'When the user says "forge", "feature", "slice", or "PRD" → load `/forge` skill.',
+      "When implementing, building, or fixing non-trivial work → load `/forge` skill.",
+      "All project artifacts (PRDs, slices, handovers, research) are created through the `wiki` CLI, never by writing markdown files directly.",
+    ],
+    vaultGuardrailLines: [
+      "NEVER create `projects/`, `wiki/`, `forge/`, or `research/` folders under the code repository.",
+      `All project memory lives under \`${VAULT_ROOT}/projects/${project}/\`.`,
+      "Use the `wiki` CLI to create and manage vault artifacts. Direct file writes to the vault are forbidden unless the CLI delegates them.",
     ],
     codeQualityIntro: "Codex (GPT-5-class reviewer) reviews every change before it merges. Write as if a stricter reviewer is watching:",
     codeQualityRules: [
@@ -111,6 +124,14 @@ export function renderManagedProtocolBlock(source: CanonicalProtocolSource, proj
     ...source.codeQualityRules.map((rule) => `- ${rule}`),
     "",
     source.codeQualitySummary,
+    "",
+    "## Skill Routing",
+    "",
+    ...source.skillRoutingLines.map((line) => `- ${line}`),
+    "",
+    "## Vault Guardrails",
+    "",
+    ...source.vaultGuardrailLines.map((line) => `- ${line}`),
     "",
     "## Workflow Enforcement",
     "",

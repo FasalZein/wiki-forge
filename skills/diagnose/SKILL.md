@@ -125,6 +125,6 @@ Required before declaring done:
 
 **Then ask: what would have prevented this bug?** If the answer involves architectural change (no good test seam, tangled callers, hidden coupling) hand off to the `/improve-codebase-architecture` skill with the specifics. Make the recommendation **after** the fix is in, not before — you have more information now than when you started.
 
-## Wiki/Forge adapter
+## Forge integration
 
-For wiki-forge projects, keep the upstream diagnosis loop. Read Wiki domain language/ADRs before hypothesising. If the fix becomes implementation work, create or continue a Forge slice, record TDD/verification evidence, and file any architectural prevention insight into Wiki/Forge follow-up work.
+If the fix becomes implementation work, switch to `/forge` and create or continue a Forge slice. Record TDD evidence with `wiki forge tdd cycle` and verification with `wiki forge evidence`. File architectural prevention insights as follow-up work via `wiki forge plan`.

@@ -51,12 +51,17 @@ Session start: `wiki resume wiki-forge --repo <path> --base <rev>`
 
 ## Required workflow
 
-Load `/forge` for the full workflow. Load `/wiki` for knowledge-layer work.
+**ALWAYS load a skill when the user mentions wiki or forge:**
+- User says "wiki" in any context → load `/wiki`
+- User says "forge", "feature", "slice", "PRD" → load `/forge`
+- User says "implement", "build", "fix" on non-trivial work → load `/forge`
 
-Decision rule:
-- changing runtime/product behavior -> `/forge`
-- researching, retrieving, documenting, or verifying without active product changes -> `/wiki`
-- research as part of a larger feature/refactor/perf effort -> `/forge` (with research as phase 1)
+Decision rule for which skill:
+- changing runtime/product behavior → `/forge`
+- researching, retrieving, documenting, verifying → `/wiki`
+- research as part of a larger feature/refactor/perf effort → `/forge` (research as phase 1)
+
+**NEVER create project files under the repo.** All project memory, PRDs, slices, handovers, and forge artifacts go under `$KNOWLEDGE_VAULT_ROOT/projects/<project>/` (usually `~/Knowledge/projects/wiki-forge/`). Use the `wiki` CLI to create artifacts — do not write markdown files directly.
 
 Do not silently skip missing skills. If a required skill is unavailable, say so explicitly.
 

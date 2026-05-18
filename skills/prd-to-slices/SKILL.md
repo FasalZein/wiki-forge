@@ -16,8 +16,6 @@ For wiki-forge projects:
 
 Break a plan into independently-grabbable issues using vertical slices (tracer bullets).
 
-The issue tracker and triage label vocabulary should have been provided to you — run `/setup-matt-pocock-skills` if not.
-
 ## Process
 
 ### 1. Gather context
@@ -58,16 +56,14 @@ Ask the user:
 
 Iterate until the user approves the breakdown.
 
-### 5. Publish the issues to the issue tracker
+### 5. Publish slices through Forge
 
-For each approved slice, publish a new issue to the issue tracker. Use the issue body template below. These issues are considered ready for AFK agents, so publish them with the correct triage label unless instructed otherwise.
-
-Publish issues in dependency order (blockers first) so you can reference real issue identifiers in the "Blocked by" field.
+For each approved slice, publish through `wiki forge plan <project> <feature-name> [--repo <path>]`. Use the slice body template below. Publish in dependency order (blockers first) so you can reference real slice identifiers in the "Blocked by" field.
 
 <issue-template>
 ## Parent
 
-A reference to the parent issue on the issue tracker (if the source was an existing issue, otherwise omit this section).
+A reference to the parent PRD or feature (if the source was an existing artifact, otherwise omit this section).
 
 ## What to build
 
@@ -89,7 +85,7 @@ Or "None - can start immediately" if no blockers.
 
 </issue-template>
 
-Do NOT close or modify any parent issue.
+Do NOT close or modify any parent PRD or feature.
 
 ## Wiki/Forge adapter
 
