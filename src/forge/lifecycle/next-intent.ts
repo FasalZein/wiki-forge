@@ -119,6 +119,16 @@ export function evaluateForgeNext(input: ForgeNextInput): ForgeNextProjection {
     nextAction: "project-complete-or-plan-more-scope",
     reason: "No active, ready, or draft Forge slices exist; current Forge slice set is complete or empty.",
     noSafeCommandReason: "No open Forge slices exist. Stop here unless the user wants more scope; then run wiki forge plan to create the next slice.",
+    continuation: {
+      mode: "no-open-slices",
+      minimalRefreshCommands: [
+        `wiki checkpoint ${shellArg(input.project)} --repo <path> --base HEAD --json`,
+        `wiki forge next ${shellArg(input.project)} --repo <path> --json`,
+      ],
+      allowedContext: ["latest handover", "checkpoint truth", "Forge next/status truth", "explicitly referenced artifacts"],
+      forbiddenContext: ["reconstructing the prior conversation", "broad wiki queries by default", "mutating lifecycle without user scope"],
+      nextScopeCommand: `wiki forge plan ${shellArg(input.project)} <feature-name> --repo <path>`,
+    },
     source: "canonical-records",
   };
 }

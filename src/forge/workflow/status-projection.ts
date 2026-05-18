@@ -35,12 +35,21 @@ export type PlanningSessionProjectionRecord = {
   readonly status: "draft" | "ready-for-artifacts" | "artifacts-created";
 };
 
+export type ForgeContinuationPayload = {
+  readonly mode: "no-open-slices";
+  readonly minimalRefreshCommands: readonly string[];
+  readonly allowedContext: readonly string[];
+  readonly forbiddenContext: readonly string[];
+  readonly nextScopeCommand: string;
+};
+
 type ForgeActionableFields = {
   readonly reason: string;
   readonly nextCommand?: string;
   readonly noSafeCommandReason?: string;
   readonly candidates?: readonly ForgeActionableCandidate[];
   readonly phasePacket?: PhaseSkillPacket;
+  readonly continuation?: ForgeContinuationPayload;
 };
 
 export type ForgeNextProjection =
@@ -78,6 +87,7 @@ export type ForgeNextProjection =
     readonly status: "empty";
     readonly project: string;
     readonly nextAction: "project-complete-or-plan-more-scope";
+    readonly continuation: ForgeContinuationPayload;
     readonly source: "canonical-records";
   } & ForgeActionableFields)
   | ({

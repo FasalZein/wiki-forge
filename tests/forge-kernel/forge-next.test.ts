@@ -60,19 +60,37 @@ describe("forge next projection", () => {
       source: "canonical-records",
     });
 
-    expect(evaluateForgeNext({
+    const emptyProjection = evaluateForgeNext({
       project: "wiki-forge",
       slices: [
         { ...readySlice, taskId: "WIKI-FORGE-218", status: "done" },
       ],
-    })).toMatchObject({
+    });
+
+    expect(emptyProjection).toMatchObject({
       status: "empty",
       project: "wiki-forge",
       nextAction: "project-complete-or-plan-more-scope",
       noSafeCommandReason: "No open Forge slices exist. Stop here unless the user wants more scope; then run wiki forge plan to create the next slice.",
       reason: "No active, ready, or draft Forge slices exist; current Forge slice set is complete or empty.",
+      continuation: {
+        mode: "no-open-slices",
+        minimalRefreshCommands: [
+          "wiki checkpoint wiki-forge --repo <path> --base HEAD --json",
+          "wiki forge next wiki-forge --repo <path> --json",
+        ],
+        allowedContext: ["latest handover", "checkpoint truth", "Forge next/status truth", "explicitly referenced artifacts"],
+        forbiddenContext: ["reconstructing the prior conversation", "broad wiki queries by default", "mutating lifecycle without user scope"],
+        nextScopeCommand: "wiki forge plan wiki-forge <feature-name> --repo <path>",
+      },
       source: "canonical-records",
     });
+    const text = renderForgeNextText(emptyProjection);
+    expect(text).toContain("Minimal refresh:");
+    expect(text).toContain("wiki checkpoint wiki-forge --repo <path> --base HEAD --json");
+    expect(text).toContain("Forbidden context:");
+    if (emptyProjection.status !== "empty") throw new Error("expected empty projection");
+    for (const forbidden of emptyProjection.continuation.forbiddenContext) expect(text).toContain(`- ${forbidden}`);
   });
 
   test("draft-only project returns release guidance instead of project-complete guidance", () => {

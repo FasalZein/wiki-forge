@@ -27,7 +27,17 @@ function renderForgeNextBody(projection: ForgeNextProjection): string {
         ? `${projection.project}: create artifacts for planning session ${projection.featureName}`
         : `${projection.project}: continue planning session ${projection.featureName}`;
     case "empty":
-      return `${projection.project}: no open Forge slices; project is complete unless the user wants more scope`;
+      return [
+        `${projection.project}: no open Forge slices; project is complete unless the user wants more scope`,
+        "Continuation mode: no-open-slices",
+        "Minimal refresh:",
+        ...projection.continuation.minimalRefreshCommands.map((command) => `- ${command}`),
+        "Allowed context:",
+        ...projection.continuation.allowedContext.map((item) => `- ${item}`),
+        "Forbidden context:",
+        ...projection.continuation.forbiddenContext.map((item) => `- ${item}`),
+        `Plan more scope: ${projection.continuation.nextScopeCommand}`,
+      ].join("\n");
     case "conflict":
       return renderKernelRejectionText(projection.rejection);
     case "needs-repair":
