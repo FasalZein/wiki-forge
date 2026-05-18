@@ -2,6 +2,8 @@
 
 If you are unsure where an artifact belongs, use [Artifact Routing](artifact-routing.md) before writing files.
 
+Before large cleanup/refactor batches, run the [Production Cleanup Readiness](production-cleanup-readiness.md) checklist.
+
 Use this guide when applying wiki-forge to a real project. It is the practical loop; the CLI/kernel remain workflow truth.
 
 ## Mental model
