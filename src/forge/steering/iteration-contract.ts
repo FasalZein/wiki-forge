@@ -45,7 +45,7 @@ const PHASE_TO_CONCEPT: Record<ForgePhase, string> = {
   prd: "write-a-prd",
   slices: "prd-to-slices",
   tdd: "tdd",
-  verify: "verify",
+  verify: "targeted-verification",
 };
 
 const CONCEPTUAL_CHAIN = [
@@ -54,19 +54,18 @@ const CONCEPTUAL_CHAIN = [
   "write-a-prd",
   "prd-to-slices",
   "tdd",
-  "verify",
+  "targeted-verification",
   "desloppify",
   "review",
-  "closeout",
-  "gate",
+  "close",
 ] as const;
 
-const QUALITY_GATES = ["verify", "desloppify"] as const;
-const REVIEW_GATES = ["review", "closeout", "gate"] as const;
+const QUALITY_GATES = ["targeted-verification", "desloppify"] as const;
+const REVIEW_GATES = ["review", "close"] as const;
 
 export function buildForgeIterationContract(input: BuildIterationContractInput): ForgeIterationContract {
   const chain = chainWithDesignPressure(Boolean(input.designPressure));
-  const currentConcept = input.phase === "complete" ? "gate" : PHASE_TO_CONCEPT[input.phase];
+  const currentConcept = input.phase === "complete" ? "close" : PHASE_TO_CONCEPT[input.phase];
   const currentIndex = chain.indexOf(currentConcept);
   const remainingChain = currentIndex >= 0 ? chain.slice(currentIndex) : chain;
 
@@ -121,14 +120,14 @@ function buildSubagentPolicy(phase: ForgePhase | "complete"): ForgeSubagentPolic
           role: "reviewer",
           count: 2,
           model: "gpt-5.5",
-          requiredWhen: "after implementation changes before closeout",
+          requiredWhen: "after implementation changes before close",
           artifact: "blockers, regression risks, and residual refactor gaps",
         },
       ],
       reviewPasses: {
         minimum: 2,
         model: "gpt-5.5",
-        requiredWhen: "after implementation changes before closeout",
+        requiredWhen: "after implementation changes before close",
         gapHandling: "fix-now-or-record-follow-up-refactor",
       },
       iterationMode: "slice-phase-contract",

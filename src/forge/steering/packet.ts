@@ -24,7 +24,6 @@ const MAINTENANCE_REPAIR_SUBCOMMANDS = new Set([
   "lint-repo",
   "maintain",
   "update-index",
-  "closeout",
   "sync",
   "refresh-from-git",
   "acknowledge-impact",
