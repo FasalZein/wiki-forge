@@ -1,10 +1,19 @@
 ---
 name: forge
-description: >
-  Tracked implementation lifecycle: plan features, own slices, record TDD evidence,
-  verify, review, and close. Use when the user says forge, feature, PRD, slice,
-  active slice, TDD evidence, review gate, or tracked implementation workflow.
+description: Tracked implementation lifecycle for features, slices, evidence, review, and close. Use when planning, running, or closing delivery work.
 ---
+
+<skill_context>
+  <skill_dir>skills/forge</skill_dir>
+  <workspace_dir>/Users/tothemoon/Dev/code-forge/knowledge-wiki-system</workspace_dir>
+
+  <path_policy>
+    Relative file references in this SKILL.md normally resolve from skill_dir when they exist there.
+    Plain workspace commands like git status and bun test usually run in the workspace unless instructed otherwise.
+    Use $PI_SKILL_DIR/path for explicit bundled skill files.
+    Use $PI_WORKSPACE/path for explicit workspace/project files.
+  </path_policy>
+</skill_context>
 
 ## Wiki/Forge session context
 
@@ -17,71 +26,54 @@ For wiki-forge projects:
 
 # Forge
 
-Forge is the SDLC lifecycle layer for tracked implementation work: feature/PRD/slice planning, active slice ownership, TDD evidence, verification, review gates, and close readiness. Wiki remains the second-brain memory layer; Forge decides whether implementation may proceed or close.
+Forge is the SDLC lifecycle layer for tracked implementation work. It owns feature/PRD/slice state, active slice ownership, Git boundaries, TDD/verification/review evidence, handovers, amendments, and close readiness. The CLI and Forge kernel own phase ordering, invariants, and close gates.
 
-Forge artifacts are vault-owned, not repo-owned. The default project root is `$KNOWLEDGE_VAULT_ROOT/projects/<project>/` (usually `~/Knowledge/projects/<project>/`). Do not create repo-local `forge/`, `wiki/`, or `projects/` folders unless the repo itself is explicitly configured as the Knowledge vault.
+Forge artifacts are vault-owned. Resolve the vault with `wiki init`, `wiki resume`, `wiki forge next/status`, or `wiki config --effective`. Do not create repo-local `forge/`, `wiki/`, or `projects/` folders.
 
-Health is the cross-cutting inspector/reconciler for freshness, drift, sync, repair, checkpoint, doctor, and readiness. It does not own lifecycle truth. Do not move Health orchestration into shared or lib; shared/lib are only for neutral primitives and contracts.
+Health is the cross-cutting inspector/reconciler. Do not move Health orchestration into shared or lib.
 
 ## Real-project operator loop
 
-The CLI and Forge kernel own phase ordering, invariants, and close gates. For production use, follow `docs/production-operator-guide.md`: resume for context, checkpoint for freshness/Git truth, `wiki forge next` for the next lifecycle action.
+Use the operator commands below for production work; internal commands are phase-packet details.
 
 ## Operator commands
 
-These are the commands operators and agents use in normal workflow:
-
-| Command | Purpose |
-|---------|---------|
-| `wiki forge plan <project> <feature-name> [--repo <path>] [--plan-answer-file <path>]` | Plan a feature: grill, PRD, slices |
-| `wiki forge next <project>` | Get the next lifecycle action |
-| `wiki forge status <project> [slice-id] [--json]` | Inspect workflow truth |
-| `wiki forge run <project> [slice-id] --repo <path>` | Execute a slice through close |
-| `wiki forge improve <project> [--json]` | Improvement-review phase packet |
-| `wiki forge grill record <project> [--context-file <path> [--context <name>]] [--decision-title <title> --decision-file <path>] [--tag <id> ...] [--json]` | Record grill artifact |
-| `wiki next <project> [--json]` | Alias for `wiki forge next` |
-
-Context commands:
-
-- Resume: `wiki resume <project> [--repo <path>] [--base <rev>] [--json]`
-- Handover: `wiki handover <project> [--repo <path>] [--base <rev>] --summary <text> --next-action <text> --prompt <text> [--prd <id>] [--slice <id>] [--command <cmd> ...] [--json]`
-- Health: `wiki checkpoint <project> [--repo <path>] [--base <rev>] [--json]`, `wiki maintain`, `wiki doctor`
-- Forge help: `wiki forge help`
+- Orient/freshness: `wiki resume <project> --repo <path> --base <rev>`, `wiki checkpoint <project> --repo <path> --base <rev>`
+- Inspect: `wiki forge next <project> --repo <path>`, `wiki forge status <project> [slice] --repo <path> --json`, `wiki forge help`
+- Plan/run: `wiki forge plan <project> <feature-name> --repo <path>`, `wiki forge run <project> [slice-id] --repo <path>`
+- Improve/grill: `wiki forge improve <project> --json`, `wiki forge grill record <project> ... --json`
 
 ## Internal lifecycle commands (phase-packet-driven)
 
-These commands are automated by phase packets. **Do not pick them manually.** Run `wiki forge next` to get the phase packet — it tells you exactly which command to run, with what arguments, and which skill to load.
-
-The internal commands are: `start`, `check`, `close`, `release`, `tdd` (status/cycle/red/green), `evidence`, `review record`, `amend`. Run `wiki forge help` for full signatures.
-
-When a phase packet says to record TDD evidence, use `wiki forge tdd cycle` (preferred) or separate `red`/`green`. When it says to verify, use `wiki forge evidence ... verify`. When it says to review, use `wiki forge review record`. These are not agent choices — they are packet instructions.
+`wiki forge start`, `release`, `check`, `close`, `tdd`, `evidence`, `review`, and `amend` are internal/repair commands. Do not pick them manually; use them only when the phase packet, repair packet, active slice gate, or explicit runbook says to.
 
 ## Phase packet contract
 
-Treat `phasePacket` from `wiki forge plan`, `wiki forge next`, and `wiki forge status` as workflow truth. Load the listed skills in order, satisfy the packet's required outputs/evidence, and obey its forbidden fallbacks before advancing. If the packet conflicts with this prose, trust the command packet.
+Treat `phasePacket` from `wiki forge plan`, `wiki forge next`, and `wiki forge status` as workflow truth. If prose conflicts with a packet, follow the packet.
 
-## Contract
+Normal chain: forge plan -> build -> TDD/EDD -> verify -> review -> close.
 
-Normal chain: `forge plan -> build -> TDD/EDD -> verify -> review -> close`.
+TDD is mandatory. Targeted verification, review, and close are not skippable. Passing tests alone do not close work.
 
-**TDD is mandatory.** The close gate rejects without recorded red/green TDD evidence sharing at least one `--test` path. No bypass. Prefer `wiki forge tdd cycle` after observing both results; separate `red`/`green` records must reuse the same command. Do not infer or fake TDD just because `bun test` passes.
+Use one `wiki forge plan` packet for planning context, PRD content, and slices. Then follow `wiki forge next/status`, the listed skill chain, evidence commands, review gate, and `wiki forge run`.
 
-TDD, targeted verification, required review, and close are not skippable. Research, grill-with-docs, PRD/spec, and slices can be skipped only when the Forge status/rejection packet accepts an explicit audited reason.
+## Subagents and ownership
 
-Use subagents only after the plan identifies non-overlapping files **and** a safe lifecycle ownership model. File non-overlap alone is not enough: Forge has one active mutating slice per vault. Never work around the active-slice invariant by formally starting one slice while mutating others. Parallelize read-only scouting, planning, and review freely.
+Use subagents only after the plan identifies non-overlapping work and a safe lifecycle ownership model. File non-overlap alone is not enough. There is one active mutating slice per vault. Never work around the active-slice invariant.
 
-When verification, review, check, or close fails, use `wiki forge status <project> <slice> --json` as workflow truth, `wiki checkpoint` as freshness truth, and `wiki maintain` as the repair path. Do not assume a generic rerun is correct.
+## Failure handling
 
-## Handoff
+When verification, review, check, or close fails, do not blindly rerun. Use `wiki forge status <project> <slice> --json`, `wiki checkpoint`, and `wiki maintain` to repair truth.
 
-A Forge handoff is a required lifecycle boundary, not an ad-hoc recap. Create one whenever tracked work stops with unfinished work or context risk.
+## Handoffs
 
-1. Refresh: run `wiki checkpoint` and `wiki forge next` before writing.
-2. Write separate fields: `--summary` (what changed), `--next-action` (next command), `--prompt` (operator intent).
-3. Attach `--slice` and `--prd` IDs; add `--command "..."` flags for multi-step runbooks.
-4. Paste the CLI's copy/paste prompt back to the user verbatim.
+Create a handover when work stops unfinished or context risk is high. Use `wiki handover`/`wiki agent-handover` with summary, next action, slice/PRD IDs, and ordered commands. Return the CLI copy/paste prompt verbatim.
 
-If resume reports a stale handover, re-anchor with checkpoint and `wiki forge status/next` first.
+## Forge integration
+
+Load this skill for tracked implementation work.
+After Forge work completes: run `wiki forge next` to discover the next lifecycle action.
+Use `/wiki` only for memory, freshness, vault, or research context.
 
 ## Skill edits
 

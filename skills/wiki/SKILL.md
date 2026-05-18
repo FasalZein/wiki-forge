@@ -1,11 +1,19 @@
 ---
 name: wiki
-description: >
-  Second brain / Knowledge vault for project memory, retrieval, freshness repair,
-  source binding, and vault orientation. Use when the user says wiki, vault,
-  second brain, project memory, retrieve context, refresh wiki, or asks where
-  project knowledge lives. For tracked implementation, use the `forge` skill.
+description: Second-brain vault memory for retrieval, freshness, research, and handovers. Use when orienting project memory, vault root, wiki, or knowledge context.
 ---
+
+<skill_context>
+  <skill_dir>skills/wiki</skill_dir>
+  <workspace_dir>/Users/tothemoon/Dev/code-forge/knowledge-wiki-system</workspace_dir>
+
+  <path_policy>
+    Relative file references in this SKILL.md normally resolve from skill_dir when they exist there.
+    Plain workspace commands like git status and bun test usually run in the workspace unless instructed otherwise.
+    Use $PI_SKILL_DIR/path for explicit bundled skill files.
+    Use $PI_WORKSPACE/path for explicit workspace/project files.
+  </path_policy>
+</skill_context>
 
 ## Wiki/Forge session context
 
@@ -18,59 +26,45 @@ For wiki-forge projects:
 
 # Wiki
 
-Wiki is the second-brain memory layer — a knowledge repository for durable vault memory: research, notes, decisions, handovers, source bindings, page verification levels, drift/freshness checks, and recall. Wiki remembers; Forge executes lifecycle.
+Wiki is the second-brain memory layer. Wiki remembers; Forge executes lifecycle.
 
-## Vault orientation
-
-The wiki vault is not assumed to be the current repository. Resolve it through the `wiki` CLI; it reads `vault.root` from `~/.config/wiki-forge/config.jsonc` or `KNOWLEDGE_VAULT_ROOT`. Do not create `projects/`, `wiki/`, or `forge/` folders under the repo just because the user says "wiki" or "forge". The expected external vault root is usually `~/Knowledge`, with project pages under `~/Knowledge/projects/<project>/`.
-
-When orientation is unclear, run `wiki init <project> --repo <path>` first. Use `wiki config --effective --repo <path>` or `wiki resume <project> --repo <path> --base HEAD` before writing existing project memory. The right project memory root is `$KNOWLEDGE_VAULT_ROOT/projects/<project>/`, not `<repo>/projects/<project>/`, unless the configured vault root is explicitly the repository.
-
-Project-specific research belongs in `projects/<project>/research/`. Global `research/` is only for reusable cross-project topics.
+Use this skill for knowledge repository work: vault root orientation, retrieval, source binding, research filing, handovers, freshness repair, and project memory questions. For real-project operation, follow `docs/production-operator-guide.md`.
 
 ## Boundary
 
-- **Wiki answers:** what knowledge exists, what pages are stale, what source bindings need repair, what context to retrieve.
-- **Forge answers:** what slice is active, what phase is next, who owns changed files, whether evidence permits close.
-- **Health answers:** what freshness, drift, repair, sync, checkpoint, and readiness work is needed.
+- Wiki owns durable vault knowledge: notes, research, source bindings, handovers, recall, freshness, and drift.
+- Forge owns tracked implementation: feature/PRD/slice state, active slice ownership, evidence, review, and close gates.
+- Health inspects and reconciles freshness, drift, repair queues, and readiness gates across Wiki and Forge.
+- `wiki checkpoint` is freshness/Git truth, not workflow completion.
+- `wiki forge status` and `wiki forge next` are workflow truth, not freshness repair.
+- Tracked implementation closes through `wiki forge run`.
 
-Health inspects and reconciles freshness, drift, repair queues, and readiness gates across Wiki and Forge. Public commands: `wiki checkpoint`, `wiki maintain`, `wiki doctor`. This is the Health boundary, not shared/lib utility code.
+## Vault rules
 
-`wiki checkpoint` is freshness/Git truth — not workflow completion.
-`wiki forge status` is workflow truth — not freshness repair.
-Tracked implementation closes through `wiki forge run` or explicit `wiki forge check` / `wiki forge close`.
+The wiki vault is not assumed to be the current repository. Resolve it through `wiki config --effective --repo <path>`, `wiki init <project> --repo <path>`, or `wiki resume <project> --repo <path> --base HEAD`.
 
-If a task becomes tracked implementation, switch to `/forge` and follow `wiki forge next/status`. For real-project operation, follow `docs/production-operator-guide.md` alongside the current `wiki resume` / `wiki checkpoint` / `wiki forge next` steering.
+Do not create `projects/`, `wiki/`, or `forge/` folders under the repo just because the user says wiki or forge. Project memory belongs under `$KNOWLEDGE_VAULT_ROOT/projects/<project>/` unless the configured vault is explicitly the repository.
 
-## Phase packet contract
-
-Wiki can orient, refresh, and retrieve context, but it does not supersede Forge phase packets. If a Forge `phasePacket` is present, do not override it with wiki-layer guesses. Use wiki commands only to satisfy the packet's context/freshness needs, then return to the listed Forge command.
+Project research goes under `projects/<project>/research/`. Global research is only for reusable cross-project topics.
 
 ## Commands
 
-- Help: `wiki help` or `wiki help --all` or `wiki --version`
-- Resume: `wiki resume <project> [--repo <path>] [--base <rev>] [--json]`
-- Orientation: `wiki init <project> [--repo <path>]`, `wiki scaffold-project <project>`
-- Ask/search: `wiki ask <project> <question...>`, `wiki search [--hybrid] <query...>`
-- Freshness: `wiki checkpoint <project> [--repo <path>] [--base <rev>] [--json]`
-- Repair: `wiki maintain <project> [--repo <path>] [--base <rev>] [--json]`
-- Git reconcile: `wiki refresh-from-git <project> [--repo <path>] [--base <rev>] [--json]`
-- Bind sources: `wiki bind <project> <module-or-page> <source-path...> [--mode replace|merge] [--dry-run]`
-- Verify page: `wiki verify-page <project> <module-or-page...> <level> [--dry-run] [--allow-downgrade]`
-- Drift check: `wiki drift-check <project> [--repo <path>] [--show-unbound] [--fix] [--json]`
-- File research: `wiki research file <topic> [--project <project>] <title...>`
-- Ingest research: `wiki research ingest <topic> --project <project> <source-url-or-path...>`
-- Handoff research: `wiki research handoff <research-page> <projects/<project>/decisions|projects/<project>/architecture/domain-language>`
-- Bridge research: `wiki research bridge <research-page> --project <project> --slice <slice-id> [--json]`
-- Forge status: `wiki forge status <project> [slice-id] [--json]`
+- Orient: `wiki init <project> --repo <path>`, `wiki config --effective --repo <path>`, `wiki resume <project> --repo <path> --base HEAD`
+- Retrieve: `wiki ask <project> <question>`, `wiki search <query>`
+- Freshness/repair: `wiki checkpoint <project> --repo <path> --base <rev>`, `wiki maintain <project> --repo <path> --base <rev>`, `wiki doctor <project> --repo <path> --base <rev>`
+- Research/source: `wiki research file|ingest ... --project <project>` and `wiki source ingest --project <project> --topic <topic> ...`
+- Workflow truth from Forge: `wiki forge next <project> --repo <path>`, `wiki forge status <project> [slice-id] --repo <path>`
 
-If the installed `wiki` binary is unavailable while working inside this repository, use `bun src/index.ts ...` from the repo root.
+## Phase packet contract
 
-## Rules
+If a Forge `phasePacket` is present, do not override it with wiki-layer guesses. Use Wiki only for the packet's context, vault, freshness, or memory needs, then return to Forge.
 
-- `wiki checkpoint` is the authoritative freshness/Git source. `wiki maintain` is the authoritative repair plan.
-- `wiki resume` restores working context only. If it reports a stale handover, re-anchor with `wiki checkpoint` and `wiki forge status/next`.
-- Do not hand-edit freshness metadata or generated pages when a `wiki` command owns that surface.
-- Do not pass command words (`note`, `plan`, `status`) as project names. Use the canonical slug from `projects/<project>/`.
-- Keep wiki focused on knowledge-state operations. Use `/forge` for implementation.
-- After editing repo skill files: run `bun run sync:full`, then `bun run sync:local -- --audit`, then restart the agent session.
+## Forge integration
+
+Load this skill when work is memory, freshness, vault, research, or handover oriented.
+If the task becomes tracked implementation, return to `/forge`.
+Run `wiki forge next` or `wiki forge status` instead of inventing workflow steps.
+
+## Skill edits
+
+After editing repo skill files, run `bun run sync:full`, then `bun run sync:local -- --audit`, then restart the agent session.
