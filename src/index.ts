@@ -1,11 +1,16 @@
 #!/usr/bin/env bun
 
-import { printError } from "./lib/cli-output";
+import { printError, printLine } from "./lib/cli-output";
 import { appendActivity, extractProject, extractTarget, resolveAgent, resolveSessionId } from "./wiki/runtime/activity";
 import { WIKI_COMMANDS, resolveWikiCommand } from "./wiki";
 import { FORGE_COMMANDS, resolveForgeCommand } from "./forge";
 
 const rawArgs = process.argv.slice(2);
+if (rawArgs[0] === "--version" || rawArgs[0] === "-V") {
+  const { version } = await import("../package.json");
+  printLine(`wiki ${version}`);
+  process.exit(0);
+}
 const { command, args } = rawArgs[0] === "forge"
   ? resolveForgeCommand(rawArgs.slice(1))
   : resolveWikiCommand(rawArgs);

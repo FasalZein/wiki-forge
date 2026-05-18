@@ -32,12 +32,22 @@ describe("skill manuals after legacy cutover", () => {
     expect(forge).toContain("wiki forge plan");
     expect(forge).toContain("wiki forge run");
     expect(forge).toContain("forge plan -> build -> TDD/EDD -> verify -> review -> close");
-    expect(forge).toContain("Removed legacy commands are not part of the workflow surface");
-    expect(forge).toContain("absent from the runtime");
+    expect(forge).not.toContain("legacy");
+    expect(forge).not.toContain("removed legacy");
     expect(forge).toContain("Health is the cross-cutting inspector/reconciler");
     expect(forge).toContain("Do not move Health orchestration into shared or lib");
     expect(forge).toContain("File non-overlap alone is not enough");
     expect(forge).toContain("Never work around the active-slice invariant");
+  });
+
+  test("Forge skill separates operator commands from phase-packet-driven internals", () => {
+    const forge = skill("forge");
+    expect(forge).toContain("## Operator commands");
+    expect(forge).toContain("## Internal lifecycle commands (phase-packet-driven)");
+    expect(forge).toContain("Do not pick them manually");
+    expect(forge).toContain("wiki forge next");
+    expect(forge).toContain("wiki forge help");
+    expect(forge).toContain("TDD is mandatory");
   });
 
   test("Wiki skill treats old lifecycle commands as removed, not active tools", () => {
@@ -45,7 +55,7 @@ describe("skill manuals after legacy cutover", () => {
     expect(wiki).toContain("Wiki remembers; Forge executes lifecycle.");
     expect(wiki).toContain("Health inspects and reconciles freshness, drift, repair queues, and readiness gates");
     expect(wiki).toContain("Tracked implementation closes through `wiki forge run`");
-    expect(wiki).toContain("absent from the runtime");
+    expect(wiki).not.toContain("legacy");
     expect(wiki).not.toContain("Closeout/gate review: `wiki closeout");
   });
 
@@ -69,10 +79,10 @@ describe("skill manuals after legacy cutover", () => {
     const prd = skill("write-a-prd");
     const slices = skill("prd-to-slices");
     expect(prd).toContain("`wiki forge plan` owns feature/PRD/slice artifact creation");
-    expect(prd).toContain("Do not use removed legacy PRD commands");
-    expect(slices).toContain("wiki forge plan <project> <feature-name> --repo <path>");
-    expect(slices).toContain("absent from the runtime surface");
-    expect(slices).toContain("Forge status is workflow truth. Checkpoint/maintain are Health-owned freshness and repair truth. Generated views are projections.");
+    expect(prd).not.toContain("legacy");
+    expect(slices).toContain("wiki forge plan <project> <feature-name>");
+    expect(slices).toContain("Forge status is workflow truth. Checkpoint/maintain are Health-owned freshness and repair truth.");
+    expect(slices).not.toContain("legacy");
     expect(slices).not.toContain("wiki create-issue-slice <project> <title>");
   });
 
@@ -121,7 +131,7 @@ describe("skill manuals after legacy cutover", () => {
     expect(tdd).toContain("Never refactor while RED");
     expect(tdd).toContain("wiki forge evidence <project> <slice> verify");
     expect(tdd).toContain("wiki forge tdd cycle <project> <slice>");
-    expect(tdd).toContain("Do not use removed legacy commands");
+    expect(tdd).not.toContain("legacy");
     expect(tdd).not.toContain("Run slice verification: `wiki forge evidence");
   });
 

@@ -160,14 +160,13 @@ export const upstreamSkillAuditConfig: SkillAuditConfig = {
       requiredAnchors: ["Human-in-the-loop reproduction loop", "capture VAR", "ERRORED"],
     },
     {
-      localPath: "skills/handoff/SKILL.md",
+      localPath: "skills/handover/SKILL.md",
       upstreamPath: "skills/productivity/handoff/SKILL.md",
       preserveMode: "anchors",
       requiredAnchors: [
-        "Compact the current conversation into a handoff document for another agent to pick up",
-        "Suggest the skills to be used, if any, by the next session",
-        "Do not duplicate content already captured in other artifacts",
-        "treat them as a description of what the next session will focus on",
+        "handover document",
+        "Suggest skills for the next session",
+        "reference by path instead",
       ],
     },
     {

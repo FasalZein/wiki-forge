@@ -90,4 +90,4 @@ For wiki-forge projects, the issue tracker is Forge. Preserve upstream PRD synth
 
 ### Forge planning details
 
-`wiki forge plan` owns feature/PRD/slice artifact creation. Do not use removed legacy PRD commands. Use `wiki forge plan <project> <feature-name> --repo <path>` for the publish step.
+`wiki forge plan` owns feature/PRD/slice artifact creation. Use `wiki forge plan <project> <feature-name> [--repo <path>]` for the publish step.

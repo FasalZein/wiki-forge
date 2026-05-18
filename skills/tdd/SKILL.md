@@ -123,4 +123,4 @@ For wiki-forge projects, keep the upstream TDD workflow. Add only these lifecycl
 
 ### Forge lifecycle details
 
-Load this skill when the phase packet lists `tdd`. Do not use removed legacy commands. Record each red/green pair with `wiki forge tdd cycle <project> <slice>`, and record targeted verification with `wiki forge evidence <project> <slice> verify`.
+Load this skill when the phase packet lists `tdd`. Record each red/green pair with `wiki forge tdd cycle <project> <slice>`, and record targeted verification with `wiki forge evidence <project> <slice> verify`. Note: the preferred `tdd cycle` command may use different red and green commands as long as they share at least one `--test` path.

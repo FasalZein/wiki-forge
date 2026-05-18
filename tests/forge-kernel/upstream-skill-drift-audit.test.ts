@@ -13,7 +13,7 @@ describe("upstream skill drift audit", () => {
     expect(audited).toContain("skills/diagnose/SKILL.md");
     expect(audited).toContain("skills/write-a-prd/SKILL.md");
     expect(audited).toContain("skills/prd-to-slices/SKILL.md");
-    expect(audited).toContain("skills/handoff/SKILL.md");
+    expect(audited).toContain("skills/handover/SKILL.md");
 
     const packageJson = JSON.parse(readFileSync("package.json", "utf8")) as { scripts: Record<string, string> };
     expect(packageJson.scripts["audit:upstream-skills"]).toBe("bun scripts/audit-upstream-skills.ts");
@@ -38,11 +38,10 @@ describe("upstream skill drift audit", () => {
     expect(result.files.find((file) => file.localPath === "skills/improve-codebase-architecture/SKILL.md")?.requiredAnchors).toContain(
       "Do NOT propose interfaces yet",
     );
-    expect(result.files.find((file) => file.localPath === "skills/handoff/SKILL.md")?.requiredAnchors).toEqual([
-      "Compact the current conversation into a handoff document for another agent to pick up",
-      "Suggest the skills to be used, if any, by the next session",
-      "Do not duplicate content already captured in other artifacts",
-      "treat them as a description of what the next session will focus on",
+    expect(result.files.find((file) => file.localPath === "skills/handover/SKILL.md")?.requiredAnchors).toEqual([
+      "handover document",
+      "Suggest skills for the next session",
+      "reference by path instead",
     ]);
   });
 
@@ -55,7 +54,7 @@ describe("upstream skill drift audit", () => {
     expect(adapted).toEqual([
       "skills/diagnose/SKILL.md",
       "skills/grill-with-docs/SKILL.md",
-      "skills/handoff/SKILL.md",
+      "skills/handover/SKILL.md",
       "skills/improve-codebase-architecture/SKILL.md",
       "skills/prd-to-slices/SKILL.md",
       "skills/tdd/SKILL.md",

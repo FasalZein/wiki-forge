@@ -1,31 +1,8 @@
 import type { KernelJsonValue } from "./changeset";
 
-export const LIFECYCLE_PHASES = [
-  "research",
-  "grill-with-docs",
-  "prd",
-  "slices",
-  "start",
-  "implementation",
-  "tdd",
-  "verify",
-  "desloppify",
-  "review",
-  "closeout",
-  "gate",
-  "amend",
-] as const;
-export type LifecyclePhase = (typeof LIFECYCLE_PHASES)[number];
-
 export const KERNEL_INTENT_TYPES = [
   "forge-start",
-  "complete-phase",
-  "record-evidence",
-  "forge-verify",
-  "request-review",
   "forge-close",
-  "amend-slice",
-  "generate-projection",
 ] as const;
 export type KernelIntentType = (typeof KERNEL_INTENT_TYPES)[number];
 
@@ -45,6 +22,8 @@ export type KernelIntentContext = {
   readonly baseRevision?: string;
 };
 
+export type KernelIntentPayload = { readonly [key: string]: KernelJsonValue };
+
 type KernelIntentBase<TType extends KernelIntentType, TPayload extends KernelIntentPayload> = {
   readonly kind: "intent";
   readonly id: string;
@@ -54,34 +33,10 @@ type KernelIntentBase<TType extends KernelIntentType, TPayload extends KernelInt
   readonly payload: TPayload;
 };
 
-export type KernelIntentPayload = { readonly [key: string]: KernelJsonValue };
-
 export type StartSliceIntent = KernelIntentBase<"forge-start", {
   readonly sliceId: string;
   readonly agent: string;
   readonly takeoverReason?: string;
-}>;
-
-export type CompletePhaseIntent = KernelIntentBase<"complete-phase", {
-  readonly phase: LifecyclePhase;
-  readonly evidenceRef?: string;
-  readonly skipReason?: string;
-}>;
-
-export type RecordEvidenceIntent = KernelIntentBase<"record-evidence", {
-  readonly phase: "tdd" | "verify" | "review" | "gate";
-  readonly evidenceKind: string;
-  readonly evidenceRef: string;
-}>;
-
-export type VerifySliceIntent = KernelIntentBase<"forge-verify", {
-  readonly sliceId: string;
-  readonly commands: readonly string[];
-}>;
-
-export type RequestReviewIntent = KernelIntentBase<"request-review", {
-  readonly sliceId: string;
-  readonly reviewer: string;
 }>;
 
 export type CloseSliceIntent = KernelIntentBase<"forge-close", {
@@ -89,24 +44,6 @@ export type CloseSliceIntent = KernelIntentBase<"forge-close", {
   readonly closedBy: string;
 }>;
 
-export type AmendSliceIntent = KernelIntentBase<"amend-slice", {
-  readonly closedSliceId: string;
-  readonly reason: string;
-}>;
-
-export type GenerateProjectionIntent = KernelIntentBase<"generate-projection", {
-  readonly projection: "backlog" | "status" | "resume" | "handover" | "index";
-  readonly targetPath?: string;
-}>;
-
-export type KernelIntent =
-  | StartSliceIntent
-  | CompletePhaseIntent
-  | RecordEvidenceIntent
-  | VerifySliceIntent
-  | RequestReviewIntent
-  | CloseSliceIntent
-  | AmendSliceIntent
-  | GenerateProjectionIntent;
+export type KernelIntent = StartSliceIntent | CloseSliceIntent;
 
 export type Intent = KernelIntent;

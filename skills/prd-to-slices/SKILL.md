@@ -97,4 +97,4 @@ For wiki-forge projects, preserve upstream tracer-bullet slicing. Publish approv
 
 ### Forge planning details
 
-Use `wiki forge plan <project> <feature-name> --repo <path>` to publish approved slices. Removed legacy slice commands are absent from the runtime surface. Forge status is workflow truth. Checkpoint/maintain are Health-owned freshness and repair truth. Generated views are projections.
+Use `wiki forge plan <project> <feature-name> [--repo <path>]` to publish approved slices. Forge status is workflow truth. Checkpoint/maintain are Health-owned freshness and repair truth.

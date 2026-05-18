@@ -22,4 +22,12 @@ describe("Forge router", () => {
     expect(() => resolveForgeCommand(["open", "demo", "DEMO-001"])).toThrow("unknown forge subcommand");
     expect(() => resolveForgeCommand(["skip", "demo", "DEMO-001"])).toThrow("unknown forge subcommand");
   });
+
+  test("forge help text separates operator and internal commands", () => {
+    const source = readFileSync(join(repoRoot, "src", "forge", "index.ts"), "utf8");
+    expect(source).toContain("Operator commands:");
+    expect(source).toContain("Internal / repair:");
+    expect(source).toContain("wiki forge plan");
+    expect(source).toContain("wiki forge next");
+  });
 });

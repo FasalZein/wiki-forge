@@ -1,5 +1,4 @@
 import type { ChangeAffectedFile, ChangeTargetRecord, KernelJsonValue } from "./changeset";
-import type { LifecyclePhase } from "./intent";
 
 export const KERNEL_REJECTION_CODES = [
   "AnotherSliceActive",
@@ -8,28 +7,20 @@ export const KERNEL_REJECTION_CODES = [
   "MissingTddEvidence",
   "MissingVerificationEvidence",
   "ReviewGateMissing",
-  "GateFailed",
-  "ConcurrentModification",
-  "ProjectionStaleButCanonicalValid",
 ] as const;
 export type KernelRejectionCode = (typeof KERNEL_REJECTION_CODES)[number];
 
 export const KERNEL_INVARIANTS = [
   "single-active-slice",
   "draft-slice-release-before-start",
-  "required-phase-order",
   "required-evidence-before-close",
   "review-before-close",
-  "gate-before-release",
-  "optimistic-concurrency",
-  "canonical-state-over-projection",
 ] as const;
 export type KernelInvariantName = (typeof KERNEL_INVARIANTS)[number];
 
 export type RecoveryHint = {
   readonly command: string;
   readonly description: string;
-  readonly phase?: LifecyclePhase;
   readonly safeToRetry?: boolean;
 };
 

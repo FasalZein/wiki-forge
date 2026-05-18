@@ -11,7 +11,7 @@ describe("Matt Pocock auxiliary skill parity", () => {
       "skills/grill-with-docs/ADR-FORMAT.md",
       "skills/grill-with-docs/CONTEXT-FORMAT.md",
       "skills/grill-with-docs/SKILL.md",
-      "skills/handoff/SKILL.md",
+      "skills/handover/SKILL.md",
       "skills/improve-codebase-architecture/DEEPENING.md",
       "skills/improve-codebase-architecture/INTERFACE-DESIGN.md",
       "skills/improve-codebase-architecture/LANGUAGE.md",
