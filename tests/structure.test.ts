@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { PROJECT_DIRS } from "../src/constants";
 import {
   classifyProjectDocPath,
@@ -6,29 +8,29 @@ import {
   isCanonicalFeatureId,
   isCanonicalPrdId,
   isCanonicalTaskId,
-  projectFeaturePath,
   projectModuleSpecPath,
   projectOnboardingPlanPath,
-  projectPrdPath,
-  projectTaskHubPath,
-  projectTaskPlanPath,
-  projectTaskTestPlanPath,
   workspaceIndexPath,
   workspaceProjectsDashboardPath,
 } from "../src/lib/structure";
 import { classifyRawPath, classifyResearchPath, describeAllowedResearchPaths, isAllowedRawBucket, normalizeResearchPageRef } from "../src/lib/research";
 
 describe("project path primitives", () => {
-  test("build canonical project spec paths", () => {
-    expect(projectFeaturePath("demo", "FEAT-001", "planning-core")).toEndWith("/projects/demo/specs/features/FEAT-001-planning-core.md");
-    expect(projectPrdPath("demo", "PRD-001", "auth-flow")).toEndWith("/projects/demo/specs/prds/PRD-001-auth-flow.md");
+  test("build canonical project support paths", () => {
     expect(projectOnboardingPlanPath("demo")).toEndWith("/projects/demo/specs/onboarding-plan.md");
     expect(projectModuleSpecPath("demo", "auth")).toEndWith("/projects/demo/modules/auth/spec.md");
-    expect(projectTaskHubPath("demo", "DEMO-015")).toEndWith("/projects/demo/specs/slices/DEMO-015/index.md");
-    expect(projectTaskPlanPath("demo", "DEMO-015")).toEndWith("/projects/demo/specs/slices/DEMO-015/plan.md");
-    expect(projectTaskTestPlanPath("demo", "DEMO-015")).toEndWith("/projects/demo/specs/slices/DEMO-015/test-plan.md");
     expect(workspaceIndexPath()).toEndWith("/index.md");
     expect(workspaceProjectsDashboardPath()).toEndWith("/projects/_dashboard.md");
+  });
+
+  test("does not expose specs-backed lifecycle path builders", () => {
+    const structureBarrel = readFileSync(join(import.meta.dir, "..", "src", "lib", "structure.ts"), "utf8");
+    const projectPaths = readFileSync(join(import.meta.dir, "..", "src", "lib", "project-paths", "index.ts"), "utf8");
+
+    for (const legacyBuilder of ["projectFeaturePath", "projectPrdPath", "projectPlanPath", "projectTestPlanPath"]) {
+      expect(structureBarrel).not.toContain(legacyBuilder);
+      expect(projectPaths).not.toContain(`function ${legacyBuilder}`);
+    }
   });
 
   test("validate canonical task ids", () => {

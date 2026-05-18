@@ -67,24 +67,8 @@ export function projectFeaturesDir(project: string) {
   return join(projectSpecsDir(project), "features");
 }
 
-export function projectFeaturePath(project: string, featureId: string, slug: string) {
-  return join(projectFeaturesDir(project), `${featureId}-${slug}.md`);
-}
-
 export function projectPrdsDir(project: string) {
   return join(projectSpecsDir(project), "prds");
-}
-
-export function projectPrdPath(project: string, prdId: string, slug: string) {
-  return join(projectPrdsDir(project), `${prdId}-${slug}.md`);
-}
-
-export function projectPlanPath(project: string, slug: string) {
-  return join(projectSpecsDir(project), `plan-${slug}.md`);
-}
-
-export function projectTestPlanPath(project: string, slug: string) {
-  return join(projectSpecsDir(project), `test-plan-${slug}.md`);
 }
 
 export function projectSlicesDir(project: string) {
