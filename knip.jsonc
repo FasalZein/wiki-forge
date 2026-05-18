@@ -24,7 +24,6 @@
   // static import graph. These are documented/proven surfaces, not deletion targets.
   "ignoreFiles": [
     "scripts/qmd-cli.ts",
-    "scripts/rebind-prd-043.ts",
     "src/system.ts",
     "src/hierarchy/backlog-collect.ts",
     "src/hierarchy/backlog-commands.ts",
