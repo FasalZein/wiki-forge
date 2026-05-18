@@ -27,13 +27,33 @@ describe("command surface registry", () => {
   });
 
   test("classifies Forge workflow commands as Forge-owned", () => {
-    expect(getCommandSurfaceEntry("next")).toMatchObject({ domain: "forge-workflow", handler: "forge:next", mayMutateLifecycle: false });
-    expect(getCommandSurfaceEntry("forge")).toMatchObject({ domain: "forge-workflow", handler: "forge:*", mayMutateLifecycle: false });
-    expect(getCommandSurfaceEntry("forge:next")).toMatchObject({ domain: "forge-workflow", mayMutateLifecycle: false });
-    expect(getCommandSurfaceEntry("forge:status")).toMatchObject({ domain: "forge-workflow", mayMutateLifecycle: false });
-    expect(getCommandSurfaceEntry("forge:improve")).toMatchObject({ domain: "forge-workflow", mayMutateLifecycle: false });
-    expect(getCommandSurfaceEntry("forge:start")).toMatchObject({ domain: "forge-workflow", mayMutateLifecycle: true });
-    expect(getCommandSurfaceEntry("forge:evidence")).toMatchObject({ domain: "forge-workflow", mayMutateLifecycle: true });
+    expect(getCommandSurfaceEntry("next")).toMatchObject({ domain: "forge-workflow", handler: "forge:next", mayMutateLifecycle: false, surface: "operator" });
+    expect(getCommandSurfaceEntry("forge")).toMatchObject({ domain: "forge-workflow", handler: "forge:*", mayMutateLifecycle: false, surface: "namespace" });
+    expect(getCommandSurfaceEntry("forge:next")).toMatchObject({ domain: "forge-workflow", mayMutateLifecycle: false, surface: "operator" });
+    expect(getCommandSurfaceEntry("forge:status")).toMatchObject({ domain: "forge-workflow", mayMutateLifecycle: false, surface: "operator" });
+    expect(getCommandSurfaceEntry("forge:improve")).toMatchObject({ domain: "forge-workflow", mayMutateLifecycle: false, surface: "operator" });
+    expect(getCommandSurfaceEntry("forge:run")).toMatchObject({ domain: "forge-workflow", mayMutateLifecycle: true, surface: "operator" });
+    expect(getCommandSurfaceEntry("forge:plan")).toMatchObject({ domain: "forge-workflow", mayMutateLifecycle: true, surface: "operator" });
+    expect(getCommandSurfaceEntry("forge:grill")).toMatchObject({ domain: "forge-workflow", mayMutateLifecycle: true, surface: "operator" });
+    expect(getCommandSurfaceEntry("forge:start")).toMatchObject({ domain: "forge-workflow", mayMutateLifecycle: true, surface: "internal" });
+    expect(getCommandSurfaceEntry("forge:evidence")).toMatchObject({ domain: "forge-workflow", mayMutateLifecycle: true, surface: "internal" });
+  });
+
+  test("keeps the recommended Forge operator surface small", () => {
+    const operatorForgeCommands = listCommandSurfaceEntries()
+      .filter((entry) => entry.domain === "forge-workflow" && entry.surface === "operator")
+      .flatMap((entry) => entry.publicCommands)
+      .sort();
+
+    expect(operatorForgeCommands).toEqual([
+      "forge:grill",
+      "forge:improve",
+      "forge:next",
+      "forge:plan",
+      "forge:run",
+      "forge:status",
+      "next",
+    ]);
   });
 
   test("enforces lifecycle mutation and generated projection boundaries", () => {

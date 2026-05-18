@@ -1,8 +1,11 @@
 export type CommandSurfaceDomain = "wiki-memory" | "forge-workflow" | "admin-view";
 
+export type CommandSurfaceVisibility = "operator" | "namespace" | "internal" | "support";
+
 export type CommandSurfaceEntry = {
   readonly publicCommands: readonly string[];
   readonly domain: CommandSurfaceDomain;
+  readonly surface: CommandSurfaceVisibility;
   readonly mayMutateLifecycle: boolean;
   readonly mayReadGeneratedProjections: boolean;
   readonly handler?: string;
@@ -17,10 +20,11 @@ const COMMAND_SURFACE = [
   entry(["resume"], "wiki-memory", "Typed resume packet from handover memory and Forge status truth.", { handler: "resume" }),
   entry(["note", "log"], "wiki-memory", "Typed project memory entries that do not mutate Forge lifecycle.", { handler: "memory" }),
   entry(["export-prompt"], "wiki-memory", "Prompt packet rendered from handover memory and Forge status truth.", { handler: "export-prompt" }),
-  entry(["forge"], "forge-workflow", "Forge workflow namespace mounted under Wiki; resolved subcommands carry mutation policy.", { handler: "forge:*", mayMutateLifecycle: false }),
-  entry(["forge:next", "forge:status", "forge:improve"], "forge-workflow", "Read-only Forge workflow inspection commands.", { mayMutateLifecycle: false }),
-  entry(["forge:start", "forge:check", "forge:close", "forge:run", "forge:evidence", "forge:grill", "forge:review", "forge:tdd", "forge:plan", "forge:amend", "forge:release"], "forge-workflow", "Forge workflow commands that can write lifecycle, artifact, or evidence state.", { mayMutateLifecycle: true }),
-  entry(["next"], "forge-workflow", "Top-level alias for Forge next action.", { handler: "forge:next", mayMutateLifecycle: false }),
+  entry(["forge"], "forge-workflow", "Forge workflow namespace mounted under Wiki; resolved subcommands carry mutation policy.", { handler: "forge:*", mayMutateLifecycle: false, surface: "namespace" }),
+  entry(["forge:next", "forge:status", "forge:improve"], "forge-workflow", "Recommended high-level Forge inspection commands.", { mayMutateLifecycle: false, surface: "operator" }),
+  entry(["forge:plan", "forge:run", "forge:grill"], "forge-workflow", "Recommended high-level Forge workflow commands.", { mayMutateLifecycle: true, surface: "operator" }),
+  entry(["forge:start", "forge:check", "forge:close", "forge:evidence", "forge:review", "forge:tdd", "forge:amend", "forge:release"], "forge-workflow", "Internal Forge lifecycle and evidence commands used by phase packets, repair flows, and automation.", { mayMutateLifecycle: true, surface: "internal" }),
+  entry(["next"], "forge-workflow", "Top-level alias for Forge next action.", { handler: "forge:next", mayMutateLifecycle: false, surface: "operator" }),
   entry(["dashboard", "dependency-graph", "summary", "update-index", "feature-status", "scaffold-layer", "create-layer-page", "lint-vault"], "admin-view", "Generated views or hierarchy admin; never lifecycle authority.", { mayReadGeneratedProjections: true }),
   entry(["checkpoint", "maintain", "refresh", "refresh-from-git", "sync", "discover", "ingest-diff", "commit-check", "install-git-hook", "refresh-on-merge", "lint-repo", "doctor", "lint", "lint-semantic", "verify", "bind", "drift-check", "verify-page", "cache-clear", "acknowledge-impact"], "admin-view", "Wiki maintenance/freshness/verification admin; must not be treated as Forge lifecycle authority."),
 ] as const satisfies readonly CommandSurfaceEntry[];
@@ -61,6 +65,7 @@ function entry(
     publicCommands,
     domain,
     reason,
+    surface: options.surface ?? "support",
     mayMutateLifecycle: options.mayMutateLifecycle ?? domain === "forge-workflow",
     mayReadGeneratedProjections: options.mayReadGeneratedProjections ?? false,
     ...(options.handler ? { handler: options.handler } : {}),
