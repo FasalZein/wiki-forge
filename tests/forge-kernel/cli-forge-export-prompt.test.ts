@@ -50,11 +50,17 @@ describe("Forge export prompt", () => {
         sessionId: "2026-04-28-demo",
       },
     });
-    expect(result.json().prompt).toContain("We are continuing demo.");
-    expect(result.json().prompt).toContain("Next action: start-ready-slice");
-    expect(result.json().prompt).toContain("Ready slice: DEMO-001");
-    expect(result.json().prompt).toContain("Operator prompt from latest handover:");
-    expect(result.json().prompt).toContain("Continue demo Forge.");
+    const prompt = result.json().prompt;
+    expect(prompt).toContain("We are continuing demo.");
+    expect(prompt).toContain("Do not reconstruct the prior conversation");
+    expect(prompt).toContain("Minimal refresh:");
+    expect(prompt).toContain("wiki checkpoint demo --repo <path> --base HEAD --json");
+    expect(prompt).toContain("wiki forge next demo --repo <path> --json");
+    expect(prompt).not.toContain("wiki query --bm25");
+    expect(prompt).toContain("Next action: start-ready-slice");
+    expect(prompt).toContain("Ready slice: DEMO-001");
+    expect(prompt).toContain("Operator prompt from latest handover:");
+    expect(prompt).toContain("Continue demo Forge.");
   });
 
   test("stale handover prompt is labeled historical and paired with current recovery prompt", () => {
@@ -70,6 +76,9 @@ describe("Forge export prompt", () => {
     const packet = result.json();
     expect(packet.handoverStaleness).toMatchObject({ status: "stale", promptHead: oldHead, currentHead });
     expect(packet.recoveryPrompt).toContain(`current HEAD ${currentHead}`);
+    expect(packet.prompt).toContain("Do not reconstruct the prior conversation");
+    expect(packet.prompt).toContain("Minimal refresh:");
+    expect(packet.prompt).not.toContain("wiki query --bm25");
     expect(packet.prompt).toContain("Operator prompt from latest handover (stale; context only):");
     expect(packet.prompt).toContain(`Continue demo from clean HEAD ${oldHead}.`);
     expect(packet.prompt).toContain("Current recovery prompt:");
